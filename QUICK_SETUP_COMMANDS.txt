@@ -1,0 +1,36 @@
+===========================================
+VOICE RECOGNITION SETUP COMMANDS
+===========================================
+
+Copy and paste these commands one by one:
+
+1. Install Python dependencies:
+   pip3 install pyannote.audio torch torchaudio numpy scipy huggingface_hub
+
+2. Accept HuggingFace terms:
+   - Go to: https://huggingface.co/pyannote/embedding
+   - Click "Accept" button
+
+3. Get HuggingFace token:
+   - Go to: https://huggingface.co/settings/tokens
+   - Click "New token"
+   - Name it (e.g., "voice-recognition")
+   - Select "Read" access
+   - Click "Generate token"
+   - Copy the token
+
+4. Login to HuggingFace:
+   huggingface-cli login
+   (Paste your token when prompted)
+
+5. Make the Python script executable:
+   chmod +x "Workplace Visitor Management/server/utils/voice_embedding.py"
+
+6. Test the setup (optional):
+   python3 "Workplace Visitor Management/server/utils/voice_embedding.py" path/to/test-audio.wav
+
+===========================================
+After setup, restart your backend server.
+Check logs when recording voice - you should see:
+"🎤 Generating voice embedding using pyannote.audio..."
+===========================================

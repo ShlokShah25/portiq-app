@@ -1,0 +1,534 @@
+.client-admin {
+  min-height: 100vh;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Helvetica Neue", system-ui, sans-serif;
+}
+
+.client-admin-header {
+  background: var(--surface-secondary);
+  border-bottom: 1px solid #2A2A2C;
+  padding: 0 32px;
+  height: 64px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+}
+
+.admin-header-content {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.admin-header-content h1 {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 150ms ease;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Helvetica Neue", system-ui, sans-serif;
+}
+
+.logout-btn:hover {
+  background: var(--surface-secondary);
+  border-color: #3A3A3C;
+  color: var(--text-primary);
+}
+
+.logout-btn svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.5;
+}
+
+.client-admin-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 32px;
+}
+
+.admin-filters {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.filter-select,
+.filter-input {
+  padding: 10px 14px;
+  background: #0F0F10;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-size: 14px;
+  min-width: 180px;
+  transition: all 150ms ease;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Helvetica Neue", system-ui, sans-serif;
+}
+
+.filter-select:focus,
+.filter-input:focus {
+  outline: none;
+  border-color: #3B82F6;
+  background: #111111;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+}
+
+.filter-input::placeholder {
+  color: var(--text-secondary);
+}
+
+.filter-select option {
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+}
+
+.meetings-table-container {
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.meetings-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.meetings-table thead {
+  background: var(--surface-secondary);
+}
+
+.meetings-table th {
+  padding: 16px 12px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid #2A2A2C;
+  white-space: nowrap;
+}
+
+.meetings-table td {
+  padding: 16px 12px;
+  border-bottom: 1px solid #2A2A2C;
+  color: var(--text-primary);
+  font-size: 14px;
+  vertical-align: top;
+}
+
+.meetings-table tbody tr {
+  transition: all 150ms ease;
+}
+
+.meetings-table tbody tr:hover {
+  background: #1E1E20;
+}
+
+.summary-badge {
+  padding: 4px 10px;
+  background: rgba(34, 197, 94, 0.15);
+  color: #22C55E;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.no-summary {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.action-menu-container {
+  position: relative;
+}
+
+.action-menu-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  transition: all 150ms ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.action-menu-btn:hover {
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+}
+
+.action-menu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: 8px;
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 8px;
+  min-width: 200px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 10;
+  animation: slideDown 0.2s ease-out;
+}
+
+.action-menu button {
+  width: 100%;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 150ms ease;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Helvetica Neue", system-ui, sans-serif;
+}
+
+.action-menu button:hover {
+  background: #2A2A2C;
+  color: var(--text-primary);
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.loading-state,
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-secondary);
+  font-size: 15px;
+}
+
+@media (max-width: 768px) {
+  .client-admin-header {
+    padding: 15px 20px;
+  }
+
+  .admin-header-content {
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .admin-header-content h1 {
+    font-size: 22px;
+  }
+
+  .client-admin-content {
+    padding: 20px;
+  }
+
+  .admin-filters {
+    flex-direction: column;
+  }
+
+  .filter-select,
+  .filter-input {
+    width: 100%;
+    min-width: auto;
+  }
+
+  .meetings-table-container {
+    overflow-x: auto;
+  }
+
+  .meetings-table {
+    min-width: 800px;
+  }
+}
+
+/* Participants Dropdown */
+.participants-cell {
+  position: relative;
+}
+
+.participants-toggle {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 150ms ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Helvetica Neue", system-ui, sans-serif;
+}
+
+.participants-toggle:hover {
+  background: var(--surface-secondary);
+  border-color: #3A3A3C;
+}
+
+.participants-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 8px;
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 12px;
+  min-width: 250px;
+  max-width: 350px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 20;
+  animation: slideDown 0.2s ease-out;
+}
+
+.participant-item {
+  padding: 10px;
+  border-bottom: 1px solid #2A2A2C;
+  margin-bottom: 8px;
+}
+
+.participant-item:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.participant-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.participant-email {
+  color: var(--text-secondary);
+  font-size: 12px;
+  margin-bottom: 2px;
+}
+
+.participant-role {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-style: italic;
+}
+
+/* Editor Info */
+.editor-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.editor-email {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.editor-status {
+  color: var(--text-secondary);
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-pending-approval {
+  color: #F59E0B;
+  font-weight: 600;
+}
+
+.status-approved {
+  color: #22C55E;
+  font-weight: 600;
+}
+
+.status-sent {
+  color: #3B82F6;
+  font-weight: 600;
+}
+
+.no-data {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-style: italic;
+}
+
+/* Reschedule Modal */
+.reschedule-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.reschedule-modal {
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 450px;
+  width: 90%;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.2s ease-out;
+}
+
+.reschedule-modal h2 {
+  color: var(--text-primary);
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  text-align: center;
+  letter-spacing: -0.01em;
+}
+
+.reschedule-modal p {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.reschedule-form-group {
+  margin-bottom: 24px;
+  position: relative;
+}
+
+.reschedule-form-group label {
+  display: block;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.reschedule-input {
+  width: 100%;
+  padding: 12px 16px 12px 48px;
+  background: #0F0F10;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 400;
+  transition: all 150ms ease;
+  position: relative;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Helvetica Neue", system-ui, sans-serif;
+}
+
+.reschedule-input:focus {
+  outline: none;
+  border-color: #3B82F6;
+  background: #111111;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+}
+
+.reschedule-form-group {
+  position: relative;
+}
+
+.reschedule-form-group-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.reschedule-icon {
+  position: absolute;
+  left: 16px;
+  color: var(--text-secondary);
+  pointer-events: none;
+  z-index: 1;
+  transition: color 150ms ease;
+}
+
+.reschedule-form-group-wrapper:focus-within .reschedule-icon {
+  color: #3B82F6;
+}
+
+.reschedule-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.reschedule-submit,
+.reschedule-cancel {
+  flex: 1;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 150ms ease;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Helvetica Neue", system-ui, sans-serif;
+}
+
+.reschedule-submit {
+  background: #3B82F6;
+  color: var(--text-primary);
+  border: 1px solid #3B82F6;
+}
+
+.reschedule-submit:hover {
+  background: #3070D6;
+  border-color: #3070D6;
+}
+
+.reschedule-cancel {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.reschedule-cancel:hover {
+  background: var(--surface-secondary);
+  border-color: #3A3A3C;
+  color: var(--text-primary);
+}

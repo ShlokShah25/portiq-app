@@ -1,0 +1,35 @@
+/* Theme Variables - Dark Mode (Default) */
+:root[data-theme="dark"],
+:root {
+  --bg-primary: #0A0A0A;
+  --surface-secondary: #111111;
+  --border-color: #222222;
+  --text-primary: #F5F5F5;
+  --text-secondary: #9CA3AF;
+  --accent-blue: #2563EB;
+  --accent-purple: #6E6EF7;
+  --success-green: #22C55E;
+  --warning-orange: #F59E0B;
+  --error-red: #EF4444;
+}
+
+/* Theme Variables - Light Mode */
+:root[data-theme="light"] {
+  --bg-primary: #FFFFFF;
+  --surface-secondary: #F5F5F7;
+  --border-color: #E5E5E7;
+  --text-primary: #1D1D1F;
+  --text-secondary: #86868B;
+  --accent-blue: #0071E3;
+  --accent-purple: #5856D6;
+  --success-green: #30D158;
+  --warning-orange: #FF9500;
+  --error-red: #FF3B30;
+}
+
+/* Apply theme to body */
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 200ms ease, color 200ms ease;
+}

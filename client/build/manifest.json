@@ -1,0 +1,26 @@
+{
+  "short_name": "Meeting Assistant",
+  "name": "PortIQ Meeting Assistant",
+  "description": "AI-Powered Meeting Intelligence System",
+  "icons": [
+    {
+      "src": "assets/portiq-logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/portiq-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#1a1a2e",
+  "background_color": "#1a1a2e",
+  "orientation": "landscape",
+  "scope": "/",
+  "prefer_related_applications": false
+}

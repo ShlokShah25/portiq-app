@@ -1,0 +1,851 @@
+/* Premium Meetings Screen - Linear/Vercel Inspired */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+.meetings-screen {
+  width: 100vw;
+  height: 100vh;
+  background: #0A0A0A;
+  display: flex;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+.meetings-wrapper {
+  margin-top: 64px;
+  width: 100vw;
+  height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Top Bar */
+.meetings-top-bar {
+  height: 64px;
+  background: #0A0A0A;
+  border-bottom: 1px solid #1f1f1f;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.meetings-top-bar-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #F5F5F5;
+  letter-spacing: -0.01em;
+  margin: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+.meetings-top-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Main Content Area */
+.meetings-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 32px 24px;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.meetings-layout {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 24px;
+}
+
+/* Cards */
+.card {
+  background: #0f0f0f;
+  border: 1px solid #1f1f1f;
+  border-radius: 16px;
+  padding: 28px;
+  transition: all 150ms ease;
+}
+
+.card:hover {
+  background: #141414;
+  border-color: #2a2a2a;
+}
+
+.card-header {
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #1f1f1f;
+}
+
+.card-header h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #F5F5F5;
+  margin: 0;
+  letter-spacing: -0.01em;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+/* Forms */
+.meetings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #9CA3AF;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+/* Ensure all form inputs in the meetings form are dark, even without premium-* class */
+.meetings-form input[type="text"],
+.meetings-form input[type="email"],
+.meetings-form input[type="date"],
+.meetings-form input[type="time"] {
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  background: #111111;
+  border: 1px solid #262626;
+  border-radius: 10px;
+  color: #E5E5E5;
+  font-size: 14px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  transition: all 150ms ease;
+  box-sizing: border-box;
+}
+
+.meetings-form input[type="text"]::placeholder,
+.meetings-form input[type="email"]::placeholder {
+  color: #6B7280;
+}
+
+.meetings-form input[type="text"]:focus,
+.meetings-form input[type="email"]:focus,
+.meetings-form input[type="date"]:focus,
+.meetings-form input[type="time"]:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px #3b82f6;
+  background: #111111;
+}
+
+.premium-input,
+.premium-date-input,
+.premium-time-input,
+.premium-textarea,
+.premium-select {
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  background: #111111;
+  border: 1px solid #262626;
+  border-radius: 10px;
+  color: #E5E5E5;
+  font-size: 14px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  transition: all 150ms ease;
+  box-sizing: border-box;
+}
+
+.premium-input:focus,
+.premium-date-input:focus,
+.premium-time-input:focus,
+.premium-textarea:focus,
+.premium-select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  background: #111111;
+  box-shadow: 0 0 0 1px #3b82f6;
+}
+
+.premium-input::placeholder,
+.premium-textarea::placeholder {
+  color: #6B7280;
+}
+
+.premium-textarea {
+  min-height: 80px;
+  height: auto;
+  padding: 10px 14px;
+  resize: vertical;
+}
+
+.premium-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+
+/* Buttons */
+.btn-primary,
+.btn-secondary,
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  cursor: pointer;
+  transition: all 150ms ease;
+  white-space: nowrap;
+  border: none;
+}
+
+.btn-primary {
+  background: #2563EB;
+  color: #FFFFFF;
+}
+
+.btn-primary:hover {
+  background: #1D4ED8;
+  transform: translateY(-1px);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: #F5F5F5;
+  border: 1px solid #1f1f1f;
+}
+
+.btn-secondary:hover {
+  background: #141414;
+  border-color: #2a2a2a;
+}
+
+.btn-danger {
+  background: #EF4444;
+  color: #FFFFFF;
+}
+
+.btn-danger:hover {
+  background: #DC2626;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.5;
+  flex-shrink: 0;
+}
+
+/* Checkboxes */
+.premium-checkbox-container {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.premium-checkbox-container input[type="checkbox"] {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1px solid #262626;
+  border-radius: 4px;
+  background: #111111;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 150ms ease;
+  position: relative;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.premium-checkbox-container input[type="checkbox"]::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 10px;
+  border: solid #ffffff;
+  border-width: 0 2px 2px 0;
+  transform: translate(-50%, -55%) rotate(45deg);
+  opacity: 0;
+  transition: all 150ms ease;
+}
+
+.premium-checkbox-container input[type="checkbox"]:checked {
+  background-color: #2563EB;
+  border-color: #2563EB;
+}
+
+.premium-checkbox-container input[type="checkbox"]:checked::after {
+  opacity: 1;
+}
+
+.premium-checkbox-container input[type="checkbox"]:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+.premium-checkbox-container span {
+  font-size: 12px;
+  color: #9CA3AF;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+/* Compact, subtle label for participant Remember checkbox */
+.remember-checkbox span {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: #6B7280;
+}
+
+/* Toggle Buttons */
+.editor-source-toggle {
+  display: flex;
+  background-color: #0A0A0A;
+  border: 1px solid #1f1f1f;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.editor-toggle-btn {
+  flex: 1;
+  padding: 10px 16px;
+  background-color: transparent;
+  border: none;
+  color: #9CA3AF;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.editor-toggle-btn.active {
+  background-color: #151515;
+  color: #F5F5F5;
+}
+
+.editor-toggle-btn:hover:not(.active) {
+  background-color: #111111;
+}
+
+/* Participant Rows */
+.participant-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.participant-row input {
+  flex: 1;
+  padding: 10px 14px;
+  background: #0A0A0A;
+  border: 1px solid #1f1f1f;
+  border-radius: 10px;
+  color: #F5F5F5;
+  font-size: 14px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+.participant-row input:focus {
+  outline: none;
+  border-color: #2563EB;
+  background: #111111;
+}
+
+.remember-participant {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.participant-remove {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: #9CA3AF;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 150ms ease;
+}
+
+.participant-remove:hover {
+  background: #141414;
+  color: #EF4444;
+}
+
+/* Saved Participants */
+.saved-participants {
+  margin-top: 16px;
+}
+
+.saved-participants-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #9CA3AF;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.saved-participants-search {
+  width: 100%;
+  padding: 0 14px;
+  background: #111111;
+  border: 1px solid #262626;
+  border-radius: 10px;
+  color: #E5E5E5;
+  font-size: 14px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  margin-bottom: 8px;
+  height: 44px;
+  box-sizing: border-box;
+}
+
+.saved-participants-search:focus {
+  outline: none;
+  border-color: #3b82f6;
+  background: #111111;
+  box-shadow: 0 0 0 1px #3b82f6;
+}
+
+.saved-participants-dropdown {
+  max-height: 200px;
+  overflow-y: auto;
+  background: #111111;
+  border: 1px solid #1f1f1f;
+  border-radius: 10px;
+  padding: 8px;
+}
+
+.saved-participant-item {
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 150ms ease;
+  margin-bottom: 4px;
+}
+
+.saved-participant-item:hover {
+  background: #141414;
+}
+
+.saved-participant-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #F5F5F5;
+  margin-bottom: 2px;
+}
+
+.saved-participant-email {
+  font-size: 12px;
+  color: #9CA3AF;
+}
+
+/* Meetings List */
+.meetings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.meeting-item {
+  background: #111111;
+  border: 1px solid #1f1f1f;
+  border-radius: 14px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.meeting-item:hover {
+  background: #141414;
+  border-color: #2a2a2a;
+  transform: translateY(-2px);
+}
+
+.meeting-title {
+  font-size: 15px;
+  font-weight: 500;
+  color: #F5F5F5;
+  margin-bottom: 8px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+.meeting-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: #9CA3AF;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+/* Current Meeting */
+.current-meeting {
+  background: #111111;
+  border: 1px solid #1f1f1f;
+  border-radius: 14px;
+  padding: 24px;
+}
+
+.current-meeting-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #1f1f1f;
+}
+
+.current-meeting-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #F5F5F5;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+.meeting-status-badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+.status-in-progress {
+  background: rgba(37, 99, 235, 0.1);
+  color: #60A5FA;
+  border: 1px solid rgba(37, 99, 235, 0.2);
+}
+
+.status-completed {
+  background: rgba(34, 197, 94, 0.1);
+  color: #4ADE80;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.status-pending-approval {
+  background: rgba(245, 158, 11, 0.1);
+  color: #FBBF24;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+/* Summary Section */
+.summary-section {
+  margin-top: 24px;
+}
+
+.summary-section h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #F5F5F5;
+  margin-bottom: 16px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+.summary-section h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #F5F5F5;
+  margin-bottom: 12px;
+  margin-top: 20px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+.summary-text {
+  font-size: 14px;
+  color: #F5F5F5;
+  line-height: 1.6;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+.summary-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.summary-list-item {
+  font-size: 14px;
+  color: #F5F5F5;
+  padding: 8px 0;
+  line-height: 1.6;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+.summary-list-item::before {
+  content: '•';
+  color: #2563EB;
+  margin-right: 8px;
+}
+
+.summary-action-item {
+  padding: 12px;
+  background: #0A0A0A;
+  border: 1px solid #1f1f1f;
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+
+.summary-decision {
+  padding: 12px;
+  background: rgba(37, 99, 235, 0.05);
+  border-left: 3px solid #2563EB;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.summary-note {
+  padding: 12px;
+  background: rgba(245, 158, 11, 0.05);
+  border-left: 3px solid #F59E0B;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+/* Voice Configuration */
+.voice-config-guide {
+  background: #111111;
+  border: 1px solid #1f1f1f;
+  border-radius: 14px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.voice-config-sentence {
+  font-size: 14px;
+  color: #F5F5F5;
+  font-weight: 500;
+  padding: 12px;
+  background: #0A0A0A;
+  border-radius: 8px;
+  margin-top: 12px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+.voice-config-participant-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  background: #0A0A0A;
+  border: 1px solid #1f1f1f;
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+
+.voice-config-status {
+  font-size: 12px;
+  color: #9CA3AF;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+.voice-config-btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  height: 32px;
+}
+
+/* Approval Workflow */
+.approval-workflow-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(4px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.approval-workflow-modal {
+  background: #111111;
+  border: 1px solid #1f1f1f;
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 800px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.verification-input {
+  width: 100%;
+  padding: 12px 16px;
+  background: #0A0A0A;
+  border: 1px solid #1f1f1f;
+  border-radius: 10px;
+  color: #F5F5F5;
+  font-size: 16px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  text-align: center;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.verification-input:focus {
+  outline: none;
+  border-color: #2563EB;
+  background: #111111;
+}
+
+.additional-participant-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.additional-participant-row input {
+  flex: 1;
+  padding: 10px 14px;
+  background: #0A0A0A;
+  border: 1px solid #1f1f1f;
+  border-radius: 10px;
+  color: #F5F5F5;
+  font-size: 14px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+.additional-participant-row input:focus {
+  outline: none;
+  border-color: #2563EB;
+  background: #111111;
+}
+
+.additional-participant-remove {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid #1f1f1f;
+  border-radius: 10px;
+  color: #9CA3AF;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.additional-participant-remove:hover {
+  background: #141414;
+  border-color: #EF4444;
+  color: #EF4444;
+}
+
+/* Loading States */
+.loading {
+  text-align: center;
+  color: #9CA3AF;
+  font-size: 14px;
+  padding: 40px 20px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #9CA3AF;
+}
+
+.empty-state p {
+  font-size: 14px;
+  color: #9CA3AF;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+/* Fine-tune participant Remember checkbox spacing and styling */
+.participant-row .remember-checkbox {
+  margin-left: 4px;
+}
+
+.remember-checkbox span {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: #4B5563;
+}
+
+/* Scrollbar */
+.meetings-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.meetings-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.meetings-content::-webkit-scrollbar-thumb {
+  background: #1f1f1f;
+  border-radius: 4px;
+}
+
+.meetings-content::-webkit-scrollbar-thumb:hover {
+  background: #2a2a2a;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .meetings-layout {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .meetings-content {
+    padding: 24px 16px;
+  }
+
+  .meetings-top-bar {
+    padding: 0 16px;
+  }
+}

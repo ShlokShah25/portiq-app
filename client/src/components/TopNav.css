@@ -1,0 +1,167 @@
+/* Premium Top Navigation - Linear/Vercel Style */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+.top-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background: #0A0A0A;
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid #1f1f1f;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  padding: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+.top-nav-container {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+}
+
+.top-nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px; /* tighter spacing between logo and Portiq text */
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.top-nav-brand:hover {
+  background: transparent;
+}
+
+.top-nav-logo {
+  height: 52px !important;
+  width: auto !important;
+  /* no max-width so logo isn't constrained */
+  object-fit: contain !important;
+  display: block;
+  flex-shrink: 0;
+}
+
+.top-nav-brand-text {
+  font-size: 24px;
+  font-weight: 600;
+  color: #F5F5F5;
+  letter-spacing: -0.01em;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  line-height: 1; /* keep text vertically centered with logo */
+}
+
+.top-nav-menu {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  justify-content: center;
+}
+
+.top-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+  color: #9CA3AF;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 180ms ease;
+  position: relative;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  white-space: nowrap;
+}
+
+.top-nav-item:hover {
+  background: #141414;
+  color: #F5F5F5;
+  transform: translateY(-1px);
+}
+
+.top-nav-item.active {
+  color: #F5F5F5;
+  background: #151515;
+}
+
+/* Removed underline indicator - using pill background instead */
+
+.top-nav-item svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.5;
+  flex-shrink: 0;
+}
+
+.top-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.top-nav-admin,
+.top-nav-settings {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+  color: #9CA3AF;
+  cursor: pointer;
+  transition: all 180ms ease;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+.top-nav-admin:hover,
+.top-nav-settings:hover {
+  background: #141414;
+  color: #F5F5F5;
+  transform: translateY(-1px);
+}
+
+.top-nav-admin svg,
+.top-nav-settings svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.5;
+  flex-shrink: 0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .top-nav-menu {
+    gap: 2px;
+  }
+  
+  .top-nav-item {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+  
+  .top-nav-item span {
+    display: none;
+  }
+  
+  .top-nav-brand-text {
+    display: none;
+  }
+}

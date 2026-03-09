@@ -1,0 +1,329 @@
+/* Premium Participants Screen */
+
+.participants-screen {
+  width: 100vw;
+  height: 100vh;
+  background: var(--bg-primary);
+  display: flex;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Helvetica Neue", system-ui, sans-serif;
+}
+
+.participants-wrapper {
+  margin-top: 56px;
+  width: 100vw;
+  height: calc(100vh - 56px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.participants-top-bar {
+  height: 64px;
+  background: var(--surface-secondary);
+  border-bottom: 1px solid var(--border-color);
+  padding: 0 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.participants-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.participants-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 32px;
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.add-participant-form {
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 32px;
+}
+
+.add-participant-form h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 20px;
+  letter-spacing: -0.01em;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 400;
+  color: #9ca3af;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Explicitly dark input styling for the add-participant form */
+.add-participant-form input,
+.form-input {
+  width: 100%;
+  padding: 12px 16px;
+  background: #050505;
+  border: 1px solid #262626;
+  border-radius: 10px;
+  color: #e5e5e5;
+  font-size: 14px;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Helvetica Neue", system-ui, sans-serif;
+  transition: all 150ms ease;
+}
+
+.add-participant-form input:focus,
+.form-input:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  background: #050505;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+}
+
+.add-participant-form input::placeholder,
+.form-input::placeholder {
+  color: #6b7280;
+}
+
+.checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #9ca3af;
+}
+
+.checkbox-label span {
+  display: inline-block;
+  line-height: 16px; /* match checkbox height so text centers vertically */
+  margin-left: 18px; /* explicit spacing from checkbox */
+  position: relative;
+  top: 1px; /* tiny nudge so text visually centers with box */
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background: #050505;
+  border: 1.5px solid #3f3f46;
+  border-radius: 4px;
+  position: relative;
+  transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+}
+
+.checkbox-label input[type="checkbox"]:checked {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+.checkbox-label input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 10px;
+  border: solid #FFFFFF;
+  border-width: 0 2px 2px 0;
+  transform: translate(-50%, -60%) rotate(45deg);
+}
+
+.form-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.participants-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.participant-card {
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: all 150ms ease;
+  position: relative;
+}
+
+.participant-card:hover {
+  border-color: var(--text-secondary);
+  background: var(--bg-primary);
+}
+
+.participant-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+.participant-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.participant-name {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.participant-email {
+  font-size: 13px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.participant-voice-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.participant-voice-status {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.participant-voice-btn {
+  padding: 6px 12px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.participant-voice-btn:hover {
+  background: var(--surface-secondary);
+  border-color: var(--accent-blue);
+}
+
+.participant-voice-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.participant-voice-uploading {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.participant-delete {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 150ms ease;
+  opacity: 0;
+}
+
+.participant-card:hover .participant-delete {
+  opacity: 1;
+}
+
+.participant-delete:hover {
+  background: var(--border-color);
+  color: var(--error-red);
+}
+
+.participant-delete svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.5;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-secondary);
+}
+
+.empty-state p {
+  font-size: 15px;
+  margin-bottom: 20px;
+  color: var(--text-secondary);
+}
+
+.loading {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 15px;
+  padding: 60px 20px;
+}
+
+.participants-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.participants-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.participants-content::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+.participants-content::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}

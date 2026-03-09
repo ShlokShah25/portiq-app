@@ -1,0 +1,92 @@
+/* AGGRESSIVE TABLET FIXES - Ensures everything fits and scrolls */
+
+/* Force all containers to respect viewport */
+html, body, #root, .App {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  position: relative !important;
+  box-sizing: border-box !important;
+  height: auto !important;
+  min-height: 100vh !important;
+}
+
+/* Prevent any element from exceeding viewport */
+* {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Remove ALL fixed positioning that causes cutoff */
+.branding-footer,
+[class*="fixed"],
+[style*="position: fixed"] {
+  position: relative !important;
+  bottom: auto !important;
+}
+
+/* Ensure images scale properly */
+img {
+  max-width: 100% !important;
+  height: auto !important;
+}
+
+/* Force scrolling on all screens */
+.welcome-screen,
+.meetings-screen,
+.visitor-form-screen,
+.checkout-screen {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  padding-bottom: clamp(60px, 10vh, 120px) !important;
+  min-height: 100vh !important;
+  height: auto !important;
+}
+
+/* Make all containers flexible */
+.welcome-container,
+.meetings-wrapper,
+.form-container,
+.card {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Responsive text */
+h1, h2, h3, h4, h5, h6, p, span, div {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Touch-friendly buttons */
+button, .btn, .action-btn {
+  min-height: 44px !important;
+  touch-action: manipulation !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+/* Ensure content is never cut off */
+.welcome-actions,
+.meetings-layout,
+.meetings-form {
+  margin-bottom: clamp(30px, 5vh, 60px) !important;
+}
+
+/* Fix any absolute positioned elements */
+[class*="absolute"] {
+  position: relative !important;
+}
+
+/* Except for decorative elements */
+.welcome-ai-rings,
+.welcome-particles,
+.welcome-screen::before,
+.welcome-screen::after {
+  position: absolute !important;
+  pointer-events: none !important;
+}
