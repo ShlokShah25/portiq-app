@@ -1,66 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import React from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import TopNav from './TopNav';
 import './Settings.css';
 
 const Settings = () => {
   const { theme, toggleTheme } = useTheme();
-  const [companyName, setCompanyName] = useState('');
-  const [companyLogoUrl, setCompanyLogoUrl] = useState('');
-  const [logoFile, setLogoFile] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [saveMessage, setSaveMessage] = useState('');
-
-  useEffect(() => {
-    let isMounted = true;
-    axios
-      .get('/config')
-      .then((res) => {
-        if (!isMounted) return;
-        const cfg = res.data || {};
-        setCompanyName(cfg.companyName || '');
-        setCompanyLogoUrl(cfg.companyLogo || '');
-      })
-      .catch((err) => {
-        console.error('Failed to load config in Settings:', err.message);
-      });
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  const handleSaveGeneral = async () => {
-    try {
-      setSaving(true);
-      setSaveMessage('');
-
-      // Update basic config fields
-      await axios.put('/config', {
-        companyName
-      });
-
-      // Upload logo if a new file was selected
-      if (logoFile) {
-        const formData = new FormData();
-        formData.append('logo', logoFile);
-        const res = await axios.post('/config/logo', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
-        if (res.data?.logoUrl) {
-          setCompanyLogoUrl(res.data.logoUrl);
-        }
-      }
-
-      setSaveMessage('Settings saved');
-    } catch (error) {
-      console.error('Failed to save settings:', error);
-      setSaveMessage('Failed to save settings');
-    } finally {
-      setSaving(false);
-      setTimeout(() => setSaveMessage(''), 3000);
-    }
-  };
 
   return (
     <div className="settings-screen">
@@ -113,61 +57,11 @@ const Settings = () => {
             <h2>General</h2>
             <div className="settings-item">
               <div className="settings-item-label">Company Name</div>
-              <input
-                type="text"
-                className="settings-input"
-                placeholder="Your Company"
-                value={companyName}
-                onChange={(e) => setCompanyName(e.target.value)}
-              />
+              <input type="text" className="settings-input" placeholder="Your Company" />
             </div>
             <div className="settings-item">
-              <div className="settings-item-label">Company Logo</div>
-              <input
-                type="file"
-                accept="image/*"
-                className="settings-input"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    setLogoFile(file);
-                  }
-                }}
-              />
-              {companyLogoUrl && (
-                <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Current logo:</div>
-                  <img
-                    src={companyLogoUrl}
-                    alt="Company logo"
-                    style={{ height: 32, width: 'auto', borderRadius: 6, border: '1px solid var(--border-color)' }}
-                  />
-                </div>
-              )}
-            </div>
-            <div className="settings-item">
-              <button
-                type="button"
-                onClick={handleSaveGeneral}
-                style={{
-                  padding: '10px 18px',
-                  borderRadius: 10,
-                  border: 'none',
-                  background: 'var(--accent-blue)',
-                  color: '#ffffff',
-                  fontSize: 14,
-                  fontWeight: 500,
-                  cursor: 'pointer'
-                }}
-                disabled={saving}
-              >
-                {saving ? 'Saving…' : 'Save'}
-              </button>
-              {saveMessage && (
-                <span style={{ marginLeft: 12, fontSize: 12, color: 'var(--text-secondary)' }}>
-                  {saveMessage}
-                </span>
-              )}
+              <div className="settings-item-label">Default Meeting Duration</div>
+              <input type="number" className="settings-input" placeholder="60" />
             </div>
           </div>
 

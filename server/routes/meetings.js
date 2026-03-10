@@ -4,7 +4,6 @@ const Meeting = require('../models/Meeting');
 const VoiceProfile = require('../models/VoiceProfile');
 const { transcribeAndSummarize, sendMeetingSummary, getMailTransporter } = require('../utils/meetingTranscription');
 const { generateVoiceEmbedding } = require('../utils/voiceRecognition');
-const { requireActiveSubscription } = require('../middleware/requireActiveSubscription');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -83,7 +82,7 @@ const voiceUpload = multer({
 /**
  * Create new meeting
  */
-router.post('/', requireActiveSubscription, async (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { meetingRoom, title, organizer, participants, startTime, scheduledTime, sendNotification, transcriptionEnabled, authorizedEditorEmail } = req.body;
     
@@ -92,8 +91,6 @@ router.post('/', requireActiveSubscription, async (req, res) => {
     }
 
     const meeting = new Meeting({
-      // Multi-tenant: attach the organization that owns this meeting
-      organizationId: req.user?.organizationId || null,
       meetingRoom,
       title,
       organizer,
@@ -253,7 +250,7 @@ router.post('/', requireActiveSubscription, async (req, res) => {
 /**
  * Start meeting (begin transcription)
  */
-router.post('/:id/start', requireActiveSubscription, async (req, res) => {
+router.post('/:id/start', async (req, res) => {
   try {
     const meeting = await Meeting.findById(req.params.id);
     if (!meeting) {
@@ -279,7 +276,7 @@ router.post('/:id/start', requireActiveSubscription, async (req, res) => {
 /**
  * Start recording (sets actual start time)
  */
-router.post('/:id/start-recording', requireActiveSubscription, async (req, res) => {
+router.post('/:id/start-recording', async (req, res) => {
   try {
     const meeting = await Meeting.findById(req.params.id);
     if (!meeting) {
@@ -306,7 +303,7 @@ router.post('/:id/start-recording', requireActiveSubscription, async (req, res) 
 /**
  * End meeting and process transcription
  */
-router.post('/:id/end', requireActiveSubscription, upload.single('audio'), async (req, res) => {
+router.post('/:id/end', upload.single('audio'), async (req, res) => {
   try {
     const meeting = await Meeting.findById(req.params.id);
     if (!meeting) {
@@ -339,70 +336,49 @@ router.post('/:id/end', requireActiveSubscription, upload.single('audio'), async
       // Process transcription asynchronously
       transcribeAndSummarize(audioFilePath, meeting)
         .then(async (summaryData) => {
-          // Build an update object instead of saving the original doc to avoid
-          // Mongoose VersionError when other processes have modified the meeting
-          const baseUpdate = {
-            transcription: summaryData.transcription,
-            summary: summaryData.summary,
-            keyPoints: summaryData.keyPoints || [],
-            actionItems: (summaryData.actionItems || []).map((item) => ({
-              task: item.task || '',
-              assignee: item.assignee || '',
-              dueDate: safeParseDate(item.dueDate)
-            })),
-            decisions: summaryData.decisions || [],
-            nextSteps: summaryData.nextSteps || [],
-            importantNotes: summaryData.importantNotes || [],
-            // ORIGINAL (audit) fields
-            originalSummary: summaryData.summary,
-            originalKeyPoints: summaryData.keyPoints || [],
-            originalActionItems: (summaryData.actionItems || []).map((item) => ({
-              task: item.task || '',
-              assignee: item.assignee || '',
-              dueDate: safeParseDate(item.dueDate)
-            })),
-            originalDecisions: summaryData.decisions || [],
-            originalNextSteps: summaryData.nextSteps || [],
-            originalImportantNotes: summaryData.importantNotes || [],
-            transcriptionStatus: 'Completed'
-          };
+          meeting.transcription = summaryData.transcription;
+          meeting.summary = summaryData.summary;
+          meeting.keyPoints = summaryData.keyPoints;
+          // Sanitize action items to avoid invalid date values from AI (e.g., "Three months from now")
+          meeting.actionItems = (summaryData.actionItems || []).map((item) => ({
+            task: item.task || '',
+            assignee: item.assignee || '',
+            dueDate: safeParseDate(item.dueDate)
+          }));
+          meeting.decisions = summaryData.decisions || [];
+          meeting.nextSteps = summaryData.nextSteps || [];
+          meeting.importantNotes = summaryData.importantNotes || [];
+          
+          // Store ORIGINAL summary (before any editor edits) for audit trail
+          meeting.originalSummary = summaryData.summary;
+          meeting.originalKeyPoints = summaryData.keyPoints || [];
+          meeting.originalActionItems = (summaryData.actionItems || []).map((item) => ({
+            task: item.task || '',
+            assignee: item.assignee || '',
+            dueDate: safeParseDate(item.dueDate)
+          }));
+          meeting.originalDecisions = summaryData.decisions || [];
+          meeting.originalNextSteps = summaryData.nextSteps || [];
+          meeting.originalImportantNotes = summaryData.importantNotes || [];
+          
+          // Copy to pending fields for approval workflow
+          meeting.pendingSummary = summaryData.summary;
+          meeting.pendingKeyPoints = summaryData.keyPoints || [];
+          meeting.pendingActionItems = (summaryData.actionItems || []).map((item) => ({
+            task: item.task || '',
+            assignee: item.assignee || '',
+            dueDate: safeParseDate(item.dueDate)
+          }));
+          meeting.pendingDecisions = summaryData.decisions || [];
+          meeting.pendingNextSteps = summaryData.nextSteps || [];
+          meeting.pendingImportantNotes = summaryData.importantNotes || [];
+          
+          meeting.transcriptionStatus = 'Completed';
+          meeting.summaryStatus = 'Pending Approval'; // Wait for authorized editor approval
+          await meeting.save();
 
-          let update;
-
+          // Send notification email to authorized editor if configured
           if (meeting.authorizedEditorEmail) {
-            // Editor present → keep approval workflow using pending* fields
-            update = {
-              ...baseUpdate,
-              pendingSummary: summaryData.summary,
-              pendingKeyPoints: summaryData.keyPoints || [],
-              pendingActionItems: (summaryData.actionItems || []).map((item) => ({
-                task: item.task || '',
-                assignee: item.assignee || '',
-                dueDate: safeParseDate(item.dueDate)
-              })),
-              pendingDecisions: summaryData.decisions || [],
-              pendingNextSteps: summaryData.nextSteps || [],
-              pendingImportantNotes: summaryData.importantNotes || [],
-              summaryStatus: 'Pending Approval'
-            };
-          } else {
-            // No authorized editor → clear any stale pending* and mark as sent
-            update = {
-              ...baseUpdate,
-              pendingSummary: '',
-              pendingKeyPoints: [],
-              pendingActionItems: [],
-              pendingDecisions: [],
-              pendingNextSteps: [],
-              pendingImportantNotes: [],
-              summaryStatus: 'Sent'
-            };
-          }
-
-          await Meeting.findByIdAndUpdate(meeting._id, { $set: update }, { new: false });
-
-          if (meeting.authorizedEditorEmail) {
-            // Send notification email to authorized editor if configured
             const transporter = getMailTransporter();
             if (transporter) {
               try {
@@ -445,42 +421,15 @@ router.post('/:id/end', requireActiveSubscription, upload.single('audio'), async
                 console.warn('⚠️  Failed to send notification to authorized editor:', emailErr.message);
               }
             }
-
-            console.log('✅ Transcription completed. Summary pending approval from authorized editor.');
-          } else {
-            // No authorized editor configured – auto-send summary to participants
-            try {
-              const freshMeeting = await Meeting.findById(meeting._id);
-              if (freshMeeting) {
-                await sendMeetingSummary(freshMeeting, {
-                  summary: summaryData.summary || '',
-                  keyPoints: summaryData.keyPoints || [],
-                  actionItems: (summaryData.actionItems || []).map((item) => ({
-                    task: item.task || '',
-                    assignee: item.assignee || '',
-                    dueDate: safeParseDate(item.dueDate)
-                  })),
-                  decisions: summaryData.decisions || [],
-                  nextSteps: summaryData.nextSteps || [],
-                  importantNotes: summaryData.importantNotes || []
-                });
-                console.log('✅ Summary auto-sent to participants (no authorized editor configured).');
-              }
-            } catch (sendErr) {
-              console.warn('⚠️  Failed to auto-send summary to participants:', sendErr.message);
-            }
           }
+
+          // DO NOT auto-send emails - wait for approval
+          console.log('✅ Transcription completed. Summary pending approval from authorized editor.');
         })
         .catch((error) => {
           console.error('Transcription processing error:', error);
-          // Mark meeting as failed without relying on the potentially stale doc instance
-          Meeting.findByIdAndUpdate(
-            meeting._id,
-            { $set: { transcriptionStatus: 'Failed' } },
-            { new: false }
-          ).catch((err) => {
-            console.error('Failed to mark meeting transcription as failed:', err);
-          });
+          meeting.transcriptionStatus = 'Failed';
+          meeting.save();
         });
     } else {
       meeting.transcriptionStatus = 'Not Started';
@@ -505,11 +454,6 @@ router.get('/', async (req, res) => {
   try {
     const { status, meetingRoom, date } = req.query;
     const query = {};
-
-    // Multi-tenant: restrict kiosk view to the caller's organization
-    if (req.user?.organizationId) {
-      query.organizationId = req.user.organizationId;
-    }
 
     if (status) query.status = status;
     if (meetingRoom) query.meetingRoom = meetingRoom;
@@ -832,40 +776,6 @@ router.post('/:id/approve-and-send', async (req, res) => {
 });
 
 /**
- * Simple Soundex implementation for approximate name matching.
- * Helps map small spelling variations like "Priti" vs "Preeti".
- */
-function soundex(value) {
-  if (!value) return '';
-  const s = value.toString().toUpperCase().replace(/[^A-Z]/g, '');
-  if (!s) return '';
-  const first = s[0];
-  const map = {
-    B: '1', F: '1', P: '1', V: '1',
-    C: '2', G: '2', J: '2', K: '2', Q: '2', S: '2', X: '2', Z: '2',
-    D: '3', T: '3',
-    L: '4',
-    M: '5', N: '5',
-    R: '6'
-  };
-  let encoded = '';
-  let lastCode = map[first] || '';
-  for (let i = 1; i < s.length; i++) {
-    const ch = s[i];
-    const code = map[ch] || '';
-    if (code !== '' && code !== lastCode) {
-      encoded += code;
-    }
-    lastCode = code;
-    if (encoded.length >= 3) break;
-  }
-  while (encoded.length < 3) {
-    encoded += '0';
-  }
-  return first + encoded;
-}
-
-/**
  * Register voice profile for a participant
  */
 router.post('/voice/register', voiceUpload.single('audio'), async (req, res) => {
@@ -910,31 +820,19 @@ router.post('/voice/register', voiceUpload.single('audio'), async (req, res) => 
             }
           }
           
-          // Try to match detected name to participant list (including phonetic similarity)
+          // Try to match detected name to participant list
           if (participantList.length > 0) {
-            const detected = detectedName.toLowerCase().trim();
-            const detectedSoundex = soundex(detected);
-            
             const matchedParticipant = participantList.find(p => {
               const pName = (p.name || '').toLowerCase().trim();
               const pEmail = (p.email || '').toLowerCase().trim();
-              const pLocalPart = pEmail.split('@')[0];
-              const nameSoundex = soundex(pName);
-              const localSoundex = soundex(pLocalPart);
+              const detected = detectedName.toLowerCase().trim();
               
-              // Exact / substring match
-              if (
-                pName === detected ||
-                pName.includes(detected) ||
-                detected.includes(pName) ||
-                pEmail.includes(detected) ||
-                detected.includes(pLocalPart)
-              ) {
-                return true;
-              }
-
-              // Phonetic match (e.g., "priti" vs "preeti")
-              return detectedSoundex !== '' && (detectedSoundex === nameSoundex || detectedSoundex === localSoundex);
+              // Check if name matches or is similar
+              return pName === detected || 
+                     pName.includes(detected) || 
+                     detected.includes(pName) ||
+                     pEmail.includes(detected) ||
+                     detected.includes(pEmail.split('@')[0]);
             });
             
             if (matchedParticipant) {

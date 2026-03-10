@@ -204,12 +204,8 @@ const MeetingInProgress = () => {
   return (
     <div className="meeting-in-progress">
       <div className="meeting-in-progress-header">
-        <div className="absolute top-6 left-8 z-20">
-          <img
-            src="/assets/portiq-logo.png"
-            alt="Portiq"
-            className="h-10 w-auto"
-          />
+        <div className="meeting-in-progress-logo">
+          <img src="/assets/portiq-logo.png" alt="PortIQ" />
         </div>
         <button
           className="meeting-in-progress-close"
@@ -232,14 +228,7 @@ const MeetingInProgress = () => {
 
         <div className="meeting-details-grid">
           <div className="meeting-detail-card">
-            <div className="detail-icon">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="4" width="18" height="18" rx="2" />
-                <line x1="3" y1="10" x2="21" y2="10" />
-                <line x1="8" y1="2" x2="8" y2="6" />
-                <line x1="16" y1="2" x2="16" y2="6" />
-              </svg>
-            </div>
+            <div className="detail-icon">📅</div>
             <div className="detail-content">
               <div className="detail-label">Date</div>
               <div className="detail-value">{formatDate(meeting.scheduledTime || meeting.startTime)}</div>
@@ -247,12 +236,7 @@ const MeetingInProgress = () => {
           </div>
 
           <div className="meeting-detail-card">
-            <div className="detail-icon">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="9" />
-                <polyline points="12 7 12 12 16 14" />
-              </svg>
-            </div>
+            <div className="detail-icon">🕐</div>
             <div className="detail-content">
               <div className="detail-label">Scheduled Time</div>
               <div className="detail-value">{formatTimeOnly(meeting.scheduledTime)}</div>
@@ -260,14 +244,7 @@ const MeetingInProgress = () => {
           </div>
 
           <div className="meeting-detail-card">
-            <div className="detail-icon">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="14" r="7" />
-                <polyline points="12 11 12 14 15 15" />
-                <line x1="9" y1="3" x2="15" y2="3" />
-                <line x1="12" y1="3" x2="12" y2="6" />
-              </svg>
-            </div>
+            <div className="detail-icon">⏱️</div>
             <div className="detail-content">
               <div className="detail-label">Duration</div>
               <div className="detail-value duration-value">{formatTime(elapsedTime)}</div>
@@ -275,17 +252,9 @@ const MeetingInProgress = () => {
           </div>
 
           <div className="meeting-detail-card">
-            <div className="detail-icon">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="4" y="3" width="8" height="18" rx="1" />
-                <rect x="14" y="7" width="6" height="14" rx="1" />
-                <line x1="8" y1="7" x2="8" y2="7" />
-                <line x1="8" y1="11" x2="8" y2="11" />
-                <line x1="8" y1="15" x2="8" y2="15" />
-              </svg>
-            </div>
+            <div className="detail-icon">🏢</div>
             <div className="detail-content">
-              <div className="detail-label">Location</div>
+              <div className="detail-label">Room</div>
               <div className="detail-value">{meeting.meetingRoom || 'Not specified'}</div>
             </div>
           </div>
@@ -304,14 +273,7 @@ const MeetingInProgress = () => {
           </div>
 
           <div className="meeting-detail-card">
-            <div className="detail-icon">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="9" cy="8" r="3" />
-                <circle cx="17" cy="9" r="2.5" />
-                <path d="M4 19c0-2.5 2-4.5 5-4.5s5 2 5 4.5" />
-                <path d="M14 18.5c.3-1.7 1.6-3 3.2-3 1.7 0 3 1.3 3.2 3" />
-              </svg>
-            </div>
+            <div className="detail-icon">👥</div>
             <div className="detail-content">
               <div className="detail-label">Participants</div>
               <div className="detail-value">{meeting.participants?.length || 0} people</div>

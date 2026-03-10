@@ -10,15 +10,12 @@ dotenv.config();
 const app = express();
 
 // Middleware
-// Allow localhost, local network IPs, and production marketing domains for access
+// Allow localhost and local network IPs for tablet access
 const allowedOrigins = [
   'http://localhost:3000',  // school kiosk
   'http://localhost:3001',  // school admin
   'http://localhost:3002',  // workplace kiosk
-  'http://localhost:3003',  // workplace admin
-  'http://localhost:5173',  // local marketing/dev
-  'https://portiqtechnologies.com',
-  'https://www.portiqtechnologies.com'
+  'http://localhost:3003'   // workplace admin
 ];
 
 // Add local network IPs (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
@@ -60,9 +57,6 @@ app.use('/api/visitors', require('./routes/visitors'));
 app.use('/api/meetings', require('./routes/meetings'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/config', require('./routes/config'));
-app.use('/api', require('./routes/billing'));
-app.use('/api', require('./routes/onboarding'));
-app.use('/api', require('./routes/saas'));
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -4,7 +4,6 @@ const path = require('path');
 const nodemailer = require('nodemailer');
 const PDFDocument = require('pdfkit');
 const VoiceProfile = require('../models/VoiceProfile');
-const Config = require('../models/Config');
 let ffmpeg = null;
 try {
   ffmpeg = require('fluent-ffmpeg');
@@ -450,24 +449,8 @@ async function sendMeetingSummary(meeting, summaryData) {
   const doc = new PDFDocument({ margin: 50 });
   doc.on('data', chunk => pdfBuffers.push(chunk));
 
-  // Prefer dynamic config values, fall back to env/defaults
-  let companyName = process.env.COMPANY_NAME || 'Your Company';
-  let logoPath = process.env.COMPANY_LOGO_PATH;
-
-  try {
-    const config = await Config.getConfig();
-    if (config?.companyName) {
-      companyName = config.companyName;
-    }
-    if (config?.companyLogo) {
-      // Stored as public URL path like /uploads/logos/filename.png.
-      // Convert to filesystem path for PDFKit.
-      const relativePath = config.companyLogo.replace(/^\/+/, '');
-      logoPath = path.join(__dirname, '../..', relativePath);
-    }
-  } catch (e) {
-    console.warn('⚠️  Failed to load Config for PDF header, using env defaults:', e.message);
-  }
+  const companyName = process.env.COMPANY_NAME || 'Your Company';
+  const logoPath = process.env.COMPANY_LOGO_PATH;
 
   // Header with company name and logo
   if (logoPath && fs.existsSync(logoPath)) {
@@ -508,37 +491,24 @@ async function sendMeetingSummary(meeting, summaryData) {
 
   doc.moveDown();
 
-  // Executive Summary
+  // Summary
   doc
     .fontSize(13)
-    .text('Executive Summary', { underline: true })
+    .text('Summary', { underline: true })
     .moveDown(0.5)
     .fontSize(12)
     .text(summaryData.summary || 'No summary provided.')
     .moveDown();
 
-  // Key Discussion Points
+  // Key Points
   if ((summaryData.keyPoints || []).length) {
     doc
       .fontSize(13)
-      .text('Key Discussion Points', { underline: true })
+      .text('Key Points', { underline: true })
       .moveDown(0.5)
       .fontSize(12);
     (summaryData.keyPoints || []).forEach(p => {
       doc.text(`• ${p}`);
-    });
-    doc.moveDown();
-  }
-
-  // Decisions Made
-  if ((summaryData.decisions || []).length) {
-    doc
-      .fontSize(13)
-      .text('Decisions Made', { underline: true })
-      .moveDown(0.5)
-      .fontSize(12);
-    (summaryData.decisions || []).forEach(d => {
-      doc.text(`• ${d}`);
     });
     doc.moveDown();
   }
@@ -555,11 +525,24 @@ async function sendMeetingSummary(meeting, summaryData) {
       const assignee = a.assignee ? `Owner: ${a.assignee}` : '';
       const due = a.dueDate ? `Deadline: ${a.dueDate}` : '';
       const notes = a.notes ? `Notes: ${a.notes}` : '';
-      doc.text(`• ${task}`);
-      if (assignee) doc.text(`  Owner: ${assignee}`);
-      if (due) doc.text(`  Deadline: ${due}`);
-      if (notes) doc.text(`  Notes: ${notes}`);
+      doc.text(`• Task: ${task}`);
+      if (assignee) doc.text(`  ${assignee}`);
+      if (due) doc.text(`  ${due}`);
+      if (notes) doc.text(`  ${notes}`);
       doc.moveDown(0.3);
+    });
+    doc.moveDown();
+  }
+
+  // Decisions
+  if ((summaryData.decisions || []).length) {
+    doc
+      .fontSize(13)
+      .text('Decisions', { underline: true })
+      .moveDown(0.5)
+      .fontSize(12);
+    (summaryData.decisions || []).forEach(d => {
+      doc.text(`• ${d}`);
     });
     doc.moveDown();
   }
@@ -594,19 +577,7 @@ async function sendMeetingSummary(meeting, summaryData) {
     doc.on('end', () => resolve(Buffer.concat(pdfBuffers)));
   });
 
-  // Use configured logo URL if available, fall back to env/default
-  let logoUrl = process.env.COMPANY_LOGO_URL || 'https://portiqtechnologies.com/logo.png';
-  try {
-    const config = await Config.getConfig();
-    if (config?.companyLogo) {
-      // Build absolute URL based on backend host if PUBLIC_BASE_URL set,
-      // otherwise rely on relative path (works when email client loads from same host).
-      const baseUrl = process.env.PUBLIC_BASE_URL || '';
-      logoUrl = `${baseUrl}${config.companyLogo}`;
-    }
-  } catch (e) {
-    console.warn('⚠️  Failed to load Config for email logo URL, using env default:', e.message);
-  }
+  const logoUrl = process.env.COMPANY_LOGO_URL || 'https://portiqtechnologies.com/logo.png';
 
   const htmlBody = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; color: #111827; line-height: 1.6;">

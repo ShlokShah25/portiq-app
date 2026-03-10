@@ -31,13 +31,9 @@
   overflow-y: auto;
   overflow-x: hidden;
   padding: 32px 24px;
-  box-sizing: border-box;
-}
-
-.container {
-  max-width: 1200px;
+  max-width: 1100px;
+  width: 100%;
   margin: 0 auto;
-  padding: 32px;
   box-sizing: border-box;
 }
 
@@ -72,16 +68,17 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 14px 24px;
+  height: 40px;
+  padding: 0 16px;
   background: #2563EB;
   color: #FFFFFF !important;
   border: none;
   border-radius: 10px;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   cursor: pointer;
-  transition: all 180ms ease;
+  transition: all 150ms ease;
   white-space: nowrap;
   pointer-events: auto;
   z-index: 10;
@@ -91,13 +88,11 @@
 
 .dashboard-btn-primary:hover {
   background: #1D4ED8;
-  transform: translateY(-2px);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.55);
+  transform: translateY(-1px);
 }
 
 .dashboard-btn-primary:active {
   transform: translateY(0);
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.45);
 }
 
 .dashboard-btn-primary svg {
@@ -115,18 +110,18 @@
 }
 
 .metric-card {
-  background: rgba(255, 255, 255, 0.02);
+  background: #111111;
   border: 1px solid #1f1f1f;
   border-radius: 14px;
   padding: 28px;
-  backdrop-filter: blur(6px);
-  transition: all 0.2s ease;
+  transition: all 150ms ease;
   cursor: default;
 }
 
 .metric-card:hover {
-  transform: translateY(-3px);
-  border-color: rgba(255, 255, 255, 0.12);
+  background: #141414;
+  border-color: #2a2a2a;
+  transform: translateY(-2px);
 }
 
 .metric-header {
@@ -153,17 +148,16 @@
 }
 
 .metric-label {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
   color: #9CA3AF;
-  opacity: 0.6;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
 }
 
 .metric-value {
-  font-size: 48px;
+  font-size: 40px;
   font-weight: 600;
   color: #F5F5F5;
   line-height: 1;

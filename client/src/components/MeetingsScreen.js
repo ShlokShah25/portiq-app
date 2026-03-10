@@ -711,7 +711,7 @@ const MeetingsScreen = ({ config }) => {
                             setParticipants(next);
                           }}
                         />
-                        <label className="premium-checkbox-container remember-checkbox">
+                        <label className="premium-checkbox-container">
                           <input
                             type="checkbox"
                             checked={!!p.remember}

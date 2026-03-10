@@ -14,8 +14,6 @@ const Settings = lazy(() => import('./components/Settings'));
 const MeetingInProgress = lazy(() => import('./components/MeetingInProgress'));
 const ClientAdmin = lazy(() => import('./components/ClientAdmin'));
 const SplashScreen = lazy(() => import('./components/SplashScreen'));
-const ClientAdminLogin = lazy(() => import('./components/ClientAdminLogin'));
-const Onboarding = lazy(() => import('./components/Onboarding'));
 
 // Set base URL for API - connects to workplace server on port 5001
 axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
@@ -36,46 +34,46 @@ function AppContent({ config, configLoaded, showSplash, setShowSplash }) {
   const location = useLocation();
   const navigate = useNavigate();
 
-  return (
-    <>
-      {/* Splash overlay on top of whatever route is loaded */}
-      {showSplash && (
-        <Suspense fallback={null}>
+  // Removed redirect logic that was blocking /meetings navigation
+
+  if (!configLoaded || showSplash) {
+    if (showSplash) {
+      return (
+        <Suspense fallback={<div className="app-loading"><div className="loading-spinner"></div><p>Loading...</p></div>}>
           <SplashScreen onComplete={() => setShowSplash(false)} />
         </Suspense>
-      )}
+      );
+    }
+    return (
+      <div className="app-loading">
+        <div className="loading-spinner"></div>
+        <p>Loading...</p>
+      </div>
+    );
+  }
 
-      {!configLoaded ? (
-        <div className="app-loading">
-          <div className="loading-spinner"></div>
-          <p>Loading...</p>
-        </div>
-      ) : (
-        <Suspense fallback={<div className="app-loading"><div className="loading-spinner"></div><p>Loading...</p></div>}>
-          <Routes>
-            <Route path="/" element={<Dashboard config={config} />} />
-            <Route path="/dashboard" element={<Dashboard config={config} />} />
-            <Route path="/admin-login" element={<ClientAdminLogin />} />
-            <Route path="/onboarding" element={<Onboarding />} />
-            <Route path="/meetings" element={<MeetingsScreen config={config} />} />
-            <Route path="/meetings/:meetingId" element={<MeetingInProgress />} />
-            <Route path="/transcripts" element={<Transcripts />} />
-            <Route path="/participants" element={<Participants />} />
-            <Route path="/insights" element={<Insights />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/admin" element={<ClientAdmin />} />
-            <Route path="*" element={<Dashboard config={config} />} />
-          </Routes>
-        </Suspense>
-      )}
-    </>
+  return (
+    <Suspense fallback={<div className="app-loading"><div className="loading-spinner"></div><p>Loading...</p></div>}>
+      <Routes>
+        <Route path="/" element={<Dashboard config={config} />} />
+        <Route path="/dashboard" element={<Dashboard config={config} />} />
+        <Route path="/meetings" element={<MeetingsScreen config={config} />} />
+        <Route path="/meetings/:meetingId" element={<MeetingInProgress />} />
+        <Route path="/transcripts" element={<Transcripts />} />
+        <Route path="/participants" element={<Participants />} />
+        <Route path="/insights" element={<Insights />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/admin" element={<ClientAdmin />} />
+        <Route path="*" element={<Dashboard config={config} />} />
+      </Routes>
+    </Suspense>
   );
 }
 
 function App() {
   const [config, setConfig] = useState(null);
   const [configLoaded, setConfigLoaded] = useState(false);
-  const [showSplash, setShowSplash] = useState(true);
+  const [showSplash, setShowSplash] = useState(false);
 
   useEffect(() => {
     // Fetch configuration (if you add a config endpoint later)
@@ -87,6 +85,22 @@ function App() {
     });
     setConfigLoaded(true);
   }, []);
+
+  if (!configLoaded || showSplash) {
+    if (showSplash) {
+      return (
+        <Suspense fallback={<div className="app-loading"><div className="loading-spinner"></div><p>Loading...</p></div>}>
+          <SplashScreen onComplete={() => setShowSplash(false)} />
+        </Suspense>
+      );
+    }
+    return (
+      <div className="app-loading">
+        <div className="loading-spinner"></div>
+        <p>Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <Router>

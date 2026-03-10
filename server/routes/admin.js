@@ -6,7 +6,6 @@ const Visitor = require('../models/Visitor');
 const Meeting = require('../models/Meeting');
 const jwt = require('jsonwebtoken');
 const { authenticateAdmin } = require('../middleware/auth');
-const { requireActiveSubscription } = require('../middleware/requireActiveSubscription');
 const { getMeetingContext } = require('../utils/meetingContext');
 
 /**
@@ -50,8 +49,7 @@ router.post('/login', async (req, res) => {
       admin: {
         id: admin._id,
         username: admin.username,
-        role: admin.role,
-        organizationId: admin.organizationId || null
+        role: admin.role
       }
     });
   } catch (error) {
@@ -63,13 +61,12 @@ router.post('/login', async (req, res) => {
 /**
  * Get admin profile
  */
-router.get('/profile', authenticateAdmin, requireActiveSubscription, async (req, res) => {
+router.get('/profile', authenticateAdmin, async (req, res) => {
   res.json({
     admin: {
       id: req.admin._id,
       username: req.admin.username,
       role: req.admin.role,
-      organizationId: req.admin.organizationId || null,
       lastLogin: req.admin.lastLogin
     }
   });
@@ -78,7 +75,7 @@ router.get('/profile', authenticateAdmin, requireActiveSubscription, async (req,
 /**
  * Get dashboard stats
  */
-router.get('/stats', authenticateAdmin, requireActiveSubscription, async (req, res) => {
+router.get('/stats', authenticateAdmin, async (req, res) => {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -121,7 +118,7 @@ router.get('/stats', authenticateAdmin, requireActiveSubscription, async (req, r
 /**
  * Get configuration
  */
-router.get('/config', authenticateAdmin, requireActiveSubscription, async (req, res) => {
+router.get('/config', authenticateAdmin, async (req, res) => {
   try {
     const config = await Config.getConfig();
     res.json({ config });
@@ -134,7 +131,7 @@ router.get('/config', authenticateAdmin, requireActiveSubscription, async (req, 
 /**
  * Update configuration
  */
-router.put('/config', authenticateAdmin, requireActiveSubscription, async (req, res) => {
+router.put('/config', authenticateAdmin, async (req, res) => {
   try {
     const { companyName, completedMeetingDisplayHours } = req.body;
     const config = await Config.getConfig();
@@ -155,15 +152,10 @@ router.put('/config', authenticateAdmin, requireActiveSubscription, async (req, 
 /**
  * Get all meetings (admin view - shows all regardless of completion time)
  */
-router.get('/meetings', authenticateAdmin, requireActiveSubscription, async (req, res) => {
+router.get('/meetings', authenticateAdmin, async (req, res) => {
   try {
     const { status, meetingRoom, date, limit = 100 } = req.query;
     const query = {};
-
-    // Multi-tenant: restrict admin meeting list to admin's organization
-    if (req.admin?.organizationId) {
-      query.organizationId = req.admin.organizationId;
-    }
 
     if (status) query.status = status;
     if (meetingRoom) query.meetingRoom = meetingRoom;
@@ -187,81 +179,9 @@ router.get('/meetings', authenticateAdmin, requireActiveSubscription, async (req
 });
 
 /**
- * List users in the current admin's organization
- */
-router.get('/users', authenticateAdmin, requireActiveSubscription, async (req, res) => {
-  try {
-    if (!req.admin.organizationId) {
-      return res.status(400).json({ error: 'Admin is not associated with an organization' });
-    }
-
-    const users = await Admin.find({ organizationId: req.admin.organizationId })
-      .select('-password')
-      .sort({ createdAt: 1 });
-
-    res.json({ users });
-  } catch (error) {
-    console.error('Error fetching users for organization:', error);
-    res.status(500).json({ error: 'Failed to fetch users' });
-  }
-});
-
-/**
- * Create a new user within the current admin's organization.
- * Only allowed for owner-level admins.
- */
-router.post('/users', authenticateAdmin, requireActiveSubscription, async (req, res) => {
-  try {
-    const { email, password, role = 'member' } = req.body || {};
-
-    if (!req.admin.organizationId) {
-      return res.status(400).json({ error: 'Admin is not associated with an organization' });
-    }
-
-    if (req.admin.role !== 'owner') {
-      return res.status(403).json({ error: 'Only owner admins can create new users' });
-    }
-
-    if (!email || !password) {
-      return res.status(400).json({ error: 'email and password are required' });
-    }
-
-    const normalizedEmail = String(email).trim().toLowerCase();
-    const existing = await Admin.findOne({ username: normalizedEmail });
-    if (existing) {
-      return res.status(409).json({ error: 'A user with this email already exists' });
-    }
-
-    const allowedRoles = ['admin', 'member'];
-    const finalRole = allowedRoles.includes(role) ? role : 'member';
-
-    const user = new Admin({
-      username: normalizedEmail,
-      password,
-      role: finalRole,
-      organizationId: req.admin.organizationId
-    });
-    await user.save();
-
-    res.json({
-      success: true,
-      user: {
-        id: user._id,
-        username: user.username,
-        role: user.role,
-        organizationId: user.organizationId
-      }
-    });
-  } catch (error) {
-    console.error('Error creating organization user:', error);
-    res.status(500).json({ error: 'Failed to create user' });
-  }
-});
-
-/**
  * Get meeting by ID (admin view)
  */
-router.get('/meetings/:id', authenticateAdmin, requireActiveSubscription, async (req, res) => {
+router.get('/meetings/:id', authenticateAdmin, async (req, res) => {
   try {
     const meeting = await Meeting.findById(req.params.id);
     if (!meeting) {
@@ -277,7 +197,7 @@ router.get('/meetings/:id', authenticateAdmin, requireActiveSubscription, async 
 /**
  * Update meeting (admin view - for renaming)
  */
-router.put('/meetings/:id', authenticateAdmin, requireActiveSubscription, async (req, res) => {
+router.put('/meetings/:id', authenticateAdmin, async (req, res) => {
   try {
     const { title, meetingRoom, organizer, showOnKiosk, scheduledTime } = req.body;
     const meeting = await Meeting.findById(req.params.id);
@@ -305,7 +225,7 @@ router.put('/meetings/:id', authenticateAdmin, requireActiveSubscription, async 
 /**
  * Retry transcription for a failed meeting
  */
-router.post('/meetings/:id/retry-transcription', authenticateAdmin, requireActiveSubscription, async (req, res) => {
+router.post('/meetings/:id/retry-transcription', authenticateAdmin, async (req, res) => {
   try {
     const meeting = await Meeting.findById(req.params.id);
     
@@ -505,6 +425,8 @@ router.get('/meetings/:id/original-summary', authenticateAdmin, async (req, res)
     }
 
     const PDFDocument = require('pdfkit');
+    const fs = require('fs');
+    const path = require('path');
 
     const doc = new PDFDocument({ margin: 50 });
     res.setHeader('Content-Type', 'application/pdf');
@@ -595,122 +517,6 @@ router.get('/meetings/:id/original-summary', authenticateAdmin, async (req, res)
   } catch (error) {
     console.error('Error generating original summary PDF:', error);
     res.status(500).json({ error: 'Failed to generate original summary PDF' });
-  }
-});
-
-/**
- * Download current (edited/approved) summary as PDF
- */
-router.get('/meetings/:id/summary-pdf', authenticateAdmin, async (req, res) => {
-  try {
-    const meeting = await Meeting.findById(req.params.id);
-    if (!meeting) {
-      return res.status(404).json({ error: 'Meeting not found' });
-    }
-
-    if (!meeting.summary) {
-      return res.status(404).json({ error: 'Summary not available' });
-    }
-
-    const PDFDocument = require('pdfkit');
-
-    const doc = new PDFDocument({ margin: 50 });
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="Meeting-Summary-${meeting.title.replace(/[^a-z0-9]/gi, '_')}-${new Date(
-        meeting.endTime || meeting.startTime
-      )
-        .toISOString()
-        .split('T')[0]}.pdf"`
-    );
-
-    doc.pipe(res);
-
-    const companyName = process.env.COMPANY_NAME || 'PortIQ Technologies';
-
-    // Header
-    doc.fontSize(20).text(companyName, { align: 'center' });
-    doc.moveDown();
-
-    // Meeting details
-    doc.fontSize(16).text('MEETING SUMMARY', { align: 'center', underline: true });
-    doc.moveDown();
-    doc.fontSize(12);
-    doc.text(`Title: ${meeting.title}`);
-    doc.text(`Room: ${meeting.meetingRoom}`);
-    doc.text(`Organizer: ${meeting.organizer}`);
-    doc.text(`Date: ${new Date(meeting.startTime).toLocaleDateString()}`);
-    if (meeting.endTime) {
-      const duration = Math.round((new Date(meeting.endTime) - new Date(meeting.startTime)) / 60000);
-      doc.text(`Duration: ${duration} minutes`);
-    }
-    doc.moveDown();
-
-    // Executive Summary
-    doc.fontSize(14).text('EXECUTIVE SUMMARY', { underline: true });
-    doc.fontSize(11);
-    doc.text(meeting.summary || 'Not specified', { align: 'justify' });
-    doc.moveDown();
-
-    // Key Discussion Points
-    if (meeting.keyPoints && meeting.keyPoints.length > 0) {
-      doc.fontSize(14).text('KEY DISCUSSION POINTS', { underline: true });
-      doc.fontSize(11);
-      meeting.keyPoints.forEach((point) => {
-        doc.text(`• ${point}`, { indent: 20 });
-      });
-      doc.moveDown();
-    }
-
-    // Action Items
-    if (meeting.actionItems && meeting.actionItems.length > 0) {
-      doc.fontSize(14).text('ACTION ITEMS', { underline: true });
-      doc.fontSize(11);
-      meeting.actionItems.forEach((item) => {
-        doc.text(`Task: ${item.task || 'Not specified'}`);
-        if (item.assignee) doc.text(`Responsible: ${item.assignee}`, { indent: 20 });
-        if (item.dueDate) doc.text(`Due Date: ${new Date(item.dueDate).toLocaleDateString()}`, { indent: 20 });
-        doc.moveDown(0.5);
-      });
-      doc.moveDown();
-    }
-
-    // Decisions
-    if (meeting.decisions && meeting.decisions.length > 0) {
-      doc.fontSize(14).text('DECISIONS MADE', { underline: true });
-      doc.fontSize(11);
-      meeting.decisions.forEach((decision) => {
-        doc.text(`• ${decision}`, { indent: 20 });
-      });
-      doc.moveDown();
-    }
-
-    // Next Steps
-    if (meeting.nextSteps && meeting.nextSteps.length > 0) {
-      doc.fontSize(14).text('NEXT STEPS', { underline: true });
-      doc.fontSize(11);
-      meeting.nextSteps.forEach((step) => {
-        doc.text(`• ${step}`, { indent: 20 });
-      });
-      doc.moveDown();
-    }
-
-    // Important Notes
-    if (meeting.importantNotes && meeting.importantNotes.length > 0) {
-      doc.fontSize(14).text('IMPORTANT NOTES', { underline: true });
-      doc.fontSize(11);
-      meeting.importantNotes.forEach((note) => {
-        doc.text(`• ${note}`, { indent: 20 });
-      });
-      doc.moveDown();
-    }
-
-    doc.fontSize(8).text('Generated automatically by PortIQ Meeting Assistant', { align: 'center' });
-    doc.end();
-  } catch (error) {
-    console.error('Error generating summary PDF:', error);
-    res.status(500).json({ error: 'Failed to generate summary PDF' });
   }
 });
 

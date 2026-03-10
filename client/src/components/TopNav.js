@@ -49,7 +49,7 @@ const TopNav = () => {
     },
     {
       id: 'insights',
-      label: 'Analytics',
+      label: 'Insights',
       icon: (
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
           <line x1="18" y1="20" x2="18" y2="10"></line>
@@ -99,7 +99,18 @@ const TopNav = () => {
         <div className="top-nav-actions">
           <button 
             className="top-nav-admin"
-            onClick={() => navigate('/admin-login')}
+            onClick={() => {
+              const token = localStorage.getItem('clientAdminToken');
+              if (token) {
+                navigate('/admin');
+              } else {
+                const password = prompt('Enter admin password:');
+                if (password) {
+                  // Admin login will be handled by the admin page
+                  navigate('/admin');
+                }
+              }
+            }}
             title="Admin"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">

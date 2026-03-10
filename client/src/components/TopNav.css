@@ -33,31 +33,33 @@
 .top-nav-brand {
   display: flex;
   align-items: center;
-  gap: 8px; /* tighter spacing between logo and Portiq text */
+  gap: 8px;
   cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 8px;
+  transition: all 150ms ease;
   flex-shrink: 0;
 }
 
 .top-nav-brand:hover {
-  background: transparent;
+  background: #141414;
 }
 
 .top-nav-logo {
-  height: 52px !important;
+  height: 26px !important;
   width: auto !important;
-  /* no max-width so logo isn't constrained */
+  max-width: 26px !important;
   object-fit: contain !important;
   display: block;
   flex-shrink: 0;
 }
 
 .top-nav-brand-text {
-  font-size: 24px;
+  font-size: 14px;
   font-weight: 600;
   color: #F5F5F5;
   letter-spacing: -0.01em;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  line-height: 1; /* keep text vertically centered with logo */
 }
 
 .top-nav-menu {
@@ -80,7 +82,7 @@
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 180ms ease;
+  transition: background 150ms ease;
   position: relative;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   white-space: nowrap;
@@ -89,7 +91,6 @@
 .top-nav-item:hover {
   background: #141414;
   color: #F5F5F5;
-  transform: translateY(-1px);
 }
 
 .top-nav-item.active {
@@ -125,7 +126,7 @@
   border: none;
   color: #9CA3AF;
   cursor: pointer;
-  transition: all 180ms ease;
+  transition: all 150ms ease;
   font-size: 14px;
   font-weight: 500;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
@@ -135,7 +136,6 @@
 .top-nav-settings:hover {
   background: #141414;
   color: #F5F5F5;
-  transform: translateY(-1px);
 }
 
 .top-nav-admin svg,

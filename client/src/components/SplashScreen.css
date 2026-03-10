@@ -4,117 +4,78 @@
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: #0F0F10;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 10000;
   overflow: hidden;
-  opacity: 1;
-  transition: opacity 400ms ease-out;
+  animation: backgroundFadeIn 1.5s ease-out;
 }
 
-.splash-exit {
+/* AI-Style Expanding Rings - Minimalistic */
+.ai-rings-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 500px;
+  height: 500px;
+  z-index: 1;
+}
+
+.ai-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid;
   opacity: 0;
+  animation: aiRingExpand 3s ease-in-out infinite;
 }
 
-/* Boot screen layout */
-.boot-inner {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0;
-  position: relative;
-  z-index: 20;
+.ring-1 {
+  border-color: rgba(37, 99, 235, 0.6);
+  animation-delay: 0s;
 }
 
-.boot-logo-wrapper {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 18px; /* Logo → Portiq title */
+.ring-2 {
+  border-color: rgba(124, 58, 237, 0.5);
+  animation-delay: 0.5s;
 }
 
-.boot-logo {
-  height: 220px !important;  /* dominant logo size */
-  width: auto !important;
-  object-fit: contain !important;
-  opacity: 0;
-  transform: scale(0.94);
-  animation: bootLogoIn 600ms ease-out forwards;
+.ring-3 {
+  border-color: rgba(37, 99, 235, 0.4);
+  animation-delay: 1s;
 }
 
-@keyframes bootLogoIn {
+.ring-4 {
+  display: none;
+}
+
+.ring-5 {
+  display: none;
+}
+
+.ring-6 {
+  display: none;
+}
+
+@keyframes aiRingExpand {
   0% {
+    transform: scale(0.4) rotate(0deg);
     opacity: 0;
-    transform: scale(0.94);
+  }
+  30% {
+    opacity: 0.8;
+  }
+  60% {
+    transform: scale(1) rotate(180deg);
+    opacity: 0.6;
   }
   100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.boot-title {
-  margin-top: 0;
-  margin-bottom: 8px; /* Title → Subtitle */
-  font-size: 48px;
-  font-weight: 600;
-  color: #e5e5e5;
-  opacity: 0;
-  animation: bootTextIn 400ms ease-out 0.9s forwards;
-}
-
-.boot-subtitle {
-  margin-top: 0;
-  margin-bottom: 32px; /* Subtitle → Loading bar */
-  font-size: 18px;
-  font-weight: 400;
-  color: #9ca3af;
-  opacity: 0;
-  animation: bootTextIn 400ms ease-out 0.9s forwards;
-}
-
-@keyframes bootTextIn {
-  0% {
+    transform: scale(1.4) rotate(360deg);
     opacity: 0;
-    transform: translateY(4px);
   }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.boot-progress {
-  width: 320px;       /* wider to balance larger branding */
-  margin-top: 0;
-}
-
-.boot-progress-track {
-  width: 100%;
-  height: 3px;
-  border-radius: 999px;
-  background: #1f2937;
-  overflow: hidden;
-}
-
-.boot-progress-fill {
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #2563eb, #60a5fa);
-  transition: width 3400ms ease-in-out;
-}
-
-/* Disable old splash visual layers so background stays clean dark grey */
-.splash-screen::before,
-.splash-screen::after,
-.neural-particles,
-.splash-content,
-.logo-container,
-.logo-glow-wrapper {
-  display: none !important;
 }
 
 /* Neural Network Particles */

@@ -29,15 +29,6 @@ body {
   color: #F5F5F7;
 }
 
-/* Global constraint for PortIQ logo usage so it never renders huge */
-img[src="/assets/portiq-logo.png"] {
-  max-height: 72px;
-  height: 64px;
-  width: auto;
-  object-fit: contain;
-  display: inline-block;
-}
-
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;

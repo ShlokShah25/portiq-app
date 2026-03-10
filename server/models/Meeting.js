@@ -1,16 +1,6 @@
 const mongoose = require('mongoose');
 
 const meetingSchema = new mongoose.Schema({
-  /**
-   * Optional reference to the Organization that owns this meeting.
-   * Used for multi-tenant data isolation so meetings are only visible
-   * to users within the same organization.
-   */
-  organizationId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Organization',
-    default: null
-  },
   meetingRoom: {
     type: String,
     required: true,
