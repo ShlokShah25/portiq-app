@@ -2,6 +2,16 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const adminSchema = new mongoose.Schema({
+  /**
+   * Optional reference to the Organization this admin/user belongs to.
+   * This is used for multi-tenant data isolation so each organization
+   * only sees its own meetings and configuration.
+   */
+  organizationId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Organization',
+    default: null
+  },
   username: {
     type: String,
     required: true,

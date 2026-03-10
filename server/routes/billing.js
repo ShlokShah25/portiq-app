@@ -2,6 +2,9 @@ const express = require('express');
 const crypto = require('crypto');
 const router = express.Router();
 const { getRazorpayClient } = require('../utils/razorpayClient');
+const Organization = require('../models/Organization');
+const { authenticateAdmin } = require('../middleware/auth');
+const { requireActiveSubscription } = require('../middleware/requireActiveSubscription');
 
 /**
  * POST /api/create-subscription
@@ -19,7 +22,7 @@ const { getRazorpayClient } = require('../utils/razorpayClient');
  */
 router.post('/create-subscription', async (req, res) => {
   try {
-    const { planType } = req.body || {};
+    const { planType, customerEmail, organizationId } = req.body || {};
 
     if (!planType) {
       return res.status(400).json({ error: 'planType is required' });
@@ -39,11 +42,17 @@ router.post('/create-subscription', async (req, res) => {
 
     const razorpay = getRazorpayClient();
 
+    // Build notes so webhook can later map subscription back to org/user
+    const notes = {};
+    if (customerEmail) notes.email = customerEmail;
+    if (organizationId) notes.organizationId = organizationId;
+
     // Create subscription – assumes plans are already created in Razorpay dashboard
     const subscription = await razorpay.subscriptions.create({
       plan_id: planId,
       total_count: 0, // 0 => until cancelled (ongoing subscription)
-      quantity: 1
+      quantity: 1,
+      notes
     });
 
     // Helpful log for deployment debugging
@@ -60,6 +69,91 @@ router.post('/create-subscription', async (req, res) => {
   } catch (error) {
     console.error('Error creating Razorpay subscription:', error);
     res.status(500).json({ error: 'Failed to create subscription' });
+  }
+});
+
+/**
+ * POST /api/billing/upgrade-plan
+ *
+ * Creates a new Razorpay subscription for an upgraded plan for the
+ * currently authenticated organization. This keeps billing logic
+ * organization-based rather than user-based.
+ *
+ * Body:
+ * - newPlan: "professional" | "business"
+ */
+router.post('/billing/upgrade-plan', authenticateAdmin, requireActiveSubscription, async (req, res) => {
+  try {
+    const { newPlan } = req.body || {};
+
+    if (!newPlan || !['professional', 'business'].includes(newPlan)) {
+      return res.status(400).json({ error: 'newPlan must be "professional" or "business"' });
+    }
+
+    if (!req.admin.organizationId) {
+      return res.status(400).json({ error: 'Admin is not associated with an organization' });
+    }
+
+    const organization = await Organization.findById(req.admin.organizationId);
+    if (!organization) {
+      return res.status(404).json({ error: 'Organization not found' });
+    }
+
+    if (organization.subscriptionStatus !== 'active') {
+      return res.status(400).json({ error: 'Subscription must be active to upgrade plan' });
+    }
+
+    // Prevent downgrades: only allow moving up the ladder.
+    const planOrder = { starter: 1, professional: 2, business: 3 };
+    const currentPlanKey = organization.plan || 'starter';
+    if (!planOrder[currentPlanKey]) {
+      return res.status(400).json({ error: 'Current plan is not upgradeable' });
+    }
+    if (planOrder[newPlan] <= planOrder[currentPlanKey]) {
+      return res.status(400).json({ error: 'Downgrades are not allowed at this time' });
+    }
+
+    // Map logical plan names to Razorpay plan IDs
+    const planMap = {
+      starter: 'plan_SPFmcDcdszQQ0m',
+      professional: 'plan_SPFn1zTaawJWmb',
+      business: 'plan_SPFnmnSdQGeKuT'
+    };
+
+    const newPlanId = planMap[newPlan];
+    if (!newPlanId) {
+      return res.status(400).json({ error: 'Invalid target plan' });
+    }
+
+    const razorpay = getRazorpayClient();
+
+    // Notes help us link the upgraded subscription back to the organization
+    const notes = {
+      organizationId: organization._id.toString(),
+      upgradedFrom: currentPlanKey
+    };
+
+    // Create upgraded subscription – total_count=12 as example yearly cycle
+    const subscription = await razorpay.subscriptions.create({
+      plan_id: newPlanId,
+      customer_notify: 1,
+      total_count: 12,
+      notes
+    });
+
+    console.log('[Razorpay] Upgrade subscription created:', {
+      id: subscription.id,
+      from: currentPlanKey,
+      to: newPlan
+    });
+
+    return res.json({
+      subscriptionId: subscription.id,
+      keyId: process.env.RAZORPAY_KEY_ID
+    });
+  } catch (error) {
+    console.error('Error upgrading Razorpay subscription:', error);
+    res.status(500).json({ error: 'Failed to upgrade subscription' });
   }
 });
 
@@ -112,18 +206,25 @@ router.post('/razorpay-webhook', express.json({ type: '*/*' }), async (req, res)
         const subscription = event.payload.subscription?.entity;
         console.log(logPrefix, 'Subscription activated:', subscription?.id);
 
-        // Example: determine plan type from plan_id mapping
+        // Determine plan type from plan_id mapping
         const planId = subscription?.plan_id;
         let plan = null;
         if (planId === 'plan_portiq_starter') plan = 'starter';
         else if (planId === 'plan_portiq_professional') plan = 'professional';
         else if (planId === 'plan_portiq_business') plan = 'business';
 
-        // Here you would update your user/tenant record, for example:
-        // await User.findOneAndUpdate({ razorpaySubscriptionId: subscription.id }, {
-        //   subscription_status: 'active',
-        //   plan
-        // });
+        // Link Razorpay subscription to organization and mark as active so
+        // requireActiveSubscription will allow product access.
+        const orgIdFromNotes = subscription?.notes?.organizationId;
+        if (orgIdFromNotes) {
+          await Organization.findByIdAndUpdate(orgIdFromNotes, {
+            $set: {
+              subscriptionStatus: 'active',
+              plan,
+              razorpaySubscriptionId: subscription.id
+            }
+          });
+        }
 
         console.log(logPrefix, 'Plan activated:', plan || planId);
         break;
@@ -134,10 +235,14 @@ router.post('/razorpay-webhook', express.json({ type: '*/*' }), async (req, res)
         const subscription = event.payload.subscription?.entity;
         console.log(logPrefix, 'Subscription ended:', subscription?.id, 'status:', subscription?.status);
 
-        // Example placeholder for marking subscription inactive:
-        // await User.findOneAndUpdate({ razorpaySubscriptionId: subscription.id }, {
-        //   subscription_status: 'inactive'
-        // });
+        const orgIdFromNotes = subscription?.notes?.organizationId;
+        if (orgIdFromNotes) {
+          await Organization.findByIdAndUpdate(orgIdFromNotes, {
+            $set: {
+              subscriptionStatus: 'cancelled'
+            }
+          });
+        }
         break;
       }
 

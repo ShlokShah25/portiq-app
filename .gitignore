@@ -1,0 +1,16 @@
+.env
+node_modules
+uploads
+*.webm
+*.mp4
+.cache
+logs
+*.log
+.DS_Store
+.env
+server/.env
+client/.env
+admin/.env
+client/build/
+admin/build/
+uploads/

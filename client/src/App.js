@@ -15,6 +15,7 @@ const MeetingInProgress = lazy(() => import('./components/MeetingInProgress'));
 const ClientAdmin = lazy(() => import('./components/ClientAdmin'));
 const SplashScreen = lazy(() => import('./components/SplashScreen'));
 const ClientAdminLogin = lazy(() => import('./components/ClientAdminLogin'));
+const Onboarding = lazy(() => import('./components/Onboarding'));
 
 // Set base URL for API - connects to workplace server on port 5001
 axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
@@ -55,6 +56,7 @@ function AppContent({ config, configLoaded, showSplash, setShowSplash }) {
             <Route path="/" element={<Dashboard config={config} />} />
             <Route path="/dashboard" element={<Dashboard config={config} />} />
             <Route path="/admin-login" element={<ClientAdminLogin />} />
+            <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/meetings" element={<MeetingsScreen config={config} />} />
             <Route path="/meetings/:meetingId" element={<MeetingInProgress />} />
             <Route path="/transcripts" element={<Transcripts />} />

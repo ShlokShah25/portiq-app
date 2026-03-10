@@ -4,6 +4,7 @@ const Meeting = require('../models/Meeting');
 const VoiceProfile = require('../models/VoiceProfile');
 const { transcribeAndSummarize, sendMeetingSummary, getMailTransporter } = require('../utils/meetingTranscription');
 const { generateVoiceEmbedding } = require('../utils/voiceRecognition');
+const { requireActiveSubscription } = require('../middleware/requireActiveSubscription');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -82,7 +83,7 @@ const voiceUpload = multer({
 /**
  * Create new meeting
  */
-router.post('/', async (req, res) => {
+router.post('/', requireActiveSubscription, async (req, res) => {
   try {
     const { meetingRoom, title, organizer, participants, startTime, scheduledTime, sendNotification, transcriptionEnabled, authorizedEditorEmail } = req.body;
     
@@ -91,6 +92,8 @@ router.post('/', async (req, res) => {
     }
 
     const meeting = new Meeting({
+      // Multi-tenant: attach the organization that owns this meeting
+      organizationId: req.user?.organizationId || null,
       meetingRoom,
       title,
       organizer,
@@ -250,7 +253,7 @@ router.post('/', async (req, res) => {
 /**
  * Start meeting (begin transcription)
  */
-router.post('/:id/start', async (req, res) => {
+router.post('/:id/start', requireActiveSubscription, async (req, res) => {
   try {
     const meeting = await Meeting.findById(req.params.id);
     if (!meeting) {
@@ -276,7 +279,7 @@ router.post('/:id/start', async (req, res) => {
 /**
  * Start recording (sets actual start time)
  */
-router.post('/:id/start-recording', async (req, res) => {
+router.post('/:id/start-recording', requireActiveSubscription, async (req, res) => {
   try {
     const meeting = await Meeting.findById(req.params.id);
     if (!meeting) {
@@ -303,7 +306,7 @@ router.post('/:id/start-recording', async (req, res) => {
 /**
  * End meeting and process transcription
  */
-router.post('/:id/end', upload.single('audio'), async (req, res) => {
+router.post('/:id/end', requireActiveSubscription, upload.single('audio'), async (req, res) => {
   try {
     const meeting = await Meeting.findById(req.params.id);
     if (!meeting) {
@@ -361,26 +364,40 @@ router.post('/:id/end', upload.single('audio'), async (req, res) => {
             originalDecisions: summaryData.decisions || [],
             originalNextSteps: summaryData.nextSteps || [],
             originalImportantNotes: summaryData.importantNotes || [],
-            // Pending (editor workflow) fields
-            pendingSummary: summaryData.summary,
-            pendingKeyPoints: summaryData.keyPoints || [],
-            pendingActionItems: (summaryData.actionItems || []).map((item) => ({
-              task: item.task || '',
-              assignee: item.assignee || '',
-              dueDate: safeParseDate(item.dueDate)
-            })),
-            pendingDecisions: summaryData.decisions || [],
-            pendingNextSteps: summaryData.nextSteps || [],
-            pendingImportantNotes: summaryData.importantNotes || [],
             transcriptionStatus: 'Completed'
           };
 
-          // If there is an authorized editor, keep Pending Approval workflow
-          // Otherwise, auto-send summary to participants
-          const update = {
-            ...baseUpdate,
-            summaryStatus: meeting.authorizedEditorEmail ? 'Pending Approval' : 'Sent'
-          };
+          let update;
+
+          if (meeting.authorizedEditorEmail) {
+            // Editor present → keep approval workflow using pending* fields
+            update = {
+              ...baseUpdate,
+              pendingSummary: summaryData.summary,
+              pendingKeyPoints: summaryData.keyPoints || [],
+              pendingActionItems: (summaryData.actionItems || []).map((item) => ({
+                task: item.task || '',
+                assignee: item.assignee || '',
+                dueDate: safeParseDate(item.dueDate)
+              })),
+              pendingDecisions: summaryData.decisions || [],
+              pendingNextSteps: summaryData.nextSteps || [],
+              pendingImportantNotes: summaryData.importantNotes || [],
+              summaryStatus: 'Pending Approval'
+            };
+          } else {
+            // No authorized editor → clear any stale pending* and mark as sent
+            update = {
+              ...baseUpdate,
+              pendingSummary: '',
+              pendingKeyPoints: [],
+              pendingActionItems: [],
+              pendingDecisions: [],
+              pendingNextSteps: [],
+              pendingImportantNotes: [],
+              summaryStatus: 'Sent'
+            };
+          }
 
           await Meeting.findByIdAndUpdate(meeting._id, { $set: update }, { new: false });
 
@@ -488,6 +505,11 @@ router.get('/', async (req, res) => {
   try {
     const { status, meetingRoom, date } = req.query;
     const query = {};
+
+    // Multi-tenant: restrict kiosk view to the caller's organization
+    if (req.user?.organizationId) {
+      query.organizationId = req.user.organizationId;
+    }
 
     if (status) query.status = status;
     if (meetingRoom) query.meetingRoom = meetingRoom;

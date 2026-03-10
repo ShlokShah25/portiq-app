@@ -24,7 +24,21 @@ const ClientAdminLogin = () => {
       }
       localStorage.setItem('clientAdminToken', token);
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      navigate('/admin', { replace: true });
+
+      // After login, check if admin has an organization configured.
+      try {
+        const profileRes = await axios.get('/admin/profile');
+        const orgId = profileRes.data?.admin?.organizationId;
+        if (!orgId) {
+          navigate('/onboarding', { replace: true });
+        } else {
+          navigate('/admin', { replace: true });
+        }
+      } catch (profileErr) {
+        console.error('Failed to fetch admin profile after login:', profileErr);
+        // Fallback: go to admin console
+        navigate('/admin', { replace: true });
+      }
     } catch (err) {
       const msg =
         err.response?.data?.error ||

@@ -1,0 +1,156 @@
+.onboarding-screen {
+  width: 100vw;
+  height: 100vh;
+  background: var(--bg-primary);
+  display: flex;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Helvetica Neue", system-ui, sans-serif;
+}
+
+.onboarding-wrapper {
+  margin-top: 64px;
+  width: 100vw;
+  height: calc(100vh - 64px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+}
+
+.onboarding-card {
+  width: 100%;
+  max-width: 540px;
+  background: var(--surface-secondary);
+  border-radius: 18px;
+  border: 1px solid var(--border-color);
+  padding: 32px 28px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.7);
+}
+
+.onboarding-title {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  color: var(--text-primary);
+  margin: 0 0 8px;
+}
+
+.onboarding-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin: 0 0 24px;
+}
+
+.onboarding-error {
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.6);
+  color: #fecaca;
+  font-size: 13px;
+}
+
+.onboarding-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.onboarding-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.onboarding-field label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.onboarding-field input[type="text"],
+.onboarding-field input[type="file"] {
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 14px;
+  transition: all 150ms ease;
+}
+
+.onboarding-field input[type="text"]:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  background: var(--surface-secondary);
+}
+
+.onboarding-help {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 4px 0 0;
+}
+
+.onboarding-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.onboarding-primary,
+.onboarding-secondary {
+  flex: 1;
+  padding: 11px 16px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.onboarding-primary {
+  background: var(--accent-blue);
+  border-color: var(--accent-blue);
+  color: #ffffff;
+}
+
+.onboarding-primary:hover:enabled {
+  filter: brightness(1.05);
+}
+
+.onboarding-secondary {
+  background: transparent;
+  border-color: var(--border-color);
+  color: var(--text-secondary);
+}
+
+.onboarding-secondary:hover:enabled {
+  background: var(--bg-primary);
+}
+
+.onboarding-primary:disabled,
+.onboarding-secondary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+@media (max-width: 640px) {
+  .onboarding-card {
+    padding-inline: 20px;
+  }
+
+  .onboarding-actions {
+    flex-direction: column;
+  }
+}
+

@@ -6,6 +6,7 @@ const Visitor = require('../models/Visitor');
 const Meeting = require('../models/Meeting');
 const jwt = require('jsonwebtoken');
 const { authenticateAdmin } = require('../middleware/auth');
+const { requireActiveSubscription } = require('../middleware/requireActiveSubscription');
 const { getMeetingContext } = require('../utils/meetingContext');
 
 /**
@@ -49,7 +50,8 @@ router.post('/login', async (req, res) => {
       admin: {
         id: admin._id,
         username: admin.username,
-        role: admin.role
+        role: admin.role,
+        organizationId: admin.organizationId || null
       }
     });
   } catch (error) {
@@ -61,12 +63,13 @@ router.post('/login', async (req, res) => {
 /**
  * Get admin profile
  */
-router.get('/profile', authenticateAdmin, async (req, res) => {
+router.get('/profile', authenticateAdmin, requireActiveSubscription, async (req, res) => {
   res.json({
     admin: {
       id: req.admin._id,
       username: req.admin.username,
       role: req.admin.role,
+      organizationId: req.admin.organizationId || null,
       lastLogin: req.admin.lastLogin
     }
   });
@@ -75,7 +78,7 @@ router.get('/profile', authenticateAdmin, async (req, res) => {
 /**
  * Get dashboard stats
  */
-router.get('/stats', authenticateAdmin, async (req, res) => {
+router.get('/stats', authenticateAdmin, requireActiveSubscription, async (req, res) => {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -118,7 +121,7 @@ router.get('/stats', authenticateAdmin, async (req, res) => {
 /**
  * Get configuration
  */
-router.get('/config', authenticateAdmin, async (req, res) => {
+router.get('/config', authenticateAdmin, requireActiveSubscription, async (req, res) => {
   try {
     const config = await Config.getConfig();
     res.json({ config });
@@ -131,7 +134,7 @@ router.get('/config', authenticateAdmin, async (req, res) => {
 /**
  * Update configuration
  */
-router.put('/config', authenticateAdmin, async (req, res) => {
+router.put('/config', authenticateAdmin, requireActiveSubscription, async (req, res) => {
   try {
     const { companyName, completedMeetingDisplayHours } = req.body;
     const config = await Config.getConfig();
@@ -152,10 +155,15 @@ router.put('/config', authenticateAdmin, async (req, res) => {
 /**
  * Get all meetings (admin view - shows all regardless of completion time)
  */
-router.get('/meetings', authenticateAdmin, async (req, res) => {
+router.get('/meetings', authenticateAdmin, requireActiveSubscription, async (req, res) => {
   try {
     const { status, meetingRoom, date, limit = 100 } = req.query;
     const query = {};
+
+    // Multi-tenant: restrict admin meeting list to admin's organization
+    if (req.admin?.organizationId) {
+      query.organizationId = req.admin.organizationId;
+    }
 
     if (status) query.status = status;
     if (meetingRoom) query.meetingRoom = meetingRoom;
@@ -179,9 +187,81 @@ router.get('/meetings', authenticateAdmin, async (req, res) => {
 });
 
 /**
+ * List users in the current admin's organization
+ */
+router.get('/users', authenticateAdmin, requireActiveSubscription, async (req, res) => {
+  try {
+    if (!req.admin.organizationId) {
+      return res.status(400).json({ error: 'Admin is not associated with an organization' });
+    }
+
+    const users = await Admin.find({ organizationId: req.admin.organizationId })
+      .select('-password')
+      .sort({ createdAt: 1 });
+
+    res.json({ users });
+  } catch (error) {
+    console.error('Error fetching users for organization:', error);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+/**
+ * Create a new user within the current admin's organization.
+ * Only allowed for owner-level admins.
+ */
+router.post('/users', authenticateAdmin, requireActiveSubscription, async (req, res) => {
+  try {
+    const { email, password, role = 'member' } = req.body || {};
+
+    if (!req.admin.organizationId) {
+      return res.status(400).json({ error: 'Admin is not associated with an organization' });
+    }
+
+    if (req.admin.role !== 'owner') {
+      return res.status(403).json({ error: 'Only owner admins can create new users' });
+    }
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'email and password are required' });
+    }
+
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const existing = await Admin.findOne({ username: normalizedEmail });
+    if (existing) {
+      return res.status(409).json({ error: 'A user with this email already exists' });
+    }
+
+    const allowedRoles = ['admin', 'member'];
+    const finalRole = allowedRoles.includes(role) ? role : 'member';
+
+    const user = new Admin({
+      username: normalizedEmail,
+      password,
+      role: finalRole,
+      organizationId: req.admin.organizationId
+    });
+    await user.save();
+
+    res.json({
+      success: true,
+      user: {
+        id: user._id,
+        username: user.username,
+        role: user.role,
+        organizationId: user.organizationId
+      }
+    });
+  } catch (error) {
+    console.error('Error creating organization user:', error);
+    res.status(500).json({ error: 'Failed to create user' });
+  }
+});
+
+/**
  * Get meeting by ID (admin view)
  */
-router.get('/meetings/:id', authenticateAdmin, async (req, res) => {
+router.get('/meetings/:id', authenticateAdmin, requireActiveSubscription, async (req, res) => {
   try {
     const meeting = await Meeting.findById(req.params.id);
     if (!meeting) {
@@ -197,7 +277,7 @@ router.get('/meetings/:id', authenticateAdmin, async (req, res) => {
 /**
  * Update meeting (admin view - for renaming)
  */
-router.put('/meetings/:id', authenticateAdmin, async (req, res) => {
+router.put('/meetings/:id', authenticateAdmin, requireActiveSubscription, async (req, res) => {
   try {
     const { title, meetingRoom, organizer, showOnKiosk, scheduledTime } = req.body;
     const meeting = await Meeting.findById(req.params.id);
@@ -225,7 +305,7 @@ router.put('/meetings/:id', authenticateAdmin, async (req, res) => {
 /**
  * Retry transcription for a failed meeting
  */
-router.post('/meetings/:id/retry-transcription', authenticateAdmin, async (req, res) => {
+router.post('/meetings/:id/retry-transcription', authenticateAdmin, requireActiveSubscription, async (req, res) => {
   try {
     const meeting = await Meeting.findById(req.params.id);
     

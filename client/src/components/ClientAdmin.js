@@ -18,6 +18,8 @@ const ClientAdmin = () => {
   const [rescheduleMeeting, setRescheduleMeeting] = useState(null);
   const [rescheduleDate, setRescheduleDate] = useState('');
   const [rescheduleTime, setRescheduleTime] = useState('');
+  const [users, setUsers] = useState([]);
+  const [newUser, setNewUser] = useState({ email: '', password: '', role: 'member' });
 
   useEffect(() => {
     // Require admin token to view this screen
@@ -28,6 +30,7 @@ const ClientAdmin = () => {
     }
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     fetchMeetings();
+    fetchUsers();
   }, [filters, navigate]);
 
   const fetchMeetings = async () => {
@@ -48,6 +51,15 @@ const ClientAdmin = () => {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const res = await axios.get('/admin/users');
+      setUsers(res.data?.users || []);
+    } catch (error) {
+      console.error('Error fetching users:', error);
     }
   };
 
@@ -192,6 +204,22 @@ const ClientAdmin = () => {
     } catch (error) {
       console.error('Error rescheduling meeting:', error);
       alert('Failed to reschedule meeting.');
+    }
+  };
+
+  const handleCreateUser = async (e) => {
+    e.preventDefault();
+    if (!newUser.email || !newUser.password) {
+      alert('Email and password are required.');
+      return;
+    }
+    try {
+      await axios.post('/admin/users', newUser);
+      setNewUser({ email: '', password: '', role: 'member' });
+      fetchUsers();
+    } catch (error) {
+      console.error('Error creating user:', error);
+      alert(error.response?.data?.error || 'Failed to create user');
     }
   };
 
@@ -405,6 +433,70 @@ const ClientAdmin = () => {
             </table>
           </div>
         )}
+      </div>
+
+      {/* Organization Users (Team) */}
+      <div className="client-admin-content">
+        <div className="admin-team-section">
+          <h2>Team</h2>
+          <p className="admin-team-subtitle">
+            Invite additional users from your organization to access Portiq with their own login.
+          </p>
+          <form className="admin-team-form" onSubmit={handleCreateUser}>
+            <input
+              type="email"
+              placeholder="User email"
+              value={newUser.email}
+              onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+              className="filter-input"
+              style={{ maxWidth: 260 }}
+            />
+            <input
+              type="password"
+              placeholder="Temporary password"
+              value={newUser.password}
+              onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+              className="filter-input"
+              style={{ maxWidth: 200 }}
+            />
+            <select
+              value={newUser.role}
+              onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+              className="filter-select"
+              style={{ maxWidth: 160 }}
+            >
+              <option value="member">Member</option>
+              <option value="admin">Admin</option>
+            </select>
+            <button type="submit" className="dashboard-btn-primary">
+              Add User
+            </button>
+          </form>
+          <div className="admin-team-list">
+            {users.length === 0 ? (
+              <div className="empty-state">No additional users yet.</div>
+            ) : (
+              <table className="meetings-table">
+                <thead>
+                  <tr>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Created</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((u) => (
+                    <tr key={u._id}>
+                      <td>{u.username}</td>
+                      <td>{u.role}</td>
+                      <td>{formatDate(u.createdAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Reschedule Modal */}
