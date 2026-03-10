@@ -14,3 +14,4 @@ admin/.env
 client/build/
 admin/build/
 uploads/
+package-lock.json
