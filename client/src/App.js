@@ -13,10 +13,18 @@ const Insights = lazy(() => import('./components/Insights'));
 const Settings = lazy(() => import('./components/Settings'));
 const MeetingInProgress = lazy(() => import('./components/MeetingInProgress'));
 const ClientAdmin = lazy(() => import('./components/ClientAdmin'));
+const ClientAdminLogin = lazy(() => import('./components/ClientAdminLogin'));
 const SplashScreen = lazy(() => import('./components/SplashScreen'));
 
-// Set base URL for API - connects to workplace server on port 5001
-axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
+// Set base URL for API.
+// - In local dev: use explicit REACT_APP_API_URL or localhost:5001
+// - In production (Railway): use same-origin `/api` so CORS is not needed.
+const isBrowser = typeof window !== 'undefined';
+const isLocalhost = isBrowser && window.location.hostname === 'localhost';
+
+axios.defaults.baseURL = isLocalhost
+  ? (process.env.REACT_APP_API_URL || 'http://localhost:5001/api')
+  : '/api';
 
 // Add response interceptor for error handling
 axios.interceptors.response.use(
@@ -34,7 +42,15 @@ function AppContent({ config, configLoaded, showSplash, setShowSplash }) {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Removed redirect logic that was blocking /meetings navigation
+  // Require admin authentication for all routes except the explicit login page.
+  useEffect(() => {
+    const token = localStorage.getItem('clientAdminToken');
+    const isLoginRoute = location.pathname === '/admin-login';
+
+    if (!token && !isLoginRoute) {
+      navigate('/admin-login', { replace: true });
+    }
+  }, [location.pathname, navigate]);
 
   if (!configLoaded || showSplash) {
     if (showSplash) {
@@ -57,6 +73,7 @@ function AppContent({ config, configLoaded, showSplash, setShowSplash }) {
       <Routes>
         <Route path="/" element={<Dashboard config={config} />} />
         <Route path="/dashboard" element={<Dashboard config={config} />} />
+        <Route path="/admin-login" element={<ClientAdminLogin />} />
         <Route path="/meetings" element={<MeetingsScreen config={config} />} />
         <Route path="/meetings/:meetingId" element={<MeetingInProgress />} />
         <Route path="/transcripts" element={<Transcripts />} />
@@ -73,7 +90,7 @@ function AppContent({ config, configLoaded, showSplash, setShowSplash }) {
 function App() {
   const [config, setConfig] = useState(null);
   const [configLoaded, setConfigLoaded] = useState(false);
-  const [showSplash, setShowSplash] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
     // Fetch configuration (if you add a config endpoint later)
@@ -85,22 +102,6 @@ function App() {
     });
     setConfigLoaded(true);
   }, []);
-
-  if (!configLoaded || showSplash) {
-    if (showSplash) {
-      return (
-        <Suspense fallback={<div className="app-loading"><div className="loading-spinner"></div><p>Loading...</p></div>}>
-          <SplashScreen onComplete={() => setShowSplash(false)} />
-        </Suspense>
-      );
-    }
-    return (
-      <div className="app-loading">
-        <div className="loading-spinner"></div>
-        <p>Loading...</p>
-      </div>
-    );
-  }
 
   return (
     <Router>
