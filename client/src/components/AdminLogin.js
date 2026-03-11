@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { setProduct } from '../config/product';
 import './AdminLogin.css';
 
 const AdminLogin = () => {
   const navigate = useNavigate();
   const [password, setPassword] = useState('');
+  const [productType, setProductType] = useState('workplace');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -15,11 +17,16 @@ const AdminLogin = () => {
     setLoading(true);
 
     try {
+      // Single admin password for now – same credentials as before
       const res = await axios.post('/admin/login', { password });
       const token = res.data?.token;
       if (!token) {
         throw new Error('Login failed. Please try again.');
       }
+
+      // Set product mode based on selection (Workplace default, Education optional)
+      setProduct(productType);
+
       window.localStorage.setItem('clientAdminToken', token);
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       navigate('/dashboard', { replace: true });
@@ -51,11 +58,39 @@ const AdminLogin = () => {
           </div>
           <div className="admin-login-title-block">
             <h1>Portiq</h1>
-            <p>Sign in to continue</p>
+            <p>Sign in to your workspace or campus</p>
           </div>
         </div>
 
         <form className="admin-login-form" onSubmit={handleSubmit}>
+          <div className="admin-login-product-toggle">
+            <span className="admin-login-product-label">Product</span>
+            <div className="admin-login-product-options">
+              <button
+                type="button"
+                className={
+                  productType === 'workplace'
+                    ? 'admin-login-product-option active'
+                    : 'admin-login-product-option'
+                }
+                onClick={() => setProductType('workplace')}
+              >
+                Workplace
+              </button>
+              <button
+                type="button"
+                className={
+                  productType === 'education'
+                    ? 'admin-login-product-option active'
+                    : 'admin-login-product-option'
+                }
+                onClick={() => setProductType('education')}
+              >
+                Education
+              </button>
+            </div>
+          </div>
+
           <label className="admin-login-label">
             Admin Password
             <input
