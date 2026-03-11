@@ -6,6 +6,7 @@ import './AdminLogin.css';
 
 const AdminLogin = () => {
   const navigate = useNavigate();
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [productType, setProductType] = useState('workplace');
   const [loading, setLoading] = useState(false);
@@ -17,8 +18,12 @@ const AdminLogin = () => {
     setLoading(true);
 
     try {
-      // Single admin password for now – same credentials as before
-      const res = await axios.post('/admin/login', { password });
+      // Use email as username for admin / owner login
+      const payload = email
+        ? { username: email.trim(), password }
+        : { password };
+
+      const res = await axios.post('/admin/login', payload);
       const token = res.data?.token;
       if (!token) {
         throw new Error('Login failed. Please try again.');
@@ -45,6 +50,16 @@ const AdminLogin = () => {
   return (
     <div className="admin-login-root">
       <div className="admin-login-card">
+        <button
+          type="button"
+          className="admin-login-back"
+          onClick={() => {
+            // For now just reload app root; marketing site already handles entry
+            navigate('/', { replace: true });
+          }}
+        >
+          ← Back
+        </button>
         <div className="admin-login-header">
           <div className="admin-login-logo-circle">
             <img
@@ -57,8 +72,8 @@ const AdminLogin = () => {
             />
           </div>
           <div className="admin-login-title-block">
-            <h1>Portiq</h1>
-            <p>Sign in to your workspace or campus</p>
+            <h1>Admin Login</h1>
+            <p>Sign in to access your dashboard</p>
           </div>
         </div>
 
@@ -92,7 +107,19 @@ const AdminLogin = () => {
           </div>
 
           <label className="admin-login-label">
-            Admin Password
+            Email
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="admin-login-input"
+              placeholder="you@company.com"
+              required
+            />
+          </label>
+
+          <label className="admin-login-label">
+            Password
             <input
               type="password"
               value={password}

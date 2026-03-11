@@ -9,12 +9,21 @@
 .admin-login-card {
   width: 100%;
   max-width: 380px;
-  padding: 28px 24px 24px;
+  padding: 26px 24px 24px;
   border-radius: 20px;
   background: #020617;
   border: 1px solid rgba(31, 41, 55, 0.9);
   box-shadow: 0 16px 36px rgba(15, 23, 42, 0.9);
   color: #e5e7eb;
+}
+
+.admin-login-back {
+  border: none;
+  background: transparent;
+  color: #9ca3af;
+  font-size: 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
 }
 
 .admin-login-header {
