@@ -62,6 +62,7 @@ app.use('/api/meetings', require('./routes/meetings'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/config', require('./routes/config'));
 app.use('/api/saas', require('./routes/saas'));
+app.use('/api', require('./routes/billing'));
 
 // Health check
 app.get('/api/health', (req, res) => {
