@@ -1,97 +1,54 @@
 import React, { useState, useEffect } from 'react';
+import { isEducation } from '../config/product';
 import './SplashScreen.css';
 
+/**
+ * Apple-style boot screen: logo, title, subtitle, loading bar.
+ * Runs for LOAD_DURATION_MS then calls onComplete (no tap required).
+ */
+const LOAD_DURATION_MS = 2600;
+
 const SplashScreen = ({ onComplete }) => {
-  const [showButton, setShowButton] = useState(false);
-  const [showLoading, setShowLoading] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
-    // Show button after animation completes (4.5 seconds)
-    const timer = setTimeout(() => {
-      setShowButton(true);
-    }, 4500);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  const handleBegin = () => {
-    setShowLoading(true);
-    // Show loading for 2 seconds, then proceed
-    setTimeout(() => {
-      onComplete();
-    }, 2000);
-  };
-
-  if (showLoading) {
-    return (
-      <div className="splash-screen loading-screen">
-        <div className="loading-content">
-          <div className="logo-container">
-            <img 
-              src="/assets/portiq-logo.png" 
-              alt="PortIQ Technologies" 
-              className="loading-logo"
-              onError={(e) => {
-                e.target.style.display = 'none';
-                e.target.nextSibling.style.display = 'block';
-              }}
-            />
-            <div className="logo-text-fallback" style={{ display: 'none' }}>
-              <div className="portiq-text">PortIQ</div>
-            </div>
-          </div>
-          <p className="loading-message">Please wait while we redirect you...</p>
-        </div>
-      </div>
-    );
-  }
+    const start = Date.now();
+    const tick = () => {
+      const elapsed = Date.now() - start;
+      const p = Math.min(1, elapsed / LOAD_DURATION_MS);
+      setProgress(p);
+      if (p < 1) {
+        requestAnimationFrame(tick);
+      } else {
+        onComplete();
+      }
+    };
+    const id = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(id);
+  }, [onComplete]);
 
   return (
-    <div className="splash-screen">
-      {/* AI-style expanding rings */}
-      <div className="ai-rings-container">
-        <div className="ai-ring ring-1"></div>
-        <div className="ai-ring ring-2"></div>
-        <div className="ai-ring ring-3"></div>
-        <div className="ai-ring ring-4"></div>
-        <div className="ai-ring ring-5"></div>
-        <div className="ai-ring ring-6"></div>
-      </div>
-      
-      {/* Neural network particles */}
-      <div className="neural-particles">
-        {[...Array(20)].map((_, i) => (
-          <div key={i} className={`particle particle-${i + 1}`}></div>
-        ))}
-      </div>
-
-      <div className="splash-content">
-        <div className="logo-container">
-          <div className="logo-glow-wrapper">
-            <img 
-              src="/assets/portiq-logo.png" 
-              alt="PortIQ Technologies" 
-              className="splash-logo"
-              onError={(e) => {
-                // Fallback if logo doesn't exist
-                e.target.style.display = 'none';
-                e.target.nextSibling.style.display = 'block';
-              }}
-            />
-          </div>
-          <div className="logo-text-fallback" style={{ display: 'none' }}>
-            <div className="portiq-text">PortIQ</div>
+    <div className="splash-screen boot-screen">
+      <div className="boot-content">
+        <div className="boot-logo-wrapper">
+          <img
+            src="/assets/portiq-logo.png"
+            alt="Portiq"
+            className="boot-logo"
+            onError={(e) => {
+              e.target.style.display = 'none';
+              if (e.target.nextSibling) e.target.nextSibling.style.display = 'block';
+            }}
+          />
+          <div className="boot-logo-fallback" style={{ display: 'none' }}>
+            Portiq
           </div>
         </div>
-        <div className="splash-title">AI-Powered Meeting Assistant</div>
-        {showButton && (
-          <button 
-            className="tap-to-begin-btn"
-            onClick={handleBegin}
-          >
-            Tap to Begin
-          </button>
-        )}
+        <h1 className="boot-title">Portiq</h1>
+        <p className="boot-subtitle">{isEducation ? 'Portiq Education' : 'AI Meeting Assistant'}</p>
+        <div className="boot-progress-wrap">
+          <div className="boot-progress-bar" style={{ width: `${progress * 100}%` }} />
+        </div>
       </div>
     </div>
   );

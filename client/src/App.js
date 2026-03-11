@@ -15,6 +15,8 @@ const MeetingInProgress = lazy(() => import('./components/MeetingInProgress'));
 const ClientAdmin = lazy(() => import('./components/ClientAdmin'));
 const ClientAdminLogin = lazy(() => import('./components/ClientAdminLogin'));
 const SplashScreen = lazy(() => import('./components/SplashScreen'));
+const ClassesPage = lazy(() => import('./components/ClassesPage'));
+const TeachersPage = lazy(() => import('./components/TeachersPage'));
 
 // Set base URL for API.
 // - In local dev: use explicit REACT_APP_API_URL or localhost:5001
@@ -76,6 +78,8 @@ function AppContent({ config, configLoaded, showSplash, setShowSplash }) {
         <Route path="/admin-login" element={<ClientAdminLogin />} />
         <Route path="/meetings" element={<MeetingsScreen config={config} />} />
         <Route path="/meetings/:meetingId" element={<MeetingInProgress />} />
+        <Route path="/classes" element={<ClassesPage />} />
+        <Route path="/teachers" element={<TeachersPage />} />
         <Route path="/transcripts" element={<Transcripts />} />
         <Route path="/participants" element={<Participants />} />
         <Route path="/insights" element={<Insights />} />

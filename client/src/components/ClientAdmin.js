@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { isEducation } from '../config/product';
+import { T } from '../config/terminology';
 import './ClientAdmin.css';
 
 const ClientAdmin = () => {
@@ -256,7 +258,7 @@ const ClientAdmin = () => {
                   <th>Status</th>
                   <th>Participants</th>
                   <th>Authorized Editor</th>
-                  <th>Summary</th>
+                  <th>{isEducation ? T.meetingSummary() : 'Summary'}</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -359,7 +361,7 @@ const ClientAdmin = () => {
                                 handleDownloadSummary(meeting);
                                 setOpenActionMenuId(null);
                               }}>
-                                Download Summary
+                                {isEducation ? `Download ${T.meetingSummary()}` : 'Download Summary'}
                               </button>
                             )}
                             {meeting.originalSummary && (
@@ -367,7 +369,7 @@ const ClientAdmin = () => {
                                 handleDownloadOriginal(meeting);
                                 setOpenActionMenuId(null);
                               }}>
-                                Download Original Summary
+                                {isEducation ? `Download Original ${T.meetingSummary()}` : 'Download Original Summary'}
                               </button>
                             )}
                             {meeting.audioFile && (
@@ -391,7 +393,7 @@ const ClientAdmin = () => {
                                 handleReschedule(meeting);
                                 setOpenActionMenuId(null);
                               }}>
-                                Reschedule Meeting
+                                {T.rescheduleMeeting()}
                               </button>
                             )}
                           </div>
@@ -410,7 +412,7 @@ const ClientAdmin = () => {
       {rescheduleMeeting && (
         <div className="reschedule-modal-overlay" onClick={() => setRescheduleMeeting(null)}>
           <div className="reschedule-modal" onClick={(e) => e.stopPropagation()}>
-            <h2>Reschedule Meeting</h2>
+            <h2>{T.rescheduleMeeting()}</h2>
             <p>{rescheduleMeeting.title}</p>
             <form onSubmit={handleRescheduleSubmit}>
               <div className="reschedule-form-group">

@@ -1,0 +1,135 @@
+.classes-page {
+  min-height: 100vh;
+  background: #0a0a0a;
+  color: #e5e5e5;
+}
+
+.classes-wrapper {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  padding-top: 80px;
+}
+
+.classes-header {
+  margin-bottom: 24px;
+}
+
+.classes-header h1 {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+
+.classes-header p {
+  font-size: 14px;
+  color: #9ca3af;
+  margin: 0;
+}
+
+.classes-form {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid #1f1f1f;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 32px;
+}
+
+.classes-form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.classes-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: #d1d5db;
+}
+
+.classes-form input,
+.classes-form textarea {
+  background: #111;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #f5f5f5;
+  font-size: 14px;
+}
+
+.classes-form-full {
+  margin-bottom: 16px;
+}
+
+.classes-form-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.classes-btn-primary {
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.classes-btn-secondary {
+  background: transparent;
+  color: #9ca3af;
+  border: 1px solid #333;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.classes-list h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 16px;
+}
+
+.classes-empty {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.classes-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.classes-table th,
+.classes-table td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid #1f1f1f;
+}
+
+.classes-table th {
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+.classes-btn-sm {
+  background: transparent;
+  color: #60a5fa;
+  border: 1px solid #334155;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  margin-right: 8px;
+}
+
+.classes-btn-danger {
+  color: #f87171;
+  border-color: #7f1d1d;
+}

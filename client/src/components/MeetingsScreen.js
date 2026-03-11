@@ -2,6 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import TopNav from './TopNav';
+import { isEducation } from '../config/product';
+import { T } from '../config/terminology';
+import { getClassrooms } from '../utils/classroomsStorage';
 import './MeetingsScreen.css';
 
 const MeetingsScreen = ({ config }) => {
@@ -48,6 +51,7 @@ const MeetingsScreen = ({ config }) => {
   const [showEditorDropdown, setShowEditorDropdown] = useState(false);
   const [enableVoiceConfig, setEnableVoiceConfig] = useState(false);
   const [voiceProfiles, setVoiceProfiles] = useState({}); // { email: { hasProfile: bool, recording: bool } }
+  const [selectedClassroomId, setSelectedClassroomId] = useState('');
   const [recordingParticipant, setRecordingParticipant] = useState(null);
   const [voiceMediaRecorder, setVoiceMediaRecorder] = useState(null);
   const [savedParticipantsVoiceProfiles, setSavedParticipantsVoiceProfiles] = useState({}); // Voice profiles for saved participants
@@ -273,15 +277,30 @@ const MeetingsScreen = ({ config }) => {
   const handleCreate = async (e) => {
     e.preventDefault();
     setError('');
+    if (isEducation && !selectedClassroomId) {
+      setError('Please select a classroom.');
+      return;
+    }
     setLoading(true);
     try {
-      const payloadParticipants = participants
-        .filter(p => p.email && p.email.trim())
-        .map(p => ({
-          name: p.name?.trim() || '',
-          email: p.email.trim(),
+      let payloadParticipants;
+      if (isEducation && selectedClassroomId) {
+        const classrooms = getClassrooms();
+        const classroom = classrooms.find((c) => c.id === selectedClassroomId);
+        payloadParticipants = (classroom?.studentEmails || []).map((email) => ({
+          name: email.split('@')[0],
+          email,
           role: 'participant'
         }));
+      } else {
+        payloadParticipants = participants
+          .filter(p => p.email && p.email.trim())
+          .map(p => ({
+            name: p.name?.trim() || '',
+            email: p.email.trim(),
+            role: 'participant'
+          }));
+      }
 
       // Combine date and time for scheduledTime
       let scheduledTimeValue = undefined;
@@ -545,11 +564,29 @@ const MeetingsScreen = ({ config }) => {
           <div className="meetings-left">
             <div className="card">
               <div className="card-header">
-                <h2>New Meeting</h2>
+                <h2>{T.newMeeting()}</h2>
               </div>
               <form onSubmit={handleCreate} className="meetings-form">
+                {isEducation && (
+                  <div className="form-group">
+                    <label>Classroom</label>
+                    <select
+                      className="premium-input"
+                      value={selectedClassroomId}
+                      onChange={(e) => setSelectedClassroomId(e.target.value)}
+                    >
+                      <option value="">Select a classroom</option>
+                      {getClassrooms().map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.className} {c.subject ? `(${c.subject})` : ''} – {(c.studentEmails || []).length} students
+                        </option>
+                      ))}
+                    </select>
+                    <small>Students in this classroom will receive lecture notes by email.</small>
+                  </div>
+                )}
                 <div className="form-group">
-                  <label>Meeting Title</label>
+                  <label>{isEducation ? 'Lecture Title' : 'Meeting Title'}</label>
                   <input
                     type="text"
                     className="premium-input"
@@ -593,16 +630,17 @@ const MeetingsScreen = ({ config }) => {
                   <small>If set, this date & time will appear in the email notification.</small>
                 </div>
                 <div className="form-group">
-                  <label>Organizer</label>
+                  <label>{isEducation ? 'Teacher' : 'Organizer'}</label>
                   <input
                     type="text"
                     className="premium-input"
                     value={form.organizer}
                     onChange={e => setForm({ ...form, organizer: e.target.value })}
-                    placeholder="Organizer name or email"
+                    placeholder={isEducation ? 'Teacher name or email' : 'Organizer name or email'}
                     required
                   />
                 </div>
+                {!isEducation && (
                 <div className="form-group">
                   <label>Participants</label>
                   {rememberedParticipants.length > 0 && (
@@ -770,6 +808,7 @@ const MeetingsScreen = ({ config }) => {
                   </button>
                   <small>AI summaries will be emailed to these participants when ready (if email is configured).</small>
                 </div>
+                )}
                 <div className="form-group-inline">
                   <label className="premium-checkbox-container">
                     <input
@@ -777,7 +816,7 @@ const MeetingsScreen = ({ config }) => {
                       checked={form.sendNotification}
                       onChange={e => setForm({ ...form, sendNotification: e.target.checked })}
                     />
-                    <span>Send email notification to participants on create</span>
+                    <span>{isEducation ? 'Send email notification to students on create' : 'Send email notification to participants on create'}</span>
                   </label>
                 </div>
                 <div className="form-group">
@@ -1208,7 +1247,7 @@ const MeetingsScreen = ({ config }) => {
                         }
                       }}
                     >
-                      Start Meeting
+                      {T.startMeeting()}
                     </button>
                   )}
                 </div>
@@ -1242,7 +1281,7 @@ const MeetingsScreen = ({ config }) => {
                         }
                       }}
                     >
-                      End Meeting
+                      {T.endMeeting()}
                     </button>
                   </div>
                 )}

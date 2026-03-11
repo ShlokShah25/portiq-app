@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { MARKETING_URL, MARKETING_CTA_HASH } from '../config/urls';
+import { setProduct, PRODUCT } from '../config/product';
 import './ClientAdminLogin.css';
 
 const ClientAdminLogin = () => {
@@ -69,13 +71,13 @@ const ClientAdminLogin = () => {
 
         <form className="client-admin-login-form" onSubmit={handleSubmit}>
           <label>
-            Work email
+            Email or username
             <input
-              type="email"
+              type="text"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@company.com"
-              autoComplete="email"
+              placeholder="you@company.com or admin"
+              autoComplete="username"
             />
           </label>
           <label>
@@ -96,12 +98,22 @@ const ClientAdminLogin = () => {
         <div className="client-admin-login-footer">
           <span>Don&apos;t have an account?</span>
           <a
-            href="https://portiqtechnologies.com/#cta"
+            href={`${MARKETING_URL}${MARKETING_CTA_HASH}`}
             target="_blank"
             rel="noopener noreferrer"
           >
             Start free trial
           </a>
+        </div>
+
+        <div className="client-admin-login-product">
+          <span>Product:</span>
+          <button type="button" className={PRODUCT === 'workplace' ? 'active' : ''} onClick={() => setProduct('workplace')}>
+            Portiq Workplace
+          </button>
+          <button type="button" className={PRODUCT === 'education' ? 'active' : ''} onClick={() => setProduct('education')}>
+            Portiq Education
+          </button>
         </div>
       </div>
     </div>
