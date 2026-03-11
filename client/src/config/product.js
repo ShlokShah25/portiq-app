@@ -4,7 +4,7 @@
  */
 const STORAGE_KEY = 'portiq_product';
 const getStored = () => typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
-export const PRODUCT = getStored() || process.env.REACT_APP_PRODUCT || 'workplace';
+export const PRODUCT = getStored() || process.env.REACT_APP_PRODUCT || 'education';
 export const isEducation = PRODUCT === 'education';
 
 export function setProduct(product) {

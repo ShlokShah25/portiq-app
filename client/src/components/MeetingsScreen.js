@@ -1554,7 +1554,7 @@ const MeetingsScreen = ({ config }) => {
                         <line x1="16" y1="17" x2="8" y2="17"></line>
                         <polyline points="10 9 9 9 8 9"></polyline>
                       </svg>
-                      Meeting Summary
+                      {T.meetingSummary()}
                     </h3>
                     
                     <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
@@ -1610,7 +1610,7 @@ const MeetingsScreen = ({ config }) => {
                               }
                             }}
                           >
-                            {editingSummary ? 'Save & Send' : 'Approve & Send'}
+                            {editingSummary ? 'Save & Send' : (isEducation ? 'Approve & Send Lecture Notes' : 'Approve & Send')}
                           </button>
                         </div>
                         
@@ -1689,7 +1689,9 @@ const MeetingsScreen = ({ config }) => {
                               />
                             </div>
                             <div className="form-group">
-                              <label style={{ color: 'white', fontSize: '15px', fontWeight: '600', marginBottom: '8px', display: 'block' }}>Important Notes (one per line)</label>
+                              <label style={{ color: 'white', fontSize: '15px', fontWeight: '600', marginBottom: '8px', display: 'block' }}>
+                                {isEducation ? 'Important Concepts (one per line)' : 'Important Notes (one per line)'}
+                              </label>
                               <textarea
                                 value={(editableSummary.importantNotes || []).join('\n')}
                                 onChange={e => setEditableSummary({ ...editableSummary, importantNotes: e.target.value.split('\n').filter(l => l.trim()) })}
@@ -1868,7 +1870,9 @@ const MeetingsScreen = ({ config }) => {
                 {/* Regular summary display (if already sent) */}
                 {selectedMeeting.summary && selectedMeeting.summaryStatus !== 'Pending Approval' && selectedMeeting.summaryStatus !== 'Pending Approval' && (
                   <div className="summary-section" style={{ border: '2px solid rgba(255, 255, 255, 0.2)', borderRadius: '12px', padding: '24px', marginTop: '20px', background: 'rgba(255, 255, 255, 0.1)' }}>
-                    <h3 style={{ color: 'white', fontSize: '20px', fontWeight: '600', marginBottom: '16px' }}>AI Meeting Summary</h3>
+                    <h3 style={{ color: 'white', fontSize: '20px', fontWeight: '600', marginBottom: '16px' }}>
+                      {isEducation ? 'AI Generated Lecture Notes' : 'AI Meeting Summary'}
+                    </h3>
                     <p style={{ color: 'rgba(255, 255, 255, 0.95)', fontSize: '15px', lineHeight: '1.7', marginBottom: '20px' }}>{selectedMeeting.summary}</p>
                     {!!(selectedMeeting.keyPoints || []).length && (
                       <>
@@ -1910,7 +1914,9 @@ const MeetingsScreen = ({ config }) => {
                     )}
                     {selectedMeeting.importantNotes && selectedMeeting.importantNotes.length > 0 && (
                       <>
-                        <h4 style={{ color: 'white', fontSize: '18px', fontWeight: '600', marginTop: '24px', marginBottom: '12px' }}>Important Notes</h4>
+                        <h4 style={{ color: 'white', fontSize: '18px', fontWeight: '600', marginTop: '24px', marginBottom: '12px' }}>
+                          {isEducation ? 'Important Concepts' : 'Important Notes'}
+                        </h4>
                         <ul style={{ color: 'rgba(255, 255, 255, 0.95)', fontSize: '15px', lineHeight: '1.8', paddingLeft: '24px' }}>
                           {selectedMeeting.importantNotes.map((n, idx) => <li key={idx} style={{ marginBottom: '8px' }}>{n}</li>)}
                         </ul>
