@@ -3,7 +3,7 @@
 .bootup-screen {
   width: 100vw;
   height: 100vh;
-  background: var(--bg-primary);
+  background: #050505;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -13,121 +13,51 @@
   right: 0;
   bottom: 0;
   z-index: 10000;
-  overflow: hidden;
-}
-
-.bootup-particles {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  top: 0;
-  left: 0;
-  pointer-events: none;
-}
-
-.bootup-particle {
-  position: absolute;
-  width: 4px;
-  height: 4px;
-  background: rgba(59, 130, 246, 0.3);
-  border-radius: 50%;
-  animation: floatParticle infinite ease-in-out;
-  box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
-}
-
-@keyframes floatParticle {
-  0%, 100% {
-    transform: translateY(0) translateX(0) scale(1);
-    opacity: 0.3;
-  }
-  50% {
-    transform: translateY(-30px) translateX(20px) scale(1.2);
-    opacity: 0.6;
-  }
 }
 
 .bootup-content {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 48px;
-  position: relative;
-  z-index: 1;
+  gap: 40px;
 }
 
-.bootup-logo {
+.bootup-logo-block {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 24px;
-  position: relative;
-  opacity: 0;
-  animation: bootupFadeIn 0.8s cubic-bezier(0.4, 0, 0.2, 1) 0.3s forwards;
-}
-
-@keyframes bootupFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-20px) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-.bootup-logo-glow {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 200px;
-  height: 200px;
-  background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 70%);
-  border-radius: 50%;
-  animation: pulseGlow 2s ease-in-out infinite;
-  z-index: -1;
-}
-
-@keyframes pulseGlow {
-  0%, 100% {
-    opacity: 0.5;
-    transform: translate(-50%, -50%) scale(1);
-  }
-  50% {
-    opacity: 0.8;
-    transform: translate(-50%, -50%) scale(1.1);
-  }
+  gap: 16px;
 }
 
 .bootup-logo-img {
-  width: 280px;
-  height: auto;
+  width: 82px;
+  height: 82px;
   object-fit: contain;
-  filter: brightness(1.05);
-  animation: logoFloat 3s ease-in-out infinite;
 }
 
-@keyframes logoFloat {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-8px);
-  }
+.bootup-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  color: #f9fafb;
+}
+
+.bootup-tagline {
+  margin: 0;
+  font-size: 13px;
+  color: #9ca3af;
 }
 
 .bootup-progress {
-  width: 280px;
-  opacity: 0;
-  animation: bootupFadeIn 0.6s ease-out 0.6s forwards;
+  width: 260px;
 }
 
 .bootup-progress-bar {
   width: 100%;
-  height: 3px;
-  background: #2A2A2C;
-  border-radius: 2px;
+  height: 2px;
+  background: #1f2933;
+  border-radius: 999px;
   overflow: hidden;
   position: relative;
 }
@@ -135,38 +65,7 @@
 .bootup-progress-fill {
   height: 100%;
   background: linear-gradient(90deg, #3B82F6 0%, #6E6EF7 100%);
-  border-radius: 2px;
+  border-radius: 999px;
   transition: width 0.1s linear;
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
 }
 
-.bootup-progress-shine {
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-  animation: shine 2s infinite;
-}
-
-@keyframes shine {
-  0% {
-    left: -100%;
-  }
-  100% {
-    left: 100%;
-  }
-}
-
-.bootup-progress-text {
-  text-align: center;
-  margin-top: 12px;
-  font-size: 13px;
-  color: #A1A1A6;
-  font-weight: 500;
-  letter-spacing: 0.5px;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Helvetica Neue", system-ui, sans-serif;
-}
