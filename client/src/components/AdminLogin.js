@@ -18,10 +18,9 @@ const AdminLogin = () => {
     setLoading(true);
 
     try {
-      // Accept either email or username
-      const payload = identifier
-        ? { username: identifier.trim(), password }
-        : { password };
+        // Accept either email or username; backend always expects "username"
+        const trimmed = identifier.trim();
+        const payload = trimmed ? { username: trimmed, password } : { password };
 
       const res = await axios.post('/admin/login', payload);
       const token = res.data?.token;
