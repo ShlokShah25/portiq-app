@@ -1,12 +1,20 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import TopNav from './TopNav';
 import { isEducation } from '../config/product';
 import { T } from '../config/terminology';
+import { getClassrooms } from '../utils/classroomsStorage';
 import './Settings.css';
 
 const Settings = () => {
   const { theme, toggleTheme } = useTheme();
+  const [classroomCount, setClassroomCount] = useState(0);
+
+  useEffect(() => {
+    if (isEducation) {
+      setClassroomCount(getClassrooms().length || 0);
+    }
+  }, []);
 
   return (
     <div className="settings-screen">
@@ -75,13 +83,22 @@ const Settings = () => {
           </div>
 
           {isEducation && (
-          <div className="settings-section">
-            <h2>Subscription</h2>
-            <div className="settings-item">
-              <div className="settings-item-label">Classroom licenses</div>
-              <p className="settings-item-description">Each classroom license allows 1 active lecture at a time. Current count: <strong>1</strong></p>
+            <div className="settings-section">
+              <h2>Subscription</h2>
+              <div className="settings-item">
+                <div className="settings-item-label">Plan type</div>
+                <p className="settings-item-description">
+                  Portiq Education (licensed per classroom).
+                </p>
+              </div>
+              <div className="settings-item">
+                <div className="settings-item-label">Classroom licenses</div>
+                <p className="settings-item-description">
+                  Each classroom license allows 1 active lecture at a time. Current classrooms configured:{' '}
+                  <strong>{classroomCount}</strong>
+                </p>
+              </div>
             </div>
-          </div>
           )}
 
           <div className="settings-section">

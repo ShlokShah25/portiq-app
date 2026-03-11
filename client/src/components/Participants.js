@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import TopNav from './TopNav';
+import { T } from '../config/terminology';
 import './Participants.css';
 
 const Participants = () => {
@@ -211,7 +212,7 @@ const Participants = () => {
       <TopNav />
       <div className="participants-wrapper">
         <div className="participants-top-bar">
-          <h1 className="participants-title">Participants</h1>
+          <h1 className="participants-title">{T.participants()}</h1>
           <button 
             className="btn btn-primary"
             onClick={() => setShowAddForm(!showAddForm)}
@@ -227,7 +228,7 @@ const Participants = () => {
         <div className="participants-content">
           {showAddForm && (
             <div className="add-participant-form">
-              <h2>Add New Participant</h2>
+              <h2>Add New {T.participants()}</h2>
               <form onSubmit={handleAddParticipant}>
                 <div className="form-group">
                   <label>Name</label>

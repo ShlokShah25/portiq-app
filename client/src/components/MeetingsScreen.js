@@ -539,7 +539,7 @@ const MeetingsScreen = ({ config }) => {
       <TopNav />
       <div className="meetings-wrapper">
         <div className="meetings-top-bar">
-          <h1 className="meetings-top-bar-title">Meetings</h1>
+          <h1 className="meetings-top-bar-title">{T.meetings()}</h1>
           <div className="meetings-top-bar-actions">
             {selectedMeeting && (
               <button
@@ -1930,8 +1930,8 @@ const MeetingsScreen = ({ config }) => {
 
           <div className="meetings-right">
             <div className="card">
-              <div className="card-header">
-                <h2>Recent Meetings</h2>
+                  <div className="card-header">
+                    <h2>Recent {T.meetings()}</h2>
               </div>
               <div className="meetings-list">
                 {(meetings || []).length === 0 && (

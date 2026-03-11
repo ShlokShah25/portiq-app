@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
+import { T } from '../config/terminology';
 import './MeetingInProgress.css';
 
 const MeetingInProgress = () => {
@@ -187,7 +188,7 @@ const MeetingInProgress = () => {
     return (
       <div className="meeting-in-progress-error">
         <p>{error}</p>
-        <button onClick={() => navigate('/meetings')}>Back to Meetings</button>
+        <button onClick={() => navigate('/meetings')}>Back to {T.meetings()}</button>
       </div>
     );
   }
@@ -196,7 +197,7 @@ const MeetingInProgress = () => {
     return (
       <div className="meeting-in-progress-error">
         <p>Meeting not found</p>
-        <button onClick={() => navigate('/meetings')}>Back to Meetings</button>
+        <button onClick={() => navigate('/meetings')}>Back to {T.meetings()}</button>
       </div>
     );
   }
