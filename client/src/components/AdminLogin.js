@@ -49,16 +49,6 @@ const AdminLogin = () => {
   return (
     <div className="admin-login-root">
       <div className="admin-login-card">
-        <button
-          type="button"
-          className="admin-login-back"
-          onClick={() => {
-            // For now just reload app root; marketing site already handles entry
-            navigate('/', { replace: true });
-          }}
-        >
-          ← Back
-        </button>
         <div className="admin-login-header">
           <div className="admin-login-logo-circle">
             <img
