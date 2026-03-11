@@ -17,15 +17,6 @@
   color: #e5e7eb;
 }
 
-.admin-login-back {
-  border: none;
-  background: transparent;
-  color: #9ca3af;
-  font-size: 12px;
-  margin-bottom: 8px;
-  cursor: pointer;
-}
-
 .admin-login-header {
   display: flex;
   align-items: center;
@@ -34,8 +25,8 @@
 }
 
 .admin-login-logo-circle {
-  width: 40px;
-  height: 40px;
+  width: 52px;
+  height: 52px;
   border-radius: 10px;
   background: transparent;
   display: flex;
@@ -45,8 +36,8 @@
 }
 
 .admin-login-logo {
-  width: 30px;
-  height: 30px;
+  width: 40px;
+  height: 40px;
   object-fit: contain;
 }
 

@@ -6,7 +6,7 @@ import './AdminLogin.css';
 
 const AdminLogin = () => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [productType, setProductType] = useState('workplace');
   const [loading, setLoading] = useState(false);
@@ -18,9 +18,9 @@ const AdminLogin = () => {
     setLoading(true);
 
     try {
-      // Use email as username for admin / owner login
-      const payload = email
-        ? { username: email.trim(), password }
+      // Accept either email or username
+      const payload = identifier
+        ? { username: identifier.trim(), password }
         : { password };
 
       const res = await axios.post('/admin/login', payload);
@@ -107,13 +107,13 @@ const AdminLogin = () => {
           </div>
 
           <label className="admin-login-label">
-            Email
+            Email or Username
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              type="text"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
               className="admin-login-input"
-              placeholder="you@company.com"
+              placeholder="you@company.com or admin"
               required
             />
           </label>

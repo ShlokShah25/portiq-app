@@ -30,8 +30,8 @@
 }
 
 .bootup-logo-img {
-  width: 82px;
-  height: 82px;
+  width: 110px;
+  height: 110px;
   object-fit: contain;
 }
 
@@ -50,7 +50,7 @@
 }
 
 .bootup-progress {
-  width: 260px;
+  width: 320px;
 }
 
 .bootup-progress-bar {
