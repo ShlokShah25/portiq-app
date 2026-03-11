@@ -64,7 +64,7 @@ function App() {
     return (
       <Suspense fallback={<div className="app-loading"><div className="loading-spinner"></div><p>Loading...</p></div>}>
         <BootupScreen onComplete={() => setShowBootup(false)} />
-      </SuspENSE>
+      </Suspense>
     );
   }
 
