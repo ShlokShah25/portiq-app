@@ -10,12 +10,16 @@ dotenv.config();
 const app = express();
 
 // Middleware
-// Allow localhost and local network IPs for tablet access
+// Allow localhost and local network IPs for tablet access + production domains
 const allowedOrigins = [
   'http://localhost:3000',  // school kiosk
   'http://localhost:3001',  // school admin
   'http://localhost:3002',  // workplace kiosk
-  'http://localhost:3003'   // workplace admin
+  'http://localhost:3003',  // workplace admin
+  'http://localhost:3004',  // local dev client
+  'https://portiqtechnologies.com',
+  'https://www.portiqtechnologies.com',
+  'https://meetingassistant.portiqtechnologies.com'
 ];
 
 // Add local network IPs (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
