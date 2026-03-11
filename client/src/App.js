@@ -1,5 +1,5 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import './App.css';
 
@@ -13,6 +13,7 @@ const Settings = lazy(() => import('./components/Settings'));
 const MeetingInProgress = lazy(() => import('./components/MeetingInProgress'));
 const ClientAdmin = lazy(() => import('./components/ClientAdmin'));
 const BootupScreen = lazy(() => import('./components/BootupScreen'));
+const AdminLogin = lazy(() => import('./components/AdminLogin'));
 
 // Set base URL for API.
 // - In local dev: use explicit REACT_APP_API_URL or localhost:5001
@@ -68,21 +69,101 @@ function App() {
     );
   }
 
+  const RequireAuth = ({ children }) => {
+    if (!isBrowser) return null;
+    const token = window.localStorage.getItem('clientAdminToken');
+    if (!token) {
+      return <Navigate to="/admin-login" replace />;
+    }
+    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    return children;
+  };
+
   return (
     <Router>
       <div className="App">
         <Suspense fallback={<div className="app-loading"><div className="loading-spinner"></div><p>Loading...</p></div>}>
           <Routes>
-            <Route path="/" element={<Dashboard config={config} />} />
-            <Route path="/dashboard" element={<Dashboard config={config} />} />
-            <Route path="/meetings" element={<MeetingsScreen config={config} />} />
-            <Route path="/meetings/:meetingId" element={<MeetingInProgress />} />
-            <Route path="/transcripts" element={<Transcripts />} />
-            <Route path="/participants" element={<Participants />} />
-            <Route path="/insights" element={<Insights />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/admin" element={<ClientAdmin />} />
-            <Route path="*" element={<Dashboard config={config} />} />
+            <Route
+              path="/admin-login"
+              element={<AdminLogin />}
+            />
+            <Route
+              path="/"
+              element={
+                <RequireAuth>
+                  <Dashboard config={config} />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/dashboard"
+              element={
+                <RequireAuth>
+                  <Dashboard config={config} />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/meetings"
+              element={
+                <RequireAuth>
+                  <MeetingsScreen config={config} />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/meetings/:meetingId"
+              element={
+                <RequireAuth>
+                  <MeetingInProgress />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/transcripts"
+              element={
+                <RequireAuth>
+                  <Transcripts />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/participants"
+              element={
+                <RequireAuth>
+                  <Participants />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/insights"
+              element={
+                <RequireAuth>
+                  <Insights />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <RequireAuth>
+                  <Settings />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <RequireAuth>
+                  <ClientAdmin />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="*"
+              element={<Navigate to="/" replace />}
+            />
           </Routes>
         </Suspense>
       </div>
