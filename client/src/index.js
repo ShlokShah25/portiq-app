@@ -16,15 +16,18 @@ root.render(
   </React.StrictMode>
 );
 
-// Register service worker for PWA
+// Disable existing service workers to avoid stale cached bundles in production
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js')
-      .then((registration) => {
-        console.log('SW registered: ', registration);
+    navigator.serviceWorker
+      .getRegistrations()
+      .then((registrations) => {
+        registrations.forEach((registration) => {
+          registration.unregister();
+        });
       })
-      .catch((registrationError) => {
-        console.log('SW registration failed: ', registrationError);
+      .catch((err) => {
+        console.log('SW unregister failed: ', err);
       });
   });
 }
