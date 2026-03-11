@@ -53,7 +53,7 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use('/uploads/voice-samples', express.static(path.join(__dirname, '../uploads/voice-samples')));
 
 // API Routes (must come before static file serving)
-app.use('/api/visitors', require('./routes/visitors'));
+// Visitor management APIs have been retired – Portiq now focuses on the meeting assistant.
 app.use('/api/meetings', require('./routes/meetings'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/config', require('./routes/config'));

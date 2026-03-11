@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { isEducation } from '../config/product';
-import { T } from '../config/terminology';
 import './TopNav.css';
 
 const TopNav = () => {
@@ -9,60 +7,59 @@ const TopNav = () => {
   const location = useLocation();
   const [showMenu, setShowMenu] = useState(false);
 
-  const educationMenuItems = [
-    { id: 'dashboard', label: 'Dashboard', path: '/dashboard', icon: 'dashboard' },
-    { id: 'lectures', label: T.meetings(), path: '/meetings', icon: 'calendar' },
-    { id: 'classes', label: 'Classes', path: '/classes', icon: 'users' },
-    { id: 'teachers', label: T.team(), path: '/teachers', icon: 'users' },
-    { id: 'subscription', label: 'Subscription', path: '/settings', icon: 'chart' }
-  ];
-
-  const workplaceMenuItems = [
-    { id: 'dashboard', label: 'Dashboard', path: '/dashboard', icon: 'dashboard' },
-    { id: 'meetings', label: T.meetings(), path: '/meetings', icon: 'calendar' },
-    { id: 'participants', label: T.participants(), path: '/participants', icon: 'users' },
-    { id: 'insights', label: 'Insights', path: '/insights', icon: 'chart' }
-  ];
-
-  const menuItems = isEducation ? educationMenuItems : workplaceMenuItems;
-
-  const iconSvg = (icon) => {
-    const w = 18;
-    if (icon === 'dashboard')
-      return (
-        <svg width={w} height={w} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+  const menuItems = [
+    {
+      id: 'dashboard',
+      label: 'Dashboard',
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
           <rect x="3" y="3" width="7" height="7"></rect>
           <rect x="14" y="3" width="7" height="7"></rect>
           <rect x="14" y="14" width="7" height="7"></rect>
           <rect x="3" y="14" width="7" height="7"></rect>
         </svg>
-      );
-    if (icon === 'calendar')
-      return (
-        <svg width={w} height={w} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+      ),
+      path: '/dashboard'
+    },
+    {
+      id: 'meetings',
+      label: 'Meetings',
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
           <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
           <line x1="16" y1="2" x2="16" y2="6"></line>
           <line x1="8" y1="2" x2="8" y2="6"></line>
           <line x1="3" y1="10" x2="21" y2="10"></line>
         </svg>
-      );
-    if (icon === 'users')
-      return (
-        <svg width={w} height={w} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+      ),
+      path: '/meetings'
+    },
+    {
+      id: 'participants',
+      label: 'Participants',
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
           <circle cx="9" cy="7" r="4"></circle>
           <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
           <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
         </svg>
-      );
-    return (
-      <svg width={w} height={w} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <line x1="18" y1="20" x2="18" y2="10"></line>
-        <line x1="12" y1="20" x2="12" y2="4"></line>
-        <line x1="6" y1="20" x2="6" y2="14"></line>
-      </svg>
-    );
-  };
+      ),
+      path: '/participants'
+    },
+    {
+      id: 'insights',
+      label: 'Insights',
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+          <line x1="18" y1="20" x2="18" y2="10"></line>
+          <line x1="12" y1="20" x2="12" y2="4"></line>
+          <line x1="6" y1="20" x2="6" y2="14"></line>
+        </svg>
+      ),
+      path: '/insights'
+    }
+  ];
 
   const isActive = (path) => {
     if (path === '/dashboard') {
@@ -93,7 +90,7 @@ const TopNav = () => {
               className={`top-nav-item ${isActive(item.path) ? 'active' : ''}`}
               onClick={() => navigate(item.path)}
             >
-              {iconSvg(item.icon)}
+              {item.icon}
               <span>{item.label}</span>
             </button>
           ))}

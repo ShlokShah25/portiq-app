@@ -1,20 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import TopNav from './TopNav';
-import { isEducation } from '../config/product';
-import { T } from '../config/terminology';
-import { getClassrooms } from '../utils/classroomsStorage';
 import './Settings.css';
 
 const Settings = () => {
   const { theme, toggleTheme } = useTheme();
-  const [classroomCount, setClassroomCount] = useState(0);
-
-  useEffect(() => {
-    if (isEducation) {
-      setClassroomCount(getClassrooms().length || 0);
-    }
-  }, []);
 
   return (
     <div className="settings-screen">
@@ -66,40 +56,14 @@ const Settings = () => {
           <div className="settings-section">
             <h2>General</h2>
             <div className="settings-item">
-              <div className="settings-item-label">{T.companyName()}</div>
-              <input type="text" className="settings-input" placeholder={isEducation ? 'Your School' : 'Your Company'} />
+              <div className="settings-item-label">Company Name</div>
+              <input type="text" className="settings-input" placeholder="Your Company" />
             </div>
-            <div className="settings-item">
-              <div className="settings-item-label">{T.companyLogo()}</div>
-              <input type="file" accept="image/*" className="settings-input" />
-              <small style={{ color: '#9ca3af', fontSize: '12px', marginTop: '4px' }}>Used in lecture emails and PDF exports</small>
-            </div>
-            {!isEducation && (
             <div className="settings-item">
               <div className="settings-item-label">Default Meeting Duration</div>
               <input type="number" className="settings-input" placeholder="60" />
             </div>
-            )}
           </div>
-
-          {isEducation && (
-            <div className="settings-section">
-              <h2>Subscription</h2>
-              <div className="settings-item">
-                <div className="settings-item-label">Plan type</div>
-                <p className="settings-item-description">
-                  Portiq Education (licensed per classroom).
-                </p>
-              </div>
-              <div className="settings-item">
-                <div className="settings-item-label">Classroom licenses</div>
-                <p className="settings-item-description">
-                  Each classroom license allows 1 active lecture at a time. Current classrooms configured:{' '}
-                  <strong>{classroomCount}</strong>
-                </p>
-              </div>
-            </div>
-          )}
 
           <div className="settings-section">
             <h2>Notifications</h2>

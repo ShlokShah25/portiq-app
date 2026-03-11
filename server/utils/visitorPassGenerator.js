@@ -1,20 +1,7 @@
+const { createCanvas, loadImage } = require('canvas');
 const { generateQRCodeBuffer } = require('./qrGenerator');
 const path = require('path');
 const fs = require('fs');
-
-// Canvas is an optional dependency. In some environments (like lightweight
-// cloud deployments) it might not be installed. We guard the require so the
-// rest of the app can run even if visitor pass generation is unavailable.
-let createCanvas;
-let loadImage;
-try {
-  // eslint-disable-next-line global-require
-  const canvas = require('canvas');
-  createCanvas = canvas.createCanvas;
-  loadImage = canvas.loadImage;
-} catch (err) {
-  console.warn('Canvas module not available; visitor pass generation is disabled.');
-}
 
 /**
  * Generate visitor pass/badge based on template
@@ -25,11 +12,6 @@ try {
  * - Logo: Top right
  */
 async function generateVisitorPass(visitor, companyLogoPath = null) {
-  // If canvas is not available, short‑circuit and avoid crashing the app.
-  if (!createCanvas || !loadImage) {
-    console.warn('generateVisitorPass called but canvas is not available.');
-    return null;
-  }
   // Label dimensions (adjust based on printer requirements)
   const LABEL_WIDTH = 400; // pixels
   const LABEL_HEIGHT = 250; // pixels
