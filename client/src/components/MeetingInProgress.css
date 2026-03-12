@@ -1,6 +1,6 @@
 .meeting-in-progress {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #020617;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -10,13 +10,10 @@
 .meeting-in-progress::before {
   content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: 
-    radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
-    radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+  inset: 0;
+  background:
+    radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.22) 0, transparent 45%),
+    radial-gradient(circle at 80% 80%, rgba(14, 165, 233, 0.18) 0, transparent 50%);
   pointer-events: none;
 }
 
@@ -24,38 +21,45 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 24px 32px;
+  padding: 20px 32px;
   position: relative;
   z-index: 10;
 }
 
-.meeting-in-progress-logo img {
-  height: 120px;
-  width: auto;
-  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
+.meeting-in-progress-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.meeting-in-progress-logo-text {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #e5e7eb;
 }
 
 .meeting-in-progress-close {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(15, 23, 42, 0.9);
   border: none;
-  color: white;
-  font-size: 32px;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
+  color: #e5e7eb;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
-  backdrop-filter: blur(10px);
+  transition: all 0.2s ease;
+  backdrop-filter: blur(14px);
   line-height: 1;
   padding: 0;
 }
 
 .meeting-in-progress-close:hover {
-  background: rgba(255, 255, 255, 0.3);
-  transform: scale(1.1);
+  background: rgba(30, 64, 175, 0.95);
+  transform: translateY(-1px);
 }
 
 .meeting-in-progress-content {
@@ -71,13 +75,13 @@
 .meeting-status-badge {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
-  background: rgba(255, 255, 255, 0.95);
-  padding: 12px 24px;
-  border-radius: 50px;
-  margin-bottom: 32px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  backdrop-filter: blur(10px);
+  gap: 10px;
+  background: rgba(15, 23, 42, 0.95);
+  padding: 10px 22px;
+  border-radius: 999px;
+  margin-bottom: 28px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(18px);
 }
 
 .status-indicator {
@@ -100,18 +104,17 @@
 }
 
 .meeting-status-badge span {
-  font-weight: 600;
-  color: #1a1a1a;
-  font-size: 15px;
+  font-weight: 500;
+  color: #e5e7eb;
+  font-size: 14px;
 }
 
 .meeting-title {
-  font-size: 48px;
-  font-weight: 700;
-  color: white;
-  margin: 0 0 48px 0;
-  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
-  line-height: 1.2;
+  font-size: 32px;
+  font-weight: 600;
+  color: #f9fafb;
+  margin: 0 0 32px 0;
+  line-height: 1.3;
 }
 
 .meeting-details-grid {

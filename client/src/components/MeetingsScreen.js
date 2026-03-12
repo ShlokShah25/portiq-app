@@ -1393,7 +1393,7 @@ const MeetingsScreen = ({ config }) => {
                 {/* Summary ready - no verification step, just open for review/edit */}
                 {selectedMeeting.summaryStatus === 'Pending Approval' &&
                   selectedMeeting.transcriptionStatus === 'Completed' &&
-                  !editableSummary && (
+                  !editableSummary && selectedMeeting.summary && (
                     <div
                       className="summary-section"
                       style={{
@@ -1454,21 +1454,12 @@ const MeetingsScreen = ({ config }) => {
 
                       <button
                         className="btn btn-primary"
-                        onClick={async () => {
-                          try {
-                            const res = await axios.get(
-                              `/meetings/${selectedMeeting._id}/summary`
-                            );
-                            setEditableSummary(res.data.summary);
-                            setVerificationStep('edit');
-                            setError('');
-                            setAdditionalParticipants([{ name: '', email: '' }]);
-                          } catch (err) {
-                            setError(
-                              err.response?.data?.error ||
-                                'Failed to load summary. Please try again.'
-                            );
-                          }
+                        onClick={() => {
+                          // Use the summary already present on the selected meeting
+                          setEditableSummary(selectedMeeting.summary || '');
+                          setVerificationStep('edit');
+                          setError('');
+                          setAdditionalParticipants([{ name: '', email: '' }]);
                         }}
                         style={{
                           width: '100%',
