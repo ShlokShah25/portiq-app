@@ -490,7 +490,7 @@
   background: #111111;
   border: 1px solid #1f1f1f;
   border-radius: 14px;
-  padding: 14px 16px;
+  padding: 10px 14px;
   cursor: pointer;
   transition: all 150ms ease;
 }
@@ -502,10 +502,10 @@
 }
 
 .meeting-title {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
   color: #F5F5F5;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
 }
 

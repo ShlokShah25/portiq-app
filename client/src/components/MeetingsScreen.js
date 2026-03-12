@@ -1463,8 +1463,35 @@ const MeetingsScreen = ({ config }) => {
                       <button
                         className="btn btn-primary"
                         onClick={() => {
-                          // Use the summary already present on the selected meeting
-                          setEditableSummary(selectedMeeting.summary || '');
+                          // Seed editableSummary from pending fields if present, otherwise from final fields.
+                          const base = {
+                            summary:
+                              selectedMeeting.pendingSummary ||
+                              selectedMeeting.summary ||
+                              '',
+                            keyPoints:
+                              selectedMeeting.pendingKeyPoints?.length
+                                ? selectedMeeting.pendingKeyPoints
+                                : selectedMeeting.keyPoints || [],
+                            actionItems:
+                              selectedMeeting.pendingActionItems?.length
+                                ? selectedMeeting.pendingActionItems
+                                : selectedMeeting.actionItems || [],
+                            decisions:
+                              selectedMeeting.pendingDecisions?.length
+                                ? selectedMeeting.pendingDecisions
+                                : selectedMeeting.decisions || [],
+                            nextSteps:
+                              selectedMeeting.pendingNextSteps?.length
+                                ? selectedMeeting.pendingNextSteps
+                                : selectedMeeting.nextSteps || [],
+                            importantNotes:
+                              selectedMeeting.pendingImportantNotes?.length
+                                ? selectedMeeting.pendingImportantNotes
+                                : selectedMeeting.importantNotes || []
+                          };
+
+                          setEditableSummary(base);
                           setVerificationStep('edit');
                           setError('');
                           setAdditionalParticipants([{ name: '', email: '' }]);
