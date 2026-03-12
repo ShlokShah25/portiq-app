@@ -5,8 +5,15 @@ import './Profile.css';
 
 const Profile = () => {
   const [username, setUsername] = useState('Unknown user');
+  const [email, setEmail] = useState('');
   const [productLabel, setProductLabel] = useState('Portiq Workplace');
   const [planLabel, setPlanLabel] = useState('Starter');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordMessage, setPasswordMessage] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -14,6 +21,7 @@ const Profile = () => {
         const res = await axios.get('/admin/profile');
         const admin = res.data?.admin || {};
         const uname = admin.username || 'Unknown user';
+        const mail = admin.email || '';
         const product =
           (admin.productType || '').toLowerCase() ||
           (typeof window !== 'undefined' &&
@@ -22,6 +30,7 @@ const Profile = () => {
         const plan = (admin.plan || 'starter').toLowerCase();
 
         setUsername(uname);
+        setEmail(mail);
         setProductLabel(
           product === 'education' ? 'Portiq Education' : 'Portiq Workplace'
         );
@@ -44,6 +53,44 @@ const Profile = () => {
     loadProfile();
   }, []);
 
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setPasswordMessage('');
+    setPasswordError('');
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordError('Fill in all password fields.');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('New passwords do not match.');
+      return;
+    }
+
+    try {
+      setChangingPassword(true);
+      await axios.put('/admin/password', {
+        currentPassword,
+        newPassword,
+      });
+      setPasswordMessage('Password updated successfully.');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      const msg =
+        err.response?.data?.error ||
+        'Unable to change password. Please try again.';
+      setPasswordError(msg);
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
   return (
     <div className="profile-screen">
       <TopNav />
@@ -64,6 +111,13 @@ const Profile = () => {
             <div className="profile-row">
               <span className="label">User</span>
               <span className="value">{username}</span>
+            </div>
+            {email && (
+              <div className="profile-row">
+                <span className="label">Email</span>
+                <span className="value">{email}</span>
+              </div>
+            )}
             </div>
           </div>
 
@@ -92,6 +146,52 @@ const Profile = () => {
             >
               Manage subscription
             </button>
+          </div>
+
+          <div className="profile-section">
+            <h2>Security</h2>
+            <form className="profile-password-form" onSubmit={handleChangePassword}>
+              <div className="profile-field-group">
+                <label>Current password</label>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="Enter current password"
+                />
+              </div>
+              <div className="profile-field-group">
+                <label>New password</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Enter new password"
+                />
+              </div>
+              <div className="profile-field-group">
+                <label>Confirm new password</label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Re-enter new password"
+                />
+              </div>
+              {passwordError && (
+                <div className="profile-password-error">{passwordError}</div>
+              )}
+              {passwordMessage && (
+                <div className="profile-password-success">{passwordMessage}</div>
+              )}
+              <button
+                type="submit"
+                className="profile-save-password-btn"
+                disabled={changingPassword}
+              >
+                {changingPassword ? 'Updating…' : 'Change password'}
+              </button>
+            </form>
           </div>
         </div>
       </div>

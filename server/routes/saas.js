@@ -27,6 +27,7 @@ router.post('/signup', async (req, res) => {
     }
 
     // Persist chosen product type and default plan for SaaS signup
+    admin.email = email.toLowerCase();
     admin.productType =
       (productType || '').toLowerCase() === 'education' ? 'education' : 'workplace';
     if (!admin.plan) {

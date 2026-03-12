@@ -20,7 +20,10 @@ router.post('/login', async (req, res) => {
     if (!username && password) {
       admin = await Admin.findOne({ username: 'admin' });
     } else if (username && password) {
-      admin = await Admin.findOne({ username });
+      // Allow login via either username or email using the same field from the client.
+      admin = await Admin.findOne({
+        $or: [{ username }, { email: username.toLowerCase() }]
+      });
     } else {
       return res.status(400).json({ error: 'Password is required' });
     }
@@ -55,6 +58,7 @@ router.post('/login', async (req, res) => {
       admin: {
         id: admin._id,
         username: admin.username,
+        email: admin.email,
         role: admin.role
       }
     });
@@ -72,12 +76,45 @@ router.get('/profile', authenticateAdmin, async (req, res) => {
     admin: {
       id: req.admin._id,
       username: req.admin.username,
+      email: req.admin.email,
       role: req.admin.role,
       lastLogin: req.admin.lastLogin,
       productType: req.admin.productType,
       plan: req.admin.plan,
     }
   });
+});
+
+/**
+ * Change password (in-app profile)
+ */
+router.put('/password', authenticateAdmin, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body || {};
+    if (!currentPassword || !newPassword) {
+      return res
+        .status(400)
+        .json({ error: 'Current password and new password are required.' });
+    }
+
+    const admin = await Admin.findById(req.admin._id);
+    if (!admin) {
+      return res.status(404).json({ error: 'Admin not found.' });
+    }
+
+    const isMatch = await admin.comparePassword(currentPassword);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Current password is incorrect.' });
+    }
+
+    admin.password = newPassword;
+    await admin.save();
+
+    return res.json({ success: true, message: 'Password updated successfully.' });
+  } catch (error) {
+    console.error('Change password error:', error);
+    return res.status(500).json({ error: 'Failed to change password.' });
+  }
 });
 
 /**
