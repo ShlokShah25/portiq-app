@@ -118,7 +118,6 @@ const Profile = () => {
                 <span className="value">{email}</span>
               </div>
             )}
-            </div>
           </div>
 
           <div className="profile-section">
