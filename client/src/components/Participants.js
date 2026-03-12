@@ -284,8 +284,64 @@ const Participants = () => {
               </button>
             </div>
           ) : (
-            <div className="participants-grid">
-              {participants.map((p, idx) => (
+            <>
+              {/* Voice configuration guide */}
+              <div
+                className="participants-voice-guide"
+                style={{
+                  background: 'rgba(15, 23, 42, 0.95)',
+                  borderRadius: '12px',
+                  padding: '18px 20px',
+                  marginBottom: '18px',
+                  border: '1px solid rgba(37, 99, 235, 0.6)',
+                }}
+              >
+                <div
+                  style={{
+                    color: '#e5e7eb',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    marginBottom: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                  }}
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                  </svg>
+                  <span>How to record a voice sample</span>
+                </div>
+                <p
+                  style={{
+                    color: '#9ca3af',
+                    fontSize: '13px',
+                    margin: 0,
+                  }}
+                >
+                  Click <strong>Configure Voice</strong> next to a participant, then have{" "}
+                  <strong>that participant</strong> say a short sentence like “Hello, my name
+                  is <em>Their Name</em> and I am ready for the meeting.” The system will use
+                  this to recognize who is speaking during {T.meetings().toLowerCase()}.
+                </p>
+              </div>
+
+              <div className="participants-grid">
+              {participants.map((p, idx) => {
+                const participantName = p.name || p.email || 'This participant';
+                const standardSentence = `Hello, my name is ${participantName} and I am ready for the meeting.`;
+                return (
                 <div key={idx} className="participant-card">
                   <div className="participant-avatar">
                     {(p.name || p.email || '?').charAt(0).toUpperCase()}
@@ -314,6 +370,17 @@ const Participants = () => {
                         >
                           {recordingEmail === p.email ? 'Stop & Save' : (voiceProfiles[p.email]?.hasProfile ? 'Re-record' : 'Configure Voice')}
                         </button>
+                        <div
+                          className="participant-voice-hint"
+                          style={{
+                            marginTop: '6px',
+                            fontSize: '11px',
+                            color: 'rgba(148, 163, 184, 0.9)',
+                            fontStyle: 'italic',
+                          }}
+                        >
+                          Ask {participantName} to say: “{standardSentence}”
+                        </div>
                       </div>
                     )}
                     {uploading && recordingEmail === p.email && (
@@ -331,8 +398,9 @@ const Participants = () => {
                     </svg>
                   </button>
                 </div>
-              ))}
+              )})}
             </div>
+            </>
           )}
         </div>
       </div>

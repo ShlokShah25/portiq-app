@@ -206,7 +206,15 @@ const MeetingInProgress = () => {
     <div className="meeting-in-progress">
       <div className="meeting-in-progress-header">
         <div className="meeting-in-progress-logo">
-          <img src="/assets/portiq-logo.png" alt="PortIQ" />
+          <img
+            src="/assets/portiq-icon.png"
+            alt="Portiq"
+            style={{ width: 37, height: 37, objectFit: 'contain' }}
+            onError={(e) => {
+              e.target.style.display = 'none';
+            }}
+          />
+          <span className="meeting-in-progress-logo-text">Portiq</span>
         </div>
         <button
           className="meeting-in-progress-close"

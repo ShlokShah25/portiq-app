@@ -1390,158 +1390,98 @@ const MeetingsScreen = ({ config }) => {
                   </div>
                 )}
 
-                {/* Approval Workflow UI - Code Entry (ONLY after summary is generated) */}
-                {selectedMeeting.summaryStatus === 'Pending Approval' && 
-                 selectedMeeting.transcriptionStatus === 'Completed' && 
-                 !editableSummary && (
-                  <div className="summary-section" style={{ border: '2px solid #2563eb', borderRadius: '12px', padding: '24px', marginTop: '20px', background: 'rgba(37, 99, 235, 0.05)' }}>
-                    <h3 style={{ color: 'white', marginBottom: '12px', fontSize: '20px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                        <polyline points="14 2 14 8 20 8"></polyline>
-                        <line x1="16" y1="13" x2="8" y2="13"></line>
-                        <line x1="16" y1="17" x2="8" y2="17"></line>
-                        <polyline points="10 9 9 9 8 9"></polyline>
-                      </svg>
-                      Summary Ready for Review
-                    </h3>
-                    <p style={{ marginBottom: '20px', color: 'white', fontSize: '15px' }}>
-                      The meeting summary has been generated. Please enter your verification code to review and approve it.
-                    </p>
-                    {selectedMeeting.authorizedEditorEmail && (
-                      <div style={{ 
-                        background: 'rgba(37, 99, 235, 0.15)', 
-                        border: '1px solid rgba(37, 99, 235, 0.4)', 
-                        borderRadius: '8px', 
-                        padding: '12px', 
-                        marginBottom: '20px' 
-                      }}>
-                        <p style={{ margin: 0, color: 'white', fontSize: '13px' }}>
-                          <strong style={{ color: 'white' }}>ℹ️ Note:</strong> A verification code was sent to <strong style={{ color: 'white' }}>{selectedMeeting.authorizedEditorEmail}</strong> when this meeting was created. 
-                          Please check your email for the 6-digit code.
-                        </p>
-                      </div>
-                    )}
-                    
-                    <div>
-                      {selectedMeeting.authorizedEditorEmail && (
-                        <div className="form-group" style={{ marginBottom: '16px' }}>
-                          <label style={{ color: 'white', marginBottom: '8px', display: 'block', fontSize: '14px', fontWeight: '600' }}>Authorized Editor Email</label>
-                          <input
-                            type="email"
-                            value={verificationEmail || selectedMeeting.authorizedEditorEmail}
-                            onChange={e => setVerificationEmail(e.target.value)}
-                            placeholder={selectedMeeting.authorizedEditorEmail || "editor@company.com"}
-                            style={{ 
-                              width: '100%', 
-                              padding: '14px', 
-                              fontSize: '15px',
-                              background: 'rgba(255, 255, 255, 0.15)',
-                              border: '2px solid rgba(255, 255, 255, 0.3)',
-                              borderRadius: '10px',
-                              color: 'white'
-                            }}
-                            disabled={!!selectedMeeting.authorizedEditorEmail}
-                          />
-                        </div>
-                      )}
-                      {!selectedMeeting.authorizedEditorEmail && (
-                        <div className="form-group" style={{ marginBottom: '16px' }}>
-                          <label style={{ color: 'white', marginBottom: '8px', display: 'block', fontSize: '14px', fontWeight: '600' }}>Enter your authorized email</label>
-                          <input
-                            type="email"
-                            value={verificationEmail}
-                            onChange={e => setVerificationEmail(e.target.value)}
-                            placeholder="editor@company.com"
-                            style={{ 
-                              width: '100%', 
-                              padding: '14px', 
-                              fontSize: '15px',
-                              background: 'rgba(255, 255, 255, 0.15)',
-                              border: '2px solid rgba(255, 255, 255, 0.3)',
-                              borderRadius: '10px',
-                              color: 'white'
-                            }}
-                          />
-                        </div>
-                      )}
-                      <div className="form-group">
-                        <label style={{ color: 'white', marginBottom: '8px', display: 'block', fontSize: '14px', fontWeight: '600' }}>Enter Verification Code</label>
-                        <input
-                          type="text"
-                          value={verificationCode}
-                          onChange={e => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                          placeholder="000000"
-                          maxLength="6"
-                          style={{ 
-                            width: '100%', 
-                            padding: '18px', 
-                            fontSize: '32px', 
-                            textAlign: 'center', 
-                            letterSpacing: '12px',
-                            fontWeight: '700',
-                            border: '2px solid rgba(255, 255, 255, 0.3)',
-                            borderRadius: '12px',
-                            background: 'rgba(255, 255, 255, 0.15)',
-                            color: 'white'
-                          }}
-                          autoFocus
-                        />
-                        <small style={{ display: 'block', marginTop: '10px', color: 'rgba(255, 255, 255, 0.7)', fontSize: '13px', textAlign: 'center' }}>
-                          Enter the 6-digit code sent to your email
-                        </small>
-                      </div>
+                {/* Summary ready - no verification step, just open for review/edit */}
+                {selectedMeeting.summaryStatus === 'Pending Approval' &&
+                  selectedMeeting.transcriptionStatus === 'Completed' &&
+                  !editableSummary && (
+                    <div
+                      className="summary-section"
+                      style={{
+                        border: '2px solid #2563eb',
+                        borderRadius: '12px',
+                        padding: '24px',
+                        marginTop: '20px',
+                        background: 'rgba(37, 99, 235, 0.05)',
+                      }}
+                    >
+                      <h3
+                        style={{
+                          color: 'white',
+                          marginBottom: '12px',
+                          fontSize: '20px',
+                          fontWeight: '600',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px',
+                        }}
+                      >
+                        <svg
+                          width="20"
+                          height="20"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                          <polyline points="14 2 14 8 20 8"></polyline>
+                          <line x1="16" y1="13" x2="8" y2="13"></line>
+                          <line x1="16" y1="17" x2="8" y2="17"></line>
+                          <polyline points="10 9 9 9 8 9"></polyline>
+                        </svg>
+                        Summary Ready
+                      </h3>
+                      <p
+                        style={{
+                          marginBottom: '16px',
+                          color: 'white',
+                          fontSize: '15px',
+                        }}
+                      >
+                        The meeting summary has been generated and will be emailed
+                        to participants automatically.
+                      </p>
+                      <p
+                        style={{
+                          marginBottom: '20px',
+                          color: '#9ca3af',
+                          fontSize: '13px',
+                        }}
+                      >
+                        You can optionally review and edit the summary before it
+                        is sent. Click below to open it.
+                      </p>
+
                       <button
                         className="btn btn-primary"
                         onClick={async () => {
-                          if (!verificationCode || verificationCode.length !== 6) {
-                            setError('Please enter the 6-digit code');
-                            return;
-                          }
-                          if (!verificationEmail && !selectedMeeting.authorizedEditorEmail) {
-                            setError('Please enter your email');
-                            return;
-                          }
-                          const emailToUse = verificationEmail || selectedMeeting.authorizedEditorEmail;
                           try {
-                            const res = await axios.post(`/meetings/${selectedMeeting._id}/verify-and-get-summary`, {
-                              email: emailToUse,
-                              code: verificationCode
-                            });
+                            const res = await axios.get(
+                              `/meetings/${selectedMeeting._id}/summary`
+                            );
                             setEditableSummary(res.data.summary);
                             setVerificationStep('edit');
                             setError('');
-                            // Reset additional participants when starting review
                             setAdditionalParticipants([{ name: '', email: '' }]);
                           } catch (err) {
-                            setError(err.response?.data?.error || 'Invalid verification code. Please check your email and try again.');
+                            setError(
+                              err.response?.data?.error ||
+                                'Failed to load summary. Please try again.'
+                            );
                           }
                         }}
-                        style={{ width: '100%', padding: '16px', fontSize: '16px', fontWeight: '600', marginTop: '8px' }}
+                        style={{
+                          width: '100%',
+                          padding: '16px',
+                          fontSize: '16px',
+                          fontWeight: '600',
+                          marginTop: '8px',
+                        }}
                       >
-                        Verify & View Summary
+                        View & Edit Summary
                       </button>
-                      {selectedMeeting.authorizedEditorEmail && (
-                        <button
-                          className="btn btn-secondary"
-                          onClick={async () => {
-                            try {
-                              await axios.post(`/meetings/${selectedMeeting._id}/request-verification`, { 
-                                email: selectedMeeting.authorizedEditorEmail 
-                              });
-                              alert('Verification code resent! Please check your email.');
-                            } catch (err) {
-                              setError(err.response?.data?.error || 'Failed to resend verification code');
-                            }
-                          }}
-                          style={{ width: '100%', padding: '12px', fontSize: '14px', marginTop: '12px' }}
-                        >
-                          Resend Verification Code
-                        </button>
-                      )}
                     </div>
-                  </div>
-                )}
+                  )}
 
                 {/* Summary View & Edit (ONLY after code is verified) */}
                 {verificationStep === 'edit' && editableSummary && (

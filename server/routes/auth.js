@@ -183,16 +183,23 @@ router.get('/google/callback', async (req, res) => {
       throw new Error('No email in Google account');
     }
 
-    let admin = await Admin.findOne({ username: email });
+    // Only allow Google sign-in for existing admin accounts.
+    // This prevents bypassing subscription / onboarding by using any Google account.
+    const admin = await Admin.findOne({ username: email });
     if (!admin) {
-      // Random password; user will normally sign-in via Google
-      const randomPassword = crypto.randomBytes(32).toString('hex');
-      admin = new Admin({
-        username: email,
-        password: randomPassword,
-        role: 'admin',
-      });
-      await admin.save();
+      const appBase =
+        process.env.APP_BASE_URL ||
+        'https://meetingassistant.portiqtechnologies.com';
+      const marketingBase =
+        process.env.MARKETING_URL || 'https://www.portiqtechnologies.com';
+      console.warn(
+        `Google login attempted for ${email} but no matching admin account exists.`
+      );
+      return res.redirect(
+        `${marketingBase}?login=google_no_account&email=${encodeURIComponent(
+          email
+        )}`
+      );
     }
 
     const appToken = jwt.sign(
