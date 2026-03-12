@@ -115,7 +115,8 @@
 }
 
 .top-nav-admin,
-.top-nav-settings {
+.top-nav-settings,
+.top-nav-logout {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -133,17 +134,31 @@
 }
 
 .top-nav-admin:hover,
-.top-nav-settings:hover {
+.top-nav-settings:hover,
+.top-nav-logout:hover {
   background: #141414;
   color: #F5F5F5;
 }
 
 .top-nav-admin svg,
-.top-nav-settings svg {
+.top-nav-settings svg,
+.top-nav-logout svg {
   width: 18px;
   height: 18px;
   stroke-width: 1.5;
   flex-shrink: 0;
+}
+
+.top-nav-logout {
+  border: 1px solid #1f1f1f;
+  background: #111111;
+  color: #E5E7EB;
+}
+
+.top-nav-logout:hover {
+  background: #b91c1c;
+  border-color: #f87171;
+  color: #F9FAFB;
 }
 
 /* Responsive */
