@@ -489,7 +489,7 @@
   background: #111111;
   border: 1px solid #1f1f1f;
   border-radius: 14px;
-  padding: 20px;
+  padding: 14px 16px;
   cursor: pointer;
   transition: all 150ms ease;
 }
