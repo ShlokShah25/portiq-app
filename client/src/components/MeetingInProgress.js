@@ -14,6 +14,8 @@ const MeetingInProgress = () => {
   const [recording, setRecording] = useState(false);
   const [paused, setPaused] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [maxDurationMinutes, setMaxDurationMinutes] = useState(null);
+  const [autoEnded, setAutoEnded] = useState(false);
   const mediaRecorderRef = React.useRef(null);
   const streamRef = React.useRef(null);
 
@@ -35,6 +37,44 @@ const MeetingInProgress = () => {
       return () => clearInterval(interval);
     }
   }, [meeting?.startTime]);
+
+  // Fetch plan limits to optionally auto-end long recordings on starter / other plans
+  useEffect(() => {
+    const fetchPlan = async () => {
+      try {
+        const res = await axios.get('/admin/profile');
+        const productType = res.data?.admin?.productType || 'workplace';
+        const plan = (res.data?.admin?.plan || 'starter').toLowerCase();
+
+        // Mirror the server-side limits defined in planConstraints.js
+        if (productType === 'workplace') {
+          if (plan === 'starter') setMaxDurationMinutes(60);
+          else if (plan === 'professional') setMaxDurationMinutes(180);
+          else if (plan === 'business') setMaxDurationMinutes(480);
+          else setMaxDurationMinutes(null);
+        } else {
+          setMaxDurationMinutes(null);
+        }
+      } catch (e) {
+        // If this fails, we just won't auto-end on the client
+        console.warn('Unable to fetch admin profile for plan limits', e);
+      }
+    };
+    fetchPlan();
+  }, []);
+
+  // Watch elapsed time while recording and auto-end if we exceed plan limit
+  useEffect(() => {
+    if (!recording || !maxDurationMinutes || autoEnded) return;
+    const limitSeconds = maxDurationMinutes * 60;
+    if (elapsedTime >= limitSeconds) {
+      setAutoEnded(true);
+      setError(
+        `Your plan allows meetings up to ${maxDurationMinutes} minutes. This meeting has been ended automatically.`
+      );
+      handleEndMeeting();
+    }
+  }, [elapsedTime, recording, maxDurationMinutes, autoEnded]);
 
   const fetchMeeting = async () => {
     try {

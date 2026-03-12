@@ -25,6 +25,17 @@ const adminSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
+  // SaaS product + plan info
+  productType: {
+    type: String,
+    enum: ['workplace', 'education'],
+    default: 'workplace'
+  },
+  plan: {
+    type: String,
+    enum: ['starter', 'professional', 'business'],
+    default: 'starter'
+  },
   // Optional fields used for password reset flow
   resetToken: {
     type: String,

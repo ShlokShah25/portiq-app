@@ -3,6 +3,9 @@ const router = express.Router();
 const Meeting = require('../models/Meeting');
 const VoiceProfile = require('../models/VoiceProfile');
 const { transcribeAndSummarize, sendMeetingSummary, getMailTransporter } = require('../utils/meetingTranscription');
+const { getPlanConstraints } = require('../utils/planConstraints');
+const jwt = require('jsonwebtoken');
+const Admin = require('../models/Admin');
 const { generateVoiceEmbedding } = require('../utils/voiceRecognition');
 const multer = require('multer');
 const path = require('path');
@@ -79,6 +82,22 @@ const voiceUpload = multer({
   }
 });
 
+// Helper to read admin (and thus plan) from bearer token, but keep routes usable
+// even if called from unauthenticated contexts.
+async function getAdminFromRequest(req) {
+  try {
+    const header = req.header('Authorization') || '';
+    const token = header.startsWith('Bearer ') ? header.replace('Bearer ', '') : null;
+    if (!token) return null;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_secret_key');
+    if (!decoded.id) return null;
+    const admin = await Admin.findById(decoded.id).select('-password');
+    return admin;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Create new meeting
  */
@@ -88,6 +107,21 @@ router.post('/', async (req, res) => {
     
     if (!meetingRoom || !title || !organizer) {
       return res.status(400).json({ error: 'Meeting room, title, and organizer are required' });
+    }
+
+    // Determine plan limits for the current admin (if available)
+    const admin = await getAdminFromRequest(req);
+    const planInfo = getPlanConstraints(admin);
+
+    // Enforce max participants per plan
+    if (
+      planInfo.maxParticipants &&
+      Array.isArray(participants) &&
+      participants.length > planInfo.maxParticipants
+    ) {
+      return res.status(400).json({
+        error: `Your ${planInfo.plan} plan allows up to ${planInfo.maxParticipants} participants per meeting.`,
+      });
     }
 
     const meeting = new Meeting({
@@ -313,6 +347,23 @@ router.post('/:id/end', upload.single('audio'), async (req, res) => {
     meeting.status = 'Completed';
     meeting.endTime = new Date();
     meeting.transcriptionStatus = 'Processing';
+
+    // Apply duration limit per plan (backend safety net).
+    const admin = await getAdminFromRequest(req);
+    const { maxDurationMinutes, plan: planName } = getPlanConstraints(admin);
+    if (maxDurationMinutes && meeting.startTime) {
+      const started = new Date(meeting.startTime);
+      const ended = new Date(meeting.endTime);
+      const actualMinutes = Math.max(
+        0,
+        Math.round((ended.getTime() - started.getTime()) / 60000)
+      );
+      if (actualMinutes > maxDurationMinutes) {
+        console.warn(
+          `Meeting ${meeting._id} exceeded duration limit for plan ${planName}: ${actualMinutes}min > ${maxDurationMinutes}min`
+        );
+      }
+    }
 
     // Helper to safely parse dates from AI output
     const safeParseDate = (value) => {

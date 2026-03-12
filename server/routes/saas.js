@@ -26,6 +26,13 @@ router.post('/signup', async (req, res) => {
       admin.password = password;
     }
 
+    // Persist chosen product type and default plan for SaaS signup
+    admin.productType =
+      (productType || '').toLowerCase() === 'education' ? 'education' : 'workplace';
+    if (!admin.plan) {
+      admin.plan = 'starter';
+    }
+
     await admin.save();
 
     // Best-effort welcome email (non-blocking for response)

@@ -38,7 +38,13 @@ router.post('/login', async (req, res) => {
     await admin.save();
 
     const token = jwt.sign(
-      { id: admin._id, username: admin.username, role: admin.role },
+      {
+        id: admin._id,
+        username: admin.username,
+        role: admin.role,
+        productType: admin.productType,
+        plan: admin.plan,
+      },
       process.env.JWT_SECRET || 'your_secret_key',
       { expiresIn: '24h' }
     );
@@ -67,7 +73,9 @@ router.get('/profile', authenticateAdmin, async (req, res) => {
       id: req.admin._id,
       username: req.admin.username,
       role: req.admin.role,
-      lastLogin: req.admin.lastLogin
+      lastLogin: req.admin.lastLogin,
+      productType: req.admin.productType,
+      plan: req.admin.plan,
     }
   });
 });
