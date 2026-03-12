@@ -65,16 +65,21 @@ router.post('/forgot', async (req, res) => {
         'https://meetingassistant.portiqtechnologies.com';
       const resetUrl = `${appBase}/reset-password?token=${encodeURIComponent(token)}`;
 
-      await transporter.sendMail({
-        from: process.env.MAIL_FROM || process.env.MAIL_USER,
-        to: admin.email || username,
-        subject: 'Reset your Portiq password',
-        html: `
-          <p>We received a request to reset the password for your Portiq account.</p>
-          <p><a href="${resetUrl}" target="_blank" rel="noopener noreferrer">Click here to reset your password</a>. This link will expire in 1 hour.</p>
-          <p>If you did not request this, you can safely ignore this email.</p>
-        `,
-      });
+      // Fire-and-forget so the API responds immediately even if SMTP is slow.
+      transporter
+        .sendMail({
+          from: process.env.MAIL_FROM || process.env.MAIL_USER,
+          to: admin.email || username,
+          subject: 'Reset your Portiq password',
+          html: `
+            <p>We received a request to reset the password for your Portiq account.</p>
+            <p><a href="${resetUrl}" target="_blank" rel="noopener noreferrer">Click here to reset your password</a>. This link will expire in 1 hour.</p>
+            <p>If you did not request this, you can safely ignore this email.</p>
+          `,
+        })
+        .catch((mailErr) => {
+          console.warn('Forgot password email failed:', mailErr.message);
+        });
     }
 
     return res.json({ success: true });
