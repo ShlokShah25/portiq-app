@@ -14,6 +14,7 @@ const MeetingInProgress = lazy(() => import('./components/MeetingInProgress'));
 const ClientAdmin = lazy(() => import('./components/ClientAdmin'));
 const BootupScreen = lazy(() => import('./components/BootupScreen'));
 const AdminLogin = lazy(() => import('./components/AdminLogin'));
+const ResetPassword = lazy(() => import('./components/ResetPassword'));
 
 // Set base URL for API.
 // - In local dev: use explicit REACT_APP_API_URL or localhost:5001
@@ -87,6 +88,10 @@ function App() {
             <Route
               path="/admin-login"
               element={<AdminLogin />}
+            />
+            <Route
+              path="/reset-password"
+              element={<ResetPassword />}
             />
             <Route
               path="/"

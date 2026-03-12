@@ -24,6 +24,15 @@ const adminSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now
+  },
+  // Optional fields used for password reset flow
+  resetToken: {
+    type: String,
+    default: null
+  },
+  resetTokenExpires: {
+    type: Date,
+    default: null
   }
 });
 

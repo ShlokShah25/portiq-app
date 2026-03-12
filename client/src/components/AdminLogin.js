@@ -1,16 +1,30 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { setProduct } from '../config/product';
 import './AdminLogin.css';
 
 const AdminLogin = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [productType, setProductType] = useState('workplace');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Handle social / auto-login tokens from query string
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const socialToken = params.get('social_token');
+    const next = params.get('next') || '/dashboard';
+
+    if (socialToken) {
+      window.localStorage.setItem('clientAdminToken', socialToken);
+      axios.defaults.headers.common['Authorization'] = `Bearer ${socialToken}`;
+      navigate(next, { replace: true });
+    }
+  }, [location, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -127,6 +141,72 @@ const AdminLogin = () => {
             disabled={loading}
           >
             {loading ? 'Signing in…' : 'Sign In'}
+          </button>
+
+          <div className="admin-login-footer">
+            <button
+              type="button"
+              className="admin-login-link"
+              onClick={() => {
+                const base =
+                  process.env.REACT_APP_MARKETING_URL ||
+                  'https://www.portiqtechnologies.com';
+                window.location.href = `${base}#pricing`;
+              }}
+            >
+              Get a subscription
+            </button>
+            <button
+              type="button"
+              className="admin-login-link"
+              onClick={async () => {
+                const identifierValue = identifier.trim();
+                if (!identifierValue) {
+                  setError('Enter your email / username above first.');
+                  return;
+                }
+                try {
+                  setLoading(true);
+                  setError('');
+                  await axios.post('/auth/forgot', {
+                    username: identifierValue,
+                  });
+                  setError(
+                    'If an account exists, a reset link has been sent to your email.'
+                  );
+                } catch (err) {
+                  console.error('Forgot password error', err);
+                  setError(
+                    'Unable to start password reset. Please try again in a moment.'
+                  );
+                } finally {
+                  setLoading(false);
+                }
+              }}
+            >
+              Forgot password?
+            </button>
+          </div>
+
+          <div className="admin-login-divider">
+            <span>or</span>
+          </div>
+
+          <button
+            type="button"
+            className="admin-login-oauth admin-login-oauth-google"
+            onClick={() => {
+              const base =
+                process.env.REACT_APP_APP_BASE_URL ||
+                window.location.origin;
+              const next = '/dashboard';
+              window.location.href = `${base.replace(
+                /\/$/,
+                ''
+              )}/api/auth/google?next=${encodeURIComponent(next)}`;
+            }}
+          >
+            Continue with Google
           </button>
         </form>
       </div>
