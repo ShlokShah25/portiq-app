@@ -1,31 +1,48 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import TopNav from './TopNav';
+import axios from 'axios';
 import './Profile.css';
 
-const decodeToken = (token) => {
-  try {
-    const [, payload] = token.split('.');
-    return JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
-  } catch {
-    return null;
-  }
-};
-
 const Profile = () => {
-  const token = typeof window !== 'undefined'
-    ? window.localStorage.getItem('clientAdminToken')
-    : null;
+  const [username, setUsername] = useState('Unknown user');
+  const [productLabel, setProductLabel] = useState('Portiq Workplace');
+  const [planLabel, setPlanLabel] = useState('Starter');
 
-  const payload = token ? decodeToken(token) : null;
-  const username = payload?.username || payload?.email || 'Unknown user';
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const res = await axios.get('/admin/profile');
+        const admin = res.data?.admin || {};
+        const uname = admin.username || 'Unknown user';
+        const product =
+          (admin.productType || '').toLowerCase() ||
+          (typeof window !== 'undefined' &&
+            window.localStorage.getItem('portiq_product')) ||
+          'workplace';
+        const plan = (admin.plan || 'starter').toLowerCase();
 
-  const product =
-    (typeof window !== 'undefined' &&
-      window.localStorage.getItem('portiq_product')) ||
-    'workplace';
+        setUsername(uname);
+        setProductLabel(
+          product === 'education' ? 'Portiq Education' : 'Portiq Workplace'
+        );
 
-  const productLabel =
-    product === 'education' ? 'Portiq Education' : 'Portiq Workplace';
+        let planText = 'Starter';
+        if (plan === 'professional') planText = 'Professional';
+        else if (plan === 'business') planText = 'Business';
+        setPlanLabel(planText);
+      } catch (e) {
+        // Fallback: best-effort from localStorage if API fails
+        const product =
+          (typeof window !== 'undefined' &&
+            window.localStorage.getItem('portiq_product')) ||
+          'workplace';
+        setProductLabel(
+          product === 'education' ? 'Portiq Education' : 'Portiq Workplace'
+        );
+      }
+    };
+    loadProfile();
+  }, []);
 
   return (
     <div className="profile-screen">
@@ -55,6 +72,10 @@ const Profile = () => {
             <div className="profile-row">
               <span className="label">Product</span>
               <span className="value">{productLabel}</span>
+            </div>
+            <div className="profile-row">
+              <span className="label">Plan</span>
+              <span className="value">{planLabel}</span>
             </div>
             <div className="profile-row">
               <span className="label">Status</span>
