@@ -114,11 +114,12 @@ const ClientAdmin = () => {
       const response = await axios.get(`/admin/meetings/${meeting._id}/original-summary`, {
         responseType: 'blob'
       });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const pdfBlob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(pdfBlob);
       const link = document.createElement('a');
       link.href = url;
       const safeTitle = meeting.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-      link.setAttribute('download', `original-summary-${safeTitle}-${meeting._id.slice(-6)}.txt`);
+      link.setAttribute('download', `original-summary-${safeTitle}-${meeting._id.slice(-6)}.pdf`);
       document.body.appendChild(link);
       link.click();
       link.remove();
