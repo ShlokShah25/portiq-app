@@ -308,16 +308,24 @@ const MeetingsScreen = ({ config }) => {
         scheduledTimeValue = new Date(`${form.scheduledDate}T${form.scheduledTime}`).toISOString();
       }
 
-      const res = await axios.post('/meetings', {
-        meetingRoom: form.meetingRoom.trim(),
-        title: form.title.trim(),
-        organizer: form.organizer.trim(),
-        participants: payloadParticipants,
-        scheduledTime: scheduledTimeValue,
-        sendNotification: form.sendNotification,
-        transcriptionEnabled: form.transcriptionEnabled,
-        authorizedEditorEmail: form.authorizedEditorEmail.trim() || undefined
-      });
+      const res = await axios.post(
+        '/meetings',
+        {
+          meetingRoom: form.meetingRoom.trim(),
+          title: form.title.trim(),
+          organizer: form.organizer.trim(),
+          participants: payloadParticipants,
+          scheduledTime: scheduledTimeValue,
+          sendNotification: form.sendNotification,
+          transcriptionEnabled: form.transcriptionEnabled,
+          authorizedEditorEmail: form.authorizedEditorEmail.trim() || undefined
+        },
+        {
+          // Prevent the "Creating..." state from hanging forever if the
+          // backend is slow or unreachable.
+          timeout: 30000
+        }
+      );
       setSelectedMeeting(res.data.meeting);
       fetchMeetings();
 
