@@ -23,9 +23,15 @@ function resolvePlanId(planType, productType) {
 
   const map = {
     workplace: {
-      starter: process.env.RAZORPAY_PLAN_WORKPLACE_STARTER,
-      professional: process.env.RAZORPAY_PLAN_WORKPLACE_PROFESSIONAL,
-      business: process.env.RAZORPAY_PLAN_WORKPLACE_BUSINESS,
+      starter:
+        process.env.RAZORPAY_PLAN_WORKPLACE_STARTER ||
+        process.env.RAZORPAY_PLAN_STARTER,
+      professional:
+        process.env.RAZORPAY_PLAN_WORKPLACE_PROFESSIONAL ||
+        process.env.RAZORPAY_PLAN_PROFESSIONAL,
+      business:
+        process.env.RAZORPAY_PLAN_WORKPLACE_BUSINESS ||
+        process.env.RAZORPAY_PLAN_BUSINESS,
     },
     education: {
       education: process.env.RAZORPAY_PLAN_EDU_BASE,
