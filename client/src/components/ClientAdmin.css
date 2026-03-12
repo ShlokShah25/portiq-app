@@ -35,15 +35,22 @@
   margin: 0;
 }
 
+.admin-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.back-btn,
 .logout-btn {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  background: transparent;
+  background: #050505;
   border: 1px solid var(--border-color);
   border-radius: 10px;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -51,12 +58,14 @@
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Helvetica Neue", system-ui, sans-serif;
 }
 
+.back-btn:hover,
 .logout-btn:hover {
-  background: var(--surface-secondary);
+  background: #111111;
   border-color: #3A3A3C;
   color: var(--text-primary);
 }
 
+.back-btn svg,
 .logout-btn svg {
   width: 16px;
   height: 16px;
