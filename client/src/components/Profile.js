@@ -124,11 +124,9 @@ const Profile = () => {
             <h2>Subscription</h2>
             <div className="profile-row">
               <span className="label">Product</span>
-              <span className="value">{productLabel}</span>
-            </div>
-            <div className="profile-row">
-              <span className="label">Plan</span>
-              <span className="value">{planLabel}</span>
+              <span className="value">
+                {productLabel} &nbsp;–&nbsp; {planLabel} plan
+              </span>
             </div>
             <div className="profile-row">
               <span className="label">Status</span>
