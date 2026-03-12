@@ -88,9 +88,12 @@ router.post('/create-subscription', async (req, res) => {
     });
   } catch (err) {
     console.error('Create subscription error:', err);
-    return res
-      .status(500)
-      .json({ error: 'Failed to create subscription. Please try again.' });
+    const message = err.message || String(err);
+    const detail = err.description || err.error?.description || message;
+    return res.status(500).json({
+      error: 'Failed to create subscription. Please try again.',
+      errorDetail: detail,
+    });
   }
 });
 
