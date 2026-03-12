@@ -41,7 +41,13 @@ router.post('/forgot', async (req, res) => {
       return res.status(400).json({ error: 'username (or email used as username) is required' });
     }
 
-    const admin = await Admin.findOne({ username });
+    // Allow lookup by either username or email, since the login field accepts both.
+    const admin = await Admin.findOne({
+      $or: [
+        { username },
+        { email: username.toLowerCase() }
+      ]
+    });
     if (!admin) {
       // Do not reveal user existence
       return res.json({ success: true });
@@ -61,7 +67,7 @@ router.post('/forgot', async (req, res) => {
 
       await transporter.sendMail({
         from: process.env.MAIL_FROM || process.env.MAIL_USER,
-        to: username,
+        to: admin.email || username,
         subject: 'Reset your Portiq password',
         html: `
           <p>We received a request to reset the password for your Portiq account.</p>
