@@ -279,12 +279,12 @@
 
 .premium-checkbox-container input[type="checkbox"] {
   appearance: none;
-  width: 16px;
-  height: 16px;
-  border: 1px solid #262626;
+  width: 18px;
+  height: 18px;
+  border: 1px solid #3b3b3b;
   border-radius: 4px;
-  background: #111111;
-  display: flex;
+  background: #050505;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   transition: all 150ms ease;
@@ -297,13 +297,14 @@
   content: '';
   position: absolute;
   top: 2px;
-  left: 4px;
-  width: 5px;
-  height: 9px;
+  left: 5px;
+  width: 6px;
+  height: 10px;
   border-right: 2px solid #ffffff;
   border-bottom: 2px solid #ffffff;
+  transform: rotate(45deg);
   opacity: 0;
-  transition: all 150ms ease;
+  transition: opacity 120ms ease;
 }
 
 .premium-checkbox-container input[type="checkbox"]:checked {

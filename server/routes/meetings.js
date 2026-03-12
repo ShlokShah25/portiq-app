@@ -333,49 +333,45 @@ router.post('/:id/end', upload.single('audio'), async (req, res) => {
       }
       await meeting.save();
 
-      // Process transcription asynchronously
+      // Process transcription asynchronously. Use findByIdAndUpdate instead of
+      // saving the in-memory document to avoid VersionError on stale docs.
       transcribeAndSummarize(audioFilePath, meeting)
         .then(async (summaryData) => {
-          meeting.transcription = summaryData.transcription;
-          meeting.summary = summaryData.summary;
-          meeting.keyPoints = summaryData.keyPoints;
-          // Sanitize action items to avoid invalid date values from AI (e.g., "Three months from now")
-          meeting.actionItems = (summaryData.actionItems || []).map((item) => ({
+          const safeActionItems = (summaryData.actionItems || []).map((item) => ({
             task: item.task || '',
             assignee: item.assignee || '',
             dueDate: safeParseDate(item.dueDate)
           }));
-          meeting.decisions = summaryData.decisions || [];
-          meeting.nextSteps = summaryData.nextSteps || [];
-          meeting.importantNotes = summaryData.importantNotes || [];
-          
-          // Store ORIGINAL summary (before any editor edits) for audit trail
-          meeting.originalSummary = summaryData.summary;
-          meeting.originalKeyPoints = summaryData.keyPoints || [];
-          meeting.originalActionItems = (summaryData.actionItems || []).map((item) => ({
-            task: item.task || '',
-            assignee: item.assignee || '',
-            dueDate: safeParseDate(item.dueDate)
-          }));
-          meeting.originalDecisions = summaryData.decisions || [];
-          meeting.originalNextSteps = summaryData.nextSteps || [];
-          meeting.originalImportantNotes = summaryData.importantNotes || [];
-          
-          // Copy to pending fields for approval workflow
-          meeting.pendingSummary = summaryData.summary;
-          meeting.pendingKeyPoints = summaryData.keyPoints || [];
-          meeting.pendingActionItems = (summaryData.actionItems || []).map((item) => ({
-            task: item.task || '',
-            assignee: item.assignee || '',
-            dueDate: safeParseDate(item.dueDate)
-          }));
-          meeting.pendingDecisions = summaryData.decisions || [];
-          meeting.pendingNextSteps = summaryData.nextSteps || [];
-          meeting.pendingImportantNotes = summaryData.importantNotes || [];
-          
-          meeting.transcriptionStatus = 'Completed';
-          meeting.summaryStatus = 'Pending Approval'; // Wait for authorized editor approval
-          await meeting.save();
+
+          const update = {
+            transcription: summaryData.transcription,
+            summary: summaryData.summary,
+            keyPoints: summaryData.keyPoints,
+            actionItems: safeActionItems,
+            decisions: summaryData.decisions || [],
+            nextSteps: summaryData.nextSteps || [],
+            importantNotes: summaryData.importantNotes || [],
+            originalSummary: summaryData.summary,
+            originalKeyPoints: summaryData.keyPoints || [],
+            originalActionItems: safeActionItems,
+            originalDecisions: summaryData.decisions || [],
+            originalNextSteps: summaryData.nextSteps || [],
+            originalImportantNotes: summaryData.importantNotes || [],
+            pendingSummary: summaryData.summary,
+            pendingKeyPoints: summaryData.keyPoints || [],
+            pendingActionItems: safeActionItems,
+            pendingDecisions: summaryData.decisions || [],
+            pendingNextSteps: summaryData.nextSteps || [],
+            pendingImportantNotes: summaryData.importantNotes || [],
+            transcriptionStatus: 'Completed',
+            summaryStatus: 'Pending Approval'
+          };
+
+          const updated = await Meeting.findByIdAndUpdate(
+            meeting._id,
+            { $set: update },
+            { new: true }
+          );
 
           // Send notification email to authorized editor if configured
           if (meeting.authorizedEditorEmail) {
@@ -428,8 +424,13 @@ router.post('/:id/end', upload.single('audio'), async (req, res) => {
         })
         .catch((error) => {
           console.error('Transcription processing error:', error);
-          meeting.transcriptionStatus = 'Failed';
-          meeting.save();
+          // Mark transcription as failed without relying on potentially stale doc
+          Meeting.findByIdAndUpdate(
+            meeting._id,
+            { $set: { transcriptionStatus: 'Failed' } }
+          ).catch((e) => {
+            console.error('Failed to mark transcription as failed:', e);
+          });
         });
     } else {
       meeting.transcriptionStatus = 'Not Started';
@@ -657,22 +658,9 @@ router.put('/:id/pending-summary', async (req, res) => {
       return res.status(404).json({ error: 'Meeting not found' });
     }
 
-    const { email, code, summary, keyPoints, actionItems, decisions, nextSteps, importantNotes } = req.body;
+    const { summary, keyPoints, actionItems, decisions, nextSteps, importantNotes } = req.body;
 
-    // Verify again
-    if (meeting.authorizedEditorEmail && meeting.authorizedEditorEmail.toLowerCase() !== email.toLowerCase()) {
-      return res.status(403).json({ error: 'Unauthorized' });
-    }
-
-    if (!meeting.editorVerificationCode || meeting.editorVerificationCode !== code) {
-      return res.status(401).json({ error: 'Invalid verification code' });
-    }
-
-    if (!meeting.editorVerificationExpiry || new Date() > meeting.editorVerificationExpiry) {
-      return res.status(401).json({ error: 'Verification code expired' });
-    }
-
-    // Update pending summary
+    // Update pending summary (no verification / code required anymore)
     if (summary !== undefined) meeting.pendingSummary = summary;
     if (keyPoints !== undefined) meeting.pendingKeyPoints = keyPoints;
     if (actionItems !== undefined) {
@@ -710,22 +698,9 @@ router.post('/:id/approve-and-send', async (req, res) => {
       return res.status(404).json({ error: 'Meeting not found' });
     }
 
-    const { email, code, additionalParticipants } = req.body;
+    const { additionalParticipants } = req.body;
 
-    // Verify again
-    if (meeting.authorizedEditorEmail && meeting.authorizedEditorEmail.toLowerCase() !== email.toLowerCase()) {
-      return res.status(403).json({ error: 'Unauthorized' });
-    }
-
-    if (!meeting.editorVerificationCode || meeting.editorVerificationCode !== code) {
-      return res.status(401).json({ error: 'Invalid verification code' });
-    }
-
-    if (!meeting.editorVerificationExpiry || new Date() > meeting.editorVerificationExpiry) {
-      return res.status(401).json({ error: 'Verification code expired' });
-    }
-
-    // Add additional participants if provided
+    // Add additional participants if provided (no verification / code required anymore)
     if (additionalParticipants && Array.isArray(additionalParticipants) && additionalParticipants.length > 0) {
       const existingEmails = (meeting.participants || []).map(p => p.email?.toLowerCase()).filter(Boolean);
       const newParticipants = additionalParticipants

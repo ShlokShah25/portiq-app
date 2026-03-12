@@ -400,9 +400,21 @@ async function transcribeAndSummarize(audioFilePath, meeting) {
  * Send meeting summary to participants via email/WhatsApp
  */
 async function sendMeetingSummary(meeting, summaryData) {
-  const participantEmails = (meeting.participants || [])
+  let participantEmails = (meeting.participants || [])
     .map(p => p.email)
     .filter(Boolean);
+
+  // If no explicit participant emails were captured, fall back to organizer email
+  if ((!participantEmails || participantEmails.length === 0) && meeting.organizer) {
+    const organizerEmail = typeof meeting.organizer === 'string'
+      ? meeting.organizer
+      : meeting.organizer.email || meeting.organizer.name || null;
+
+    if (organizerEmail && String(organizerEmail).includes('@')) {
+      participantEmails = [organizerEmail];
+      console.log('📧 No participant emails found; falling back to organizer for summary email');
+    }
+  }
 
   // Compute duration for email/PDF display
   let durationMinutes = null;
