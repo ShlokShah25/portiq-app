@@ -270,6 +270,27 @@ const Participants = () => {
             </div>
           )}
 
+          {/* Voice configuration guide */}
+          <div className="voice-guide-card">
+            <h2>Voice configuration guide</h2>
+            <p>
+              Configure a short voice sample for each participant so the AI can
+              attribute speech correctly during the meeting.
+            </p>
+            <ol>
+              <li>Click <strong>Configure Voice</strong> on a participant card.</li>
+              <li>
+                Ask them to clearly say:{' '}
+                <em>
+                  “Hello, my name is{' '}
+                  {participants[0]?.name || 'your name'} and I am ready for the
+                  meeting.”
+                </em>
+              </li>
+              <li>Wait for the upload to finish. The status will change to “Voice configured”.</li>
+            </ol>
+          </div>
+
           {participants.length === 0 ? (
             <div className="empty-state">
               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>

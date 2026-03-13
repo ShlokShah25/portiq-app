@@ -51,6 +51,38 @@
   margin: 0 auto;
 }
 
+.voice-guide-card {
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 20px 22px;
+  margin-bottom: 24px;
+}
+
+.voice-guide-card h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 10px 0;
+}
+
+.voice-guide-card p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0 0 10px 0;
+}
+
+.voice-guide-card ol {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.voice-guide-card li + li {
+  margin-top: 4px;
+}
+
 .add-participant-form {
   background: var(--surface-secondary);
   border: 1px solid var(--border-color);
