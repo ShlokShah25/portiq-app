@@ -143,28 +143,6 @@ const Profile = () => {
             >
               Manage subscription
             </button>
-            <button
-              className="profile-manage-btn"
-              style={{ marginLeft: '8px' }}
-              type="button"
-              onClick={() => {
-                const marketing =
-                  process.env.REACT_APP_MARKETING_URL ||
-                  'https://www.portiqtechnologies.com';
-                const params = new URLSearchParams();
-                if (email) params.set('email', email);
-                params.set('plan', planLabel.toLowerCase());
-                params.set(
-                  'product',
-                  productLabel.toLowerCase().indexOf('education') !== -1
-                    ? 'education'
-                    : 'workplace'
-                );
-                window.location.href = `${marketing}?${params.toString()}`;
-              }}
-            >
-              View website profile
-            </button>
           </div>
 
           <div className="profile-section">

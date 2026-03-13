@@ -13,6 +13,32 @@ const AdminLogin = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const syncWebsiteSession = async () => {
+    try {
+      const res = await axios.get('/admin/profile');
+      const admin = res.data?.admin || {};
+      const payload = {
+        email: admin.email || identifier.trim() || '',
+        plan: (admin.plan || 'starter').toLowerCase(),
+        productType: (admin.productType || 'workplace').toLowerCase(),
+      };
+      var domain = window.location.hostname;
+      if (domain.endsWith('portiqtechnologies.com')) {
+        domain = '.portiqtechnologies.com';
+      }
+      document.cookie =
+        'portiq_site_session=' +
+        encodeURIComponent(JSON.stringify(payload)) +
+        ';domain=' +
+        domain +
+        ';path=/;max-age=' +
+        60 * 60 * 24 * 7 +
+        ';secure;samesite=lax';
+    } catch (e) {
+      // best-effort only
+    }
+  };
+
   // Handle social / auto-login tokens from query string
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -47,6 +73,8 @@ const AdminLogin = () => {
 
       window.localStorage.setItem('clientAdminToken', token);
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      // Best-effort: sync a website session cookie for portiqtechnologies.com
+      await syncWebsiteSession();
       navigate('/dashboard', { replace: true });
     } catch (err) {
       console.error('Admin login error', err);
