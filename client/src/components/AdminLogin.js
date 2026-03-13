@@ -104,7 +104,7 @@ const AdminLogin = () => {
           </div>
           <div className="admin-login-title-block">
             <h1>Login to your Port</h1>
-            <p>Sign in to your Port dashboard</p>
+            <p>Sign in to your dashboard</p>
           </div>
         </div>
 
