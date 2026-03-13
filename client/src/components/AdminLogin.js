@@ -103,8 +103,8 @@ const AdminLogin = () => {
             />
           </div>
           <div className="admin-login-title-block">
-            <h1>Login to your Portiq</h1>
-            <p>Sign in to your Portiq dashboard</p>
+            <h1>Login to your Port</h1>
+            <p>Sign in to your Port dashboard</p>
           </div>
         </div>
 
