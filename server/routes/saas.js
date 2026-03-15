@@ -130,6 +130,50 @@ router.post('/login', async (req, res) => {
 });
 
 /**
+ * Exchange a short-lived auth_token (from Google OAuth callback) for website session user.
+ * Called by the marketing site when it has ?auth_token= in the URL after Google sign-in.
+ */
+router.get('/session', async (req, res) => {
+  try {
+    const token = (req.query.token || '').trim();
+    if (!token) {
+      return res.status(400).json({ error: 'Token is required.' });
+    }
+
+    const secret = process.env.JWT_SECRET || 'your_secret_key';
+    let decoded;
+    try {
+      decoded = jwt.verify(token, secret);
+    } catch (e) {
+      return res.status(401).json({ error: 'Invalid or expired token.' });
+    }
+
+    if (decoded.purpose !== 'website_session' || !decoded.adminId) {
+      return res.status(401).json({ error: 'Invalid token.' });
+    }
+
+    const admin = await Admin.findById(decoded.adminId);
+    if (!admin) {
+      return res.status(401).json({ error: 'User not found.' });
+    }
+
+    return res.status(200).json({
+      success: true,
+      user: {
+        email: admin.email || '',
+        username: admin.username,
+        plan: (admin.plan || 'starter').toLowerCase(),
+        productType: (admin.productType || 'workplace').toLowerCase(),
+        hasActiveSubscription: !!admin.hasActiveSubscription,
+      },
+    });
+  } catch (err) {
+    console.error('SaaS session exchange error:', err);
+    return res.status(500).json({ error: 'Session exchange failed.' });
+  }
+});
+
+/**
  * Issue an auto-login token for a given username.
  * Used by the website to log user into the app immediately after first subscription.
  */

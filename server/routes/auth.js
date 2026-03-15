@@ -194,23 +194,36 @@ router.get('/google/callback', async (req, res) => {
       throw new Error('No email in Google account');
     }
 
-    // Only allow Google sign-in for existing admin accounts.
-    // This prevents bypassing subscription / onboarding by using any Google account.
-    const admin = await Admin.findOne({ username: email });
+    let admin = await Admin.findOne({ $or: [{ username: email }, { email }] });
     if (!admin) {
-      const appBase =
-        process.env.APP_BASE_URL ||
-        'https://meetingassistant.portiqtechnologies.com';
       const marketingBase =
         process.env.MARKETING_URL || 'https://www.portiqtechnologies.com';
-      console.warn(
-        `Google login attempted for ${email} but no matching admin account exists.`
-      );
-      return res.redirect(
-        `${marketingBase}?login=google_no_account&email=${encodeURIComponent(
-          email
-        )}`
-      );
+      if (state === 'website') {
+        // Sign up with Google: create account and send to website with session token
+        const crypto = require('crypto');
+        const randomPassword = crypto.randomBytes(24).toString('hex');
+        admin = new Admin({
+          username: email,
+          email,
+          password: randomPassword,
+          hasActiveSubscription: false,
+          productType: 'workplace',
+          plan: 'starter',
+        });
+        await admin.save();
+      } else {
+        const appBase =
+          process.env.APP_BASE_URL ||
+          'https://meetingassistant.portiqtechnologies.com';
+        console.warn(
+          `Google login attempted for ${email} but no matching admin account exists.`
+        );
+        return res.redirect(
+          `${marketingBase}?login=google_no_account&email=${encodeURIComponent(
+            email
+          )}`
+        );
+      }
     }
 
     const appToken = jwt.sign(
@@ -219,11 +232,24 @@ router.get('/google/callback', async (req, res) => {
       { expiresIn: '24h' }
     );
 
-    const nextPath = state || '/dashboard';
+    const marketingBase =
+      process.env.MARKETING_URL || 'https://www.portiqtechnologies.com';
     const appBase =
       process.env.APP_BASE_URL ||
       'https://meetingassistant.portiqtechnologies.com';
 
+    if (state === 'website') {
+      const websiteSessionToken = jwt.sign(
+        { adminId: admin._id.toString(), purpose: 'website_session' },
+        getJwtSecret(),
+        { expiresIn: '5m' }
+      );
+      const returnUrl =
+        `${marketingBase}?auth_token=${encodeURIComponent(websiteSessionToken)}`;
+      return res.redirect(returnUrl);
+    }
+
+    const nextPath = state || '/dashboard';
     const redirectUrl =
       `${appBase}/admin-login?social_token=${encodeURIComponent(appToken)}` +
       `&next=${encodeURIComponent(nextPath)}`;
