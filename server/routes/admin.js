@@ -5,8 +5,9 @@ const Config = require('../models/Config');
 const Visitor = require('../models/Visitor');
 const Meeting = require('../models/Meeting');
 const jwt = require('jsonwebtoken');
-const { authenticateAdmin } = require('../middleware/auth');
+const { authenticateAdmin, requireSubscription } = require('../middleware/auth');
 const { getMeetingContext } = require('../utils/meetingContext');
+const { getPlanConstraints } = require('../utils/planConstraints');
 
 /**
  * Admin login (supports both username/password and password-only for client admin)
@@ -83,15 +84,9 @@ router.post('/login', async (req, res) => {
 /**
  * Get admin profile
  */
-router.get('/profile', authenticateAdmin, async (req, res) => {
+router.get('/profile', authenticateAdmin, requireSubscription, async (req, res) => {
   const admin = await Admin.findById(req.admin._id).lean();
   if (!admin) return res.status(401).json({ error: 'Unauthorized' });
-  if (!admin.hasActiveSubscription && admin.username !== 'admin') {
-    return res.status(403).json({
-      error: 'No active subscription',
-      code: 'NO_SUBSCRIPTION',
-    });
-  }
   res.json({
     admin: {
       id: req.admin._id,
@@ -107,9 +102,55 @@ router.get('/profile', authenticateAdmin, async (req, res) => {
 });
 
 /**
+ * Get participant book (saved participants) for the current admin
+ */
+router.get('/participant-book', authenticateAdmin, requireSubscription, async (req, res) => {
+  try {
+    const admin = await Admin.findById(req.admin._id).select('savedParticipants').lean();
+    const list = (admin && admin.savedParticipants) ? admin.savedParticipants : [];
+    res.json({ participants: list });
+  } catch (e) {
+    console.error('Error fetching participant book:', e);
+    res.status(500).json({ error: 'Failed to load participant book' });
+  }
+});
+
+/**
+ * Save participant book (enforces plan limit maxParticipantsInBook)
+ */
+router.put('/participant-book', authenticateAdmin, requireSubscription, async (req, res) => {
+  try {
+    const list = req.body.participants;
+    if (!Array.isArray(list)) {
+      return res.status(400).json({ error: 'participants must be an array' });
+    }
+    const constraints = getPlanConstraints(req.admin);
+    const maxInBook = constraints.maxParticipantsInBook;
+    if (maxInBook != null && list.length > maxInBook) {
+      return res.status(400).json({
+        error: `Your plan allows up to ${maxInBook} participants in the participant book.`,
+      });
+    }
+    const normalized = list.map((p) => ({
+      name: (p && p.name) ? String(p.name).trim() : '',
+      email: (p && p.email) ? String(p.email).trim().toLowerCase() : '',
+    })).filter((p) => p.name || p.email);
+    const admin = await Admin.findByIdAndUpdate(
+      req.admin._id,
+      { savedParticipants: normalized },
+      { new: true }
+    ).select('savedParticipants');
+    res.json({ participants: admin.savedParticipants || [] });
+  } catch (e) {
+    console.error('Error saving participant book:', e);
+    res.status(500).json({ error: 'Failed to save participant book' });
+  }
+});
+
+/**
  * Change password (in-app profile)
  */
-router.put('/password', authenticateAdmin, async (req, res) => {
+router.put('/password', authenticateAdmin, requireSubscription, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body || {};
     if (!currentPassword || !newPassword) {
@@ -141,7 +182,7 @@ router.put('/password', authenticateAdmin, async (req, res) => {
 /**
  * Get dashboard stats
  */
-router.get('/stats', authenticateAdmin, async (req, res) => {
+router.get('/stats', authenticateAdmin, requireSubscription, async (req, res) => {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -189,7 +230,7 @@ router.get('/stats', authenticateAdmin, async (req, res) => {
 /**
  * Get configuration
  */
-router.get('/config', authenticateAdmin, async (req, res) => {
+router.get('/config', authenticateAdmin, requireSubscription, async (req, res) => {
   try {
     const config = await Config.getConfig();
     res.json({ config });
@@ -202,7 +243,7 @@ router.get('/config', authenticateAdmin, async (req, res) => {
 /**
  * Update configuration
  */
-router.put('/config', authenticateAdmin, async (req, res) => {
+router.put('/config', authenticateAdmin, requireSubscription, async (req, res) => {
   try {
     const { companyName, completedMeetingDisplayHours } = req.body;
     const config = await Config.getConfig();
@@ -230,7 +271,7 @@ function canAccessMeeting(meeting, admin) {
   return String(meeting.adminId) === String(admin._id);
 }
 
-router.get('/meetings', authenticateAdmin, async (req, res) => {
+router.get('/meetings', authenticateAdmin, requireSubscription, async (req, res) => {
   try {
     const { status, meetingRoom, date, limit = 100 } = req.query;
     const query = {};
@@ -261,7 +302,7 @@ router.get('/meetings', authenticateAdmin, async (req, res) => {
 /**
  * Get meeting by ID (admin view)
  */
-router.get('/meetings/:id', authenticateAdmin, async (req, res) => {
+router.get('/meetings/:id', authenticateAdmin, requireSubscription, async (req, res) => {
   try {
     const meeting = await Meeting.findById(req.params.id);
     if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
@@ -276,7 +317,7 @@ router.get('/meetings/:id', authenticateAdmin, async (req, res) => {
 /**
  * Update meeting (admin view - for renaming)
  */
-router.put('/meetings/:id', authenticateAdmin, async (req, res) => {
+router.put('/meetings/:id', authenticateAdmin, requireSubscription, async (req, res) => {
   try {
     const { title, meetingRoom, organizer, showOnKiosk, scheduledTime } = req.body;
     const meeting = await Meeting.findById(req.params.id);
@@ -301,7 +342,7 @@ router.put('/meetings/:id', authenticateAdmin, async (req, res) => {
 /**
  * Retry transcription for a failed meeting
  */
-router.post('/meetings/:id/retry-transcription', authenticateAdmin, async (req, res) => {
+router.post('/meetings/:id/retry-transcription', authenticateAdmin, requireSubscription, async (req, res) => {
   try {
     const meeting = await Meeting.findById(req.params.id);
     if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
@@ -397,7 +438,7 @@ router.post('/meetings/:id/retry-transcription', authenticateAdmin, async (req, 
 /**
  * Get AI learning analytics - shows how the system learns from past meetings
  */
-router.get('/ai-learning', authenticateAdmin, async (req, res) => {
+router.get('/ai-learning', authenticateAdmin, requireSubscription, async (req, res) => {
   try {
     // Get a recent completed meeting to analyze context
     const recentMeeting = await Meeting.findOne({
@@ -486,7 +527,7 @@ router.get('/ai-learning', authenticateAdmin, async (req, res) => {
 /**
  * Download original summary (before editor edits) as PDF
  */
-router.get('/meetings/:id/original-summary', authenticateAdmin, async (req, res) => {
+router.get('/meetings/:id/original-summary', authenticateAdmin, requireSubscription, async (req, res) => {
   try {
     const meeting = await Meeting.findById(req.params.id);
     if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
@@ -594,7 +635,7 @@ router.get('/meetings/:id/original-summary', authenticateAdmin, async (req, res)
 /**
  * Download meeting audio recording
  */
-router.get('/meetings/:id/audio', authenticateAdmin, async (req, res) => {
+router.get('/meetings/:id/audio', authenticateAdmin, requireSubscription, async (req, res) => {
   try {
     const meeting = await Meeting.findById(req.params.id);
     if (!meeting) return res.status(404).json({ error: 'Meeting not found' });

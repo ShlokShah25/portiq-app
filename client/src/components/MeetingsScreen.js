@@ -28,7 +28,7 @@ const MeetingsScreen = ({ config }) => {
     sendNotification: true,
     transcriptionEnabled: true,
     authorizedEditorEmail: '',
-    authorizedEditorSource: 'manual' // 'participant' or 'manual'
+    authorizedEditorSource: 'participant'
   });
   
   // Approval workflow state
@@ -58,25 +58,37 @@ const MeetingsScreen = ({ config }) => {
 
   useEffect(() => {
     fetchMeetings();
-    // Load remembered participants from localStorage
-    try {
-      const stored = localStorage.getItem('workplace_meeting_participants');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          setRememberedParticipants(parsed);
-          // Check voice profiles for saved participants
-          const savedEmails = parsed
+    // Load participant book from server (persisted per account)
+    const loadParticipantBook = async () => {
+      try {
+        const res = await axios.get('/admin/participant-book');
+        const list = res.data?.participants;
+        if (Array.isArray(list)) {
+          setRememberedParticipants(list);
+          const savedEmails = list
             .filter(p => p.email && p.email.trim())
             .map(p => p.email.trim());
           if (savedEmails.length > 0) {
             checkVoiceProfilesForSaved(savedEmails);
           }
         }
+      } catch (e) {
+        if (e.response?.status !== 403) {
+          try {
+            const stored = localStorage.getItem('workplace_meeting_participants');
+            if (stored) {
+              const parsed = JSON.parse(stored);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setRememberedParticipants(parsed);
+                const savedEmails = parsed.filter(p => p.email && p.email.trim()).map(p => p.email.trim());
+                if (savedEmails.length > 0) checkVoiceProfilesForSaved(savedEmails);
+              }
+            }
+          } catch (_) {}
+        }
       }
-    } catch (e) {
-      console.error('Error loading remembered participants:', e);
-    }
+    };
+    loadParticipantBook();
   }, []);
 
   const checkVoiceProfilesForSaved = async (emails) => {
@@ -340,15 +352,15 @@ const MeetingsScreen = ({ config }) => {
       if (toRemember.length > 0) {
         const existing = [...rememberedParticipants];
         toRemember.forEach(p => {
-          if (!existing.find(ep => ep.email.toLowerCase() === p.email.toLowerCase())) {
+          if (!existing.find(ep => ep.email && ep.email.toLowerCase() === p.email.toLowerCase())) {
             existing.push(p);
           }
         });
         setRememberedParticipants(existing);
         try {
-          localStorage.setItem('workplace_meeting_participants', JSON.stringify(existing));
+          await axios.put('/admin/participant-book', { participants: existing });
         } catch (err) {
-          console.error('Error saving remembered participants:', err);
+          console.error('Error saving participant book:', err);
         }
       }
 
@@ -594,7 +606,7 @@ const MeetingsScreen = ({ config }) => {
                   </div>
                 )}
                 <div className="form-group">
-                  <label>{isEducation ? 'Lecture Title' : 'Meeting Title'}</label>
+                  <label>{isEducation ? 'Lecture Title' : 'Meeting title/agenda'}</label>
                   <input
                     type="text"
                     className="premium-input"
@@ -830,126 +842,96 @@ const MeetingsScreen = ({ config }) => {
                 <div className="form-group">
                   <label>Authorized Editor (optional)</label>
                   <div className="editor-selection-group">
-                    <div className="editor-source-toggle">
-                      <button
-                        type="button"
-                        className={`editor-toggle-btn ${form.authorizedEditorSource === 'participant' ? 'active' : ''}`}
-                        onClick={() => {
-                          setForm({ ...form, authorizedEditorSource: 'participant', authorizedEditorEmail: '' });
-                          setEditorSearch('');
-                          setShowEditorDropdown(false);
-                        }}
-                      >
-                        From Participants
-                      </button>
-                      <button
-                        type="button"
-                        className={`editor-toggle-btn ${form.authorizedEditorSource === 'manual' ? 'active' : ''}`}
-                        onClick={() => setForm({ ...form, authorizedEditorSource: 'manual', authorizedEditorEmail: '' })}
-                      >
-                        Manual Entry
-                      </button>
-                    </div>
-                    {form.authorizedEditorSource === 'participant' ? (
+                    <div style={{ position: 'relative' }}>
                       <div style={{ position: 'relative' }}>
-                        <div style={{ position: 'relative' }}>
-                          <input
-                            type="text"
-                            className="premium-email-input"
-                            placeholder="Select a participant..."
-                            value={editorSearch}
-                            onChange={e => {
-                              setEditorSearch(e.target.value);
-                              setShowEditorDropdown(true);
-                            }}
-                            onFocus={() => setShowEditorDropdown(true)}
-                            onBlur={() => setTimeout(() => setShowEditorDropdown(false), 200)}
-                            style={{ 
-                              color: form.authorizedEditorEmail 
-                                ? 'white' 
-                                : editorSearch 
-                                  ? 'white' 
-                                  : 'rgba(255, 255, 255, 0.7)',
-                              paddingRight: '40px'
-                            }}
-                          />
-                          <svg 
-                            style={{ 
-                              position: 'absolute', 
-                              right: '12px', 
-                              top: '50%', 
-                              transform: 'translateY(-50%)', 
-                              width: '14px', 
-                              height: '14px',
-                              pointerEvents: 'none',
-                              color: 'white',
-                              opacity: 0.8
-                            }} 
-                            viewBox="0 0 24 24" 
-                            fill="none" 
-                            stroke="currentColor" 
-                            strokeWidth="2.5"
-                          >
-                            <polyline points="6 9 12 15 18 9"></polyline>
-                          </svg>
-                        </div>
-                        {showEditorDropdown && (
-                          <div className="saved-participants-dropdown" style={{ 
-                            position: 'absolute', 
-                            top: '100%', 
-                            left: 0, 
-                            right: 0, 
-                            marginTop: '4px',
-                            zIndex: 1000
-                          }}>
-                            {participants
-                              .filter(p => {
-                                if (!p.email || !p.email.trim()) return false;
-                                if (!editorSearch.trim()) return true;
-                                const searchLower = editorSearch.toLowerCase();
-                                const name = (p.name?.trim() || '').toLowerCase();
-                                const email = p.email.trim().toLowerCase();
-                                return name.includes(searchLower) || email.includes(searchLower);
-                              })
-                              .map((p, idx) => (
-                                <div
-                                  key={idx}
-                                  className="saved-participant-item"
-                                  onClick={() => {
-                                    setForm({ ...form, authorizedEditorEmail: p.email.trim() });
-                                    setEditorSearch(`${p.name?.trim() || 'Unnamed'} (${p.email.trim()})`);
-                                    setShowEditorDropdown(false);
-                                  }}
-                                  style={{ cursor: 'pointer' }}
-                                >
-                                  <div className="saved-participant-name">{p.name?.trim() || 'Unnamed'}</div>
-                                  <div className="saved-participant-email">{p.email.trim()}</div>
-                                </div>
-                              ))}
-                            {participants.filter(p => {
+                        <input
+                          type="text"
+                          className="premium-email-input"
+                          placeholder="Select a participant..."
+                          value={editorSearch}
+                          onChange={e => {
+                            setEditorSearch(e.target.value);
+                            setShowEditorDropdown(true);
+                          }}
+                          onFocus={() => setShowEditorDropdown(true)}
+                          onBlur={() => setTimeout(() => setShowEditorDropdown(false), 200)}
+                          style={{
+                            color: form.authorizedEditorEmail
+                              ? 'white'
+                              : editorSearch
+                                ? 'white'
+                                : 'rgba(255, 255, 255, 0.7)',
+                            paddingRight: '40px'
+                          }}
+                        />
+                        <svg
+                          style={{
+                            position: 'absolute',
+                            right: '12px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            width: '14px',
+                            height: '14px',
+                            pointerEvents: 'none',
+                            color: 'white',
+                            opacity: 0.8
+                          }}
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                        >
+                          <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                      </div>
+                      {showEditorDropdown && (
+                        <div className="saved-participants-dropdown" style={{
+                          position: 'absolute',
+                          top: '100%',
+                          left: 0,
+                          right: 0,
+                          marginTop: '4px',
+                          zIndex: 1000
+                        }}>
+                          {participants
+                            .filter(p => {
                               if (!p.email || !p.email.trim()) return false;
                               if (!editorSearch.trim()) return true;
                               const searchLower = editorSearch.toLowerCase();
                               const name = (p.name?.trim() || '').toLowerCase();
                               const email = p.email.trim().toLowerCase();
                               return name.includes(searchLower) || email.includes(searchLower);
-                            }).length === 0 && (
-                              <div className="saved-participant-item" style={{ color: 'rgba(255, 255, 255, 0.5)', cursor: 'default' }}>
-                                No participants found
+                            })
+                            .map((p, idx) => (
+                              <div
+                                key={idx}
+                                className="saved-participant-item"
+                                onClick={() => {
+                                  setForm({ ...form, authorizedEditorEmail: p.email.trim() });
+                                  setEditorSearch(`${p.name?.trim() || 'Unnamed'} (${p.email.trim()})`);
+                                  setShowEditorDropdown(false);
+                                }}
+                                style={{ cursor: 'pointer' }}
+                              >
+                                <div className="saved-participant-name">{p.name?.trim() || 'Unnamed'}</div>
+                                <div className="saved-participant-email">{p.email.trim()}</div>
                               </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <input
-                        type="email"
-                        className="premium-email-input"
-                        value={form.authorizedEditorEmail}
-                        onChange={e => setForm({ ...form, authorizedEditorEmail: e.target.value })}
-                        placeholder="editor@company.com"
-                      />
-                    )}
+                            ))}
+                          {participants.filter(p => {
+                            if (!p.email || !p.email.trim()) return false;
+                            if (!editorSearch.trim()) return true;
+                            const searchLower = editorSearch.toLowerCase();
+                            const name = (p.name?.trim() || '').toLowerCase();
+                            const email = p.email.trim().toLowerCase();
+                            return name.includes(searchLower) || email.includes(searchLower);
+                          }).length === 0 && (
+                            <div className="saved-participant-item" style={{ color: 'rgba(255, 255, 255, 0.5)', cursor: 'default' }}>
+                              No participants found
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <small>This person will be able to review and edit the summary before it's sent to participants.</small>
                 </div>

@@ -4,11 +4,15 @@ import TopNav from './TopNav';
 import { T } from '../config/terminology';
 import './Participants.css';
 
+// Max participants allowed in the participant book by plan (workplace). null = no limit.
+const MAX_IN_BOOK_BY_PLAN = { starter: 30, professional: 60, business: 100 };
+
 const Participants = () => {
   const [participants, setParticipants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newParticipant, setNewParticipant] = useState({ name: '', email: '', remember: true });
+  const [maxInBook, setMaxInBook] = useState(null); // null = unlimited or unknown
 
   // Voice configuration state
   const [voiceProfiles, setVoiceProfiles] = useState({}); // { email: { hasProfile, name } }
@@ -19,6 +23,33 @@ const Participants = () => {
 
   useEffect(() => {
     loadParticipants();
+  }, []);
+
+  const saveParticipantsToServer = async (list) => {
+    try {
+      await axios.put('/admin/participant-book', { participants: list });
+    } catch (err) {
+      console.error('Error saving participant book:', err);
+      throw err;
+    }
+  };
+
+  useEffect(() => {
+    const fetchPlan = async () => {
+      try {
+        const res = await axios.get('/admin/profile');
+        const product = (res.data?.admin?.productType || 'workplace').toLowerCase();
+        const plan = (res.data?.admin?.plan || 'starter').toLowerCase();
+        if (product === 'workplace' && MAX_IN_BOOK_BY_PLAN[plan] != null) {
+          setMaxInBook(MAX_IN_BOOK_BY_PLAN[plan]);
+        } else {
+          setMaxInBook(null);
+        }
+      } catch (e) {
+        setMaxInBook(null);
+      }
+    };
+    fetchPlan();
   }, []);
 
   useEffect(() => {
@@ -32,17 +63,26 @@ const Participants = () => {
     }
   }, [participants]);
 
-  const loadParticipants = () => {
+  const loadParticipants = async () => {
     try {
-      const stored = localStorage.getItem('workplace_meeting_participants');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          setParticipants(parsed);
-        }
+      const res = await axios.get('/admin/participant-book');
+      const list = res.data?.participants;
+      if (Array.isArray(list)) {
+        setParticipants(list);
       }
     } catch (e) {
-      console.error('Error loading participants:', e);
+      // If 403 NO_SUBSCRIPTION, interceptor redirects. Otherwise fallback to localStorage for migration.
+      try {
+        const stored = localStorage.getItem('workplace_meeting_participants');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setParticipants(parsed);
+            await axios.put('/admin/participant-book', { participants: parsed });
+          }
+        }
+      } catch (_) {}
+      if (e.response?.status !== 403) console.error('Error loading participant book:', e);
     } finally {
       setLoading(false);
     }
@@ -67,10 +107,14 @@ const Participants = () => {
     }
   };
 
-  const handleAddParticipant = (e) => {
+  const handleAddParticipant = async (e) => {
     e.preventDefault();
     if (!newParticipant.name.trim() || !newParticipant.email.trim()) {
       alert('Please fill in both name and email');
+      return;
+    }
+    if (maxInBook != null && participants.length >= maxInBook) {
+      alert(`Your plan allows up to ${maxInBook} participants in the participant book. Remove someone to add more.`);
       return;
     }
 
@@ -81,16 +125,25 @@ const Participants = () => {
     }];
     
     setParticipants(updated);
-    localStorage.setItem('workplace_meeting_participants', JSON.stringify(updated));
+    try {
+      await saveParticipantsToServer(updated);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to save. Try again.');
+      return;
+    }
     setNewParticipant({ name: '', email: '', remember: true });
     setShowAddForm(false);
   };
 
-  const handleDeleteParticipant = (index) => {
-    if (window.confirm('Remove this participant?')) {
-      const updated = participants.filter((_, i) => i !== index);
-      setParticipants(updated);
-      localStorage.setItem('workplace_meeting_participants', JSON.stringify(updated));
+  const handleDeleteParticipant = async (index) => {
+    if (!window.confirm('Remove this participant?')) return;
+    const updated = participants.filter((_, i) => i !== index);
+    setParticipants(updated);
+    try {
+      await saveParticipantsToServer(updated);
+    } catch (err) {
+      setParticipants(participants);
+      alert(err.response?.data?.error || 'Failed to save. Try again.');
     }
   };
 
@@ -212,7 +265,12 @@ const Participants = () => {
       <TopNav />
       <div className="participants-wrapper">
         <div className="participants-top-bar">
-          <h1 className="participants-title">{T.participants()}</h1>
+          <div>
+            <h1 className="participants-title">{T.participantBook()}</h1>
+            {maxInBook != null && (
+              <p className="participants-limit-hint">{participants.length} / {maxInBook} participants</p>
+            )}
+          </div>
           <button 
             className="btn btn-primary"
             onClick={() => setShowAddForm(!showAddForm)}
@@ -228,7 +286,7 @@ const Participants = () => {
         <div className="participants-content">
           {showAddForm && (
             <div className="add-participant-form">
-              <h2>Add New {T.participants()}</h2>
+              <h2>Add New to {T.participantBook()}</h2>
               <form onSubmit={handleAddParticipant}>
                 <div className="form-group">
                   <label>Name</label>
@@ -282,8 +340,7 @@ const Participants = () => {
               <li>
                 Ask them to clearly say:{' '}
                 <em>
-                  “Hello, my name is{' '}
-                  {participants[0]?.name || 'your name'} and I am ready for the
+                  “Hello, my name is {'{Your name}'} and I am ready for the
                   meeting.”
                 </em>
               </li>

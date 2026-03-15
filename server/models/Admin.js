@@ -61,6 +61,11 @@ const adminSchema = new mongoose.Schema({
   resetTokenExpires: {
     type: Date,
     default: null
+  },
+  // Participant book: persisted per admin so it's available across devices/sessions
+  savedParticipants: {
+    type: [{ name: String, email: String }],
+    default: []
   }
 });
 

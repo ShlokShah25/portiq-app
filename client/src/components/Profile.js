@@ -8,6 +8,7 @@ const Profile = () => {
   const [email, setEmail] = useState('');
   const [productLabel, setProductLabel] = useState('Portiq Workplace');
   const [planLabel, setPlanLabel] = useState('Starter');
+  const [subscriptionActive, setSubscriptionActive] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -42,6 +43,7 @@ const Profile = () => {
         if (plan === 'professional') planText = 'Professional';
         else if (plan === 'business') planText = 'Business';
         setPlanLabel(planText);
+        setSubscriptionActive(!!admin.hasActiveSubscription);
       } catch (e) {
         // Fallback: best-effort from localStorage if API fails
         const product =
@@ -153,7 +155,9 @@ const Profile = () => {
             </div>
             <div className="profile-row">
               <span className="label">Status</span>
-              <span className="value status-pill">Active (test mode)</span>
+              <span className={`value status-pill status-${subscriptionActive ? 'active' : 'inactive'}`}>
+                {subscriptionActive ? 'Active' : 'Inactive'}
+              </span>
             </div>
             <button
               className="profile-manage-btn"

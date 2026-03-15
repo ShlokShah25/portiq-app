@@ -26,4 +26,18 @@ const authenticateAdmin = async (req, res, next) => {
   }
 };
 
-module.exports = { authenticateAdmin };
+/**
+ * Require active subscription (use after authenticateAdmin).
+ * Legacy 'admin' user is always allowed. Returns 403 with code NO_SUBSCRIPTION so client can redirect to pricing.
+ */
+const requireSubscription = (req, res, next) => {
+  if (!req.admin) return res.status(401).json({ error: 'Unauthorized' });
+  if (req.admin.username === 'admin') return next();
+  if (req.admin.hasActiveSubscription) return next();
+  return res.status(403).json({
+    error: 'No active subscription. Please purchase a plan from the website to access the dashboard.',
+    code: 'NO_SUBSCRIPTION',
+  });
+};
+
+module.exports = { authenticateAdmin, requireSubscription };

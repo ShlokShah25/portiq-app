@@ -116,8 +116,14 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Meeting room, title, and organizer are required' });
     }
 
-    // Determine plan limits for the current admin (if available)
     const admin = await getAdminFromRequest(req);
+    // If authenticated, require active subscription to create meetings
+    if (admin && admin.username !== 'admin' && !admin.hasActiveSubscription) {
+      return res.status(403).json({
+        error: 'No active subscription. Please purchase a plan to create meetings.',
+        code: 'NO_SUBSCRIPTION',
+      });
+    }
     const planInfo = getPlanConstraints(admin);
 
     // Enforce max participants per plan

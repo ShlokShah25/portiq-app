@@ -6,16 +6,19 @@ const PLAN_LIMITS = {
   workplace: {
     starter: {
       maxParticipants: 10,
+      maxParticipantsInBook: 30,
       maxDurationMinutes: 60,
       maxConcurrentMeetings: 1,
     },
     professional: {
       maxParticipants: 30,
+      maxParticipantsInBook: 60,
       maxDurationMinutes: 180, // 3 hours
       maxConcurrentMeetings: 1,
     },
     business: {
       maxParticipants: 60,
+      maxParticipantsInBook: 100,
       maxDurationMinutes: 480, // 8 hours
       maxConcurrentMeetings: 3,
     },
@@ -24,6 +27,7 @@ const PLAN_LIMITS = {
   education: {
     base: {
       maxParticipants: null,
+      maxParticipantsInBook: null,
       maxDurationMinutes: null,
       maxConcurrentMeetings: null,
     },

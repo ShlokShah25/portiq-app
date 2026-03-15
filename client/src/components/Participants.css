@@ -24,10 +24,10 @@
 }
 
 .participants-top-bar {
-  height: 64px;
+  min-height: 64px;
+  padding: 12px 32px;
   background: var(--surface-secondary);
   border-bottom: 1px solid var(--border-color);
-  padding: 0 32px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -38,8 +38,13 @@
   font-size: 20px;
   font-weight: 600;
   color: var(--text-primary);
-  letter-spacing: -0.01em;
   margin: 0;
+}
+.participants-limit-hint {
+  margin: 4px 0 0 0;
+  font-size: 13px;
+  color: var(--text-secondary, rgba(255, 255, 255, 0.6));
+  font-weight: 400;
 }
 
 .participants-content {

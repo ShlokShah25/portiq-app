@@ -4,6 +4,7 @@ export const T = {
   meeting: () => (isEducation ? 'Lecture' : 'Meeting'),
   meetings: () => (isEducation ? 'Lectures' : 'Meetings'),
   participants: () => (isEducation ? 'Class' : 'Participants'),
+  participantBook: () => (isEducation ? 'Class' : 'Participant book'),
   meetingSummary: () => (isEducation ? 'Lecture Notes' : 'Meeting Summary'),
   team: () => (isEducation ? 'Teachers' : 'Team'),
   rescheduleMeeting: () => (isEducation ? 'Reschedule Lecture' : 'Reschedule Meeting'),
