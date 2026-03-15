@@ -1,9 +1,23 @@
 const express = require('express');
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
 const Admin = require('../models/Admin');
 
 const router = express.Router();
+
+function getAdminFromToken(req) {
+  try {
+    const header = req.header('Authorization') || '';
+    const token = header.startsWith('Bearer ') ? header.replace('Bearer ', '') : null;
+    if (!token) return null;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_secret_key');
+    if (!decoded.id) return null;
+    return decoded;
+  } catch {
+    return null;
+  }
+}
 
 // Initialize Razorpay client if keys are present
 let razorpay = null;
@@ -117,6 +131,48 @@ router.post('/create-subscription', async (req, res) => {
 });
 
 /**
+ * Cancel subscription for the authenticated admin. Stops future payments.
+ */
+router.post('/cancel-subscription', async (req, res) => {
+  try {
+    const decoded = getAdminFromToken(req);
+    if (!decoded || !decoded.id) {
+      return res.status(401).json({ error: 'Unauthorized.' });
+    }
+    const admin = await Admin.findById(decoded.id);
+    if (!admin) {
+      return res.status(401).json({ error: 'Unauthorized.' });
+    }
+    const subId = admin.razorpaySubscriptionId;
+    if (!subId || !razorpay) {
+      admin.hasActiveSubscription = false;
+      admin.razorpaySubscriptionId = null;
+      await admin.save();
+      return res.status(200).json({ success: true, message: 'Subscription cancelled.' });
+    }
+    try {
+      await razorpay.subscriptions.cancel(subId);
+    } catch (e) {
+      if (e.statusCode === 400 && /already cancelled|not found/i.test((e.error?.description || e.message || ''))) {
+        admin.hasActiveSubscription = false;
+        admin.razorpaySubscriptionId = null;
+        await admin.save();
+        return res.status(200).json({ success: true, message: 'Subscription cancelled.' });
+      }
+      console.error('Razorpay cancel error:', e);
+      return res.status(500).json({ error: 'Failed to cancel with payment provider. Try again or contact support.' });
+    }
+    admin.hasActiveSubscription = false;
+    admin.razorpaySubscriptionId = null;
+    await admin.save();
+    return res.status(200).json({ success: true, message: 'Subscription cancelled. No further charges will be made.' });
+  } catch (err) {
+    console.error('Cancel subscription error:', err);
+    return res.status(500).json({ error: 'Something went wrong.' });
+  }
+});
+
+/**
  * Razorpay webhook: on subscription.activated, set hasActiveSubscription and plan for the admin.
  * Called from index.js with raw body. req.body is a Buffer.
  */
@@ -142,29 +198,45 @@ async function handleWebhook(req, res) {
   } catch (e) {
     return res.status(400).send('Bad Request');
   }
-  if (event.event !== 'subscription.activated') {
-    return res.status(200).send('OK');
-  }
   const subId = event.payload?.subscription?.entity?.id;
-  if (!subId || !razorpay) {
+  const eventName = event.event;
+
+  if (eventName === 'subscription.activated' && subId && razorpay) {
+    try {
+      const sub = await razorpay.subscriptions.fetch(subId);
+      const notes = sub.notes || {};
+      const username = notes.username;
+      if (username) {
+        const admin = await Admin.findOne({ username });
+        if (admin) {
+          admin.hasActiveSubscription = true;
+          admin.razorpaySubscriptionId = subId;
+          if (notes.planType) admin.plan = String(notes.planType).toLowerCase();
+          await admin.save();
+          console.log('Activated subscription for admin:', username);
+        }
+      }
+    } catch (e) {
+      console.error('Webhook subscription.activated processing error:', e);
+    }
     return res.status(200).send('OK');
   }
-  try {
-    const sub = await razorpay.subscriptions.fetch(subId);
-    const notes = sub.notes || {};
-    const username = notes.username;
-    if (username) {
-      const admin = await Admin.findOne({ username });
+
+  if ((eventName === 'subscription.cancelled' || eventName === 'subscription.completed') && subId) {
+    try {
+      const admin = await Admin.findOne({ razorpaySubscriptionId: subId });
       if (admin) {
-        admin.hasActiveSubscription = true;
-        if (notes.planType) admin.plan = String(notes.planType).toLowerCase();
+        admin.hasActiveSubscription = false;
+        admin.razorpaySubscriptionId = null;
         await admin.save();
-        console.log('Activated subscription for admin:', username);
+        console.log('Subscription cancelled/completed for admin:', admin.username);
       }
+    } catch (e) {
+      console.error('Webhook subscription.cancelled/completed processing error:', e);
     }
-  } catch (e) {
-    console.error('Webhook subscription.activated processing error:', e);
+    return res.status(200).send('OK');
   }
+
   return res.status(200).send('OK');
 }
 

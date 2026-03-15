@@ -154,17 +154,22 @@ router.get('/stats', authenticateAdmin, async (req, res) => {
 
     const visitorsInside = await Visitor.countDocuments({ status: 'Inside' });
 
+    const meetingFilter = (req.admin && req.admin.username !== 'admin')
+      ? { adminId: req.admin._id }
+      : {};
     const meetingsToday = await Meeting.countDocuments({
+      ...meetingFilter,
       startTime: { $gte: today, $lt: tomorrow }
     });
-
     const meetingsCompleted = await Meeting.countDocuments({
+      ...meetingFilter,
       status: 'Completed'
     });
-
     const meetingsScheduled = await Meeting.countDocuments({
+      ...meetingFilter,
       status: 'Scheduled'
     });
+    const totalMeetings = await Meeting.countDocuments(meetingFilter);
 
     res.json({
       visitorsToday,
@@ -173,7 +178,7 @@ router.get('/stats', authenticateAdmin, async (req, res) => {
       meetingsCompleted,
       scheduledMeetings: meetingsScheduled,
       totalVisitors: await Visitor.countDocuments(),
-      totalMeetings: await Meeting.countDocuments()
+      totalMeetings
     });
   } catch (error) {
     console.error('Error fetching stats:', error);
@@ -218,11 +223,20 @@ router.put('/config', authenticateAdmin, async (req, res) => {
 /**
  * Get all meetings (admin view - shows all regardless of completion time)
  */
+function canAccessMeeting(meeting, admin) {
+  if (!meeting) return false;
+  if (!admin || admin.username === 'admin') return true;
+  if (!meeting.adminId) return true;
+  return String(meeting.adminId) === String(admin._id);
+}
+
 router.get('/meetings', authenticateAdmin, async (req, res) => {
   try {
     const { status, meetingRoom, date, limit = 100 } = req.query;
     const query = {};
-
+    if (req.admin && req.admin.username !== 'admin') {
+      query.adminId = req.admin._id;
+    }
     if (status) query.status = status;
     if (meetingRoom) query.meetingRoom = meetingRoom;
     if (date) {
@@ -250,9 +264,8 @@ router.get('/meetings', authenticateAdmin, async (req, res) => {
 router.get('/meetings/:id', authenticateAdmin, async (req, res) => {
   try {
     const meeting = await Meeting.findById(req.params.id);
-    if (!meeting) {
-      return res.status(404).json({ error: 'Meeting not found' });
-    }
+    if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
+    if (!canAccessMeeting(meeting, req.admin)) return res.status(404).json({ error: 'Meeting not found' });
     res.json({ meeting });
   } catch (error) {
     console.error('Error fetching meeting:', error);
@@ -267,11 +280,8 @@ router.put('/meetings/:id', authenticateAdmin, async (req, res) => {
   try {
     const { title, meetingRoom, organizer, showOnKiosk, scheduledTime } = req.body;
     const meeting = await Meeting.findById(req.params.id);
-    
-    if (!meeting) {
-      return res.status(404).json({ error: 'Meeting not found' });
-    }
-
+    if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
+    if (!canAccessMeeting(meeting, req.admin)) return res.status(404).json({ error: 'Meeting not found' });
     if (title !== undefined) meeting.title = title;
     if (meetingRoom !== undefined) meeting.meetingRoom = meetingRoom;
     if (organizer !== undefined) meeting.organizer = organizer;
@@ -294,11 +304,8 @@ router.put('/meetings/:id', authenticateAdmin, async (req, res) => {
 router.post('/meetings/:id/retry-transcription', authenticateAdmin, async (req, res) => {
   try {
     const meeting = await Meeting.findById(req.params.id);
-    
-    if (!meeting) {
-      return res.status(404).json({ error: 'Meeting not found' });
-    }
-
+    if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
+    if (!canAccessMeeting(meeting, req.admin)) return res.status(404).json({ error: 'Meeting not found' });
     if (!meeting.audioFile) {
       return res.status(400).json({ error: 'No audio file found for this meeting' });
     }
@@ -482,10 +489,8 @@ router.get('/ai-learning', authenticateAdmin, async (req, res) => {
 router.get('/meetings/:id/original-summary', authenticateAdmin, async (req, res) => {
   try {
     const meeting = await Meeting.findById(req.params.id);
-    if (!meeting) {
-      return res.status(404).json({ error: 'Meeting not found' });
-    }
-
+    if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
+    if (!canAccessMeeting(meeting, req.admin)) return res.status(404).json({ error: 'Meeting not found' });
     if (!meeting.originalSummary) {
       return res.status(404).json({ error: 'Original summary not available' });
     }
@@ -592,10 +597,8 @@ router.get('/meetings/:id/original-summary', authenticateAdmin, async (req, res)
 router.get('/meetings/:id/audio', authenticateAdmin, async (req, res) => {
   try {
     const meeting = await Meeting.findById(req.params.id);
-    if (!meeting) {
-      return res.status(404).json({ error: 'Meeting not found' });
-    }
-
+    if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
+    if (!canAccessMeeting(meeting, req.admin)) return res.status(404).json({ error: 'Meeting not found' });
     if (!meeting.audioFile) {
       return res.status(404).json({ error: 'Audio file not available' });
     }

@@ -14,6 +14,9 @@ const Profile = () => {
   const [passwordMessage, setPasswordMessage] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
+  const [cancellingSubscription, setCancellingSubscription] = useState(false);
+  const [cancelMessage, setCancelMessage] = useState('');
+  const [cancelError, setCancelError] = useState('');
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -91,6 +94,26 @@ const Profile = () => {
     }
   };
 
+  const handleCancelSubscription = async () => {
+    if (!window.confirm('Cancel your subscription? You will lose dashboard access and no further payments will be taken.')) return;
+    setCancelError('');
+    setCancelMessage('');
+    setCancellingSubscription(true);
+    try {
+      await axios.post('/cancel-subscription');
+      setCancelMessage('Subscription cancelled. No further charges. Logging out…');
+      setTimeout(() => {
+        window.localStorage.removeItem('clientAdminToken');
+        window.localStorage.removeItem('portiq_has_subscription');
+        window.location.href = '/admin-login';
+      }, 2000);
+    } catch (err) {
+      setCancelError(err.response?.data?.error || 'Failed to cancel subscription.');
+    } finally {
+      setCancellingSubscription(false);
+    }
+  };
+
   return (
     <div className="profile-screen">
       <TopNav />
@@ -143,6 +166,16 @@ const Profile = () => {
             >
               Manage subscription
             </button>
+            <button
+              type="button"
+              className="profile-cancel-sub-btn"
+              onClick={handleCancelSubscription}
+              disabled={cancellingSubscription}
+            >
+              {cancellingSubscription ? 'Cancelling…' : 'Cancel subscription'}
+            </button>
+            {cancelMessage && <p className="profile-cancel-msg">{cancelMessage}</p>}
+            {cancelError && <p className="profile-cancel-err">{cancelError}</p>}
           </div>
 
           <div className="profile-section">

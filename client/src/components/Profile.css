@@ -110,6 +110,41 @@
   border-color: #3b82f6;
 }
 
+.profile-cancel-sub-btn {
+  margin-top: 8px;
+  margin-left: 0;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(248, 113, 113, 0.5);
+  background: transparent;
+  color: #fca5a5;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.profile-cancel-sub-btn:hover:not(:disabled) {
+  background: rgba(248, 113, 113, 0.15);
+  border-color: #f87171;
+}
+
+.profile-cancel-sub-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.profile-cancel-msg {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #86efac;
+}
+
+.profile-cancel-err {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #f87171;
+}
+
 .profile-password-form {
   display: flex;
   flex-direction: column;

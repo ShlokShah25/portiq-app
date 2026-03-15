@@ -47,6 +47,12 @@ const adminSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  // Razorpay subscription id (set on subscription.activated) so we can cancel via API.
+  razorpaySubscriptionId: {
+    type: String,
+    default: null,
+    trim: true
+  },
   // Optional fields used for password reset flow
   resetToken: {
     type: String,

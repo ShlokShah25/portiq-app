@@ -98,6 +98,13 @@ async function getAdminFromRequest(req) {
   }
 }
 
+function canAccessMeeting(meeting, admin) {
+  if (!meeting) return false;
+  if (!admin || admin.username === 'admin') return true;
+  if (!meeting.adminId) return true;
+  return String(meeting.adminId) === String(admin._id);
+}
+
 /**
  * Create new meeting
  */
@@ -288,10 +295,9 @@ router.post('/', async (req, res) => {
 router.post('/:id/start', async (req, res) => {
   try {
     const meeting = await Meeting.findById(req.params.id);
-    if (!meeting) {
-      return res.status(404).json({ error: 'Meeting not found' });
-    }
-
+    if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
+    const admin = await getAdminFromRequest(req);
+    if (!canAccessMeeting(meeting, admin)) return res.status(404).json({ error: 'Meeting not found' });
     meeting.status = 'In Progress';
     // Do NOT set startTime here - it will be set when recording starts
     // Do NOT mark as 'Recording' here; actual recording is controlled by the client.
@@ -314,10 +320,9 @@ router.post('/:id/start', async (req, res) => {
 router.post('/:id/start-recording', async (req, res) => {
   try {
     const meeting = await Meeting.findById(req.params.id);
-    if (!meeting) {
-      return res.status(404).json({ error: 'Meeting not found' });
-    }
-
+    if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
+    const admin = await getAdminFromRequest(req);
+    if (!canAccessMeeting(meeting, admin)) return res.status(404).json({ error: 'Meeting not found' });
     // Set actual start time when recording begins
     if (!meeting.startTime) {
       meeting.startTime = new Date();
@@ -341,10 +346,9 @@ router.post('/:id/start-recording', async (req, res) => {
 router.post('/:id/end', upload.single('audio'), async (req, res) => {
   try {
     const meeting = await Meeting.findById(req.params.id);
-    if (!meeting) {
-      return res.status(404).json({ error: 'Meeting not found' });
-    }
-
+    if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
+    const admin = await getAdminFromRequest(req);
+    if (!canAccessMeeting(meeting, admin)) return res.status(404).json({ error: 'Meeting not found' });
     meeting.status = 'Completed';
     meeting.endTime = new Date();
     meeting.transcriptionStatus = 'Processing';
@@ -565,22 +569,10 @@ router.get('/', async (req, res) => {
  */
 router.get('/:id', async (req, res) => {
   try {
-    const admin = await getAdminFromRequest(req);
     const meeting = await Meeting.findById(req.params.id);
-    if (!meeting) {
-      return res.status(404).json({ error: 'Meeting not found' });
-    }
-
-    // If this meeting belongs to a specific admin, prevent other admins from accessing it.
-    if (
-      admin &&
-      admin.username !== 'admin' &&
-      meeting.adminId &&
-      String(meeting.adminId) !== String(admin._id)
-    ) {
-      return res.status(404).json({ error: 'Meeting not found' });
-    }
-
+    if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
+    const admin = await getAdminFromRequest(req);
+    if (!canAccessMeeting(meeting, admin)) return res.status(404).json({ error: 'Meeting not found' });
     res.json({ meeting });
   } catch (error) {
     console.error('Error fetching meeting:', error);
@@ -594,10 +586,9 @@ router.get('/:id', async (req, res) => {
 router.post('/:id/request-verification', async (req, res) => {
   try {
     const meeting = await Meeting.findById(req.params.id);
-    if (!meeting) {
-      return res.status(404).json({ error: 'Meeting not found' });
-    }
-
+    if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
+    const admin = await getAdminFromRequest(req);
+    if (!canAccessMeeting(meeting, admin)) return res.status(404).json({ error: 'Meeting not found' });
     const { email } = req.body;
     if (!email) {
       return res.status(400).json({ error: 'Email is required' });
@@ -677,10 +668,9 @@ router.post('/:id/request-verification', async (req, res) => {
 router.post('/:id/verify-and-get-summary', async (req, res) => {
   try {
     const meeting = await Meeting.findById(req.params.id);
-    if (!meeting) {
-      return res.status(404).json({ error: 'Meeting not found' });
-    }
-
+    if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
+    const admin = await getAdminFromRequest(req);
+    if (!canAccessMeeting(meeting, admin)) return res.status(404).json({ error: 'Meeting not found' });
     const { email, code } = req.body;
     if (!email || !code) {
       return res.status(400).json({ error: 'Email and verification code are required' });
@@ -725,10 +715,9 @@ router.post('/:id/verify-and-get-summary', async (req, res) => {
 router.put('/:id/pending-summary', async (req, res) => {
   try {
     const meeting = await Meeting.findById(req.params.id);
-    if (!meeting) {
-      return res.status(404).json({ error: 'Meeting not found' });
-    }
-
+    if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
+    const admin = await getAdminFromRequest(req);
+    if (!canAccessMeeting(meeting, admin)) return res.status(404).json({ error: 'Meeting not found' });
     const { summary, keyPoints, actionItems, decisions, nextSteps, importantNotes } = req.body;
 
     // Update pending summary (no verification / code required anymore)
@@ -765,10 +754,9 @@ router.put('/:id/pending-summary', async (req, res) => {
 router.post('/:id/approve-and-send', async (req, res) => {
   try {
     const meeting = await Meeting.findById(req.params.id);
-    if (!meeting) {
-      return res.status(404).json({ error: 'Meeting not found' });
-    }
-
+    if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
+    const admin = await getAdminFromRequest(req);
+    if (!canAccessMeeting(meeting, admin)) return res.status(404).json({ error: 'Meeting not found' });
     const { additionalParticipants } = req.body;
 
     // Add additional participants if provided (no verification / code required anymore)

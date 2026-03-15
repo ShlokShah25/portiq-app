@@ -158,20 +158,13 @@
 
 .checkbox-label input[type="checkbox"]:checked {
   background: linear-gradient(135deg, #2563eb, #4f46e5);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 13l4 4L19 7'/%3E%3C/svg%3E"),
+    linear-gradient(135deg, #2563eb, #4f46e5);
+  background-size: 12px 12px, 100% 100%;
+  background-repeat: no-repeat;
+  background-position: center;
   border-color: transparent;
   box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.6);
-}
-
-.checkbox-label input[type="checkbox"]:checked::after {
-  content: '';
-  position: absolute;
-  left: 4px;
-  top: 1px;
-  width: 5px;
-  height: 9px;
-  border: solid #ffffff;
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
 }
 
 .form-actions {
