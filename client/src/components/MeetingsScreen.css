@@ -63,6 +63,123 @@
   box-sizing: border-box;
 }
 
+/* Summaries & approval quick access (top of meetings page) */
+.summaries-quick-card {
+  background: #0b0b0b;
+  border: 1px solid #1f2937;
+  border-radius: 14px;
+  padding: 20px 24px;
+  margin-bottom: 24px;
+}
+
+.summaries-quick-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #f9fafb;
+  margin: 0 0 4px;
+}
+
+.summaries-quick-desc {
+  font-size: 13px;
+  color: #9ca3af;
+  margin: 0 0 16px;
+}
+
+.summaries-quick-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 768px) {
+  .summaries-quick-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.summaries-quick-block {
+  margin: 0;
+}
+
+.summaries-quick-block-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e5e7eb;
+  margin: 0 0 4px;
+}
+
+.summaries-quick-block-desc {
+  font-size: 13px;
+  color: #9ca3af;
+  margin: 0 0 10px;
+}
+
+.summaries-quick-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.summaries-quick-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #1f2937;
+}
+
+.summaries-quick-list li:last-child {
+  border-bottom: none;
+}
+
+.summaries-quick-name {
+  font-size: 14px;
+  color: #e5e7eb;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.summaries-quick-btn {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid #374151;
+  background: transparent;
+  color: #e5e7eb;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.summaries-quick-btn:hover {
+  border-color: #4b5563;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.summaries-quick-btn--primary {
+  border-color: #2563eb;
+  background: rgba(37, 99, 235, 0.15);
+  color: #93c5fd;
+}
+
+.summaries-quick-btn--primary:hover {
+  background: rgba(37, 99, 235, 0.25);
+}
+
+.summaries-quick-btn--link {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.summaries-quick-btn--link:hover {
+  text-decoration: underline;
+}
+
 .meetings-layout {
   display: grid;
   grid-template-columns: 1.5fr 1fr;

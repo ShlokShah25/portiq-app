@@ -795,7 +795,7 @@ router.post('/:id/approve-and-send', async (req, res) => {
     meeting.editorVerificationExpiry = null;
     await meeting.save();
 
-    // Send summary to participants (includes original + additional)
+    // Try to send summary to participants; do not fail the request if email fails
     const summaryData = {
       summary: meeting.summary,
       keyPoints: meeting.keyPoints,
@@ -805,12 +805,25 @@ router.post('/:id/approve-and-send', async (req, res) => {
       importantNotes: meeting.importantNotes
     };
 
-    await sendMeetingSummary(meeting, summaryData);
+    let emailSent = false;
+    try {
+      const result = await sendMeetingSummary(meeting, summaryData);
+      emailSent = !!(result && result.success);
+    } catch (err) {
+      console.error('Error sending summary email (summary still saved):', err.message);
+    }
 
-    res.json({ success: true, message: 'Summary approved and sent to participants', meeting });
+    res.json({
+      success: true,
+      meeting,
+      emailSent,
+      message: emailSent
+        ? 'Summary approved and sent to participants'
+        : 'Summary approved and saved. Emails could not be sent to participants (check mail configuration).'
+    });
   } catch (error) {
     console.error('Error approving and sending summary:', error);
-    res.status(500).json({ error: 'Failed to send summary' });
+    res.status(500).json({ error: 'Failed to save summary' });
   }
 });
 

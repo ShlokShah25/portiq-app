@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import TopNav from './TopNav';
 import { isEducation } from '../config/product';
@@ -9,6 +9,7 @@ import './MeetingsScreen.css';
 
 const MeetingsScreen = ({ config }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -125,19 +126,24 @@ const MeetingsScreen = ({ config }) => {
     };
   }, []);
 
-  // Auto-select meeting that needs approval when meetings are fetched
+  // Auto-select meeting: from location state (e.g. "Review & send" from quick card) or first needing approval
   useEffect(() => {
-    if (meetings.length > 0 && !selectedMeeting) {
-      // Find meeting with summary ready for approval
-      const pendingApproval = meetings.find(m => 
-        m.summaryStatus === 'Pending Approval' && 
+    if (meetings.length === 0) return;
+    const focusId = location.state?.focusMeetingId;
+    if (focusId) {
+      const found = meetings.find(m => m._id === focusId);
+      if (found) setSelectedMeeting(found);
+      navigate(location.pathname, { replace: true, state: {} });
+      return;
+    }
+    if (!selectedMeeting) {
+      const pendingApproval = meetings.find(m =>
+        m.summaryStatus === 'Pending Approval' &&
         m.transcriptionStatus === 'Completed'
       );
-      if (pendingApproval) {
-        setSelectedMeeting(pendingApproval);
-      }
+      if (pendingApproval) setSelectedMeeting(pendingApproval);
     }
-  }, [meetings, selectedMeeting]);
+  }, [meetings, location.state?.focusMeetingId]);
 
   // Update editorSearch when authorizedEditorEmail changes
   useEffect(() => {
@@ -579,6 +585,51 @@ const MeetingsScreen = ({ config }) => {
         <div className="meetings-content">
 
         {error && <div className="error-message">{error}</div>}
+
+        {(() => {
+          const needsApproval = (meetings || []).filter(m => m.summaryStatus === 'Pending Approval' && m.transcriptionStatus === 'Completed');
+          const withSummaries = (meetings || []).filter(m => m.status === 'Completed' && (m.summaryStatus === 'Sent' || m.summary)).slice(0, 5);
+          if (needsApproval.length === 0 && withSummaries.length === 0) return null;
+          return (
+            <div className="summaries-quick-card">
+              <h2 className="summaries-quick-title">Summaries & approval</h2>
+              <p className="summaries-quick-desc">Quick access to {T.meetingSummary().toLowerCase()}s and items needing your action.</p>
+              <div className="summaries-quick-grid">
+                {needsApproval.length > 0 && (
+                  <div className="summaries-quick-block">
+                    <h3 className="summaries-quick-block-title">Your summary is ready</h3>
+                    <p className="summaries-quick-block-desc">Review it and send to participants.</p>
+                    <ul className="summaries-quick-list">
+                      {needsApproval.slice(0, 5).map(m => (
+                        <li key={m._id}>
+                          <span className="summaries-quick-name">{m.title}</span>
+                          <button type="button" className="summaries-quick-btn summaries-quick-btn--primary summaries-quick-btn--link" onClick={() => navigate('/meetings', { state: { focusMeetingId: m._id } })}>
+                            Click here to review your summary
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {withSummaries.length > 0 && (
+                  <div className="summaries-quick-block">
+                    <h3 className="summaries-quick-block-title">View {T.meetingSummary().toLowerCase()}s</h3>
+                    <ul className="summaries-quick-list">
+                      {withSummaries.map(m => (
+                        <li key={m._id}>
+                          <span className="summaries-quick-name">{m.title}</span>
+                          <button type="button" className="summaries-quick-btn" onClick={() => navigate(`/meetings/${m._id}/summary`)}>
+                            View summary
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
         <div className="meetings-layout">
           <div className="meetings-left">
@@ -1548,11 +1599,11 @@ const MeetingsScreen = ({ config }) => {
                                 setSelectedMeeting(res.data.meeting);
                                 setVerificationStep('approved');
                                 setError('');
-                                // Show success message and redirect to home
-                                alert('Summary approved and sent to all participants!');
-                                setTimeout(() => navigate('/'), 2000);
+                                const msg = res.data.message || (res.data.emailSent ? 'Summary approved and sent to all participants!' : 'Summary approved and saved. Emails could not be sent (check mail configuration).');
+                                alert(msg);
+                                setTimeout(() => navigate('/meetings'), 2000);
                               } catch (err) {
-                                setError(err.response?.data?.error || 'Failed to send summary');
+                                setError(err.response?.data?.error || 'Failed to save summary');
                               }
                             }}
                           >
