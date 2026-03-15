@@ -125,6 +125,7 @@ router.post('/', async (req, res) => {
     }
 
     const meeting = new Meeting({
+      adminId: admin ? admin._id : null,
       meetingRoom,
       title,
       organizer,
@@ -507,6 +508,13 @@ router.get('/', async (req, res) => {
     const { status, meetingRoom, date } = req.query;
     const query = {};
 
+    // If an authenticated admin is present, scope meetings to that admin/tenant.
+    // This ensures one customer's meetings never appear in another's dashboard.
+    const admin = await getAdminFromRequest(req);
+    if (admin && admin.username !== 'admin') {
+      query.adminId = admin._id;
+    }
+
     if (status) query.status = status;
     if (meetingRoom) query.meetingRoom = meetingRoom;
     if (date) {
@@ -557,10 +565,22 @@ router.get('/', async (req, res) => {
  */
 router.get('/:id', async (req, res) => {
   try {
+    const admin = await getAdminFromRequest(req);
     const meeting = await Meeting.findById(req.params.id);
     if (!meeting) {
       return res.status(404).json({ error: 'Meeting not found' });
     }
+
+    // If this meeting belongs to a specific admin, prevent other admins from accessing it.
+    if (
+      admin &&
+      admin.username !== 'admin' &&
+      meeting.adminId &&
+      String(meeting.adminId) !== String(admin._id)
+    ) {
+      return res.status(404).json({ error: 'Meeting not found' });
+    }
+
     res.json({ meeting });
   } catch (error) {
     console.error('Error fetching meeting:', error);

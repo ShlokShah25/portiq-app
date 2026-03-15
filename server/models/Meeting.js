@@ -1,6 +1,14 @@
 const mongoose = require('mongoose');
 
 const meetingSchema = new mongoose.Schema({
+  // Owning admin/tenant. New meetings are always associated with the
+  // currently authenticated admin; older meetings may have this unset.
+  adminId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Admin',
+    index: true,
+    default: null
+  },
   meetingRoom: {
     type: String,
     required: true,
