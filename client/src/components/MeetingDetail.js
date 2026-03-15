@@ -51,13 +51,9 @@ const MeetingDetail = () => {
     });
   };
 
-  const handleStartMeeting = async () => {
-    try {
-      await axios.post(`/meetings/${id}/start`);
-      navigate(`/meetings/${id}/room`);
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to start meeting');
-    }
+  const handleStartMeeting = () => {
+    // Meeting only "starts" when user clicks Start recording in the room
+    navigate(`/meetings/${id}/room`);
   };
 
   if (loading) {

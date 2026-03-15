@@ -366,33 +366,8 @@ const MeetingsScreen = ({ config }) => {
           timeout: 30000
         }
       );
-      fetchMeetings();
-      navigate(`/meetings/${res.data.meeting._id}`);
 
-      // Update remembered participants based on the checkbox
-      const toRemember = participants
-        .filter(p => p.remember && p.email && p.email.trim())
-        .map(p => ({
-          name: p.name?.trim() || '',
-          email: p.email.trim()
-        }));
-
-      if (toRemember.length > 0) {
-        const existing = [...rememberedParticipants];
-        toRemember.forEach(p => {
-          if (!existing.find(ep => ep.email && ep.email.toLowerCase() === p.email.toLowerCase())) {
-            existing.push(p);
-          }
-        });
-        setRememberedParticipants(existing);
-        try {
-          await axios.put('/admin/participant-book', { participants: existing });
-        } catch (err) {
-          console.error('Error saving participant book:', err);
-        }
-      }
-
-      // Reset participant rows and form (except transcription toggle)
+      const newMeetingId = res.data.meeting._id;
       setParticipants([{ name: '', email: '', remember: false }]);
       setForm(prev => ({
         ...prev,
@@ -405,6 +380,24 @@ const MeetingsScreen = ({ config }) => {
       }));
       setEditorSearch('');
       setShowEditorDropdown(false);
+      setLoading(false);
+      navigate(`/meetings/${newMeetingId}`);
+
+      // Persist participant book in background (no state updates after navigate)
+      const toRemember = participants
+        .filter(p => p.remember && p.email && p.email.trim())
+        .map(p => ({ name: p.name?.trim() || '', email: p.email.trim() }));
+      if (toRemember.length > 0) {
+        const existing = [...rememberedParticipants];
+        toRemember.forEach(p => {
+          if (!existing.find(ep => ep.email && ep.email.toLowerCase() === p.email.toLowerCase())) {
+            existing.push(p);
+          }
+        });
+        axios.put('/admin/participant-book', { participants: existing }).catch(err => {
+          console.error('Error saving participant book:', err);
+        });
+      }
     } catch (err) {
       console.error('Error creating meeting:', err);
       const rawError = err.response?.data?.error || err.response?.data?.details || err.message;
@@ -1317,20 +1310,7 @@ const MeetingsScreen = ({ config }) => {
                     <button
                       type="button"
                       className="btn btn-secondary"
-                      onClick={async () => {
-                        try {
-                          await axios.post(`/meetings/${selectedMeeting._id}/start`);
-                          fetchMeetings();
-                          navigate(`/meetings/${selectedMeeting._id}/room`);
-                        } catch (err) {
-                          console.error('Error starting meeting:', err);
-                          let serverError =
-                            err.response?.data?.error ||
-                            err.response?.data?.details ||
-                            err.message;
-                          setError(serverError || 'Failed to start meeting');
-                        }
-                      }}
+                      onClick={() => navigate(`/meetings/${selectedMeeting._id}/room`)}
                     >
                       {T.startMeeting()}
                     </button>

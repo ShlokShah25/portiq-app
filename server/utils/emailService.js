@@ -30,6 +30,9 @@ if (!resendClient && process.env.MAIL_HOST && process.env.MAIL_USER && process.e
         user: process.env.MAIL_USER,
         pass: process.env.MAIL_PASS,
       },
+      connectionTimeout: 20000,
+      greetingTimeout: 20000,
+      socketTimeout: 25000,
     });
     console.log('✅ Email service: Nodemailer SMTP initialized');
   } catch (err) {
@@ -82,7 +85,12 @@ async function sendEmail(options) {
           content: a.content instanceof Buffer ? a.content : Buffer.from(a.content),
         }));
       }
-      const { data, error } = await resendClient.emails.send(payload);
+      const MAIL_TIMEOUT_MS = 30000;
+      const sendPromise = resendClient.emails.send(payload);
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Email request timed out')), MAIL_TIMEOUT_MS)
+      );
+      const { data, error } = await Promise.race([sendPromise, timeoutPromise]);
       if (error) {
         console.error('❌ Resend error:', error.message || error);
         return { success: false, error: error.message || String(error) };
@@ -108,7 +116,12 @@ async function sendEmail(options) {
           contentType: a.contentType,
         })),
       };
-      await nodemailerTransporter.sendMail(mailOptions);
+      const SMTP_TIMEOUT_MS = 25000;
+      const sendPromise = nodemailerTransporter.sendMail(mailOptions);
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('SMTP connection/send timed out')), SMTP_TIMEOUT_MS)
+      );
+      await Promise.race([sendPromise, timeoutPromise]);
       return { success: true, message: 'Sent via SMTP' };
     } catch (err) {
       console.error('❌ SMTP send failed:', err.message);

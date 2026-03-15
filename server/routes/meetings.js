@@ -143,7 +143,7 @@ router.post('/', async (req, res) => {
       title,
       organizer,
       participants: participants || [],
-      startTime: startTime ? new Date(startTime) : new Date(),
+      startTime: null, // Set when user clicks "Start recording", not at creation
       scheduledTime: scheduledTime ? new Date(scheduledTime) : null,
       transcriptionEnabled: transcriptionEnabled === true,
       authorizedEditorEmail: authorizedEditorEmail || null

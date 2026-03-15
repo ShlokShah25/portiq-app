@@ -35,8 +35,8 @@ const meetingSchema = new mongoose.Schema({
   },
   startTime: {
     type: Date,
-    required: true,
-    default: Date.now
+    required: false,
+    default: null
   },
   endTime: {
     type: Date,
