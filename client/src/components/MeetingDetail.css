@@ -2,6 +2,7 @@
   min-height: 100vh;
   background: #050505;
   color: #f9fafb;
+  padding-top: 64px; /* clear fixed navbar so back button is visible */
 }
 
 .meeting-detail-loading {

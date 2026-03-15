@@ -3,32 +3,12 @@ const crypto = require('crypto');
 const axios = require('axios');
 const jwt = require('jsonwebtoken');
 const Admin = require('../models/Admin');
-const nodemailer = require('nodemailer');
+const { sendEmail, isEmailConfigured, getDefaultFrom } = require('../utils/emailService');
 
 const router = express.Router();
 
 function getJwtSecret() {
   return process.env.JWT_SECRET || 'your_secret_key';
-}
-
-function createMailTransporter() {
-  if (!process.env.MAIL_HOST || !process.env.MAIL_USER || !process.env.MAIL_PASS) {
-    return null;
-  }
-  try {
-    return nodemailer.createTransport({
-      host: process.env.MAIL_HOST,
-      port: parseInt(process.env.MAIL_PORT || '587', 10),
-      secure: process.env.MAIL_SECURE === 'true',
-      auth: {
-        user: process.env.MAIL_USER,
-        pass: process.env.MAIL_PASS,
-      },
-    });
-  } catch (err) {
-    console.warn('Failed to create mail transporter:', err.message);
-    return null;
-  }
 }
 
 /**
@@ -58,28 +38,24 @@ router.post('/forgot', async (req, res) => {
     admin.resetTokenExpires = new Date(Date.now() + 1000 * 60 * 60); // 1 hour
     await admin.save();
 
-    const transporter = createMailTransporter();
-    if (transporter) {
+    if (isEmailConfigured()) {
       const appBase =
         process.env.APP_BASE_URL ||
         'https://meetingassistant.portiqtechnologies.com';
       const resetUrl = `${appBase}/reset-password?token=${encodeURIComponent(token)}`;
 
-      // Fire-and-forget so the API responds immediately even if SMTP is slow.
-      transporter
-        .sendMail({
-          from: process.env.MAIL_FROM || process.env.MAIL_USER,
-          to: admin.email || username,
-          subject: 'Reset your Portiq password',
-          html: `
-            <p>We received a request to reset the password for your Portiq account.</p>
-            <p><a href="${resetUrl}" target="_blank" rel="noopener noreferrer">Click here to reset your password</a>. This link will expire in 1 hour.</p>
-            <p>If you did not request this, you can safely ignore this email.</p>
-          `,
-        })
-        .catch((mailErr) => {
-          console.warn('Forgot password email failed:', mailErr.message);
-        });
+      sendEmail({
+        from: getDefaultFrom(),
+        to: admin.email || username,
+        subject: 'Reset your Portiq password',
+        html: `
+          <p>We received a request to reset the password for your Portiq account.</p>
+          <p><a href="${resetUrl}" target="_blank" rel="noopener noreferrer">Click here to reset your password</a>. This link will expire in 1 hour.</p>
+          <p>If you did not request this, you can safely ignore this email.</p>
+        `,
+      }).catch((mailErr) => {
+        console.warn('Forgot password email failed:', mailErr.message);
+      });
     }
 
     return res.json({ success: true });

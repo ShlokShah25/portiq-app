@@ -1,8 +1,8 @@
 const OpenAI = require('openai');
 const fs = require('fs');
 const path = require('path');
-const nodemailer = require('nodemailer');
 const PDFDocument = require('pdfkit');
+const { sendEmail, isEmailConfigured, getDefaultFrom } = require('./emailService');
 const VoiceProfile = require('../models/VoiceProfile');
 let ffmpeg = null;
 try {
@@ -22,26 +22,7 @@ if (process.env.OPENAI_API_KEY) {
   console.warn('⚠️  OPENAI_API_KEY not set. Meeting transcription will not work.');
 }
 
-// Optional email transporter for sending summaries
-let mailTransporter = null;
-if (process.env.MAIL_HOST && process.env.MAIL_USER && process.env.MAIL_PASS) {
-  try {
-    mailTransporter = nodemailer.createTransport({
-      host: process.env.MAIL_HOST,
-      port: parseInt(process.env.MAIL_PORT || '587', 10),
-      secure: process.env.MAIL_SECURE === 'true', // true for 465, false for others
-      auth: {
-        user: process.env.MAIL_USER,
-        pass: process.env.MAIL_PASS
-      }
-    });
-    console.log('✅ Email transporter initialized for meeting summaries');
-  } catch (err) {
-    console.warn('⚠️  Failed to initialize email transporter:', err.message);
-  }
-} else {
-  console.warn('⚠️  MAIL_HOST/MAIL_USER/MAIL_PASS not set. Meeting summaries will not be emailed.');
-}
+// Email is sent via shared emailService (Resend or SMTP)
 
 /**
  * Transcribe audio file and generate meeting summary
@@ -431,9 +412,9 @@ async function sendMeetingSummary(meeting, summaryData) {
   console.log(`   Participants: ${participantEmails.join(', ')}`);
   console.log(`   Summary: ${summaryData.summary.substring(0, 100)}...`);
 
-  if (!mailTransporter || participantEmails.length === 0) {
-    console.warn('⚠️  Email transporter not configured or no participant emails. Summary will not be emailed.');
-    return { success: true, message: 'Summary prepared (email not sent - transporter not configured or no emails)' };
+  if (!isEmailConfigured() || participantEmails.length === 0) {
+    console.warn('⚠️  Email not configured (set RESEND_API_KEY or MAIL_*) or no participant emails. Summary will not be emailed.');
+    return { success: true, message: 'Summary prepared (email not sent - not configured or no emails)' };
   }
 
   const subject = `Meeting Summary \u2013 ${meeting.title} | PortIQ Meeting Assistant`;
@@ -627,9 +608,9 @@ async function sendMeetingSummary(meeting, summaryData) {
     </div>
   `;
 
-  const mailOptions = {
-    from: process.env.MAIL_FROM || process.env.MAIL_USER,
-    to: participantEmails.join(','),
+  const result = await sendEmail({
+    from: getDefaultFrom(),
+    to: participantEmails,
     subject,
     text: textLines.join('\n'),
     html: htmlBody,
@@ -637,23 +618,22 @@ async function sendMeetingSummary(meeting, summaryData) {
       {
         filename: `Meeting-Summary-${safeTitleForFile}-${dateStamp}.pdf`,
         content: pdfBuffer,
-        contentType: 'application/pdf'
-      }
-    ]
-  };
+        contentType: 'application/pdf',
+      },
+    ],
+  });
 
-  try {
-    await mailTransporter.sendMail(mailOptions);
+  if (result.success) {
     console.log('✅ Meeting summary email sent');
     return { success: true, message: 'Summary emailed to participants' };
-  } catch (err) {
-    console.error('❌ Failed to send meeting summary email:', err.message);
-    return { success: false, message: 'Summary generated but email failed to send', error: err.message };
   }
+  console.error('❌ Failed to send meeting summary email:', result.error);
+  return { success: false, message: 'Summary generated but email failed to send', error: result.error };
 }
 
 function getMailTransporter() {
-  return mailTransporter;
+  const { getMailTransporter: getTransporter } = require('./emailService');
+  return getTransporter();
 }
 
 module.exports = {
