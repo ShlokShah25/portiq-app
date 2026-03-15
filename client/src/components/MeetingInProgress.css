@@ -365,6 +365,70 @@
   margin-bottom: 20px;
 }
 
+/* Meeting ended state (stay on page, link to summary) */
+.meeting-in-progress-ended {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding-top: 48px;
+}
+
+.meeting-status-badge--ended {
+  background: rgba(31, 41, 55, 0.95);
+  color: #9ca3af;
+}
+
+.status-indicator--ended {
+  background: #6b7280;
+  box-shadow: none;
+}
+
+.meeting-ended-message {
+  font-size: 16px;
+  color: #9ca3af;
+  margin: 12px 0 28px;
+  max-width: 420px;
+}
+
+.meeting-ended-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.meeting-ended-btn-primary {
+  padding: 14px 28px;
+  font-size: 16px;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.meeting-ended-btn-primary:hover {
+  background: #1d4ed8;
+}
+
+.meeting-in-progress-back-text {
+  background: transparent;
+  border: 1px solid #374151;
+  color: #9ca3af;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.meeting-in-progress-back-text:hover {
+  border-color: #4b5563;
+  color: #e5e7eb;
+}
+
 @media (max-width: 768px) {
   .meeting-title {
     font-size: 32px;

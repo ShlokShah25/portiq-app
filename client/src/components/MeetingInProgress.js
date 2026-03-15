@@ -5,8 +5,9 @@ import { T } from '../config/terminology';
 import './MeetingInProgress.css';
 
 const MeetingInProgress = () => {
-  const { meetingId } = useParams();
+  const { id: meetingId } = useParams();
   const navigate = useNavigate();
+  const [meetingEnded, setMeetingEnded] = useState(false);
   const [meeting, setMeeting] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -175,9 +176,8 @@ const MeetingInProgress = () => {
       if (recording) {
         stopRecording();
       }
-      const res = await axios.post(`/meetings/${meeting._id}/end`);
-      // Redirect to home after meeting ends
-      navigate('/');
+      await axios.post(`/meetings/${meeting._id}/end`);
+      setMeetingEnded(true);
     } catch (err) {
       console.error('Error ending meeting:', err);
       setError('Failed to end meeting');
@@ -258,7 +258,8 @@ const MeetingInProgress = () => {
         </div>
         <button
           className="meeting-in-progress-close"
-          onClick={() => navigate('/meetings')}
+          onClick={() => navigate(meetingEnded ? `/meetings/${meetingId}` : '/meetings')}
+          title={meetingEnded ? `Back to ${T.meeting()}` : `Back to ${T.meetings()}`}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -267,6 +268,34 @@ const MeetingInProgress = () => {
         </button>
       </div>
 
+      {meetingEnded ? (
+        <div className="meeting-in-progress-content meeting-in-progress-ended">
+          <div className="meeting-status-badge meeting-status-badge--ended">
+            <div className="status-indicator status-indicator--ended"></div>
+            <span>Meeting ended</span>
+          </div>
+          <h1 className="meeting-title">{meeting.title || 'Untitled meeting'}</h1>
+          <p className="meeting-ended-message">
+            Your {T.meeting().toLowerCase()} has ended. The summary will be generated shortly.
+          </p>
+          <div className="meeting-ended-actions">
+            <button
+              type="button"
+              className="btn-end-meeting meeting-ended-btn-primary"
+              onClick={() => navigate(`/meetings/${meetingId}/summary`)}
+            >
+              View {T.meetingSummary()}
+            </button>
+            <button
+              type="button"
+              className="meeting-in-progress-back-text"
+              onClick={() => navigate(`/meetings/${meetingId}`)}
+            >
+              ← Back to {T.meeting()} details
+            </button>
+          </div>
+        </div>
+      ) : (
       <div className="meeting-in-progress-content">
         <div className="meeting-status-badge">
           <div className="status-indicator"></div>
@@ -439,6 +468,7 @@ const MeetingInProgress = () => {
           </button>
         </div>
       </div>
+      )}
     </div>
   );
 };

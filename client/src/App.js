@@ -11,6 +11,8 @@ const Participants = lazy(() => import('./components/Participants'));
 const Insights = lazy(() => import('./components/Insights'));
 const Settings = lazy(() => import('./components/Settings'));
 const MeetingInProgress = lazy(() => import('./components/MeetingInProgress'));
+const MeetingDetail = lazy(() => import('./components/MeetingDetail'));
+const MeetingSummary = lazy(() => import('./components/MeetingSummary'));
 const ClientAdmin = lazy(() => import('./components/ClientAdmin'));
 const BootupScreen = lazy(() => import('./components/BootupScreen'));
 const AdminLogin = lazy(() => import('./components/AdminLogin'));
@@ -128,10 +130,26 @@ function App() {
               }
             />
             <Route
-              path="/meetings/:meetingId"
+              path="/meetings/:id/summary"
+              element={
+                <RequireAuth>
+                  <MeetingSummary />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/meetings/:id/room"
               element={
                 <RequireAuth>
                   <MeetingInProgress />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/meetings/:id"
+              element={
+                <RequireAuth>
+                  <MeetingDetail />
                 </RequireAuth>
               }
             />

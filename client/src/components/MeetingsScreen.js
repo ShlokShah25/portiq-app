@@ -338,8 +338,8 @@ const MeetingsScreen = ({ config }) => {
           timeout: 30000
         }
       );
-      setSelectedMeeting(res.data.meeting);
       fetchMeetings();
+      navigate(`/meetings/${res.data.meeting._id}`);
 
       // Update remembered participants based on the checkbox
       const toRemember = participants
@@ -1222,11 +1222,9 @@ const MeetingsScreen = ({ config }) => {
                       className="btn btn-secondary"
                       onClick={async () => {
                         try {
-                          const res = await axios.post(`/meetings/${selectedMeeting._id}/start`);
-                          setSelectedMeeting(res.data.meeting);
+                          await axios.post(`/meetings/${selectedMeeting._id}/start`);
                           fetchMeetings();
-                          // Navigate to meeting in progress page
-                          navigate(`/meetings/${selectedMeeting._id}`);
+                          navigate(`/meetings/${selectedMeeting._id}/room`);
                         } catch (err) {
                           console.error('Error starting meeting:', err);
                           let serverError =
@@ -1889,14 +1887,10 @@ const MeetingsScreen = ({ config }) => {
                   <div
                     key={m._id}
                     className={`meeting-item ${selectedMeeting && selectedMeeting._id === m._id ? 'active' : ''} ${m.summaryStatus === 'Pending Approval' && m.transcriptionStatus === 'Completed' ? 'needs-approval' : ''}`}
-                    onClick={async () => {
-                      setSelectedMeeting(m);
-                      // If meeting has transcription enabled and is processing, start polling
-                      if (m.transcriptionEnabled && m.transcriptionStatus === 'Processing') {
-                        setPolling(true);
-                        pollForSummary(m._id);
-                      }
-                    }}
+                    onClick={() => navigate(`/meetings/${m._id}`)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/meetings/${m._id}`); } }}
                   >
                     <div className="meeting-title">
                       {m.title}
