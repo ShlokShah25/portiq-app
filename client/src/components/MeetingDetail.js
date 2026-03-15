@@ -77,9 +77,6 @@ const MeetingDetail = () => {
       <div className="meeting-detail-screen">
         <TopNav />
         <div className="meeting-detail-container">
-          <button type="button" className="meeting-detail-back" onClick={() => navigate('/meetings')}>
-            ← Back to {T.meetings()}
-          </button>
           <div className="meeting-detail-error">{error}</div>
         </div>
       </div>
@@ -100,10 +97,6 @@ const MeetingDetail = () => {
     <div className="meeting-detail-screen">
       <TopNav />
       <div className="meeting-detail-container">
-        <button type="button" className="meeting-detail-back" onClick={() => navigate('/meetings')}>
-          ← Back to {T.meetings()}
-        </button>
-
         <div className="meeting-detail-card">
           <div className="meeting-detail-header">
             <span className={`meeting-detail-status meeting-detail-status--${(meeting.status || '').toLowerCase().replace(' ', '-')}`}>

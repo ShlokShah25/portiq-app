@@ -34,27 +34,6 @@
   padding: 24px 24px 48px;
 }
 
-.meeting-summary-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: transparent;
-  border: 1px solid #374151;
-  color: #9ca3af;
-  padding: 10px 16px;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  margin-bottom: 24px;
-  transition: border-color 0.2s, color 0.2s;
-}
-
-.meeting-summary-back:hover {
-  border-color: #4b5563;
-  color: #e5e7eb;
-}
-
 .meeting-summary-error {
   padding: 20px;
   background: rgba(239, 68, 68, 0.1);

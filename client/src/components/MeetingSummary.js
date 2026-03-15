@@ -52,9 +52,6 @@ const MeetingSummary = () => {
       <div className="meeting-summary-screen">
         <TopNav />
         <div className="meeting-summary-container">
-          <button type="button" className="meeting-summary-back" onClick={() => navigate(`/meetings/${id}`)}>
-            ← Back to {T.meeting()}
-          </button>
           <div className="meeting-summary-error">{error}</div>
         </div>
       </div>
@@ -135,10 +132,6 @@ const MeetingSummary = () => {
     <div className="meeting-summary-screen">
       <TopNav />
       <div className="meeting-summary-container">
-        <button type="button" className="meeting-summary-back" onClick={() => navigate(`/meetings/${id}`)}>
-          ← Back to {T.meeting()}
-        </button>
-
         <div className="meeting-summary-card">
           <h1 className="meeting-summary-page-title">{meeting.title || 'Untitled meeting'}</h1>
           <p className="meeting-summary-subtitle">{T.meetingSummary()}</p>
