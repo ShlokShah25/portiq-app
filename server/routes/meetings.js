@@ -354,7 +354,6 @@ router.post('/:id/end', upload.single('audio'), async (req, res) => {
     meeting.transcriptionStatus = 'Processing';
 
     // Apply duration limit per plan (backend safety net).
-    const admin = await getAdminFromRequest(req);
     const { maxDurationMinutes, plan: planName } = getPlanConstraints(admin);
     if (maxDurationMinutes && meeting.startTime) {
       const started = new Date(meeting.startTime);
