@@ -72,8 +72,8 @@ router.post('/create-subscription', async (req, res) => {
     const planId = resolvePlanId(planType, productType);
     if (!planId) {
       return res.status(500).json({
-        error:
-          'No Razorpay plan configured for this planType/productType. Please set the appropriate RAZORPAY_PLAN_* env vars.',
+        error: 'No Razorpay plan configured.',
+        errorDetail: `Set RAZORPAY_PLAN_${(productType || 'workplace').toUpperCase()}_${String(planType).toUpperCase()} or RAZORPAY_PLAN_${String(planType).toUpperCase()} in env for plan "${planType}" / product "${productType || 'workplace'}".`,
       });
     }
 
@@ -101,9 +101,16 @@ router.post('/create-subscription', async (req, res) => {
   } catch (err) {
     console.error('Create subscription error:', err);
     const message = err.message || String(err);
-    const detail = err.description || err.error?.description || message;
+    const detail =
+      err.description ||
+      err.error?.description ||
+      err.reason ||
+      err.response?.data?.error?.description ||
+      err.response?.data?.description ||
+      (typeof err.response?.data === 'string' ? err.response.data : null) ||
+      message;
     return res.status(500).json({
-      error: 'Failed to create subscription. Please try again.',
+      error: 'Failed to create subscription.',
       errorDetail: detail,
     });
   }
