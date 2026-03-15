@@ -22,15 +22,24 @@ const Profile = lazy(() => import('./components/Profile'));
 // - In production (Railway): use same-origin `/api` so CORS is not needed.
 const isBrowser = typeof window !== 'undefined';
 const isLocalhost = isBrowser && window.location.hostname === 'localhost';
+const WEBSITE_URL = process.env.REACT_APP_WEBSITE_URL || 'https://portiqtechnologies.com';
 
 axios.defaults.baseURL = isLocalhost
   ? (process.env.REACT_APP_API_URL || 'http://localhost:5001/api')
   : '/api';
 
-// Add response interceptor for error handling
+// Add response interceptor: 403 NO_SUBSCRIPTION → redirect to website pricing
 axios.interceptors.response.use(
   response => response,
   error => {
+    if (error.response?.status === 403 && error.response?.data?.code === 'NO_SUBSCRIPTION') {
+      try {
+        window.localStorage.removeItem('clientAdminToken');
+        window.localStorage.removeItem('portiq_has_subscription');
+      } catch (e) {}
+      window.location.href = WEBSITE_URL + '/#pricing';
+      return Promise.reject(error);
+    }
     console.error('API Error:', error.response?.status, error.response?.data || error.message);
     if (error.code === 'ECONNREFUSED') {
       console.error('❌ Cannot connect to backend. Make sure the workplace server is running on port 5001');

@@ -120,6 +120,7 @@ router.post('/login', async (req, res) => {
         username: admin.username,
         plan: (admin.plan || 'starter').toLowerCase(),
         productType: (admin.productType || 'workplace').toLowerCase(),
+        hasActiveSubscription: !!admin.hasActiveSubscription,
       },
     });
   } catch (err) {

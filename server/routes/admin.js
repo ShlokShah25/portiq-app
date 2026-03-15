@@ -33,8 +33,8 @@ router.post('/login', async (req, res) => {
     }
 
     // No dashboard access without an active subscription (except legacy 'admin' for support).
-    // hasActiveSubscription === false means new signup who hasn't paid; undefined = existing admin before this field existed.
-    if (admin.hasActiveSubscription === false && admin.username !== 'admin') {
+    // Treat both false and undefined as no subscription.
+    if (!admin.hasActiveSubscription && admin.username !== 'admin') {
       return res.status(403).json({
         error:
           'No active subscription. Please purchase a plan from the website to access the dashboard.',
@@ -71,6 +71,7 @@ router.post('/login', async (req, res) => {
         role: admin.role,
         productType: admin.productType || 'workplace',
         plan: admin.plan || 'starter',
+        hasActiveSubscription: !!admin.hasActiveSubscription,
       }
     });
   } catch (error) {
@@ -83,6 +84,14 @@ router.post('/login', async (req, res) => {
  * Get admin profile
  */
 router.get('/profile', authenticateAdmin, async (req, res) => {
+  const admin = await Admin.findById(req.admin._id).lean();
+  if (!admin) return res.status(401).json({ error: 'Unauthorized' });
+  if (!admin.hasActiveSubscription && admin.username !== 'admin') {
+    return res.status(403).json({
+      error: 'No active subscription',
+      code: 'NO_SUBSCRIPTION',
+    });
+  }
   res.json({
     admin: {
       id: req.admin._id,
@@ -92,6 +101,7 @@ router.get('/profile', authenticateAdmin, async (req, res) => {
       lastLogin: req.admin.lastLogin,
       productType: req.admin.productType,
       plan: req.admin.plan,
+      hasActiveSubscription: !!admin.hasActiveSubscription,
     }
   });
 });

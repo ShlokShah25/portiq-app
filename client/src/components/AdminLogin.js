@@ -4,6 +4,8 @@ import axios from 'axios';
 import { setProduct } from '../config/product';
 import './AdminLogin.css';
 
+const WEBSITE_URL = process.env.REACT_APP_WEBSITE_URL || 'https://portiqtechnologies.com';
+
 const AdminLogin = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -74,11 +76,19 @@ const AdminLogin = () => {
       setProduct(serverProduct);
 
       window.localStorage.setItem('clientAdminToken', token);
+      window.localStorage.setItem('portiq_has_subscription', serverAdmin.hasActiveSubscription ? 'true' : 'false');
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      // Best-effort: sync a website session cookie for portiqtechnologies.com
       await syncWebsiteSession();
-      navigate('/dashboard', { replace: true });
+      if (serverAdmin.hasActiveSubscription) {
+        navigate('/dashboard', { replace: true });
+      } else {
+        window.location.href = WEBSITE_URL + '/#pricing';
+      }
     } catch (err) {
+      if (err.response?.status === 403 && /subscription/i.test(err.response?.data?.error || '')) {
+        window.location.href = WEBSITE_URL + '/#pricing';
+        return;
+      }
       console.error('Admin login error', err);
       const msg =
         err.response?.data?.error ||
