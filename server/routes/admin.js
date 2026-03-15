@@ -32,6 +32,15 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    // No dashboard access without an active subscription (except legacy 'admin' for support).
+    // hasActiveSubscription === false means new signup who hasn't paid; undefined = existing admin before this field existed.
+    if (admin.hasActiveSubscription === false && admin.username !== 'admin') {
+      return res.status(403).json({
+        error:
+          'No active subscription. Please purchase a plan from the website to access the dashboard.',
+      });
+    }
+
     const isMatch = await admin.comparePassword(password);
     if (!isMatch) {
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -59,7 +68,9 @@ router.post('/login', async (req, res) => {
         id: admin._id,
         username: admin.username,
         email: admin.email,
-        role: admin.role
+        role: admin.role,
+        productType: admin.productType || 'workplace',
+        plan: admin.plan || 'starter',
       }
     });
   } catch (error) {

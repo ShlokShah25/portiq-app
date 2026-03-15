@@ -64,12 +64,14 @@ const AdminLogin = () => {
 
       const res = await axios.post('/admin/login', payload);
       const token = res.data?.token;
+      const serverAdmin = res.data?.admin || {};
       if (!token) {
         throw new Error('Login failed. Please try again.');
       }
 
-      // Set product mode based on selection (Workplace default, Education optional)
-      setProduct(productType);
+      // Use server productType (Education/Workplace) so signup choice is respected
+      const serverProduct = (serverAdmin.productType || 'workplace').toLowerCase();
+      setProduct(serverProduct);
 
       window.localStorage.setItem('clientAdminToken', token);
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;

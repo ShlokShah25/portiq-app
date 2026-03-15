@@ -1,5 +1,7 @@
 const express = require('express');
 const Razorpay = require('razorpay');
+const crypto = require('crypto');
+const Admin = require('../models/Admin');
 
 const router = express.Router();
 
@@ -50,7 +52,7 @@ function resolvePlanId(planType, productType) {
 
 /**
  * Create Razorpay subscription for SaaS checkout.
- * Expects: { planType, productType, quantity }
+ * Expects: { planType, productType, quantity, username } (username for webhook to activate account)
  */
 router.post('/create-subscription', async (req, res) => {
   try {
@@ -61,7 +63,7 @@ router.post('/create-subscription', async (req, res) => {
       });
     }
 
-    const { planType, productType, quantity } = req.body || {};
+    const { planType, productType, quantity, username } = req.body || {};
 
     if (!planType) {
       return res.status(400).json({ error: 'planType is required' });
@@ -76,15 +78,19 @@ router.post('/create-subscription', async (req, res) => {
     }
 
     const qty = Number.isFinite(quantity) ? Number(quantity) || 1 : 1;
+    const notes = {
+      productType: productType || 'workplace',
+      planType,
+    };
+    if (username && String(username).trim()) {
+      notes.username = String(username).trim();
+    }
 
     const subscription = await razorpay.subscriptions.create({
       plan_id: planId,
-      total_count: 12, // e.g. 12 months; adjust as needed in Razorpay dashboard
+      total_count: 12,
       quantity: qty,
-      notes: {
-        productType: productType || 'workplace',
-        planType,
-      },
+      notes,
     });
 
     return res.status(200).json({
@@ -103,5 +109,58 @@ router.post('/create-subscription', async (req, res) => {
   }
 });
 
+/**
+ * Razorpay webhook: on subscription.activated, set hasActiveSubscription and plan for the admin.
+ * Called from index.js with raw body. req.body is a Buffer.
+ */
+async function handleWebhook(req, res) {
+  const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+  if (!secret) {
+    console.warn('RAZORPAY_WEBHOOK_SECRET not set; webhook ignored');
+    return res.status(200).send('OK');
+  }
+  const signature = req.headers['x-razorpay-signature'];
+  if (!signature || !req.body) {
+    return res.status(400).send('Bad Request');
+  }
+  const body = typeof req.body === 'string' ? req.body : req.body.toString ? req.body.toString('utf8') : '';
+  const expected = crypto.createHmac('sha256', secret).update(body).digest('hex');
+  if (expected !== signature) {
+    console.warn('Razorpay webhook signature mismatch');
+    return res.status(400).send('Bad Request');
+  }
+  let event;
+  try {
+    event = JSON.parse(body);
+  } catch (e) {
+    return res.status(400).send('Bad Request');
+  }
+  if (event.event !== 'subscription.activated') {
+    return res.status(200).send('OK');
+  }
+  const subId = event.payload?.subscription?.entity?.id;
+  if (!subId || !razorpay) {
+    return res.status(200).send('OK');
+  }
+  try {
+    const sub = await razorpay.subscriptions.fetch(subId);
+    const notes = sub.notes || {};
+    const username = notes.username;
+    if (username) {
+      const admin = await Admin.findOne({ username });
+      if (admin) {
+        admin.hasActiveSubscription = true;
+        if (notes.planType) admin.plan = String(notes.planType).toLowerCase();
+        await admin.save();
+        console.log('Activated subscription for admin:', username);
+      }
+    }
+  } catch (e) {
+    console.error('Webhook subscription.activated processing error:', e);
+  }
+  return res.status(200).send('OK');
+}
+
 module.exports = router;
+module.exports.handleWebhook = handleWebhook;
 

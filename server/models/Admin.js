@@ -42,6 +42,11 @@ const adminSchema = new mongoose.Schema({
     enum: ['starter', 'professional', 'business'],
     default: 'starter'
   },
+  // Gate dashboard access: only true after a subscription is active (e.g. Razorpay webhook).
+  hasActiveSubscription: {
+    type: Boolean,
+    default: false
+  },
   // Optional fields used for password reset flow
   resetToken: {
     type: String,

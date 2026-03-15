@@ -20,8 +20,10 @@ router.post('/signup', async (req, res) => {
 
     // Upsert admin with given username
     let admin = await Admin.findOne({ username });
+    const isNew = !admin;
     if (!admin) {
       admin = new Admin({ username, password });
+      admin.hasActiveSubscription = false; // no dashboard access until they subscribe
     } else {
       admin.password = password;
     }
@@ -85,6 +87,44 @@ router.post('/signup', async (req, res) => {
   } catch (err) {
     console.error('SaaS signup error:', err);
     return res.status(500).json({ error: 'Failed to create account. Please try again.' });
+  }
+});
+
+/**
+ * Website login: validate credentials and return session info for the marketing site.
+ * Does not return an app JWT; used only to "log in to your Portiq account on the website".
+ */
+router.post('/login', async (req, res) => {
+  try {
+    const { username, password } = req.body || {};
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Email/username and password are required.' });
+    }
+
+    const admin = await Admin.findOne({
+      $or: [{ username: username.trim() }, { email: username.trim().toLowerCase() }],
+    });
+    if (!admin) {
+      return res.status(401).json({ error: 'Invalid email or password.' });
+    }
+
+    const isMatch = await admin.comparePassword(password);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Invalid email or password.' });
+    }
+
+    return res.status(200).json({
+      success: true,
+      user: {
+        email: admin.email || '',
+        username: admin.username,
+        plan: (admin.plan || 'starter').toLowerCase(),
+        productType: (admin.productType || 'workplace').toLowerCase(),
+      },
+    });
+  } catch (err) {
+    console.error('SaaS login error:', err);
+    return res.status(500).json({ error: 'Login failed. Please try again.' });
   }
 });
 
