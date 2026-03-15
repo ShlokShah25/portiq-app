@@ -56,6 +56,7 @@ const MeetingsScreen = ({ config }) => {
   const [recordingParticipant, setRecordingParticipant] = useState(null);
   const [voiceMediaRecorder, setVoiceMediaRecorder] = useState(null);
   const [savedParticipantsVoiceProfiles, setSavedParticipantsVoiceProfiles] = useState({}); // Voice profiles for saved participants
+  const [maxParticipantsPerMeeting, setMaxParticipantsPerMeeting] = useState(null); // 10/30/60 by plan, null = no limit
 
   useEffect(() => {
     fetchMeetings();
@@ -91,6 +92,27 @@ const MeetingsScreen = ({ config }) => {
     };
     loadParticipantBook();
   }, []);
+
+  // Fetch plan limit for participants per meeting (workplace: 10/30/60)
+  useEffect(() => {
+    if (isEducation) return;
+    const fetchPlan = async () => {
+      try {
+        const res = await axios.get('/admin/profile');
+        const product = (res.data?.admin?.productType || 'workplace').toLowerCase();
+        const plan = (res.data?.admin?.plan || 'starter').toLowerCase();
+        if (product === 'workplace') {
+          const maxByPlan = { starter: 10, professional: 30, business: 60 };
+          setMaxParticipantsPerMeeting(maxByPlan[plan] ?? null);
+        } else {
+          setMaxParticipantsPerMeeting(null);
+        }
+      } catch (e) {
+        setMaxParticipantsPerMeeting(null);
+      }
+    };
+    fetchPlan();
+  }, [isEducation]);
 
   const checkVoiceProfilesForSaved = async (emails) => {
     try {
@@ -385,14 +407,21 @@ const MeetingsScreen = ({ config }) => {
       setShowEditorDropdown(false);
     } catch (err) {
       console.error('Error creating meeting:', err);
-      let serverError =
-        err.response?.data?.error ||
-        err.response?.data?.details ||
-        err.message;
+      const rawError = err.response?.data?.error || err.response?.data?.details || err.message;
+      const isLimitError = typeof rawError === 'string' && (
+        /plan allows up to|participants per meeting|participant book|max participants/i.test(rawError)
+      );
+      let serverError = rawError;
       if (err.message === 'Network Error') {
         serverError = 'Cannot reach workplace server. Please ensure the backend is running on port 5001.';
+      } else if (isLimitError) {
+        serverError = "You've reached your plan limit. Please upgrade to add more participants.";
+      } else if (rawError) {
+        serverError = rawError;
+      } else {
+        serverError = 'Failed to create meeting';
       }
-      setError(serverError || 'Failed to create meeting');
+      setError(serverError);
     } finally {
       setLoading(false);
     }
@@ -543,7 +572,11 @@ const MeetingsScreen = ({ config }) => {
     }
   };
 
+  const meetingParticipantCount = participants.filter(p => p.email && p.email.trim()).length;
+  const atMeetingParticipantLimit = maxParticipantsPerMeeting != null && meetingParticipantCount >= maxParticipantsPerMeeting;
+
   const handleAddParticipantRow = () => {
+    if (atMeetingParticipantLimit) return;
     setParticipants(prev => [...prev, { name: '', email: '', remember: false }]);
   };
 
@@ -552,8 +585,9 @@ const MeetingsScreen = ({ config }) => {
   };
 
   const handleAddSavedParticipant = (saved) => {
+    if (atMeetingParticipantLimit) return;
     setParticipants(prev => {
-      if (prev.find(p => p.email.toLowerCase() === saved.email.toLowerCase())) {
+      if (prev.find(p => p.email && p.email.toLowerCase() === saved.email.toLowerCase())) {
         return prev;
       }
       return [...prev, { name: saved.name, email: saved.email, remember: false }];
@@ -713,7 +747,14 @@ const MeetingsScreen = ({ config }) => {
                 </div>
                 {!isEducation && (
                 <div className="form-group">
-                  <label>Participants</label>
+                  <div className="meeting-participants-label-row">
+                    <label>Participants</label>
+                    {maxParticipantsPerMeeting != null && (
+                      <span className="meeting-participants-limit-hint">
+                        {meetingParticipantCount} / {maxParticipantsPerMeeting} participants
+                      </span>
+                    )}
+                  </div>
                   {rememberedParticipants.length > 0 && (
                     <div className="saved-participants" style={{ position: 'relative' }}>
                       <div className="saved-participants-label">Add from saved participants</div>
@@ -874,9 +915,14 @@ const MeetingsScreen = ({ config }) => {
                     className="btn btn-primary"
                     style={{ marginTop: '8px' }}
                     onClick={handleAddParticipantRow}
+                    disabled={atMeetingParticipantLimit}
+                    title={atMeetingParticipantLimit ? 'Please upgrade to add more.' : undefined}
                   >
                     Add Participant
                   </button>
+                  {atMeetingParticipantLimit && (
+                    <p className="meeting-limit-upgrade-msg">You've reached your plan limit. Please upgrade to add more participants.</p>
+                  )}
                   <small>AI summaries will be emailed to these participants when ready (if email is configured).</small>
                 </div>
                 )}

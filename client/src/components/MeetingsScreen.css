@@ -232,9 +232,32 @@
   font-size: 12px;
   font-weight: 500;
   color: #9CA3AF;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+.meeting-participants-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.meeting-participants-label-row label {
+  margin-bottom: 0;
+}
+
+.meeting-participants-limit-hint {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.meeting-limit-upgrade-msg {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 500;
 }
 
 /* Ensure all form inputs in the meetings form are dark, even without premium-* class */

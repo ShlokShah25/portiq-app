@@ -114,7 +114,7 @@ const Participants = () => {
       return;
     }
     if (maxInBook != null && participants.length >= maxInBook) {
-      alert(`Your plan allows up to ${maxInBook} participants in the participant book. Remove someone to add more.`);
+      alert("You've reached your plan limit. Please upgrade to add more.");
       return;
     }
 
@@ -128,7 +128,9 @@ const Participants = () => {
     try {
       await saveParticipantsToServer(updated);
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to save. Try again.');
+      const msg = err.response?.data?.error || '';
+      const isLimitError = /plan allows|participant book|max participants/i.test(msg);
+      alert(isLimitError ? "You've reached your plan limit. Please upgrade to add more." : (msg || 'Failed to save. Try again.'));
       return;
     }
     setNewParticipant({ name: '', email: '', remember: true });
