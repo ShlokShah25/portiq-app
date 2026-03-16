@@ -740,7 +740,7 @@ const MeetingsScreen = ({ config }) => {
                   </div>
                   {rememberedParticipants.length > 0 && (
                     <div className="saved-participants" style={{ position: 'relative' }}>
-                      <div className="saved-participants-label">Add from saved participants</div>
+                      <div className="saved-participants-label">Add from participant book</div>
                       <input
                         type="text"
                         className="saved-participants-search premium-input"
