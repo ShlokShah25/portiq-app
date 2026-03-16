@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import TopNav from './TopNav';
 import axios from 'axios';
 import './Profile.css';
+import { SUPPORTED_UI_LANGUAGES, getUiLanguage, setUiLanguage } from '../config/uiLanguage';
 
 const Profile = () => {
   const [username, setUsername] = useState('Unknown user');
@@ -18,6 +19,7 @@ const Profile = () => {
   const [cancellingSubscription, setCancellingSubscription] = useState(false);
   const [cancelMessage, setCancelMessage] = useState('');
   const [cancelError, setCancelError] = useState('');
+  const [uiLanguage, setUiLanguageState] = useState('en');
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -56,6 +58,7 @@ const Profile = () => {
       }
     };
     loadProfile();
+    setUiLanguageState(getUiLanguage());
   }, []);
 
   const handleChangePassword = async (e) => {
@@ -113,6 +116,16 @@ const Profile = () => {
       setCancelError(err.response?.data?.error || 'Failed to cancel subscription.');
     } finally {
       setCancellingSubscription(false);
+    }
+  };
+
+  const handleUiLanguageChange = (e) => {
+    const code = e.target.value || 'en';
+    setUiLanguageState(code);
+    setUiLanguage(code);
+    // Reload to apply language across all components
+    if (typeof window !== 'undefined') {
+      window.location.reload();
     }
   };
 
@@ -180,6 +193,29 @@ const Profile = () => {
             </button>
             {cancelMessage && <p className="profile-cancel-msg">{cancelMessage}</p>}
             {cancelError && <p className="profile-cancel-err">{cancelError}</p>}
+          </div>
+
+          <div className="profile-section">
+            <h2>Interface</h2>
+            <div className="profile-row">
+              <span className="label">Dashboard language</span>
+              <span className="value">
+                <select
+                  value={uiLanguage}
+                  onChange={handleUiLanguageChange}
+                  className="profile-language-select"
+                >
+                  {SUPPORTED_UI_LANGUAGES.map((lang) => (
+                    <option key={lang.code} value={lang.code}>
+                      {lang.label}
+                    </option>
+                  ))}
+                </select>
+              </span>
+            </div>
+            <p className="profile-language-hint">
+              Changes navigation labels and headings. Content and email addresses remain as entered.
+            </p>
           </div>
 
           <div className="profile-section">
