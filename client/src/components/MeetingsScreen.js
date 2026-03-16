@@ -1630,7 +1630,7 @@ const MeetingsScreen = ({ config }) => {
                         {editingSummary ? (
                           <div style={{ marginTop: '20px' }}>
                             <div className="form-group">
-                              <label style={{ color: 'white', fontSize: '15px', fontWeight: '600', marginBottom: '8px', display: 'block' }}>Executive Summary</label>
+                              <label style={{ color: 'white', fontSize: '15px', fontWeight: '600', marginBottom: '8px', display: 'block' }}>Minutes of the meeting</label>
                               <textarea
                                 value={editableSummary.summary}
                                 onChange={e => setEditableSummary({ ...editableSummary, summary: e.target.value })}

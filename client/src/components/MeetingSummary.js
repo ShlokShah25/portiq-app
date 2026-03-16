@@ -194,7 +194,7 @@ const MeetingSummary = () => {
           {editingSummary && editableSummary && (
             <div className="meeting-summary-edit">
               <div className="meeting-summary-edit-field">
-                <label>{isEducation ? 'Summary' : 'Executive Summary'}</label>
+                <label>{isEducation ? 'Summary' : 'Minutes of the meeting'}</label>
                 <textarea
                   value={editableSummary.summary}
                   onChange={e => setEditableSummary({ ...editableSummary, summary: e.target.value })}
@@ -269,7 +269,7 @@ const MeetingSummary = () => {
               {summaryText && (
                 <section className="meeting-summary-section">
                   <h2 className="meeting-summary-heading">
-                    {isEducation ? 'Summary' : 'Executive Summary'}
+                    {isEducation ? 'Summary' : 'Minutes of the meeting'}
                   </h2>
                   <p className="meeting-summary-body">{summaryText}</p>
                 </section>
