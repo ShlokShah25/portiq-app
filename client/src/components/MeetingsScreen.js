@@ -630,7 +630,7 @@ const MeetingsScreen = ({ config }) => {
                       {needsApproval.slice(0, 5).map(m => (
                         <li key={m._id}>
                           <span className="summaries-quick-name">{m.title}</span>
-                          <button type="button" className="summaries-quick-btn summaries-quick-btn--primary summaries-quick-btn--link" onClick={() => navigate('/meetings', { state: { focusMeetingId: m._id } })}>
+                          <button type="button" className="summaries-quick-btn summaries-quick-btn--primary summaries-quick-btn--link" onClick={() => navigate(`/meetings/${m._id}/summary`)}>
                             Click here to review your summary
                           </button>
                         </li>

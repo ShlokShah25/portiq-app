@@ -136,7 +136,7 @@ const MeetingSummary = () => {
           <h1 className="meeting-summary-page-title">{meeting.title || 'Untitled meeting'}</h1>
           <p className="meeting-summary-subtitle">{T.meetingSummary()}</p>
 
-          {pendingApproval && hasContent && (
+          {pendingApproval && !!hasContent && (
             <div className="meeting-summary-actions">
               <button
                 type="button"
@@ -238,7 +238,7 @@ const MeetingSummary = () => {
             </div>
           )}
 
-          {hasContent && !editingSummary && (
+          {!!hasContent && !editingSummary && (
             <div className="meeting-summary-content">
               {summaryText && (
                 <section className="meeting-summary-section">
