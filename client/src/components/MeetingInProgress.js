@@ -29,15 +29,14 @@ const MeetingInProgress = () => {
   }, [meetingId]);
 
   useEffect(() => {
-    if (meeting?.startTime) {
-      const interval = setInterval(() => {
-        const start = new Date(meeting.startTime);
-        const now = new Date();
-        setElapsedTime(Math.floor((now - start) / 1000));
-      }, 1000);
-      return () => clearInterval(interval);
-    }
-  }, [meeting?.startTime]);
+    if (!meeting?.startTime || !recording || paused) return;
+    const interval = setInterval(() => {
+      const start = new Date(meeting.startTime);
+      const now = new Date();
+      setElapsedTime(Math.floor((now - start) / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [meeting?.startTime, recording, paused]);
 
   // Fetch plan limits to optionally auto-end long recordings on starter / other plans
   useEffect(() => {
