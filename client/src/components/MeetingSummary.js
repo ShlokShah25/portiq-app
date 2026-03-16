@@ -155,6 +155,9 @@ const MeetingSummary = () => {
                 <option value="Spanish">Spanish</option>
                 <option value="French">French</option>
                 <option value="German">German</option>
+                <option value="Russian">Russian</option>
+                <option value="Chinese (Simplified)">Chinese (Simplified)</option>
+                <option value="Japanese">Japanese</option>
               </select>
             </div>
           )}
