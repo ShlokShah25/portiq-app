@@ -377,10 +377,73 @@ async function transcribeAndSummarize(audioFilePath, meeting) {
   }
 }
 
+async function translateSummaryForEmail(summaryData, language) {
+  if (!openai) {
+    console.warn('⚠️  OpenAI not configured; cannot generate translated summary.');
+    return null;
+  }
+
+  const targetLanguage = language.trim();
+  const baseTextParts = [];
+  if (summaryData.summary) {
+    baseTextParts.push(`Executive summary:\n${summaryData.summary}`);
+  }
+  if ((summaryData.keyPoints || []).length) {
+    baseTextParts.push(
+      'Key points:\n' + summaryData.keyPoints.map((p, idx) => `${idx + 1}. ${p}`).join('\n')
+    );
+  }
+  if ((summaryData.decisions || []).length) {
+    baseTextParts.push(
+      'Decisions:\n' + summaryData.decisions.map((d, idx) => `${idx + 1}. ${d}`).join('\n')
+    );
+  }
+  if ((summaryData.nextSteps || []).length) {
+    baseTextParts.push(
+      'Next steps:\n' + summaryData.nextSteps.map((s, idx) => `${idx + 1}. ${s}`).join('\n')
+    );
+  }
+  if ((summaryData.importantNotes || []).length) {
+    baseTextParts.push(
+      'Important notes:\n' + summaryData.importantNotes.map((n, idx) => `${idx + 1}. ${n}`).join('\n')
+    );
+  }
+
+  const baseText = baseTextParts.join('\n\n').trim();
+  if (!baseText) return null;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: process.env.OPENAI_SUMMARY_MODEL || 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content:
+            `You are a professional translator. Translate the following meeting summary content from English into ${targetLanguage}. ` +
+            'Keep the structure readable but concise. Do NOT include any English in the translated output.',
+        },
+        {
+          role: 'user',
+          content: baseText,
+        },
+      ],
+      temperature: 0.2,
+    });
+
+    const translated = response.choices?.[0]?.message?.content?.trim();
+    if (!translated) return null;
+
+    return translated;
+  } catch (err) {
+    console.error('❌ Failed to translate summary for email:', err.message);
+    return null;
+  }
+}
+
 /**
  * Send meeting summary to participants via email/WhatsApp
  */
-async function sendMeetingSummary(meeting, summaryData) {
+async function sendMeetingSummary(meeting, summaryData, options = {}) {
   let participantEmails = (meeting.participants || [])
     .map(p => p.email)
     .filter(Boolean);
@@ -572,6 +635,21 @@ async function sendMeetingSummary(meeting, summaryData) {
 
   const logoUrl = process.env.COMPANY_LOGO_URL || 'https://portiqtechnologies.com/logo.png';
 
+  let translatedBlock = '';
+  if (options.translationLanguage) {
+    const translated = await translateSummaryForEmail(summaryData, options.translationLanguage);
+    if (translated) {
+      translatedBlock = `
+      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+      <p style="margin: 0 0 8px 0; font-size: 13px; color: #4b5563;">
+        Translated summary (<strong>${options.translationLanguage}</strong>):
+      </p>
+      <div style="white-space: pre-wrap; font-size: 13px; color: #111827; background: #f9fafb; padding: 12px 14px; border-radius: 8px; border: 1px solid #e5e7eb;">
+        ${translated.replace(/</g, '&lt;')}
+      </div>`;
+    }
+  }
+
   const htmlBody = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; color: #111827; line-height: 1.6;">
       <div style="text-align: left; margin-bottom: 16px;">
@@ -605,6 +683,7 @@ async function sendMeetingSummary(meeting, summaryData) {
           help@portiqtechnologies.com
         </a>
       </p>
+      ${translatedBlock}
     </div>
   `;
 

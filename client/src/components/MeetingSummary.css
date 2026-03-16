@@ -50,6 +50,28 @@
   padding: 32px 36px;
 }
 
+.meeting-summary-language-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.meeting-summary-language-label {
+  font-size: 13px;
+  color: #9ca3af;
+}
+
+.meeting-summary-language-select {
+  background: #111111;
+  border: 1px solid #262626;
+  border-radius: 8px;
+  color: #e5e5e5;
+  font-size: 13px;
+  padding: 6px 10px;
+}
+
 .meeting-summary-page-title {
   font-size: 22px;
   font-weight: 600;

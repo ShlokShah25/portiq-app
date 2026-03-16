@@ -762,7 +762,7 @@ router.post('/:id/approve-and-send', async (req, res) => {
     if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
     const admin = await getAdminFromRequest(req);
     if (!canAccessMeeting(meeting, admin)) return res.status(404).json({ error: 'Meeting not found' });
-    const { additionalParticipants } = req.body;
+    const { additionalParticipants, translationLanguage } = req.body;
 
     // Add additional participants if provided (no verification / code required anymore)
     if (additionalParticipants && Array.isArray(additionalParticipants) && additionalParticipants.length > 0) {
@@ -807,7 +807,9 @@ router.post('/:id/approve-and-send', async (req, res) => {
 
     let emailSent = false;
     try {
-      const result = await sendMeetingSummary(meeting, summaryData);
+      const result = await sendMeetingSummary(meeting, summaryData, {
+        translationLanguage: translationLanguage && translationLanguage.trim() ? translationLanguage.trim() : null,
+      });
       emailSent = !!(result && result.success);
     } catch (err) {
       console.error('Error sending summary email (summary still saved):', err.message);

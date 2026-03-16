@@ -16,6 +16,7 @@ const MeetingSummary = () => {
   const [editableSummary, setEditableSummary] = useState(null);
   const [actionError, setActionError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [translationLanguage, setTranslationLanguage] = useState('');
 
   const fetchMeeting = async () => {
     if (!id) return;
@@ -114,7 +115,10 @@ const MeetingSummary = () => {
           importantNotes: editableSummary.importantNotes
         });
       }
-      const res = await axios.post(`/meetings/${id}/approve-and-send`, { additionalParticipants: [] });
+      const res = await axios.post(`/meetings/${id}/approve-and-send`, {
+        additionalParticipants: [],
+        translationLanguage: translationLanguage || null,
+      });
       setMeeting(res.data.meeting);
       setEditingSummary(false);
       setEditableSummary(null);
@@ -135,6 +139,25 @@ const MeetingSummary = () => {
         <div className="meeting-summary-card">
           <h1 className="meeting-summary-page-title">{meeting.title || 'Untitled meeting'}</h1>
           <p className="meeting-summary-subtitle">{T.meetingSummary()}</p>
+
+          {pendingApproval && !!hasContent && (
+            <div className="meeting-summary-language-row">
+              <label className="meeting-summary-language-label">
+                Also send translated summary in:
+              </label>
+              <select
+                className="meeting-summary-language-select"
+                value={translationLanguage}
+                onChange={e => setTranslationLanguage(e.target.value)}
+              >
+                <option value="">English only</option>
+                <option value="Hindi">Hindi</option>
+                <option value="Spanish">Spanish</option>
+                <option value="French">French</option>
+                <option value="German">German</option>
+              </select>
+            </div>
+          )}
 
           {pendingApproval && !!hasContent && (
             <div className="meeting-summary-actions">
