@@ -614,45 +614,35 @@ const MeetingsScreen = ({ config }) => {
         {error && <div className="error-message">{error}</div>}
 
         {(() => {
-          const needsApproval = (meetings || []).filter(m => m.summaryStatus === 'Pending Approval' && m.transcriptionStatus === 'Completed');
-          const withSummaries = (meetings || []).filter(m => m.status === 'Completed' && (m.summaryStatus === 'Sent' || m.summary)).slice(0, 5);
-          if (needsApproval.length === 0 && withSummaries.length === 0) return null;
+          const needsApproval = (meetings || []).filter(
+            m => m.summaryStatus === 'Pending Approval' && m.transcriptionStatus === 'Completed'
+          );
+          if (needsApproval.length === 0) return null;
           return (
             <div className="summaries-quick-card">
               <h2 className="summaries-quick-title">Summaries & approval</h2>
-              <p className="summaries-quick-desc">Quick access to {T.meetingSummary().toLowerCase()}s and items needing your action.</p>
+              <p className="summaries-quick-desc">
+                Quick access to {T.meetingSummary().toLowerCase()}s that are waiting for your approval.
+              </p>
               <div className="summaries-quick-grid">
-                {needsApproval.length > 0 && (
-                  <div className="summaries-quick-block">
-                    <h3 className="summaries-quick-block-title">Your summary is ready</h3>
-                    <p className="summaries-quick-block-desc">Review it and send to participants.</p>
-                    <ul className="summaries-quick-list">
-                      {needsApproval.slice(0, 5).map(m => (
-                        <li key={m._id}>
-                          <span className="summaries-quick-name">{m.title}</span>
-                          <button type="button" className="summaries-quick-btn summaries-quick-btn--primary summaries-quick-btn--link" onClick={() => navigate(`/meetings/${m._id}/summary`)}>
-                            Click here to review your summary
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {withSummaries.length > 0 && (
-                  <div className="summaries-quick-block">
-                    <h3 className="summaries-quick-block-title">View {T.meetingSummary().toLowerCase()}s</h3>
-                    <ul className="summaries-quick-list">
-                      {withSummaries.map(m => (
-                        <li key={m._id}>
-                          <span className="summaries-quick-name">{m.title}</span>
-                          <button type="button" className="summaries-quick-btn" onClick={() => navigate(`/meetings/${m._id}/summary`)}>
-                            View summary
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+                <div className="summaries-quick-block">
+                  <h3 className="summaries-quick-block-title">Your summary is ready</h3>
+                  <p className="summaries-quick-block-desc">Review it and send to participants.</p>
+                  <ul className="summaries-quick-list">
+                    {needsApproval.slice(0, 5).map(m => (
+                      <li key={m._id}>
+                        <span className="summaries-quick-name">{m.title}</span>
+                        <button
+                          type="button"
+                          className="summaries-quick-btn summaries-quick-btn--primary summaries-quick-btn--link"
+                          onClick={() => navigate(`/meetings/${m._id}/summary`)}
+                        >
+                          Click here to review your summary
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
             </div>
           );
