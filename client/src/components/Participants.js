@@ -163,7 +163,7 @@ const Participants = () => {
 
       mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-        await uploadVoiceSample(audioBlob);
+        await uploadVoiceSample(audioBlob, participant);
         stream.getTracks().forEach(track => track.stop());
       };
 
@@ -183,7 +183,7 @@ const Participants = () => {
     }
   };
 
-  const uploadVoiceSample = async (audioBlob) => {
+  const uploadVoiceSample = async (audioBlob, targetParticipant) => {
     try {
       setUploading(true);
       setError('');
@@ -207,6 +207,13 @@ const Participants = () => {
         'standardSentence',
         'Hello, my name is [Your Name] and I am ready for the meeting.'
       );
+
+      if (targetParticipant && targetParticipant.email) {
+        formData.append('email', targetParticipant.email.trim());
+        if (targetParticipant.name) {
+          formData.append('name', targetParticipant.name);
+        }
+      }
 
       const res = await axios.post('/meetings/voice/register', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
