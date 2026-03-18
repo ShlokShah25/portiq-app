@@ -263,11 +263,15 @@
   margin-left: 0;
 }
 
+.meeting-summary-list--action {
+  padding-left: 0;
+}
+
 .meeting-action-item {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 14px 14px;
+  padding: 18px 18px;
   border: 1px solid #1f2937;
   border-radius: 12px;
   background: rgba(17, 17, 17, 0.6);
