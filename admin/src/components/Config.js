@@ -48,6 +48,7 @@ const Config = () => {
         companyName: config.companyName,
         completedMeetingDisplayHours: config.completedMeetingDisplayHours,
         actionItemReminderTime: config.actionItemReminderTime,
+        actionItemRemindersEnabled: config.actionItemRemindersEnabled,
       });
       setMessage('Configuration saved successfully!');
       setTimeout(() => setMessage(''), 3000);
@@ -167,6 +168,25 @@ const Config = () => {
                 />
                 <small style={{ color: '#666', marginTop: '5px', display: 'block' }}>
                   Time of day (server local time) when AI-based action-item review reminders should be emailed.
+                </small>
+              </div>
+              <div className="form-group">
+                <label style={{ display: 'block', marginBottom: '8px' }}>Action-Item Reminders</label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <input
+                    type="checkbox"
+                    checked={config.actionItemRemindersEnabled !== false}
+                    onChange={(e) =>
+                      setConfig({
+                        ...config,
+                        actionItemRemindersEnabled: e.target.checked,
+                      })
+                    }
+                  />
+                  <span>Enable reminder emails</span>
+                </label>
+                <small style={{ color: '#666', marginTop: '5px', display: 'block' }}>
+                  Turn off to stop all automated action-item reminder emails.
                 </small>
               </div>
               <button className="btn btn-primary" onClick={handleSave} disabled={saving}>

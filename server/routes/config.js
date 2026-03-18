@@ -54,6 +54,9 @@ router.put('/', authenticateAdmin, async (req, res) => {
         return res.status(400).json({ error: 'Invalid actionItemReminderTime. Use HH:MM (24h).' });
       }
     }
+    if (req.body.actionItemRemindersEnabled !== undefined) {
+      config.actionItemRemindersEnabled = !!req.body.actionItemRemindersEnabled;
+    }
     if (req.body.pageCustomization !== undefined) {
       config.pageCustomization = req.body.pageCustomization;
     }

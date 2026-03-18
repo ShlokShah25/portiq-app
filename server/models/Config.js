@@ -15,6 +15,11 @@ const configSchema = new mongoose.Schema({
     type: String,
     default: '08:00'
   },
+  // Enable/disable action-item review reminders.
+  actionItemRemindersEnabled: {
+    type: Boolean,
+    default: true
+  },
   completedMeetingDisplayHours: {
     type: Number,
     default: 24, // Show completed meetings for 24 hours by default

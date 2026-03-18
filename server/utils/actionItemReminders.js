@@ -59,6 +59,19 @@ async function startActionItemReminderCron() {
 
   // Run once a day at configured server-local time
   cron.schedule(expression, async () => {
+    // Re-read config at runtime so toggles take effect without redeploy
+    let runtimeConfig = null;
+    try {
+      runtimeConfig = await Config.getConfig();
+    } catch (err) {
+      console.warn('⚠️  Could not load config during reminder run:', err.message);
+    }
+
+    if (runtimeConfig && runtimeConfig.actionItemRemindersEnabled === false) {
+      console.log('🔕 Action-item reminders are disabled. Skipping reminder run.');
+      return;
+    }
+
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
