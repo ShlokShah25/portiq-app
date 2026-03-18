@@ -635,6 +635,152 @@ async function sendMeetingSummary(meeting, summaryData, options = {}) {
 
   const logoUrl = process.env.COMPANY_LOGO_URL || 'https://portiqtechnologies.com/logo.png';
 
+  const baseUrl =
+    process.env.MEETING_SUMMARY_BASE_URL ||
+    process.env.CLIENT_BASE_URL ||
+    'https://meetingassistant.portiqtechnologies.com';
+  const summaryUrl = `${String(baseUrl).replace(/\/+$/, '')}/meetings/${meeting._id}/summary`;
+
+  const toAllDayDate = (value) => {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return null;
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return { y, m, day, date: `${y}-${m}-${day}`, compact: `${y}${m}${day}` };
+  };
+
+  const buildGoogleCalendarUrlForTask = (taskTitle, details, dueDate) => {
+    const parts = toAllDayDate(dueDate);
+    if (!parts) return null;
+    const start = parts.compact;
+    const endD = new Date(new Date(dueDate).getTime() + 24 * 60 * 60 * 1000);
+    const endParts = toAllDayDate(endD);
+    const end = endParts ? endParts.compact : start;
+    const params = new URLSearchParams({
+      action: 'TEMPLATE',
+      text: taskTitle || 'Action item',
+      details: details || '',
+      dates: `${start}/${end}`,
+    });
+    return `https://calendar.google.com/calendar/render?${params.toString()}`;
+  };
+
+  const buildOutlookCalendarUrlForTask = (taskTitle, details, dueDate) => {
+    const parts = toAllDayDate(dueDate);
+    if (!parts) return null;
+    const startdt = parts.date;
+    const endD = new Date(new Date(dueDate).getTime() + 24 * 60 * 60 * 1000);
+    const endParts = toAllDayDate(endD);
+    const enddt = endParts ? endParts.date : parts.date;
+    const params = new URLSearchParams({
+      path: '/calendar/action/compose',
+      subject: taskTitle || 'Action item',
+      body: details || '',
+      startdt,
+      enddt,
+      allday: 'true',
+    });
+    return `https://outlook.office.com/calendar/0/deeplink/compose?${params.toString()}`;
+  };
+
+  const buildActionItemsIcs = (items) => {
+    const esc = (s) =>
+      String(s || '')
+        .replace(/\\/g, '\\\\')
+        .replace(/\n/g, '\\n')
+        .replace(/,/g, '\\,')
+        .replace(/;/g, '\\;');
+
+    const dtStamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+    const lines = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//PortIQ//Meeting Assistant//EN',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+    ];
+
+    (items || []).forEach((a, idx) => {
+      if (!a || !a.dueDate) return;
+      const dueParts = toAllDayDate(a.dueDate);
+      if (!dueParts) return;
+      const endD = new Date(new Date(a.dueDate).getTime() + 24 * 60 * 60 * 1000);
+      const endParts = toAllDayDate(endD);
+      const uid = `${meeting._id}-${idx}-${Date.now()}@portiq`;
+      const summary = a.task ? `Action: ${a.task}` : 'Action item';
+      const desc = [
+        meeting.title ? `Meeting: ${meeting.title}` : null,
+        a.assignee ? `Assignee: ${a.assignee}` : null,
+        'Created via PortIQ Meeting Assistant.',
+        summaryUrl ? `Summary: ${summaryUrl}` : null,
+      ]
+        .filter(Boolean)
+        .join('\\n');
+
+      lines.push('BEGIN:VEVENT');
+      lines.push(`UID:${uid}`);
+      lines.push(`DTSTAMP:${dtStamp}`);
+      lines.push(`DTSTART;VALUE=DATE:${dueParts.compact}`);
+      lines.push(`DTEND;VALUE=DATE:${endParts ? endParts.compact : dueParts.compact}`);
+      lines.push(`SUMMARY:${esc(summary)}`);
+      lines.push(`DESCRIPTION:${esc(desc)}`);
+      lines.push('END:VEVENT');
+    });
+
+    lines.push('END:VCALENDAR');
+    return lines.join('\r\n');
+  };
+
+  const actionItemsForEmail = (summaryData.actionItems || [])
+    .map((a) => ({
+      task: a?.task || (typeof a === 'string' ? a : ''),
+      assignee: a?.assignee || '',
+      dueDate: a?.dueDate || null,
+    }))
+    .filter((a) => a.task);
+
+  const actionItemsWithDates = actionItemsForEmail.filter((a) => a.dueDate && toAllDayDate(a.dueDate));
+
+  const actionItemsBlock = actionItemsWithDates.length
+    ? `
+      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+      <p style="margin: 0 0 10px 0; font-size: 13px; color: #4b5563;">
+        <strong>Action items (add to your calendar):</strong>
+      </p>
+      <div style="font-size: 13px; color: #111827;">
+        ${actionItemsWithDates.map((a) => {
+          const due = new Date(a.dueDate);
+          const dueText = Number.isNaN(due.getTime()) ? '' : due.toLocaleDateString();
+          const details = [
+            meeting.title ? `Meeting: ${meeting.title}` : null,
+            a.assignee ? `Assignee: ${a.assignee}` : null,
+            summaryUrl ? `Summary: ${summaryUrl}` : null,
+          ].filter(Boolean).join('\\n');
+          const gcal = buildGoogleCalendarUrlForTask(a.task, details, a.dueDate);
+          const outlook = buildOutlookCalendarUrlForTask(a.task, details, a.dueDate);
+          const safeTask = String(a.task).replace(/</g, '&lt;');
+          return `
+            <div style="border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; background: #f9fafb;">
+              <div style="font-weight: 700; margin-bottom: 4px;">${safeTask}</div>
+              <div style="color: #4b5563; margin-bottom: 8px;">
+                ${a.assignee ? `<span>Assignee: ${String(a.assignee).replace(/</g, '&lt;')}</span><br/>` : ''}
+                ${dueText ? `<span>Due: ${dueText}</span>` : ''}
+              </div>
+              <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                ${gcal ? `<a href="${gcal}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:none;font-weight:600;">Add to Google Calendar</a>` : ''}
+                ${outlook ? `<a href="${outlook}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:none;font-weight:600;">Add to Outlook</a>` : ''}
+              </div>
+            </div>
+          `;
+        }).join('')}
+        <p style="margin: 8px 0 0 0; color: #6b7280;">
+          Tip: You can also import the attached <strong>.ics</strong> file to add all action items at once.
+        </p>
+      </div>
+    `
+    : '';
+
   let translatedBlock = '';
   if (options.translationLanguage) {
     const translated = await translateSummaryForEmail(summaryData, options.translationLanguage);
@@ -668,6 +814,13 @@ async function sendMeetingSummary(meeting, summaryData, options = {}) {
         If you have any feedback regarding the accuracy or structure of the summary,
         please feel free to reply to this email.
       </p>
+      <p>
+        View the meeting summary online:<br/>
+        <a href="${summaryUrl}" target="_blank" rel="noopener noreferrer" style="color: #2563eb; text-decoration: none;">
+          ${summaryUrl}
+        </a>
+      </p>
+      ${actionItemsBlock}
       <br/>
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
       <p style="margin: 0;">
@@ -699,6 +852,13 @@ async function sendMeetingSummary(meeting, summaryData, options = {}) {
         content: pdfBuffer,
         contentType: 'application/pdf',
       },
+      ...(actionItemsWithDates.length > 0
+        ? [{
+            filename: `Action-Items-${safeTitleForFile}-${dateStamp}.ics`,
+            content: Buffer.from(buildActionItemsIcs(actionItemsWithDates), 'utf8'),
+            contentType: 'text/calendar; charset=utf-8',
+          }]
+        : []),
     ],
   });
 
