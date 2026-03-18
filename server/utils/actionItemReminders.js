@@ -42,23 +42,21 @@ function getSummaryUrl(meetingId) {
   return `${trimmedBase}/meetings/${meetingId}/summary`;
 }
 
+function getLocalHHMM(date) {
+  const h = String(date.getHours()).padStart(2, '0');
+  const m = String(date.getMinutes()).padStart(2, '0');
+  return `${h}:${m}`;
+}
+
 async function startActionItemReminderCron() {
   if (!isEmailConfigured()) {
     console.warn('⚠️  Email not configured. Action-item reminder cron will not send emails.');
   }
 
-  let config;
-  try {
-    config = await Config.getConfig();
-  } catch (err) {
-    console.warn('⚠️  Could not load config for reminder cron, using default 08:00:', err.message);
-  }
-
-  const expression = getReminderCronExpressionFromConfig(config);
-  console.log(`⏰ Scheduling action-item reminder cron with expression "${expression}"`);
-
-  // Run once a day at configured server-local time
-  cron.schedule(expression, async () => {
+  // Run every minute, and only send when the current local time matches the configured HH:MM.
+  // This eliminates the need to restart the server when an admin changes reminder time.
+  console.log('⏰ Scheduling action-item reminder cron (checks every minute)');
+  cron.schedule('* * * * *', async () => {
     // Re-read config at runtime so toggles take effect without redeploy
     let runtimeConfig = null;
     try {
@@ -73,6 +71,10 @@ async function startActionItemReminderCron() {
     }
 
     const now = new Date();
+    const configuredTime = (runtimeConfig && runtimeConfig.actionItemReminderTime) || '11:00';
+    if (getLocalHHMM(now) !== configuredTime) {
+      return;
+    }
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
 

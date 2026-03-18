@@ -13,7 +13,7 @@ const configSchema = new mongoose.Schema({
   // Time of day (server local time) to send action-item review reminders, in "HH:MM" 24h format.
   actionItemReminderTime: {
     type: String,
-    default: '08:00'
+    default: '11:00'
   },
   // Enable/disable action-item review reminders.
   actionItemRemindersEnabled: {
