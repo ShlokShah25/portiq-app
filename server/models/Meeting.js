@@ -74,6 +74,11 @@ const meetingSchema = new mongoose.Schema({
     task: String,
     assignee: String,
     dueDate: Date,
+    status: {
+      type: String,
+      enum: ['not_started', 'in_progress', 'done'],
+      default: 'not_started'
+    },
     reviewReminderSent: {
       type: Boolean,
       default: false
@@ -99,6 +104,11 @@ const meetingSchema = new mongoose.Schema({
     task: String,
     assignee: String,
     dueDate: Date,
+    status: {
+      type: String,
+      enum: ['not_started', 'in_progress', 'done'],
+      default: 'not_started'
+    },
     reviewReminderSent: {
       type: Boolean,
       default: false
@@ -142,6 +152,11 @@ const meetingSchema = new mongoose.Schema({
     task: String,
     assignee: String,
     dueDate: Date,
+    status: {
+      type: String,
+      enum: ['not_started', 'in_progress', 'done'],
+      default: 'not_started'
+    },
     reviewReminderSent: {
       type: Boolean,
       default: false

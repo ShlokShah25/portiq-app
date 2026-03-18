@@ -382,6 +382,7 @@ router.post('/meetings/:id/retry-transcription', authenticateAdmin, requireSubsc
           task: item.task || '',
           assignee: item.assignee || '',
           dueDate: safeParseDate(item.dueDate),
+          status: 'not_started',
           reviewReminderSent: false,
           reviewReminderSentAt: null
         }));
@@ -396,6 +397,7 @@ router.post('/meetings/:id/retry-transcription', authenticateAdmin, requireSubsc
           task: item.task || '',
           assignee: item.assignee || '',
           dueDate: safeParseDate(item.dueDate),
+          status: 'not_started',
           reviewReminderSent: false,
           reviewReminderSentAt: null
         }));
@@ -410,6 +412,7 @@ router.post('/meetings/:id/retry-transcription', authenticateAdmin, requireSubsc
           task: item.task || '',
           assignee: item.assignee || '',
           dueDate: safeParseDate(item.dueDate),
+          status: 'not_started',
           reviewReminderSent: false,
           reviewReminderSentAt: null
         }));

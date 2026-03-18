@@ -20,6 +20,12 @@ const Participants = () => {
   const [voiceMediaRecorder, setVoiceMediaRecorder] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  const [noiseLevel, setNoiseLevel] = useState(null); // 0..1
+  const [noiseLabel, setNoiseLabel] = useState(''); // Too quiet / Good / Too noisy
+  const audioCtxRef = React.useRef(null);
+  const analyserRef = React.useRef(null);
+  const rafRef = React.useRef(null);
+  const streamForMeterRef = React.useRef(null);
 
   useEffect(() => {
     loadParticipants();
@@ -152,6 +158,48 @@ const Participants = () => {
   const startVoiceRecording = async (participant) => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamForMeterRef.current = stream;
+
+      // Live noise/volume indicator using Web Audio API
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) {
+          const ctx = new AudioContext();
+          const source = ctx.createMediaStreamSource(stream);
+          const analyser = ctx.createAnalyser();
+          analyser.fftSize = 2048;
+          source.connect(analyser);
+          audioCtxRef.current = ctx;
+          analyserRef.current = analyser;
+
+          const data = new Uint8Array(analyser.fftSize);
+          const tick = () => {
+            if (!analyserRef.current) return;
+            analyserRef.current.getByteTimeDomainData(data);
+            let sum = 0;
+            for (let i = 0; i < data.length; i++) {
+              const v = (data[i] - 128) / 128; // -1..1
+              sum += v * v;
+            }
+            const rms = Math.sqrt(sum / data.length); // 0..~1
+            // Smooth a bit by clamping
+            const level = Math.min(1, Math.max(0, rms * 2.2));
+            setNoiseLevel(level);
+            let label = '';
+            if (level < 0.12) label = 'Too quiet';
+            else if (level > 0.75) label = 'Too noisy';
+            else label = 'Good';
+            setNoiseLabel(label);
+            rafRef.current = requestAnimationFrame(tick);
+          };
+          rafRef.current = requestAnimationFrame(tick);
+        }
+      } catch (meterErr) {
+        // If meter fails, recording still works
+        setNoiseLevel(null);
+        setNoiseLabel('');
+      }
+
       const mediaRecorder = new MediaRecorder(stream);
       const audioChunks = [];
 
@@ -165,6 +213,21 @@ const Participants = () => {
         const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
         await uploadVoiceSample(audioBlob, participant);
         stream.getTracks().forEach(track => track.stop());
+
+        // Cleanup noise meter
+        try {
+          if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        } catch (_) {}
+        rafRef.current = null;
+        analyserRef.current = null;
+        try {
+          if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
+            await audioCtxRef.current.close();
+          }
+        } catch (_) {}
+        audioCtxRef.current = null;
+        setNoiseLevel(null);
+        setNoiseLabel('');
       };
 
       mediaRecorder.start();
@@ -415,6 +478,73 @@ const Participants = () => {
                         >
                           {recordingEmail === p.email ? 'Stop & Save' : (voiceProfiles[p.email]?.hasProfile ? 'Re-record' : 'Configure Voice')}
                         </button>
+                        {recordingEmail === p.email && (
+                          <div
+                            style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '6px',
+                              marginTop: '8px',
+                              width: '100%',
+                              maxWidth: '340px',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <div
+                                style={{
+                                  flex: 1,
+                                  height: '8px',
+                                  background: 'rgba(148, 163, 184, 0.18)',
+                                  borderRadius: '999px',
+                                  overflow: 'hidden',
+                                }}
+                                aria-label="Mic level"
+                              >
+                                <div
+                                  style={{
+                                    width:
+                                      noiseLevel == null
+                                        ? '0%'
+                                        : `${Math.round(noiseLevel * 100)}%`,
+                                    height: '100%',
+                                    background:
+                                      noiseLabel === 'Good'
+                                        ? 'rgba(34, 197, 94, 0.9)'
+                                        : noiseLabel === 'Too noisy'
+                                          ? 'rgba(239, 68, 68, 0.9)'
+                                          : 'rgba(245, 158, 11, 0.9)',
+                                    transition: 'width 80ms linear',
+                                  }}
+                                />
+                              </div>
+                              <span
+                                style={{
+                                  fontSize: '11px',
+                                  fontWeight: 700,
+                                  letterSpacing: '0.02em',
+                                  color:
+                                    noiseLabel === 'Good'
+                                      ? 'rgba(34, 197, 94, 0.95)'
+                                      : noiseLabel === 'Too noisy'
+                                        ? 'rgba(239, 68, 68, 0.95)'
+                                        : 'rgba(245, 158, 11, 0.95)',
+                                  minWidth: '78px',
+                                  textAlign: 'right',
+                                }}
+                              >
+                                {noiseLabel || 'Listening…'}
+                              </span>
+                            </div>
+                            <div
+                              style={{
+                                fontSize: '11px',
+                                color: 'rgba(148, 163, 184, 0.9)',
+                              }}
+                            >
+                              Tip: speak clearly ~15–25cm from the mic in a quiet room.
+                            </div>
+                          </div>
+                        )}
                         {recordingEmail === p.email && (
                           <div
                             className="participant-voice-hint"

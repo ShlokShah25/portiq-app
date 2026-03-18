@@ -402,6 +402,7 @@ router.post('/:id/end', upload.single('audio'), async (req, res) => {
             task: item.task || '',
             assignee: item.assignee || '',
             dueDate: safeParseDate(item.dueDate),
+            status: 'not_started',
             reviewReminderSent: false,
             reviewReminderSentAt: null
           }));
@@ -740,6 +741,7 @@ router.put('/:id/pending-summary', async (req, res) => {
         task: item.task || '',
         assignee: item.assignee || '',
         dueDate: safeParseDate(item.dueDate),
+        status: item.status === 'in_progress' || item.status === 'done' ? item.status : 'not_started',
         reviewReminderSent: item.reviewReminderSent || false,
         reviewReminderSentAt: item.reviewReminderSentAt ? safeParseDate(item.reviewReminderSentAt) : null
       }));
@@ -754,6 +756,52 @@ router.put('/:id/pending-summary', async (req, res) => {
   } catch (error) {
     console.error('Error updating pending summary:', error);
     res.status(500).json({ error: 'Failed to update summary' });
+  }
+});
+
+/**
+ * Update action item status (by subdocument id).
+ * Works whether action items are still pending approval or already finalized.
+ */
+router.patch('/:id/action-items/:actionItemId', async (req, res) => {
+  try {
+    const meeting = await Meeting.findById(req.params.id);
+    if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
+    const admin = await getAdminFromRequest(req);
+    if (!canAccessMeeting(meeting, admin)) return res.status(404).json({ error: 'Meeting not found' });
+
+    const { status } = req.body || {};
+    const allowed = new Set(['not_started', 'in_progress', 'done']);
+    if (!allowed.has(status)) {
+      return res.status(400).json({ error: 'Invalid status. Use not_started, in_progress, or done.' });
+    }
+
+    const actionItemId = req.params.actionItemId;
+    let updated = false;
+
+    // Update in pendingActionItems if present; else update in actionItems.
+    const arraysToTry = (meeting.pendingActionItems && meeting.pendingActionItems.length > 0)
+      ? ['pendingActionItems', 'actionItems']
+      : ['actionItems', 'pendingActionItems'];
+
+    for (const key of arraysToTry) {
+      const arr = meeting[key] || [];
+      const item = arr.id(actionItemId);
+      if (item) {
+        item.status = status;
+        updated = true;
+      }
+    }
+
+    if (!updated) {
+      return res.status(404).json({ error: 'Action item not found' });
+    }
+
+    await meeting.save();
+    res.json({ success: true, meeting });
+  } catch (error) {
+    console.error('Error updating action item status:', error);
+    res.status(500).json({ error: 'Failed to update action item status' });
   }
 });
 

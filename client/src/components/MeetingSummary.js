@@ -6,6 +6,78 @@ import { T } from '../config/terminology';
 import { isEducation } from '../config/product';
 import './MeetingSummary.css';
 
+function formatStatusLabel(status) {
+  if (status === 'done') return 'Done';
+  if (status === 'in_progress') return 'In progress';
+  return 'Not started';
+}
+
+function buildGoogleCalendarUrl({ title, details, dueDate }) {
+  if (!dueDate) return null;
+  const d = new Date(dueDate);
+  if (Number.isNaN(d.getTime())) return null;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const start = `${y}${m}${day}`;
+  const endDate = new Date(d.getTime() + 24 * 60 * 60 * 1000);
+  const ey = endDate.getFullYear();
+  const em = String(endDate.getMonth() + 1).padStart(2, '0');
+  const ed = String(endDate.getDate()).padStart(2, '0');
+  const end = `${ey}${em}${ed}`;
+
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: title || 'Action item',
+    details: details || '',
+    dates: `${start}/${end}`,
+  });
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
+function buildIcsContent({ title, description, dueDate }) {
+  const d = new Date(dueDate);
+  if (Number.isNaN(d.getTime())) return null;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const dtStart = `${y}${m}${day}`;
+  const endDate = new Date(d.getTime() + 24 * 60 * 60 * 1000);
+  const ey = endDate.getFullYear();
+  const em = String(endDate.getMonth() + 1).padStart(2, '0');
+  const ed = String(endDate.getDate()).padStart(2, '0');
+  const dtEnd = `${ey}${em}${ed}`;
+
+  const uid = `${Date.now()}-${Math.random().toString(16).slice(2)}@portiq`;
+  const dtStamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+
+  const esc = (s) =>
+    String(s || '')
+      .replace(/\\/g, '\\\\')
+      .replace(/\n/g, '\\n')
+      .replace(/,/g, '\\,')
+      .replace(/;/g, '\\;');
+
+  return [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//PortIQ//Meeting Assistant//EN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    `UID:${uid}`,
+    `DTSTAMP:${dtStamp}`,
+    `DTSTART;VALUE=DATE:${dtStart}`,
+    `DTEND;VALUE=DATE:${dtEnd}`,
+    `SUMMARY:${esc(title || 'Action item')}`,
+    description ? `DESCRIPTION:${esc(description)}` : null,
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ]
+    .filter(Boolean)
+    .join('\r\n');
+}
+
 const MeetingSummary = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -17,6 +89,7 @@ const MeetingSummary = () => {
   const [actionError, setActionError] = useState('');
   const [saving, setSaving] = useState(false);
   const [translationLanguage, setTranslationLanguage] = useState('');
+  const [statusSaving, setStatusSaving] = useState({});
 
   const fetchMeeting = async () => {
     if (!id) return;
@@ -303,17 +376,125 @@ const MeetingSummary = () => {
                 <section className="meeting-summary-section">
                   <h2 className="meeting-summary-heading">Action Items</h2>
                   <ul className="meeting-summary-list meeting-summary-list--action">
-                    {actionItems.map((item, idx) => (
-                      <li key={idx}>
-                        <strong>{item.task}</strong>
-                        {item.assignee && <span> — {item.assignee}</span>}
-                        {item.dueDate && (
-                          <span className="meeting-summary-due">
-                            Due: {new Date(item.dueDate).toLocaleDateString()}
-                          </span>
-                        )}
-                      </li>
-                    ))}
+                    {actionItems.map((item, idx) => {
+                      const itemId = item?._id || String(idx);
+                      const status = item?.status || 'not_started';
+                      const due = item?.dueDate ? new Date(item.dueDate) : null;
+                      const dueText =
+                        due && !Number.isNaN(due.getTime())
+                          ? due.toLocaleDateString()
+                          : null;
+
+                      const title = item?.task || 'Action item';
+                      const details = [
+                        meeting?.title ? `Meeting: ${meeting.title}` : null,
+                        item?.assignee ? `Assignee: ${item.assignee}` : null,
+                      ]
+                        .filter(Boolean)
+                        .join('\n');
+
+                      const gcalUrl = buildGoogleCalendarUrl({
+                        title,
+                        details,
+                        dueDate: item?.dueDate,
+                      });
+
+                      const ics = item?.dueDate
+                        ? buildIcsContent({
+                            title,
+                            description: details,
+                            dueDate: item?.dueDate,
+                          })
+                        : null;
+
+                      return (
+                        <li key={itemId} className="meeting-action-item">
+                          <div className="meeting-action-item-main">
+                            <div className="meeting-action-item-title">
+                              <strong>{item.task}</strong>
+                              {item.assignee && <span> — {item.assignee}</span>}
+                            </div>
+                            <div className="meeting-action-item-meta">
+                              <span className={`meeting-action-status-pill status-${status}`}>
+                                {formatStatusLabel(status)}
+                              </span>
+                              {dueText && (
+                                <span className="meeting-summary-due">Due: {dueText}</span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="meeting-action-item-actions">
+                            <select
+                              className="meeting-action-status-select"
+                              value={status}
+                              disabled={!!statusSaving[itemId] || !item?._id}
+                              onChange={async (e) => {
+                                const nextStatus = e.target.value;
+                                if (!item?._id) return;
+                                setStatusSaving((prev) => ({ ...prev, [itemId]: true }));
+                                try {
+                                  const res = await axios.patch(
+                                    `/meetings/${id}/action-items/${item._id}`,
+                                    { status: nextStatus }
+                                  );
+                                  setMeeting(res.data.meeting);
+                                } catch (err) {
+                                  alert(
+                                    err.response?.data?.error ||
+                                      'Failed to update action item status.'
+                                  );
+                                } finally {
+                                  setStatusSaving((prev) => ({ ...prev, [itemId]: false }));
+                                }
+                              }}
+                            >
+                              <option value="not_started">Not started</option>
+                              <option value="in_progress">In progress</option>
+                              <option value="done">Done</option>
+                            </select>
+
+                            {gcalUrl && (
+                              <a
+                                className="meeting-action-link"
+                                href={gcalUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title="Add to Google Calendar"
+                              >
+                                Add to Google Calendar
+                              </a>
+                            )}
+
+                            {ics && (
+                              <button
+                                type="button"
+                                className="meeting-action-link meeting-action-link--button"
+                                onClick={() => {
+                                  const blob = new Blob([ics], {
+                                    type: 'text/calendar;charset=utf-8',
+                                  });
+                                  const url = URL.createObjectURL(blob);
+                                  const a = document.createElement('a');
+                                  a.href = url;
+                                  a.download = `action-item-${(item.task || 'task')
+                                    .slice(0, 40)
+                                    .replace(/[^a-z0-9]+/gi, '-')
+                                    .toLowerCase()}.ics`;
+                                  document.body.appendChild(a);
+                                  a.click();
+                                  a.remove();
+                                  URL.revokeObjectURL(url);
+                                }}
+                                title="Download .ics"
+                              >
+                                Download .ics
+                              </button>
+                            )}
+                          </div>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </section>
               )}
