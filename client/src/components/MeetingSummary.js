@@ -35,6 +35,36 @@ function buildGoogleCalendarUrl({ title, details, dueDate }) {
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
 
+function buildOutlookCalendarUrl({ title, details, dueDate }) {
+  if (!dueDate) return null;
+  const d = new Date(dueDate);
+  if (Number.isNaN(d.getTime())) return null;
+
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+
+  // Outlook deep link works well for M365 web calendar.
+  // Use an all-day event on the due date.
+  const startdt = `${y}-${m}-${day}`;
+  const endDate = new Date(d.getTime() + 24 * 60 * 60 * 1000);
+  const ey = endDate.getFullYear();
+  const em = String(endDate.getMonth() + 1).padStart(2, '0');
+  const ed = String(endDate.getDate()).padStart(2, '0');
+  const enddt = `${ey}-${em}-${ed}`;
+
+  const params = new URLSearchParams({
+    path: '/calendar/action/compose',
+    subject: title || 'Action item',
+    body: details || '',
+    startdt,
+    enddt,
+    allday: 'true',
+  });
+
+  return `https://outlook.office.com/calendar/0/deeplink/compose?${params.toString()}`;
+}
+
 function buildIcsContent({ title, description, dueDate }) {
   const d = new Date(dueDate);
   if (Number.isNaN(d.getTime())) return null;
@@ -399,6 +429,12 @@ const MeetingSummary = () => {
                         dueDate: item?.dueDate,
                       });
 
+                      const outlookUrl = buildOutlookCalendarUrl({
+                        title,
+                        details,
+                        dueDate: item?.dueDate,
+                      });
+
                       const ics = item?.dueDate
                         ? buildIcsContent({
                             title,
@@ -463,6 +499,18 @@ const MeetingSummary = () => {
                                 title="Add to Google Calendar"
                               >
                                 Add to Google Calendar
+                              </a>
+                            )}
+
+                            {outlookUrl && (
+                              <a
+                                className="meeting-action-link"
+                                href={outlookUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title="Add to Outlook Calendar"
+                              >
+                                Add to Outlook
                               </a>
                             )}
 
