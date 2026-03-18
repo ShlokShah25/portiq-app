@@ -641,6 +641,73 @@ async function sendMeetingSummary(meeting, summaryData, options = {}) {
     'https://meetingassistant.portiqtechnologies.com';
   const summaryUrl = `${String(baseUrl).replace(/\/+$/, '')}/meetings/${meeting._id}/summary`;
 
+  const toGoogleDateTimeUtc = (d) => {
+    const iso = new Date(d).toISOString(); // UTC
+    return iso.replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+  };
+
+  const buildGoogleCalendarUrlForMeeting = ({ title, details, location, startDate, endDate }) => {
+    if (!startDate || !endDate) return null;
+    const start = toGoogleDateTimeUtc(startDate);
+    const end = toGoogleDateTimeUtc(endDate);
+    const params = new URLSearchParams({
+      action: 'TEMPLATE',
+      text: title || 'Meeting',
+      details: details || '',
+      location: location || '',
+      dates: `${start}/${end}`,
+    });
+    return `https://calendar.google.com/calendar/render?${params.toString()}`;
+  };
+
+  const buildOutlookCalendarUrlForMeeting = ({ title, details, location, startDate, endDate }) => {
+    if (!startDate || !endDate) return null;
+    const startdt = new Date(startDate).toISOString();
+    const enddt = new Date(endDate).toISOString();
+    const params = new URLSearchParams({
+      path: '/calendar/action/compose',
+      subject: title || 'Meeting',
+      body: details || '',
+      location: location || '',
+      startdt,
+      enddt,
+    });
+    return `https://outlook.office.com/calendar/0/deeplink/compose?${params.toString()}`;
+  };
+
+  const buildMeetingIcs = ({ title, description, location, startDate, endDate }) => {
+    if (!startDate || !endDate) return null;
+    const uid = `${meeting._id}-${Date.now()}@portiq`;
+    const dtStamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+    const toUtc = (d) => new Date(d).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+    const esc = (s) =>
+      String(s || '')
+        .replace(/\\/g, '\\\\')
+        .replace(/\n/g, '\\n')
+        .replace(/,/g, '\\,')
+        .replace(/;/g, '\\;');
+
+    return [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//PortIQ//Meeting Assistant//EN',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+      'BEGIN:VEVENT',
+      `UID:${uid}`,
+      `DTSTAMP:${dtStamp}`,
+      `DTSTART:${toUtc(startDate)}`,
+      `DTEND:${toUtc(endDate)}`,
+      `SUMMARY:${esc(title || 'Meeting')}`,
+      location ? `LOCATION:${esc(location)}` : null,
+      description ? `DESCRIPTION:${esc(description)}` : null,
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ]
+      .filter(Boolean)
+      .join('\r\n');
+  };
+
   const toAllDayDate = (value) => {
     const d = new Date(value);
     if (Number.isNaN(d.getTime())) return null;
@@ -781,6 +848,69 @@ async function sendMeetingSummary(meeting, summaryData, options = {}) {
     `
     : '';
 
+  const meetingStart = meeting.startTime || meeting.scheduledTime;
+  const meetingEnd = meeting.endTime || (meetingStart ? new Date(new Date(meetingStart).getTime() + 60 * 60 * 1000) : null);
+  const meetingDetailsForCalendar = [
+    meeting.organizer ? `Organizer: ${meeting.organizer}` : null,
+    (meeting.participants || []).length
+      ? `Participants:\n${(meeting.participants || [])
+          .map(p => (p?.email ? `${p.name || p.email} (${p.email})` : (p?.name || '')))
+          .filter(Boolean)
+          .map(x => `- ${x}`)
+          .join('\n')}`
+      : null,
+    summaryUrl ? `Summary: ${summaryUrl}` : null,
+    'Created via PortIQ Meeting Assistant.',
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+
+  const meetingCalendarGoogle = meetingStart && meetingEnd
+    ? buildGoogleCalendarUrlForMeeting({
+        title: meeting.title || 'Meeting',
+        details: meetingDetailsForCalendar,
+        location: meeting.meetingRoom || '',
+        startDate: meetingStart,
+        endDate: meetingEnd,
+      })
+    : null;
+
+  const meetingCalendarOutlook = meetingStart && meetingEnd
+    ? buildOutlookCalendarUrlForMeeting({
+        title: meeting.title || 'Meeting',
+        details: meetingDetailsForCalendar,
+        location: meeting.meetingRoom || '',
+        startDate: meetingStart,
+        endDate: meetingEnd,
+      })
+    : null;
+
+  const meetingIcs = meetingStart && meetingEnd
+    ? buildMeetingIcs({
+        title: meeting.title || 'Meeting',
+        description: meetingDetailsForCalendar,
+        location: meeting.meetingRoom || '',
+        startDate: meetingStart,
+        endDate: meetingEnd,
+      })
+    : null;
+
+  const meetingCalendarBlock = (meetingCalendarGoogle || meetingCalendarOutlook)
+    ? `
+      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+      <p style="margin: 0 0 10px 0; font-size: 13px; color: #4b5563;">
+        <strong>Add this meeting to your calendar:</strong>
+      </p>
+      <div style="display: flex; gap: 12px; flex-wrap: wrap; font-size: 13px;">
+        ${meetingCalendarGoogle ? `<a href="${meetingCalendarGoogle}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:none;font-weight:600;">Add to Google Calendar</a>` : ''}
+        ${meetingCalendarOutlook ? `<a href="${meetingCalendarOutlook}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:none;font-weight:600;">Add to Outlook</a>` : ''}
+      </div>
+      <p style="margin: 10px 0 0 0; font-size: 12px; color: #6b7280;">
+        Tip: You can also import the attached <strong>Meeting .ics</strong> file.
+      </p>
+    `
+    : '';
+
   let translatedBlock = '';
   if (options.translationLanguage) {
     const translated = await translateSummaryForEmail(summaryData, options.translationLanguage);
@@ -820,6 +950,7 @@ async function sendMeetingSummary(meeting, summaryData, options = {}) {
           ${summaryUrl}
         </a>
       </p>
+      ${meetingCalendarBlock}
       ${actionItemsBlock}
       <br/>
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
@@ -852,6 +983,13 @@ async function sendMeetingSummary(meeting, summaryData, options = {}) {
         content: pdfBuffer,
         contentType: 'application/pdf',
       },
+      ...(meetingIcs
+        ? [{
+            filename: `Meeting-${safeTitleForFile}-${dateStamp}.ics`,
+            content: Buffer.from(meetingIcs, 'utf8'),
+            contentType: 'text/calendar; charset=utf-8',
+          }]
+        : []),
       ...(actionItemsWithDates.length > 0
         ? [{
             filename: `Action-Items-${safeTitleForFile}-${dateStamp}.ics`,

@@ -594,7 +594,7 @@ const MeetingsScreen = ({ config }) => {
         <div className="meetings-top-bar">
           <h1 className="meetings-top-bar-title">{T.meetings()}</h1>
           <div className="meetings-top-bar-actions">
-            {selectedMeeting && (
+            {false && selectedMeeting && (
               <button
                 className="btn btn-secondary"
                 onClick={() => setSelectedMeeting(null)}
@@ -1253,7 +1253,7 @@ const MeetingsScreen = ({ config }) => {
               </form>
             </div>
 
-            {selectedMeeting && (
+            {false && selectedMeeting && (
               <div className="card">
                 <div className="card-header">
                   <h2>Current Meeting</h2>
