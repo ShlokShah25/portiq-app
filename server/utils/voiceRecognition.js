@@ -4,6 +4,40 @@ const { exec } = require('child_process');
 const util = require('util');
 const execPromise = util.promisify(exec);
 
+// Optional: use ffmpeg to apply simple voice-activity-based trimming
+let ffmpeg = null;
+try {
+  ffmpeg = require('fluent-ffmpeg');
+} catch (e) {
+  console.warn('⚠️  fluent-ffmpeg not installed for voiceRecognition. VAD preprocessing will be skipped for voice samples.');
+}
+
+/**
+ * Apply simple VAD-style trimming to remove leading/trailing silence.
+ * This helps make embeddings more robust by focusing on actual speech.
+ */
+async function preprocessAudioForEmbedding(audioFilePath) {
+  if (!ffmpeg) return audioFilePath;
+
+  const outputPath = audioFilePath.replace(/\.[^.]+$/, '_trimmed_for_vad.wav');
+
+  return new Promise((resolve, reject) => {
+    // Use silenceremove to trim silence at beginning and end
+    // Threshold and duration are conservative to avoid cutting speech.
+    ffmpeg(audioFilePath)
+      .audioFilters('silenceremove=start_periods=1:start_silence=0.3:start_threshold=-40dB:stop_periods=1:stop_silence=0.5:stop_threshold=-40dB')
+      .outputOptions(['-ac', '1', '-ar', '16000'])
+      .on('end', () => {
+        resolve(outputPath);
+      })
+      .on('error', (err) => {
+        console.warn('⚠️  VAD preprocessing failed, using raw audio instead:', err.message);
+        resolve(audioFilePath);
+      })
+      .save(outputPath);
+  });
+}
+
 /**
  * Generate voice embedding from audio file
  * Uses pyannote.audio via Python script for production-quality embeddings
@@ -15,6 +49,9 @@ async function generateVoiceEmbedding(audioFilePath) {
     if (!fs.existsSync(audioFilePath)) {
       throw new Error('Audio file not found');
     }
+
+    // Preprocess with simple VAD to trim silence where possible
+    const processedPath = await preprocessAudioForEmbedding(audioFilePath);
 
     // Try to use Python script with pyannote.audio (recommended)
     const pythonScript = path.join(__dirname, 'voice_embedding.py');
@@ -40,8 +77,8 @@ async function generateVoiceEmbedding(audioFilePath) {
         
         // Pass token as command-line argument (more reliable than env vars)
         const command = hfToken 
-          ? `python3 "${pythonScript}" "${audioFilePath}" "${hfToken}"`
-          : `python3 "${pythonScript}" "${audioFilePath}"`;
+          ? `python3 "${pythonScript}" "${processedPath}" "${hfToken}"`
+          : `python3 "${pythonScript}" "${processedPath}"`;
         
         console.log(`📝 Executing: python3 voice_embedding.py "${audioFilePath}" ${hfToken ? '[token provided]' : '[no token]'}`);
         
@@ -70,7 +107,7 @@ async function generateVoiceEmbedding(audioFilePath) {
     
     // Fallback: Simplified embedding (for development/testing)
     console.log('⚠️  Using simplified embedding (install pyannote.audio for production)');
-    const audioStats = await getAudioStats(audioFilePath);
+    const audioStats = await getAudioStats(processedPath);
     const embedding = createEmbeddingFromStats(audioStats);
     
     return embedding;

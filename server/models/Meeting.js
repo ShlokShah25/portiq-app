@@ -73,7 +73,15 @@ const meetingSchema = new mongoose.Schema({
   originalActionItems: [{
     task: String,
     assignee: String,
-    dueDate: Date
+    dueDate: Date,
+    reviewReminderSent: {
+      type: Boolean,
+      default: false
+    },
+    reviewReminderSentAt: {
+      type: Date,
+      default: null
+    }
   }],
   originalDecisions: [{
     type: String
@@ -90,7 +98,15 @@ const meetingSchema = new mongoose.Schema({
   actionItems: [{
     task: String,
     assignee: String,
-    dueDate: Date
+    dueDate: Date,
+    reviewReminderSent: {
+      type: Boolean,
+      default: false
+    },
+    reviewReminderSentAt: {
+      type: Date,
+      default: null
+    }
   }],
   showOnKiosk: {
     type: Boolean,
@@ -125,7 +141,15 @@ const meetingSchema = new mongoose.Schema({
   pendingActionItems: [{
     task: String,
     assignee: String,
-    dueDate: Date
+    dueDate: Date,
+    reviewReminderSent: {
+      type: Boolean,
+      default: false
+    },
+    reviewReminderSentAt: {
+      type: Date,
+      default: null
+    }
   }],
   pendingDecisions: [{
     type: String

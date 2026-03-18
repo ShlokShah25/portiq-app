@@ -10,6 +10,11 @@ const configSchema = new mongoose.Schema({
     type: String, // Path to logo file
     default: null
   },
+  // Time of day (server local time) to send action-item review reminders, in "HH:MM" 24h format.
+  actionItemReminderTime: {
+    type: String,
+    default: '08:00'
+  },
   completedMeetingDisplayHours: {
     type: Number,
     default: 24, // Show completed meetings for 24 hours by default

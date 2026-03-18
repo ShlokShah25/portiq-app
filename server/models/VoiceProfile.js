@@ -23,7 +23,8 @@ const voiceProfileSchema = new mongoose.Schema({
   },
   standardSentence: {
     type: String,
-    default: 'Hello, my name is {name} and I am ready for the meeting.'
+    default:
+      'Hello, my name is {name}. This is my sample voice for PortIQ so the system can recognize me clearly in future meetings.'
   },
   createdAt: {
     type: Date,

@@ -127,6 +127,15 @@ mongoose.connect(mongoUri, mongoOptions)
   const Config = require('./models/Config');
   await Config.getConfig();
   console.log('✅ Configuration initialized');
+
+  // Start background cron jobs (e.g., action-item review reminders)
+  try {
+    const { startActionItemReminderCron } = require('./utils/actionItemReminders');
+    startActionItemReminderCron();
+    console.log('✅ Action-item reminder cron scheduled');
+  } catch (err) {
+    console.warn('⚠️  Failed to start action-item reminder cron:', err.message);
+  }
 })
 .catch((error) => {
   console.error('❌ MongoDB connection error:', error);

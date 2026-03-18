@@ -46,7 +46,8 @@ const Config = () => {
     try {
       await axios.put('/config', {
         companyName: config.companyName,
-        completedMeetingDisplayHours: config.completedMeetingDisplayHours
+        completedMeetingDisplayHours: config.completedMeetingDisplayHours,
+        actionItemReminderTime: config.actionItemReminderTime,
       });
       setMessage('Configuration saved successfully!');
       setTimeout(() => setMessage(''), 3000);
@@ -137,7 +138,7 @@ const Config = () => {
             </div>
 
             <div className="card">
-              <h2>Meeting Display Settings</h2>
+              <h2>Meeting & Reminder Settings</h2>
               <div className="form-group">
                 <label>Completed Meeting Display Duration (Hours)</label>
                 <input
@@ -150,6 +151,22 @@ const Config = () => {
                 <small style={{ color: '#666', marginTop: '5px', display: 'block' }}>
                   How long completed meetings should remain visible on the kiosk (0 = hide immediately, max 168 hours = 1 week).
                   All meetings are permanently stored in the admin panel regardless of this setting.
+                </small>
+              </div>
+              <div className="form-group">
+                <label>Action-Item Reminder Time (HH:MM, 24-hour)</label>
+                <input
+                  type="time"
+                  value={config.actionItemReminderTime || '08:00'}
+                  onChange={(e) =>
+                    setConfig({
+                      ...config,
+                      actionItemReminderTime: e.target.value || '08:00',
+                    })
+                  }
+                />
+                <small style={{ color: '#666', marginTop: '5px', display: 'block' }}>
+                  Time of day (server local time) when AI-based action-item review reminders should be emailed.
                 </small>
               </div>
               <button className="btn btn-primary" onClick={handleSave} disabled={saving}>

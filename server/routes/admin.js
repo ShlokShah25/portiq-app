@@ -381,7 +381,9 @@ router.post('/meetings/:id/retry-transcription', authenticateAdmin, requireSubsc
         meeting.actionItems = (summaryData.actionItems || []).map((item) => ({
           task: item.task || '',
           assignee: item.assignee || '',
-          dueDate: safeParseDate(item.dueDate)
+          dueDate: safeParseDate(item.dueDate),
+          reviewReminderSent: false,
+          reviewReminderSentAt: null
         }));
         meeting.decisions = summaryData.decisions || [];
         meeting.nextSteps = summaryData.nextSteps || [];
@@ -393,7 +395,9 @@ router.post('/meetings/:id/retry-transcription', authenticateAdmin, requireSubsc
         meeting.originalActionItems = (summaryData.actionItems || []).map((item) => ({
           task: item.task || '',
           assignee: item.assignee || '',
-          dueDate: safeParseDate(item.dueDate)
+          dueDate: safeParseDate(item.dueDate),
+          reviewReminderSent: false,
+          reviewReminderSentAt: null
         }));
         meeting.originalDecisions = summaryData.decisions || [];
         meeting.originalNextSteps = summaryData.nextSteps || [];
@@ -405,7 +409,9 @@ router.post('/meetings/:id/retry-transcription', authenticateAdmin, requireSubsc
         meeting.pendingActionItems = (summaryData.actionItems || []).map((item) => ({
           task: item.task || '',
           assignee: item.assignee || '',
-          dueDate: safeParseDate(item.dueDate)
+          dueDate: safeParseDate(item.dueDate),
+          reviewReminderSent: false,
+          reviewReminderSentAt: null
         }));
         meeting.pendingDecisions = summaryData.decisions || [];
         meeting.pendingNextSteps = summaryData.nextSteps || [];

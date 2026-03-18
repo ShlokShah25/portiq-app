@@ -38,6 +38,22 @@ router.put('/', authenticateAdmin, async (req, res) => {
         accentColor: req.body.alwaysOnDisplay.accentColor || config.alwaysOnDisplay?.accentColor || '#4fc3f7'
       };
     }
+    if (req.body.actionItemReminderTime !== undefined) {
+      const raw = String(req.body.actionItemReminderTime || '').trim();
+      // Basic HH:MM validation
+      const match = raw.match(/^(\d{1,2}):(\d{2})$/);
+      if (match) {
+        let h = parseInt(match[1], 10);
+        let m = parseInt(match[2], 10);
+        if (Number.isNaN(h) || Number.isNaN(m) || h < 0 || h > 23 || m < 0 || m > 59) {
+          return res.status(400).json({ error: 'Invalid actionItemReminderTime. Use HH:MM (24h).' });
+        }
+        // Normalize to zero-padded HH:MM
+        config.actionItemReminderTime = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+      } else {
+        return res.status(400).json({ error: 'Invalid actionItemReminderTime. Use HH:MM (24h).' });
+      }
+    }
     if (req.body.pageCustomization !== undefined) {
       config.pageCustomization = req.body.pageCustomization;
     }

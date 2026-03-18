@@ -205,7 +205,7 @@ const Participants = () => {
       formData.append('participants', JSON.stringify(participantList));
       formData.append(
         'standardSentence',
-        'Hello, my name is [Your Name] and I am ready for the meeting.'
+        'Hello, my name is [Your Name]. This is my sample voice for PortIQ so the system can recognize me clearly in future meetings.'
       );
 
       if (targetParticipant && targetParticipant.email) {
@@ -341,7 +341,7 @@ const Participants = () => {
           <div className="voice-guide-card">
             <h2>Voice configuration guide</h2>
             <p>
-              Configure a short voice sample for each participant so the AI can
+              Configure a clear voice sample for each participant so the AI can
               attribute speech correctly during the meeting.
             </p>
             <ol>
@@ -349,12 +349,23 @@ const Participants = () => {
               <li>
                 Ask them to clearly say:{' '}
                 <em>
-                  “Hello, my name is {'{Your name}'} and I am ready for the
-                  meeting.”
+                  “Hello, my name is {'{Your name}'}. This is my sample voice for
+                  PortIQ so the system can recognize me clearly in future meetings.”
                 </em>
               </li>
               <li>Wait for the upload to finish. The status will change to “Voice configured”.</li>
             </ol>
+            <p
+              style={{
+                marginTop: '8px',
+                fontSize: '12px',
+                color: 'rgba(148, 163, 184, 0.95)',
+                fontStyle: 'italic',
+              }}
+            >
+              Voice recognition is AI-assisted and may not be 100% accurate at all times.
+              Please review meeting summaries and speaker attributions before sharing.
+            </p>
           </div>
 
           {participants.length === 0 ? (
@@ -374,7 +385,7 @@ const Participants = () => {
             <div className="participants-grid">
               {participants.map((p, idx) => {
                 const participantName = p.name || p.email || 'This participant';
-                const standardSentence = `Hello, my name is ${participantName} and I am ready for the meeting.`;
+                const standardSentence = `Hello, my name is ${participantName}. This is my sample voice for PortIQ so the system can recognize me clearly in future meetings.`;
                 return (
                 <div key={idx} className="participant-card">
                   <div className="participant-avatar">

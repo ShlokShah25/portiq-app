@@ -401,7 +401,9 @@ router.post('/:id/end', upload.single('audio'), async (req, res) => {
           const safeActionItems = (summaryData.actionItems || []).map((item) => ({
             task: item.task || '',
             assignee: item.assignee || '',
-            dueDate: safeParseDate(item.dueDate)
+            dueDate: safeParseDate(item.dueDate),
+            reviewReminderSent: false,
+            reviewReminderSentAt: null
           }));
 
           const update = {
@@ -737,7 +739,9 @@ router.put('/:id/pending-summary', async (req, res) => {
       meeting.pendingActionItems = (actionItems || []).map((item) => ({
         task: item.task || '',
         assignee: item.assignee || '',
-        dueDate: safeParseDate(item.dueDate)
+        dueDate: safeParseDate(item.dueDate),
+        reviewReminderSent: item.reviewReminderSent || false,
+        reviewReminderSentAt: item.reviewReminderSentAt ? safeParseDate(item.reviewReminderSentAt) : null
       }));
     }
     if (decisions !== undefined) meeting.pendingDecisions = decisions;
