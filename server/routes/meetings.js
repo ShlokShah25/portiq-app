@@ -7,6 +7,7 @@ const { getPlanConstraints } = require('../utils/planConstraints');
 const jwt = require('jsonwebtoken');
 const Admin = require('../models/Admin');
 const { generateVoiceEmbedding } = require('../utils/voiceRecognition');
+const { sendEmail, isEmailConfigured, getDefaultFrom } = require('../utils/emailService');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -778,6 +779,10 @@ router.patch('/:id/action-items/:actionItemId', async (req, res) => {
 
     const actionItemId = req.params.actionItemId;
     let updated = false;
+    let transitionedToDone = false;
+    let completedTaskText = '';
+    let completedAssignee = '';
+    let completedDueDate = null;
 
     // Update in pendingActionItems if present; else update in actionItems.
     const arraysToTry = (meeting.pendingActionItems && meeting.pendingActionItems.length > 0)
@@ -788,8 +793,15 @@ router.patch('/:id/action-items/:actionItemId', async (req, res) => {
       const arr = meeting[key] || [];
       const item = arr.id(actionItemId);
       if (item) {
+        const prev = item.status || 'not_started';
         item.status = status;
         updated = true;
+        if (prev !== 'done' && status === 'done') {
+          transitionedToDone = true;
+          completedTaskText = item.task || '';
+          completedAssignee = item.assignee || '';
+          completedDueDate = item.dueDate ? new Date(item.dueDate) : null;
+        }
       }
     }
 
@@ -798,6 +810,58 @@ router.patch('/:id/action-items/:actionItemId', async (req, res) => {
     }
 
     await meeting.save();
+
+    // If a task was marked done, notify all participants (best-effort).
+    if (transitionedToDone && isEmailConfigured()) {
+      const base =
+        process.env.MEETING_SUMMARY_BASE_URL ||
+        process.env.CLIENT_BASE_URL ||
+        'https://meetingassistant.portiqtechnologies.com';
+      const summaryUrl = `${String(base).replace(/\/+$/, '')}/meetings/${meeting._id}/summary`;
+
+      const to = (meeting.participants || [])
+        .map(p => p?.email)
+        .filter(e => typeof e === 'string' && /\S+@\S+\.\S+/.test(e))
+        .map(e => e.trim());
+
+      if (to.length > 0) {
+        const by = admin?.username ? String(admin.username) : 'a team member';
+        const dueText =
+          completedDueDate && !Number.isNaN(completedDueDate.getTime())
+            ? completedDueDate.toLocaleDateString()
+            : null;
+
+        const subject = `Completed: ${completedTaskText || 'Action item'} – ${meeting.title}`;
+        const html = `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; color: #111827; line-height: 1.6;">
+            <p>Hello,</p>
+            <p>
+              An action item from <strong>${meeting.title}</strong> was marked as completed by <strong>${by}</strong>.
+            </p>
+            <p>
+              <strong>Task:</strong><br/>
+              ${completedTaskText || '—'}
+            </p>
+            ${completedAssignee ? `<p><strong>Assignee:</strong> ${completedAssignee}</p>` : ''}
+            ${dueText ? `<p><strong>Due date:</strong> ${dueText}</p>` : ''}
+            <p>
+              View the meeting summary and all action items here:<br/>
+              <a href="${summaryUrl}" target="_blank" rel="noopener noreferrer">${summaryUrl}</a>
+            </p>
+            <p style="margin-top: 16px; font-size: 12px; color: #6b7280;">
+              – PortIQ Meeting Assistant
+            </p>
+          </div>
+        `;
+
+        try {
+          await sendEmail({ from: getDefaultFrom(), to, subject, html });
+        } catch (err) {
+          console.warn('⚠️  Failed to send action-item completion email:', err.message);
+        }
+      }
+    }
+
     res.json({ success: true, meeting });
   } catch (error) {
     console.error('Error updating action item status:', error);

@@ -92,6 +92,7 @@ async function startActionItemReminderCron() {
 
         for (const actionItem of meeting.actionItems || []) {
           if (!actionItem || !actionItem.dueDate) continue;
+          if (actionItem.status === 'done') continue;
 
           const dueDate = new Date(actionItem.dueDate);
           if (Number.isNaN(dueDate.getTime())) continue;
