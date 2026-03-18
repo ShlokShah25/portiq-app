@@ -5,6 +5,75 @@ import TopNav from './TopNav';
 import { T } from '../config/terminology';
 import './MeetingDetail.css';
 
+function toGoogleDateTimeUtc(d) {
+  // YYYYMMDDTHHMMSSZ
+  const iso = new Date(d).toISOString(); // always UTC
+  return iso.replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+}
+
+function buildGoogleCalendarUrlTimed({ title, details, location, startDate, endDate }) {
+  if (!startDate || !endDate) return null;
+  const start = toGoogleDateTimeUtc(startDate);
+  const end = toGoogleDateTimeUtc(endDate);
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: title || 'Meeting',
+    details: details || '',
+    location: location || '',
+    dates: `${start}/${end}`,
+  });
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
+function buildOutlookCalendarUrlTimed({ title, details, location, startDate, endDate }) {
+  if (!startDate || !endDate) return null;
+  const startdt = new Date(startDate).toISOString();
+  const enddt = new Date(endDate).toISOString();
+  const params = new URLSearchParams({
+    path: '/calendar/action/compose',
+    subject: title || 'Meeting',
+    body: details || '',
+    location: location || '',
+    startdt,
+    enddt,
+  });
+  return `https://outlook.office.com/calendar/0/deeplink/compose?${params.toString()}`;
+}
+
+function buildMeetingIcs({ title, description, location, startDate, endDate }) {
+  if (!startDate || !endDate) return null;
+  const uid = `${Date.now()}-${Math.random().toString(16).slice(2)}@portiq`;
+  const dtStamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+  const toUtc = (d) => new Date(d).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+
+  const esc = (s) =>
+    String(s || '')
+      .replace(/\\/g, '\\\\')
+      .replace(/\n/g, '\\n')
+      .replace(/,/g, '\\,')
+      .replace(/;/g, '\\;');
+
+  return [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//PortIQ//Meeting Assistant//EN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    `UID:${uid}`,
+    `DTSTAMP:${dtStamp}`,
+    `DTSTART:${toUtc(startDate)}`,
+    `DTEND:${toUtc(endDate)}`,
+    `SUMMARY:${esc(title || 'Meeting')}`,
+    location ? `LOCATION:${esc(location)}` : null,
+    description ? `DESCRIPTION:${esc(description)}` : null,
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ]
+    .filter(Boolean)
+    .join('\r\n');
+}
+
 const MeetingDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -89,6 +158,61 @@ const MeetingDetail = () => {
   const hasSummary = meeting.transcriptionStatus === 'Completed' && (meeting.summary || meeting.pendingSummary);
   const pendingApproval = meeting.summaryStatus === 'Pending Approval' && hasSummary;
 
+  const meetingStart = meeting.scheduledTime || meeting.startTime;
+  const scheduledStartDate = meetingStart ? new Date(meetingStart) : null;
+  const scheduledEndDate =
+    scheduledStartDate && !Number.isNaN(scheduledStartDate.getTime())
+      ? new Date(scheduledStartDate.getTime() + 60 * 60 * 1000) // default 60min calendar block
+      : null;
+
+  const participantLines = (meeting.participants || [])
+    .map((p) => (p?.email ? `${p.name || p.email} (${p.email})` : (p?.name || '')))
+    .filter(Boolean);
+
+  const calendarDetails = [
+    meeting.organizer ? `Organizer: ${meeting.organizer}` : null,
+    participantLines.length ? `Participants:\n${participantLines.map((x) => `- ${x}`).join('\n')}` : null,
+    'Created via PortIQ Meeting Assistant.',
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+
+  const calendarTitle = meeting.title || 'Meeting';
+  const calendarLocation = meeting.meetingRoom || '';
+
+  const gcalUrl =
+    scheduledStartDate && scheduledEndDate
+      ? buildGoogleCalendarUrlTimed({
+          title: calendarTitle,
+          details: calendarDetails,
+          location: calendarLocation,
+          startDate: scheduledStartDate,
+          endDate: scheduledEndDate,
+        })
+      : null;
+
+  const outlookUrl =
+    scheduledStartDate && scheduledEndDate
+      ? buildOutlookCalendarUrlTimed({
+          title: calendarTitle,
+          details: calendarDetails,
+          location: calendarLocation,
+          startDate: scheduledStartDate,
+          endDate: scheduledEndDate,
+        })
+      : null;
+
+  const meetingIcs =
+    scheduledStartDate && scheduledEndDate
+      ? buildMeetingIcs({
+          title: calendarTitle,
+          description: calendarDetails,
+          location: calendarLocation,
+          startDate: scheduledStartDate,
+          endDate: scheduledEndDate,
+        })
+      : null;
+
   return (
     <div className="meeting-detail-screen">
       <TopNav />
@@ -126,6 +250,55 @@ const MeetingDetail = () => {
               <button type="button" className="meeting-detail-btn meeting-detail-btn--primary" onClick={handleStartMeeting}>
                 {T.startMeeting()}
               </button>
+            )}
+            {isScheduled && meeting.scheduledTime && (
+              <div className="meeting-detail-calendar-actions">
+                {gcalUrl && (
+                  <a
+                    className="meeting-detail-btn meeting-detail-btn--secondary"
+                    href={gcalUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Add to Google Calendar"
+                  >
+                    Add to Google Calendar
+                  </a>
+                )}
+                {outlookUrl && (
+                  <a
+                    className="meeting-detail-btn meeting-detail-btn--secondary"
+                    href={outlookUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Add to Outlook Calendar"
+                  >
+                    Add to Outlook
+                  </a>
+                )}
+                {meetingIcs && (
+                  <button
+                    type="button"
+                    className="meeting-detail-btn meeting-detail-btn--secondary"
+                    onClick={() => {
+                      const blob = new Blob([meetingIcs], { type: 'text/calendar;charset=utf-8' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `meeting-${(calendarTitle || 'meeting')
+                        .slice(0, 40)
+                        .replace(/[^a-z0-9]+/gi, '-')
+                        .toLowerCase()}.ics`;
+                      document.body.appendChild(a);
+                      a.click();
+                      a.remove();
+                      URL.revokeObjectURL(url);
+                    }}
+                    title="Download .ics"
+                  >
+                    Download .ics
+                  </button>
+                )}
+              </div>
             )}
             {isInProgress && (
               <button
