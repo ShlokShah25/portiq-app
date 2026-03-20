@@ -17,6 +17,7 @@ const MeetingsScreen = ({ config }) => {
   const [uploading, setUploading] = useState(false);
   const [polling, setPolling] = useState(false);
   const [recording, setRecording] = useState(false);
+  const [rightTab, setRightTab] = useState('scheduled'); // 'scheduled' | 'recent'
 
   const mediaRecorderRef = useRef(null);
 
@@ -476,6 +477,23 @@ const MeetingsScreen = ({ config }) => {
   };
 
   const companyName = config?.companyName || 'Your Company';
+
+  const scheduledMeetings = (meetings || [])
+    .filter(m => m && m.status === 'Scheduled')
+    .slice()
+    .sort((a, b) => {
+      const da = a.scheduledTime ? new Date(a.scheduledTime).getTime() : 0;
+      const db = b.scheduledTime ? new Date(b.scheduledTime).getTime() : 0;
+      return da - db;
+    });
+
+  const recentMeetings = (meetings || [])
+    .slice()
+    .sort((a, b) => {
+      const da = new Date(a.updatedAt || a.createdAt || a.startTime || a.scheduledTime || 0).getTime();
+      const db = new Date(b.updatedAt || b.createdAt || b.startTime || b.scheduledTime || 0).getTime();
+      return db - da;
+    });
 
   const getMeetingDurationLabel = (meeting) => {
     if (!meeting || !meeting.startTime || !meeting.endTime) return '';
@@ -1944,49 +1962,127 @@ const MeetingsScreen = ({ config }) => {
           <div className="meetings-right">
             <div className="card">
                   <div className="card-header">
-                    <h2>Recent {T.meetings()}</h2>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+                      <h2 style={{ margin: 0 }}>{T.meetings()}</h2>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          style={{
+                            padding: '8px 12px',
+                            borderRadius: '10px',
+                            opacity: rightTab === 'scheduled' ? 1 : 0.75,
+                            borderColor: rightTab === 'scheduled' ? '#2563eb' : undefined,
+                          }}
+                          onClick={() => setRightTab('scheduled')}
+                        >
+                          Scheduled
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          style={{
+                            padding: '8px 12px',
+                            borderRadius: '10px',
+                            opacity: rightTab === 'recent' ? 1 : 0.75,
+                            borderColor: rightTab === 'recent' ? '#2563eb' : undefined,
+                          }}
+                          onClick={() => setRightTab('recent')}
+                        >
+                          Recent
+                        </button>
+                      </div>
+                    </div>
               </div>
               <div className="meetings-list">
-                {(meetings || []).length === 0 && (
-                  <p className="info-text">No meetings created yet.</p>
+                {rightTab === 'scheduled' && (
+                  <>
+                    {scheduledMeetings.length === 0 ? (
+                      <p className="info-text">No scheduled meetings.</p>
+                    ) : (
+                      scheduledMeetings.map(m => (
+                        <div
+                          key={m._id}
+                          className="meeting-item"
+                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}
+                        >
+                          <div
+                            onClick={() => navigate(`/meetings/${m._id}`)}
+                            role="button"
+                            tabIndex={0}
+                            style={{ flex: 1, minWidth: 0 }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                navigate(`/meetings/${m._id}`);
+                              }
+                            }}
+                          >
+                            <div className="meeting-title" style={{ marginBottom: '4px' }}>{m.title}</div>
+                            <div className="meeting-meta">
+                              <span>{m.meetingRoom || 'No location'}</span>
+                              <span>{m.scheduledTime ? new Date(m.scheduledTime).toLocaleString() : 'No time set'}</span>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            style={{ padding: '8px 12px', borderRadius: '10px', flexShrink: 0 }}
+                            onClick={() => navigate(`/meetings/${m._id}/room`)}
+                            title="Start meeting"
+                          >
+                            Start
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </>
                 )}
-                {(meetings || []).map(m => (
-                  <div
-                    key={m._id}
-                    className={`meeting-item ${selectedMeeting && selectedMeeting._id === m._id ? 'active' : ''} ${m.summaryStatus === 'Pending Approval' && m.transcriptionStatus === 'Completed' ? 'needs-approval' : ''}`}
-                    onClick={() => navigate(`/meetings/${m._id}`)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/meetings/${m._id}`); } }}
-                  >
-                    <div className="meeting-title">
-                      {m.title}
-                      {m.summaryStatus === 'Pending Approval' && m.transcriptionStatus === 'Completed' && (
-                        <span className="approval-badge" style={{
-                          display: 'inline-block',
-                          marginLeft: '8px',
-                          padding: '2px 8px',
-                          background: '#2563eb',
-                          color: 'white',
-                          borderRadius: '12px',
-                          fontSize: '11px',
-                          fontWeight: '600'
-                        }}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '4px' }}>
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <line x1="12" y1="8" x2="12" y2="12"></line>
-                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                          </svg>
-                          Needs Approval
-                        </span>
-                      )}
-                    </div>
-                    <div className="meeting-meta">
-                      <span>{m.meetingRoom || 'No location'}</span>
-                      <span>{m.status}</span>
-                    </div>
-                  </div>
-                ))}
+
+                {rightTab === 'recent' && (
+                  <>
+                    {recentMeetings.length === 0 && (
+                      <p className="info-text">No meetings created yet.</p>
+                    )}
+                    {recentMeetings.map(m => (
+                      <div
+                        key={m._id}
+                        className={`meeting-item ${selectedMeeting && selectedMeeting._id === m._id ? 'active' : ''} ${m.summaryStatus === 'Pending Approval' && m.transcriptionStatus === 'Completed' ? 'needs-approval' : ''}`}
+                        onClick={() => navigate(`/meetings/${m._id}`)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/meetings/${m._id}`); } }}
+                      >
+                        <div className="meeting-title">
+                          {m.title}
+                          {m.summaryStatus === 'Pending Approval' && m.transcriptionStatus === 'Completed' && (
+                            <span className="approval-badge" style={{
+                              display: 'inline-block',
+                              marginLeft: '8px',
+                              padding: '2px 8px',
+                              background: '#2563eb',
+                              color: 'white',
+                              borderRadius: '12px',
+                              fontSize: '11px',
+                              fontWeight: '600'
+                            }}>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '4px' }}>
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="8" x2="12" y2="12"></line>
+                                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                              </svg>
+                              Needs Approval
+                            </span>
+                          )}
+                        </div>
+                        <div className="meeting-meta">
+                          <span>{m.meetingRoom || 'No location'}</span>
+                          <span>{m.status}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
               </div>
             </div>
           </div>

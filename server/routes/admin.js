@@ -33,18 +33,20 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // No dashboard access without an active subscription (except legacy 'admin' for support).
-    // Treat both false and undefined as no subscription.
+    const isMatch = await admin.comparePassword(password);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // After password is verified: gate dashboard access by subscription (except legacy 'admin').
+    // Checking subscription *after* password avoids the confusing case where a correct new password
+    // still returns 403 and feels like "login/password is broken".
     if (!admin.hasActiveSubscription && admin.username !== 'admin') {
       return res.status(403).json({
         error:
           'No active subscription. Please purchase a plan from the website to access the dashboard.',
+        code: 'NO_SUBSCRIPTION',
       });
-    }
-
-    const isMatch = await admin.comparePassword(password);
-    if (!isMatch) {
-      return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     admin.lastLogin = new Date();

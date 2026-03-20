@@ -270,8 +270,8 @@
 .meeting-action-item {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 18px 18px;
+  gap: 12px;
+  padding: 24px 24px;
   border: 1px solid #1f2937;
   border-radius: 12px;
   background: rgba(17, 17, 17, 0.6);
@@ -285,6 +285,7 @@
 
 .meeting-action-item-title {
   color: #e5e7eb;
+  line-height: 1.35;
 }
 
 .meeting-action-item-meta {
@@ -328,6 +329,7 @@
   flex-wrap: wrap;
   gap: 10px;
   align-items: center;
+  margin-top: 2px;
 }
 
 .meeting-action-status-select {
