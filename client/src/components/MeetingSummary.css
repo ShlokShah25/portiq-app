@@ -286,12 +286,12 @@
 .meeting-action-item {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 18px;
-  padding: 26px 24px 28px;
+  gap: 12px;
+  padding: 14px 16px 14px 22px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   background: rgba(28, 28, 30, 0.72);
-  align-items: start;
+  align-items: center;
   box-sizing: border-box;
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
 }
@@ -333,53 +333,88 @@
   );
 }
 
-@media (min-width: 560px) {
+@media (min-width: 640px) {
   .meeting-action-item {
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 22px 32px;
-    padding: 28px 30px 30px;
+    gap: 12px 16px;
+    padding: 12px 18px 12px 24px;
+    align-items: center;
   }
 
   .meeting-action-item-actions {
     margin-top: 0;
     justify-self: end;
-    align-self: start;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-    min-width: 176px;
-    max-width: 260px;
+    align-self: center;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    min-width: 0;
+    max-width: none;
   }
 
   .meeting-action-link,
   .meeting-action-status-select {
-    width: 100%;
+    width: auto;
+    flex: 0 1 auto;
     justify-content: center;
     text-align: center;
     box-sizing: border-box;
+  }
+
+  .meeting-action-status-select {
+    min-width: 128px;
+    max-width: 200px;
   }
 }
 
 .meeting-action-item-main {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0;
   min-width: 0;
-  padding: 2px 6px 0 4px; /* keep title/meta off the tinted card edge */
+  padding: 2px 0 0;
+}
+
+/* Title + due on one line (wraps only when needed) */
+.meeting-action-item-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 12px;
+  row-gap: 4px;
+  min-width: 0;
 }
 
 .meeting-action-item-title {
   color: #e5e7eb;
-  line-height: 1.45;
+  line-height: 1.4;
   font-size: 15px;
   word-break: break-word;
+  min-width: 0;
 }
 
-.meeting-action-item-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
+.meeting-action-item-due-wrap {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+@media (max-width: 639px) {
+  .meeting-action-item-due-wrap {
+    white-space: normal;
+  }
+}
+
+.meeting-action-item-due {
+  margin-left: 0;
+}
+
+.meeting-action-item-due::before {
+  content: '·';
+  margin-right: 8px;
+  color: rgba(255, 255, 255, 0.25);
+  font-weight: 600;
 }
 
 .meeting-action-item-actions {
@@ -390,6 +425,33 @@
   margin-top: 0;
 }
 
+/* Narrow screens: keep controls on one row, scroll horizontally if needed */
+@media (max-width: 639px) {
+  .meeting-action-item {
+    padding: 12px 14px 12px 22px;
+  }
+
+  .meeting-action-item-actions {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
+    margin-right: -4px;
+    padding-right: 4px;
+    gap: 8px;
+  }
+
+  .meeting-action-link,
+  .meeting-action-status-select {
+    flex: 0 0 auto;
+  }
+
+  .meeting-action-status-select {
+    min-width: 118px;
+  }
+}
+
 .meeting-action-status-select {
   appearance: none;
   -webkit-appearance: none;
@@ -397,14 +459,14 @@
   background-color: #1c1c1e;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2398989d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 16px center;
+  background-position: right 12px center;
   border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 10px;
+  border-radius: 9px;
   color: #e5e5e5;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
-  padding: 12px 16px;
-  padding-right: 2.85rem;
+  padding: 8px 12px;
+  padding-right: 2.35rem;
   text-align: left;
   cursor: pointer;
 }
@@ -450,18 +512,19 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 4px;
   background: rgba(0, 0, 0, 0.15);
   border: 1px solid rgba(255, 255, 255, 0.12);
   color: #e5e7eb;
-  padding: 11px 14px;
-  min-height: 42px;
-  border-radius: 10px;
-  font-size: 13px;
+  padding: 8px 12px;
+  min-height: 34px;
+  border-radius: 9px;
+  font-size: 12px;
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
   box-sizing: border-box;
+  line-height: 1.2;
 }
 
 .meeting-action-item--not_started .meeting-action-link {

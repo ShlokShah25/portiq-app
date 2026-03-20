@@ -252,7 +252,9 @@ const MeetingSummary = () => {
             <button
               type="button"
               className="meeting-summary-btn meeting-summary-btn--secondary meeting-summary-btn--see-all"
-              onClick={() => navigate('/meetings')}
+              onClick={() =>
+                navigate('/meetings', { state: { showAllMeetings: true } })
+              }
             >
               See all meetings
             </button>
@@ -474,15 +476,19 @@ const MeetingSummary = () => {
                           data-action-status={statusClass}
                         >
                           <div className="meeting-action-item-main">
-                            <div className="meeting-action-item-title">
-                              <strong>{item.task}</strong>
-                              {item.assignee && <span> — {item.assignee}</span>}
+                            <div className="meeting-action-item-line">
+                              <span className="meeting-action-item-title">
+                                <strong>{item.task}</strong>
+                                {item.assignee && <span> — {item.assignee}</span>}
+                              </span>
+                              {dueText && (
+                                <span className="meeting-action-item-due-wrap">
+                                  <span className="meeting-summary-due meeting-action-item-due">
+                                    Due {dueText}
+                                  </span>
+                                </span>
+                              )}
                             </div>
-                            {dueText && (
-                              <div className="meeting-action-item-meta">
-                                <span className="meeting-summary-due">Due {dueText}</span>
-                              </div>
-                            )}
                           </div>
 
                           <div className="meeting-action-item-actions">

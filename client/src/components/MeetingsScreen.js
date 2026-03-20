@@ -151,6 +151,20 @@ const MeetingsScreen = ({ config }) => {
     };
   }, []);
 
+  // Open "All meetings" card gallery when linked from meeting summary (See all meetings)
+  useEffect(() => {
+    if (!location.state?.showAllMeetings) return;
+    setShowAllMeetings(true);
+    fetchMeetings();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const next = { ...(location.state || {}) };
+    delete next.showAllMeetings;
+    navigate(location.pathname, {
+      replace: true,
+      state: Object.keys(next).length ? next : undefined,
+    });
+  }, [location.state?.showAllMeetings]);
+
   // Auto-select meeting: from location state (e.g. "Review & send" from quick card) or first needing approval
   useEffect(() => {
     if (meetings.length === 0) return;
