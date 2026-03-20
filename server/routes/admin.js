@@ -151,6 +151,7 @@ router.put('/participant-book', authenticateAdmin, requireSubscription, async (r
     const normalized = list.map((p) => ({
       name: (p && p.name) ? String(p.name).trim() : '',
       email: (p && p.email) ? String(p.email).trim().toLowerCase() : '',
+      photo: (p && p.photo) ? String(p.photo).trim() : '',
     })).filter((p) => p.name || p.email);
     const admin = await Admin.findByIdAndUpdate(
       req.admin._id,

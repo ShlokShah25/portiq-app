@@ -11,7 +11,7 @@ const Participants = () => {
   const [participants, setParticipants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newParticipant, setNewParticipant] = useState({ name: '', email: '', remember: true });
+  const [newParticipant, setNewParticipant] = useState({ name: '', email: '', photo: '', remember: true });
   const [maxInBook, setMaxInBook] = useState(null); // null = unlimited or unknown
 
   // Voice configuration state
@@ -127,6 +127,7 @@ const Participants = () => {
     const updated = [...participants, { 
       name: newParticipant.name.trim(), 
       email: newParticipant.email.trim().toLowerCase(),
+      photo: newParticipant.photo || '',
       remember: newParticipant.remember
     }];
     
@@ -139,8 +140,30 @@ const Participants = () => {
       alert(isLimitError ? "You've reached your plan limit. Please upgrade to add more." : (msg || 'Failed to save. Try again.'));
       return;
     }
-    setNewParticipant({ name: '', email: '', remember: true });
+    setNewParticipant({ name: '', email: '', photo: '', remember: true });
     setShowAddForm(false);
+  };
+
+  const handlePhotoChange = (file) => {
+    if (!file) {
+      setNewParticipant((prev) => ({ ...prev, photo: '' }));
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file.');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      alert('Image size must be under 2MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === 'string' ? reader.result : '';
+      setNewParticipant((prev) => ({ ...prev, photo: result }));
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleDeleteParticipant = async (index) => {
@@ -383,6 +406,20 @@ const Participants = () => {
                   />
                 </div>
                 <div className="form-group">
+                  <label>Photograph (optional)</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handlePhotoChange(e.target.files && e.target.files[0])}
+                    className="form-input"
+                  />
+                  {newParticipant.photo && (
+                    <div className="participant-photo-preview-wrap">
+                      <img src={newParticipant.photo} alt="Preview" className="participant-photo-preview" />
+                    </div>
+                  )}
+                </div>
+                <div className="form-group">
                   <label className="checkbox-label">
                     <input
                       type="checkbox"
@@ -452,7 +489,11 @@ const Participants = () => {
                 return (
                 <div key={idx} className="participant-card">
                   <div className="participant-avatar">
-                    {(p.name || p.email || '?').charAt(0).toUpperCase()}
+                    {p.photo ? (
+                      <img src={p.photo} alt={p.name || 'Participant'} className="participant-avatar-image" />
+                    ) : (
+                      (p.name || p.email || '?').charAt(0).toUpperCase()
+                    )}
                   </div>
                   <div className="participant-info">
                     <div className="participant-name">{p.name || 'Unnamed'}</div>

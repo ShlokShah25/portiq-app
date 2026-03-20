@@ -601,7 +601,7 @@ const MeetingsScreen = ({ config }) => {
       if (prev.find(p => p.email && p.email.toLowerCase() === saved.email.toLowerCase())) {
         return prev;
       }
-      return [...prev, { name: saved.name, email: saved.email, remember: false }];
+      return [...prev, { name: saved.name, email: saved.email, photo: saved.photo || '', remember: false }];
     });
   };
 
@@ -792,6 +792,17 @@ const MeetingsScreen = ({ config }) => {
                                   }}
                                 >
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+                                    <div className="saved-participant-avatar">
+                                      {sp.photo ? (
+                                        <img
+                                          src={sp.photo}
+                                          alt={sp.name || sp.email || 'Participant'}
+                                          className="saved-participant-avatar-image"
+                                        />
+                                      ) : (
+                                        (sp.name || sp.email || '?').charAt(0).toUpperCase()
+                                      )}
+                                    </div>
                                     <div>
                                       <div className="saved-participant-name">{sp.name || sp.email}</div>
                                       {sp.email && <div className="saved-participant-email">{sp.email}</div>}
