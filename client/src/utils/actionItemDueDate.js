@@ -119,8 +119,73 @@ export function parseDueDateFromText(text, referenceDate) {
   return null;
 }
 
+function tokenizeWords(s) {
+  return String(s || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length > 1);
+}
+
+function wordOverlapCount(taskTokens, text) {
+  if (!taskTokens.length) return 0;
+  const set = new Set(taskTokens);
+  const words = tokenizeWords(text);
+  let n = 0;
+  for (const w of words) {
+    if (set.has(w)) n += 1;
+  }
+  return n;
+}
+
+function splitSummaryLines(summary) {
+  const t = String(summary || '').trim();
+  if (!t) return [];
+  const out = [];
+  try {
+    for (const para of t.split(/\n+/)) {
+      const sentences = para.split(/(?<=[.!?])\s+/);
+      for (const s of sentences) {
+        const x = s.trim();
+        if (x.length >= 4) out.push(x);
+      }
+    }
+  } catch (_) {
+    // Fallback if lookbehind unsupported
+    return t.split(/\n+/).map((l) => l.trim()).filter(Boolean);
+  }
+  return out;
+}
+
+function inferDueDateFromContext(item, ref, keyPoints, summary, nextSteps) {
+  const assignee = (item.assignee || '').trim().toLowerCase();
+  const task = (item.task || '').trim();
+  const taskTokens = tokenizeWords(task);
+
+  const lines = [
+    ...(Array.isArray(keyPoints) ? keyPoints : []).map((l) => String(l)),
+    ...splitSummaryLines(summary),
+    ...(Array.isArray(nextSteps) ? nextSteps : []).map((l) => String(l)),
+  ];
+
+  for (const line of lines) {
+    if (!line || line.length < 4) continue;
+    const d = parseDueDateFromText(line, ref);
+    if (!d || Number.isNaN(d.getTime())) continue;
+    const low = line.toLowerCase();
+    if (assignee && assignee.length >= 2 && low.includes(assignee)) {
+      return d;
+    }
+    if (taskTokens.length && wordOverlapCount(taskTokens, line) >= 2) {
+      return d;
+    }
+  }
+
+  return null;
+}
+
 /**
- * Prefer stored dueDate; otherwise parse from task/notes using meeting time as reference.
+ * Prefer stored dueDate; otherwise parse from task/notes; then key points + summary + next steps (same as server).
  */
 export function getEffectiveDueDate(item, meeting) {
   if (!item) return null;
@@ -130,6 +195,21 @@ export function getEffectiveDueDate(item, meeting) {
   }
   const refRaw = meeting?.endTime || meeting?.scheduledTime || meeting?.startTime;
   const refDate = refRaw ? new Date(refRaw) : new Date();
-  const blob = [item.task, item.notes].filter(Boolean).join(' ');
-  return parseDueDateFromText(blob, refDate);
+
+  const blob = [item.task, item.notes, item.assignee].filter(Boolean).join(' ');
+  let inferred = parseDueDateFromText(blob, refDate);
+  if (inferred) return inferred;
+
+  const keyPoints =
+    meeting?.pendingKeyPoints?.length ? meeting.pendingKeyPoints : meeting?.keyPoints;
+  const summary = meeting?.pendingSummary || meeting?.summary;
+  const nextSteps =
+    meeting?.pendingNextSteps?.length ? meeting.pendingNextSteps : meeting?.nextSteps;
+
+  inferred = inferDueDateFromContext(item, refDate, keyPoints || [], summary || '', nextSteps || []);
+  if (inferred) return inferred;
+
+  // Single-date fallback is applied only on the server when exactly one action item lacks a due date (avoids wrong dates for multiple open items).
+
+  return null;
 }

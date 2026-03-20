@@ -12,9 +12,8 @@ function looksLikeEmail(value) {
 
 /**
  * Start cron job that sends review reminders for action items.
- * For each completed meeting, if an action item has a due date and that due
- * date is 2 days after the meeting end time, send a reminder 1 day before
- * the due date (i.e., roughly 1 day after the meeting) based on the AI summary.
+ * For each completed meeting, if an action item has a due date and is not done,
+ * send a reminder on the day before the due date (at the configured local time).
  */
 function getReminderCronExpressionFromConfig(config) {
   const time = (config && config.actionItemReminderTime) || '08:00';
@@ -99,17 +98,7 @@ async function startActionItemReminderCron() {
           const dueDate = new Date(actionItem.dueDate);
           if (Number.isNaN(dueDate.getTime())) continue;
 
-          const meetingEnd = new Date(meeting.endTime);
-          if (Number.isNaN(meetingEnd.getTime())) continue;
-
-          const msDiffFromMeeting = dueDate.getTime() - meetingEnd.getTime();
-          const daysFromMeeting = msDiffFromMeeting / (1000 * 60 * 60 * 24);
-
-          // Focus on tasks that are due approximately 2 days after the meeting
-          if (daysFromMeeting < 1.5 || daysFromMeeting > 2.5) {
-            continue;
-          }
-
+          // Remind on the calendar day before the due date (works with AI-inferred due dates from key points/summary)
           const reminderDate = new Date(dueDate.getTime() - 24 * 60 * 60 * 1000);
           if (reminderDate < startOfToday || reminderDate >= endOfToday) {
             continue;

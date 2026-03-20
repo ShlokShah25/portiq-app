@@ -129,12 +129,108 @@ function parseDueDateFromText(text, referenceDate) {
   return null;
 }
 
+function dateCalendarKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function tokenizeWords(s) {
+  return String(s || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length > 1);
+}
+
+function wordOverlapCount(taskTokens, text) {
+  if (!taskTokens.length) return 0;
+  const set = new Set(taskTokens);
+  const words = tokenizeWords(text);
+  let n = 0;
+  for (const w of words) {
+    if (set.has(w)) n += 1;
+  }
+  return n;
+}
+
+/**
+ * Collect unique calendar dates mentioned anywhere in key points / summary (one line at a time).
+ */
+function extractAllMentionedDates(keyPoints, summary, nextSteps, ref) {
+  const byKey = new Map();
+  const lines = [
+    ...(Array.isArray(keyPoints) ? keyPoints : []),
+    ...(Array.isArray(nextSteps) ? nextSteps : []),
+    ...String(summary || '')
+      .split(/\n+/)
+      .map((l) => l.trim())
+      .filter(Boolean),
+  ];
+  for (const line of lines) {
+    const d = parseDueDateFromText(line, ref);
+    if (d && !Number.isNaN(d.getTime())) {
+      byKey.set(dateCalendarKey(d), d);
+    }
+  }
+  return [...byKey.values()];
+}
+
+/**
+ * When the task line omits a date but a key point / summary line mentions it (same assignee or topic overlap).
+ */
+function splitSummaryLines(summary) {
+  const t = String(summary || '').trim();
+  if (!t) return [];
+  const out = [];
+  for (const para of t.split(/\n+/)) {
+    const sentences = para.split(/(?<=[.!?])\s+/);
+    for (const s of sentences) {
+      const x = s.trim();
+      if (x.length >= 4) out.push(x);
+    }
+  }
+  return out;
+}
+
+function inferDueDateFromContext(item, ref, keyPoints, summary, nextSteps) {
+  const assignee = (item.assignee || '').trim().toLowerCase();
+  const task = (item.task || '').trim();
+  const taskTokens = tokenizeWords(task);
+
+  const lines = [
+    ...(Array.isArray(keyPoints) ? keyPoints : []).map((l) => String(l)),
+    ...splitSummaryLines(summary),
+    ...(Array.isArray(nextSteps) ? nextSteps : []).map((l) => String(l)),
+  ];
+
+  for (const line of lines) {
+    if (!line || line.length < 4) continue;
+    const d = parseDueDateFromText(line, ref);
+    if (!d || Number.isNaN(d.getTime())) continue;
+    const low = line.toLowerCase();
+    if (assignee && assignee.length >= 2 && low.includes(assignee)) {
+      return d;
+    }
+    if (taskTokens.length && wordOverlapCount(taskTokens, line) >= 2) {
+      return d;
+    }
+  }
+
+  return null;
+}
+
+function hasValidDueDate(item) {
+  if (!item || item.dueDate == null || item.dueDate === '') return false;
+  const d = new Date(item.dueDate);
+  return !Number.isNaN(d.getTime());
+}
+
 /**
  * @param {Array<{task?:string,assignee?:string,dueDate?:any,notes?:string}>} actionItems
  * @param {Date|string|null} referenceDate
+ * @param {{ keyPoints?: string[], summary?: string, nextSteps?: string[] }} [context]
  * @returns {Array}
  */
-function enrichActionItemsWithDueDates(actionItems, referenceDate) {
+function enrichActionItemsWithDueDates(actionItems, referenceDate, context = {}) {
   if (!Array.isArray(actionItems)) return actionItems;
   const ref =
     referenceDate instanceof Date && !Number.isNaN(referenceDate.getTime())
@@ -144,27 +240,48 @@ function enrichActionItemsWithDueDates(actionItems, referenceDate) {
         : new Date();
   if (Number.isNaN(ref.getTime())) return actionItems;
 
-  return actionItems.map((item) => {
+  const keyPoints = context.keyPoints || [];
+  const summary = context.summary || '';
+  const nextSteps = context.nextSteps || [];
+  const allDatesInContext = extractAllMentionedDates(keyPoints, summary, nextSteps, ref);
+
+  const afterTaskAndContext = actionItems.map((item) => {
     if (!item || typeof item !== 'object') return item;
     const copy = { ...item };
-    let existing = copy.dueDate;
-    if (existing != null && existing !== '') {
-      const d = new Date(existing);
+    if (copy.dueDate != null && copy.dueDate !== '') {
+      const d = new Date(copy.dueDate);
       if (!Number.isNaN(d.getTime())) {
         copy.dueDate = d;
         return copy;
       }
     }
     const blob = [copy.task, copy.notes, copy.assignee].filter(Boolean).join(' ');
-    const inferred = parseDueDateFromText(blob, ref);
+    let inferred = parseDueDateFromText(blob, ref);
+    if (inferred) {
+      copy.dueDate = inferred;
+      return copy;
+    }
+    inferred = inferDueDateFromContext(copy, ref, keyPoints, summary, nextSteps);
     if (inferred) {
       copy.dueDate = inferred;
     }
     return copy;
   });
+
+  const stillMissing = afterTaskAndContext.filter((i) => !hasValidDueDate(i));
+  if (stillMissing.length === 1 && allDatesInContext.length === 1) {
+    const onlyDate = allDatesInContext[0];
+    return afterTaskAndContext.map((item) =>
+      hasValidDueDate(item) ? item : { ...item, dueDate: onlyDate }
+    );
+  }
+
+  return afterTaskAndContext;
 }
 
 module.exports = {
   parseDueDateFromText,
   enrichActionItemsWithDueDates,
+  inferDueDateFromContext,
+  extractAllMentionedDates,
 };

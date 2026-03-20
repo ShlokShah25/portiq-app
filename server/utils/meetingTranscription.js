@@ -348,7 +348,12 @@ async function transcribeAndSummarize(audioFilePath, meeting) {
         : new Date();
     summaryData.actionItems = enrichActionItemsWithDueDates(
       summaryData.actionItems,
-      referenceForDueDates
+      referenceForDueDates,
+      {
+        keyPoints: summaryData.keyPoints,
+        summary: summaryData.summary,
+        nextSteps: summaryData.nextSteps,
+      }
     );
 
     console.log('✅ Summary generated');

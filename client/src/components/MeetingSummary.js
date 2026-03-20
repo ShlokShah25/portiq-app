@@ -7,12 +7,6 @@ import { isEducation } from '../config/product';
 import './MeetingSummary.css';
 import { getEffectiveDueDate } from '../utils/actionItemDueDate';
 
-function formatStatusLabel(status) {
-  if (status === 'done') return 'Done';
-  if (status === 'in_progress') return 'In progress';
-  return 'Not started';
-}
-
 function buildGoogleCalendarUrl({ title, details, dueDate }) {
   if (!dueDate) return null;
   const d = new Date(dueDate);
@@ -475,14 +469,11 @@ const MeetingSummary = () => {
                               <strong>{item.task}</strong>
                               {item.assignee && <span> — {item.assignee}</span>}
                             </div>
-                            <div className="meeting-action-item-meta">
-                              <span className={`meeting-action-status-pill status-${status}`}>
-                                {formatStatusLabel(status)}
-                              </span>
-                              {dueText && (
-                                <span className="meeting-summary-due">Due: {dueText}</span>
-                              )}
-                            </div>
+                            {dueText && (
+                              <div className="meeting-action-item-meta">
+                                <span className="meeting-summary-due">Due {dueText}</span>
+                              </div>
+                            )}
                           </div>
 
                           <div className="meeting-action-item-actions">
