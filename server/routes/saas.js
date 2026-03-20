@@ -177,7 +177,12 @@ router.post('/create-autologin-token', async (req, res) => {
 
     const secret = process.env.JWT_SECRET || 'your_secret_key';
     const token = jwt.sign(
-      { id: admin._id, username: admin.username, role: admin.role, autologin: true },
+      {
+        id: admin._id.toString(),
+        username: admin.username,
+        role: admin.role,
+        autologin: true,
+      },
       secret,
       { expiresIn: '2h' }
     );

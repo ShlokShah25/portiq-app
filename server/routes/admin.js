@@ -21,10 +21,20 @@ router.post('/login', async (req, res) => {
     if (!username && password) {
       admin = await Admin.findOne({ username: 'admin' });
     } else if (username && password) {
-      // Allow login via either username or email using the same field from the client.
-      admin = await Admin.findOne({
-        $or: [{ username }, { email: username.toLowerCase() }]
-      });
+      // Email is not unique in schema — multiple Admin docs can share one email (e.g. legacy +
+      // Google). Try password against EVERY match so we log into the account that actually owns
+      // this password (usually the one where the user reset password).
+      const key = String(username).trim();
+      const candidates = await Admin.find({
+        $or: [{ username: key }, { email: key.toLowerCase() }]
+      }).sort({ hasActiveSubscription: -1, updatedAt: -1 });
+      admin = null;
+      for (const c of candidates) {
+        if (await c.comparePassword(password)) {
+          admin = c;
+          break;
+        }
+      }
     } else {
       return res.status(400).json({ error: 'Password is required' });
     }
@@ -33,9 +43,12 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const isMatch = await admin.comparePassword(password);
-    if (!isMatch) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+    if (!username) {
+      // password-only path: verify password for default admin user
+      const isMatch = await admin.comparePassword(password);
+      if (!isMatch) {
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
     }
 
     // After password is verified: gate dashboard access by subscription (except legacy 'admin').
@@ -54,7 +67,7 @@ router.post('/login', async (req, res) => {
 
     const token = jwt.sign(
       {
-        id: admin._id,
+        id: admin._id.toString(),
         username: admin.username,
         role: admin.role,
         productType: admin.productType,

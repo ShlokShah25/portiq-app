@@ -13,7 +13,16 @@ const authenticateAdmin = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_secret_key');
-    const admin = await Admin.findById(decoded.id).select('-password');
+    const adminId =
+      decoded && decoded.id != null
+        ? typeof decoded.id === 'object' && decoded.id.toString
+          ? decoded.id.toString()
+          : String(decoded.id)
+        : null;
+    if (!adminId) {
+      return res.status(401).json({ error: 'Invalid token.' });
+    }
+    const admin = await Admin.findById(adminId).select('-password');
     
     if (!admin) {
       return res.status(401).json({ error: 'Invalid token.' });

@@ -21,13 +21,13 @@ router.post('/forgot', async (req, res) => {
       return res.status(400).json({ error: 'username (or email used as username) is required' });
     }
 
-    // Allow lookup by either username or email, since the login field accepts both.
-    const admin = await Admin.findOne({
-      $or: [
-        { username },
-        { email: username.toLowerCase() }
-      ]
-    });
+    // If duplicate emails exist, target the row most likely to be the real tenant (subscription + recent).
+    const admins = await Admin.find({
+      $or: [{ username }, { email: String(username).toLowerCase() }]
+    })
+      .sort({ hasActiveSubscription: -1, updatedAt: -1 })
+      .limit(1);
+    const admin = admins[0];
     if (!admin) {
       // Do not reveal user existence
       return res.json({ success: true });
@@ -165,22 +165,34 @@ router.get('/google/callback', async (req, res) => {
     const payload = JSON.parse(
       Buffer.from(id_token.split('.')[1], 'base64').toString('utf8')
     );
-    const email = payload.email;
-    if (!email) {
+    const emailRaw = payload.email;
+    if (!emailRaw) {
       throw new Error('No email in Google account');
     }
+    const emailNorm = String(emailRaw).toLowerCase().trim();
 
-    let admin = await Admin.findOne({ $or: [{ username: email }, { email }] });
+    const marketingBase =
+      process.env.MARKETING_URL || 'https://www.portiqtechnologies.com';
+    const appBase =
+      process.env.APP_BASE_URL ||
+      'https://meetingassistant.portiqtechnologies.com';
+
+    // Prefer an account with an active subscription when the same email exists on multiple rows.
+    const existing = await Admin.find({
+      $or: [{ username: emailNorm }, { email: emailNorm }],
+    })
+      .sort({ hasActiveSubscription: -1, updatedAt: -1 })
+      .limit(1);
+
+    let admin = existing[0];
     if (!admin) {
-      const marketingBase =
-        process.env.MARKETING_URL || 'https://www.portiqtechnologies.com';
       if (state === 'website') {
         // Sign up with Google: create account and send to website with session token
         const crypto = require('crypto');
         const randomPassword = crypto.randomBytes(24).toString('hex');
         admin = new Admin({
-          username: email,
-          email,
+          username: emailNorm,
+          email: emailNorm,
           password: randomPassword,
           hasActiveSubscription: false,
           productType: 'workplace',
@@ -188,31 +200,16 @@ router.get('/google/callback', async (req, res) => {
         });
         await admin.save();
       } else {
-        const appBase =
-          process.env.APP_BASE_URL ||
-          'https://meetingassistant.portiqtechnologies.com';
         console.warn(
-          `Google login attempted for ${email} but no matching admin account exists.`
+          `Google login attempted for ${emailNorm} but no matching admin account exists.`
         );
         return res.redirect(
           `${marketingBase}?login=google_no_account&email=${encodeURIComponent(
-            email
+            emailNorm
           )}`
         );
       }
     }
-
-    const appToken = jwt.sign(
-      { id: admin._id, username: admin.username, role: admin.role },
-      getJwtSecret(),
-      { expiresIn: '24h' }
-    );
-
-    const marketingBase =
-      process.env.MARKETING_URL || 'https://www.portiqtechnologies.com';
-    const appBase =
-      process.env.APP_BASE_URL ||
-      'https://meetingassistant.portiqtechnologies.com';
 
     if (state === 'website') {
       const websiteSessionToken = jwt.sign(
@@ -224,6 +221,25 @@ router.get('/google/callback', async (req, res) => {
         `${marketingBase}?auth_token=${encodeURIComponent(websiteSessionToken)}`;
       return res.redirect(returnUrl);
     }
+
+    // App Google login: same subscription gate as password (avoid JWT that dies on first /admin/* call).
+    if (!admin.hasActiveSubscription && admin.username !== 'admin') {
+      return res.redirect(
+        `${marketingBase}?login=no_subscription&email=${encodeURIComponent(
+          emailNorm
+        )}`
+      );
+    }
+
+    const appToken = jwt.sign(
+      {
+        id: admin._id.toString(),
+        username: admin.username,
+        role: admin.role,
+      },
+      getJwtSecret(),
+      { expiresIn: '24h' }
+    );
 
     const nextPath = state || '/dashboard';
     const redirectUrl =
