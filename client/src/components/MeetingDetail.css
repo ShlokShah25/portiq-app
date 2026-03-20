@@ -136,12 +136,10 @@
   font-weight: 600;
   cursor: pointer;
   border: none;
-  transition: opacity 0.2s, transform 0.15s;
 }
 
 .meeting-detail-btn:hover {
-  opacity: 0.95;
-  transform: translateY(-1px);
+  opacity: 0.92;
 }
 
 .meeting-detail-btn--primary {

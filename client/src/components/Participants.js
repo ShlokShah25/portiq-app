@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import TopNav from './TopNav';
 import { T } from '../config/terminology';
+import CameraIcon from './icons/CameraIcon';
 import './Participants.css';
 
 // Max participants allowed in the participant book by plan (workplace). null = no limit.
@@ -27,11 +28,26 @@ const Participants = () => {
   const rafRef = React.useRef(null);
   const streamForMeterRef = React.useRef(null);
   const photoEditInputRef = React.useRef(null);
+  const photoEditCaptureInputRef = React.useRef(null);
+  const newPhotoLibraryRef = React.useRef(null);
+  const newPhotoCaptureRef = React.useRef(null);
   const photoEditIndexRef = React.useRef(null);
+  const [photoSourceMenuIndex, setPhotoSourceMenuIndex] = useState(null);
 
   useEffect(() => {
     loadParticipants();
   }, []);
+
+  useEffect(() => {
+    if (photoSourceMenuIndex == null) return;
+    const onDoc = (e) => {
+      const el = e.target.closest('[data-photo-menu]');
+      if (el && el.getAttribute('data-photo-menu') === String(photoSourceMenuIndex)) return;
+      setPhotoSourceMenuIndex(null);
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [photoSourceMenuIndex]);
 
   const saveParticipantsToServer = async (list) => {
     try {
@@ -184,12 +200,28 @@ const Participants = () => {
       .catch((err) => alert(err.message || 'Invalid image.'));
   };
 
-  const openChangePhotoForIndex = (index) => {
+  const togglePhotoSourceMenu = (index) => {
+    setPhotoSourceMenuIndex((prev) => (prev === index ? null : index));
+  };
+
+  const openPhotoLibraryForIndex = (index) => {
     photoEditIndexRef.current = index;
+    setPhotoSourceMenuIndex(null);
     requestAnimationFrame(() => {
       if (photoEditInputRef.current) {
         photoEditInputRef.current.value = '';
         photoEditInputRef.current.click();
+      }
+    });
+  };
+
+  const openPhotoCameraForIndex = (index) => {
+    photoEditIndexRef.current = index;
+    setPhotoSourceMenuIndex(null);
+    requestAnimationFrame(() => {
+      if (photoEditCaptureInputRef.current) {
+        photoEditCaptureInputRef.current.value = '';
+        photoEditCaptureInputRef.current.click();
       }
     });
   };
@@ -434,6 +466,16 @@ const Participants = () => {
         tabIndex={-1}
         onChange={handleExistingPhotoFile}
       />
+      <input
+        ref={photoEditCaptureInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="participant-photo-file-hidden"
+        aria-hidden="true"
+        tabIndex={-1}
+        onChange={handleExistingPhotoFile}
+      />
       <div className="participants-wrapper">
         <div className="participants-top-bar">
           <div>
@@ -484,11 +526,46 @@ const Participants = () => {
                 <div className="form-group">
                   <label>Photograph (optional)</label>
                   <input
+                    ref={newPhotoLibraryRef}
                     type="file"
                     accept="image/*"
-                    onChange={(e) => handlePhotoChange(e.target.files && e.target.files[0])}
-                    className="form-input"
+                    className="participant-photo-file-hidden"
+                    aria-hidden="true"
+                    tabIndex={-1}
+                    onChange={(e) => {
+                      handlePhotoChange(e.target.files && e.target.files[0]);
+                      if (e.target) e.target.value = '';
+                    }}
                   />
+                  <input
+                    ref={newPhotoCaptureRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="participant-photo-file-hidden"
+                    aria-hidden="true"
+                    tabIndex={-1}
+                    onChange={(e) => {
+                      handlePhotoChange(e.target.files && e.target.files[0]);
+                      if (e.target) e.target.value = '';
+                    }}
+                  />
+                  <div className="participant-add-photo-row">
+                    <button
+                      type="button"
+                      className="participant-add-photo-btn"
+                      onClick={() => newPhotoLibraryRef.current && newPhotoLibraryRef.current.click()}
+                    >
+                      Choose file
+                    </button>
+                    <button
+                      type="button"
+                      className="participant-add-photo-btn"
+                      onClick={() => newPhotoCaptureRef.current && newPhotoCaptureRef.current.click()}
+                    >
+                      Take photo
+                    </button>
+                  </div>
                   {newParticipant.photo && (
                     <div className="participant-photo-preview-wrap">
                       <img src={newParticipant.photo} alt="Preview" className="participant-photo-preview" />
@@ -564,25 +641,55 @@ const Participants = () => {
                 const standardSentence = `Hello, my name is ${participantName}. This is my sample voice for PortIQ so the system can recognize me clearly in future meetings.`;
                 return (
                 <div key={idx} className="participant-card">
-                  <div className="participant-avatar">
-                    {p.photo ? (
-                      <img src={p.photo} alt={p.name || 'Participant'} className="participant-avatar-image" />
-                    ) : (
-                      (p.name || p.email || '?').charAt(0).toUpperCase()
+                  <div
+                    className="participant-avatar-wrap"
+                    data-photo-menu={idx}
+                  >
+                    <button
+                      type="button"
+                      className={`participant-avatar-btn ${p.photo ? 'participant-avatar-btn--has-photo' : ''}`}
+                      onClick={() => togglePhotoSourceMenu(idx)}
+                      title={p.photo ? 'Change photo' : 'Add photo'}
+                      aria-label={p.photo ? 'Change photo' : 'Add photo'}
+                      aria-expanded={photoSourceMenuIndex === idx}
+                    >
+                      {p.photo ? (
+                        <>
+                          <img src={p.photo} alt="" className="participant-avatar-image" />
+                          <span className="participant-avatar-badge" aria-hidden>
+                            <CameraIcon size={14} />
+                          </span>
+                        </>
+                      ) : (
+                        <CameraIcon className="participant-avatar-camera-icon" size={22} />
+                      )}
+                    </button>
+                    {photoSourceMenuIndex === idx && (
+                      <div className="participant-photo-source-popover" role="menu">
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="participant-photo-source-item"
+                          onClick={() => openPhotoLibraryForIndex(idx)}
+                        >
+                          Choose from library
+                        </button>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="participant-photo-source-item"
+                          onClick={() => openPhotoCameraForIndex(idx)}
+                        >
+                          Take photo
+                        </button>
+                      </div>
                     )}
                   </div>
                   <div className="participant-info">
                     <div className="participant-name">{p.name || 'Unnamed'}</div>
                     <div className="participant-email">{p.email || 'No email'}</div>
-                    <div className="participant-photo-actions">
-                      <button
-                        type="button"
-                        className="participant-photo-link"
-                        onClick={() => openChangePhotoForIndex(idx)}
-                      >
-                        {p.photo ? 'Change photo' : 'Add photo'}
-                      </button>
-                      {p.photo ? (
+                    {p.photo ? (
+                      <div className="participant-photo-actions">
                         <button
                           type="button"
                           className="participant-photo-link participant-photo-link--danger"
@@ -590,8 +697,8 @@ const Participants = () => {
                         >
                           Remove photo
                         </button>
-                      ) : null}
-                    </div>
+                      </div>
+                    ) : null}
                     {p.email && p.email.trim() && (
                       <div className="participant-voice-row">
                         <span className="participant-voice-status">

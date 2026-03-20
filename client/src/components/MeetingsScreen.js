@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import TopNav from './TopNav';
+import CameraIcon from './icons/CameraIcon';
 import { isEducation } from '../config/product';
 import { T } from '../config/terminology';
 import { getClassrooms } from '../utils/classroomsStorage';
@@ -800,7 +801,9 @@ const MeetingsScreen = ({ config }) => {
                                           className="saved-participant-avatar-image"
                                         />
                                       ) : (
-                                        (sp.name || sp.email || '?').charAt(0).toUpperCase()
+                                        <span className="saved-participant-avatar-camera" aria-hidden>
+                                          <CameraIcon size={16} />
+                                        </span>
                                       )}
                                     </div>
                                     <div>

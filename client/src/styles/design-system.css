@@ -78,7 +78,6 @@ p {
   font-family: var(--font-primary);
   border: none;
   cursor: pointer;
-  transition: all var(--transition-base);
   white-space: nowrap;
 }
 
@@ -89,7 +88,6 @@ p {
 
 .btn-primary:hover {
   background: var(--text-secondary);
-  transform: translateY(-1px);
 }
 
 .btn-secondary {
@@ -120,7 +118,6 @@ p {
   border: 1px solid var(--divider);
   border-radius: var(--radius-lg);
   padding: var(--spacing-lg);
-  transition: all var(--transition-base);
 }
 
 .card:hover {
@@ -137,7 +134,6 @@ p {
   color: var(--text-primary);
   font-size: 14px;
   font-family: var(--font-primary);
-  transition: all var(--transition-base);
 }
 
 .input:focus {
@@ -174,7 +170,6 @@ p {
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: all var(--transition-base);
   margin-bottom: var(--spacing-xs);
 }
 

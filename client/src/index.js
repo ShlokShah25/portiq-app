@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import './styles/design-system.css';
 import './styles/theme.css';
+import './styles/premium-apple.css';
 import './tablet-fix.css';
 import { ThemeProvider } from './contexts/ThemeContext';
 import App from './App';

@@ -8,6 +8,11 @@ const jwt = require('jsonwebtoken');
 const Admin = require('../models/Admin');
 const { generateVoiceEmbedding } = require('../utils/voiceRecognition');
 const { sendEmail, isEmailConfigured, getDefaultFrom } = require('../utils/emailService');
+const {
+  buildGoogleCalendarUrlForMeeting,
+  buildOutlookCalendarUrlForMeeting,
+  buildMeetingIcs,
+} = require('../utils/calendarInviteLinks');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -235,6 +240,89 @@ router.post('/', async (req, res) => {
         const when = meeting.scheduledTime || meeting.startTime;
         const whenText = when ? new Date(when).toLocaleString() : 'Not specified';
 
+        const meetingStart = meeting.scheduledTime || meeting.startTime;
+        const meetingEnd =
+          meeting.endTime ||
+          (meetingStart ? new Date(new Date(meetingStart).getTime() + 60 * 60 * 1000) : null);
+
+        const meetingDetailsForCalendar = [
+          meeting.organizer ? `Organizer: ${meeting.organizer}` : null,
+          (meeting.participants || []).length
+            ? `Participants:\n${(meeting.participants || [])
+                .map((p) => (p?.email ? `${p.name || p.email} (${p.email})` : p?.name || ''))
+                .filter(Boolean)
+                .map((x) => `- ${x}`)
+                .join('\n')}`
+            : null,
+          'Created via PortIQ Meeting Assistant.',
+        ]
+          .filter(Boolean)
+          .join('\n\n');
+
+        const meetingCalendarGoogle =
+          meetingStart && meetingEnd
+            ? buildGoogleCalendarUrlForMeeting({
+                title: meeting.title || 'Meeting',
+                details: meetingDetailsForCalendar,
+                location: meeting.meetingRoom || '',
+                startDate: meetingStart,
+                endDate: meetingEnd,
+              })
+            : null;
+        const meetingCalendarOutlook =
+          meetingStart && meetingEnd
+            ? buildOutlookCalendarUrlForMeeting({
+                title: meeting.title || 'Meeting',
+                details: meetingDetailsForCalendar,
+                location: meeting.meetingRoom || '',
+                startDate: meetingStart,
+                endDate: meetingEnd,
+              })
+            : null;
+        const meetingIcsContent =
+          meetingStart && meetingEnd
+            ? buildMeetingIcs({
+                meetingId: meeting._id,
+                title: meeting.title || 'Meeting',
+                description: meetingDetailsForCalendar,
+                location: meeting.meetingRoom || '',
+                startDate: meetingStart,
+                endDate: meetingEnd,
+              })
+            : null;
+
+        const safeTitleForFile = String(meeting.title || 'meeting')
+          .replace(/[^a-z0-9]/gi, '_')
+          .slice(0, 80);
+        const dateStamp = new Date().toISOString().split('T')[0];
+
+        const scheduleCalendarBlock =
+          meetingCalendarGoogle || meetingCalendarOutlook
+            ? `
+      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+      <p style="margin: 0 0 10px 0; font-size: 13px; color: #4b5563;">
+        <strong>Add this meeting to your calendar:</strong>
+      </p>
+      <div style="display: flex; gap: 12px; flex-wrap: wrap; font-size: 13px;">
+        ${meetingCalendarGoogle ? `<a href="${meetingCalendarGoogle}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:none;font-weight:600;">Add to Google Calendar</a>` : ''}
+        ${meetingCalendarOutlook ? `<a href="${meetingCalendarOutlook}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:none;font-weight:600;">Add to Outlook</a>` : ''}
+      </div>
+      <p style="margin: 10px 0 0 0; font-size: 12px; color: #6b7280;">
+        Tip: You can also import the attached <strong>Meeting .ics</strong> file.
+      </p>`
+            : '';
+
+        const textCalendarLines = [];
+        if (meetingCalendarGoogle) {
+          textCalendarLines.push('', `Add to Google Calendar: ${meetingCalendarGoogle}`);
+        }
+        if (meetingCalendarOutlook) {
+          textCalendarLines.push('', `Add to Outlook: ${meetingCalendarOutlook}`);
+        }
+        if (meetingIcsContent) {
+          textCalendarLines.push('', 'A Meeting .ics file is attached — import it into any calendar app.');
+        }
+
         const logoUrl = process.env.COMPANY_LOGO_URL || 'https://portiqtechnologies.com/logo.png';
 
         await transporter.sendMail({
@@ -251,11 +339,12 @@ router.post('/', async (req, res) => {
             `Time: ${whenText}`,
             '',
             'Please arrive a few minutes early to ensure a prompt start.',
+            ...textCalendarLines,
             '',
             'This is an automated notification from the PortIQ Meeting Assistant.',
             '',
             '---',
-            'PortIQ Meeting Assistant'
+            'PortIQ Meeting Assistant',
           ].join('\n'),
           html: `
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; color: #111827; line-height: 1.6;">
@@ -270,6 +359,7 @@ router.post('/', async (req, res) => {
                 <strong>Time:</strong> ${whenText}
               </p>
               <p>Please arrive a few minutes early so that the discussion can start on time.</p>
+              ${scheduleCalendarBlock}
               <br/>
               <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
               <p style="margin: 0;">
@@ -279,7 +369,16 @@ router.post('/', async (req, res) => {
                 This is an automated notification from the PortIQ Meeting Assistant.
               </p>
             </div>
-          `
+          `,
+          attachments: meetingIcsContent
+            ? [
+                {
+                  filename: `Meeting-${safeTitleForFile}-${dateStamp}.ics`,
+                  content: Buffer.from(meetingIcsContent, 'utf8'),
+                  contentType: 'text/calendar; charset=utf-8',
+                },
+              ]
+            : [],
         });
       }
       } catch (notifyErr) {

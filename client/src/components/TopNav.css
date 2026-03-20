@@ -8,10 +8,10 @@
   left: 0;
   right: 0;
   height: 64px;
-  background: #0A0A0A;
+  background: rgba(0, 0, 0, 0.72);
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
-  border-bottom: 1px solid #1f1f1f;
+  border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
   z-index: 1000;
   display: flex;
   align-items: center;
@@ -37,12 +37,11 @@
   cursor: pointer;
   padding: 8px 12px;
   border-radius: 8px;
-  transition: all 150ms ease;
   flex-shrink: 0;
 }
 
 .top-nav-brand:hover {
-  background: #141414;
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .top-nav-logo {
@@ -57,7 +56,7 @@
 .top-nav-brand-text {
   font-size: 20px;
   font-weight: 600;
-  color: #F5F5F5;
+  color: var(--text-primary, #f5f5f7);
   letter-spacing: -0.01em;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
 }
@@ -78,24 +77,23 @@
   border-radius: 8px;
   background: transparent;
   border: none;
-  color: #9CA3AF;
+  color: var(--text-secondary, #98989d);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 150ms ease;
   position: relative;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   white-space: nowrap;
 }
 
 .top-nav-item:hover {
-  background: #141414;
-  color: #F5F5F5;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary, #f5f5f7);
 }
 
 .top-nav-item.active {
-  color: #F5F5F5;
-  background: #151515;
+  color: var(--text-primary, #f5f5f7);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 /* Removed underline indicator - using pill background instead */
@@ -125,9 +123,8 @@
   border-radius: 8px;
   background: transparent;
   border: none;
-  color: #9CA3AF;
+  color: var(--text-secondary, #98989d);
   cursor: pointer;
-  transition: all 150ms ease;
   font-size: 14px;
   font-weight: 500;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
@@ -136,8 +133,8 @@
 .top-nav-admin:hover,
 .top-nav-settings:hover,
 .top-nav-logout:hover {
-  background: #141414;
-  color: #F5F5F5;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary, #f5f5f7);
 }
 
 .top-nav-admin svg,
@@ -150,15 +147,15 @@
 }
 
 .top-nav-logout {
-  border: 1px solid #1f1f1f;
-  background: #111111;
-  color: #E5E7EB;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  background: rgba(28, 28, 30, 0.85);
+  color: var(--text-primary, #f5f5f7);
 }
 
 .top-nav-logout:hover {
-  background: #b91c1c;
-  border-color: #f87171;
-  color: #F9FAFB;
+  background: rgba(255, 69, 58, 0.18);
+  border-color: rgba(255, 69, 58, 0.45);
+  color: #ff453a;
 }
 
 /* Responsive */

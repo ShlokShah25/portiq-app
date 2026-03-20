@@ -3,6 +3,11 @@ const fs = require('fs');
 const path = require('path');
 const PDFDocument = require('pdfkit');
 const { sendEmail, isEmailConfigured, getDefaultFrom } = require('./emailService');
+const {
+  buildGoogleCalendarUrlForMeeting,
+  buildOutlookCalendarUrlForMeeting,
+  buildMeetingIcs,
+} = require('./calendarInviteLinks');
 const VoiceProfile = require('../models/VoiceProfile');
 let ffmpeg = null;
 try {
@@ -641,73 +646,6 @@ async function sendMeetingSummary(meeting, summaryData, options = {}) {
     'https://meetingassistant.portiqtechnologies.com';
   const summaryUrl = `${String(baseUrl).replace(/\/+$/, '')}/meetings/${meeting._id}/summary`;
 
-  const toGoogleDateTimeUtc = (d) => {
-    const iso = new Date(d).toISOString(); // UTC
-    return iso.replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
-  };
-
-  const buildGoogleCalendarUrlForMeeting = ({ title, details, location, startDate, endDate }) => {
-    if (!startDate || !endDate) return null;
-    const start = toGoogleDateTimeUtc(startDate);
-    const end = toGoogleDateTimeUtc(endDate);
-    const params = new URLSearchParams({
-      action: 'TEMPLATE',
-      text: title || 'Meeting',
-      details: details || '',
-      location: location || '',
-      dates: `${start}/${end}`,
-    });
-    return `https://calendar.google.com/calendar/render?${params.toString()}`;
-  };
-
-  const buildOutlookCalendarUrlForMeeting = ({ title, details, location, startDate, endDate }) => {
-    if (!startDate || !endDate) return null;
-    const startdt = new Date(startDate).toISOString();
-    const enddt = new Date(endDate).toISOString();
-    const params = new URLSearchParams({
-      path: '/calendar/action/compose',
-      subject: title || 'Meeting',
-      body: details || '',
-      location: location || '',
-      startdt,
-      enddt,
-    });
-    return `https://outlook.office.com/calendar/0/deeplink/compose?${params.toString()}`;
-  };
-
-  const buildMeetingIcs = ({ title, description, location, startDate, endDate }) => {
-    if (!startDate || !endDate) return null;
-    const uid = `${meeting._id}-${Date.now()}@portiq`;
-    const dtStamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
-    const toUtc = (d) => new Date(d).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
-    const esc = (s) =>
-      String(s || '')
-        .replace(/\\/g, '\\\\')
-        .replace(/\n/g, '\\n')
-        .replace(/,/g, '\\,')
-        .replace(/;/g, '\\;');
-
-    return [
-      'BEGIN:VCALENDAR',
-      'VERSION:2.0',
-      'PRODID:-//PortIQ//Meeting Assistant//EN',
-      'CALSCALE:GREGORIAN',
-      'METHOD:PUBLISH',
-      'BEGIN:VEVENT',
-      `UID:${uid}`,
-      `DTSTAMP:${dtStamp}`,
-      `DTSTART:${toUtc(startDate)}`,
-      `DTEND:${toUtc(endDate)}`,
-      `SUMMARY:${esc(title || 'Meeting')}`,
-      location ? `LOCATION:${esc(location)}` : null,
-      description ? `DESCRIPTION:${esc(description)}` : null,
-      'END:VEVENT',
-      'END:VCALENDAR',
-    ]
-      .filter(Boolean)
-      .join('\r\n');
-  };
-
   const toAllDayDate = (value) => {
     const d = new Date(value);
     if (Number.isNaN(d.getTime())) return null;
@@ -887,6 +825,7 @@ async function sendMeetingSummary(meeting, summaryData, options = {}) {
 
   const meetingIcs = meetingStart && meetingEnd
     ? buildMeetingIcs({
+        meetingId: meeting._id,
         title: meeting.title || 'Meeting',
         description: meetingDetailsForCalendar,
         location: meeting.meetingRoom || '',

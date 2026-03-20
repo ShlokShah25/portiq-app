@@ -64,13 +64,10 @@
   padding: 24px;
   text-align: center;
   cursor: pointer;
-  transition: all 150ms ease;
 }
 
 .insight-stat-card:hover {
-  border-color: var(--accent-blue);
-  background: var(--bg-primary);
-  transform: translateY(-2px);
+  border-color: rgba(10, 132, 255, 0.35);
 }
 
 .insight-stat-icon {

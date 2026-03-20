@@ -1,0 +1,18 @@
+/**
+ * Shell polish: flat app background, no entrance animation, no hover “lift”.
+ * Theme tokens live in theme.css; this file only neutralizes legacy motion.
+ */
+
+/* Main app shell: flat, no entrance animation */
+.App {
+  animation: none !important;
+  background: var(--bg-primary) !important;
+}
+
+/* Calm hovers: no lift / bounce */
+.meeting-item:hover,
+.metric-card:hover,
+.insight-stat-card:hover,
+.dashboard-btn-primary:hover {
+  transform: none;
+}
