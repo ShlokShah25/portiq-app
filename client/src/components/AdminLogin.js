@@ -79,6 +79,12 @@ const AdminLogin = () => {
       window.localStorage.setItem('portiq_has_subscription', serverAdmin.hasActiveSubscription ? 'true' : 'false');
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       await syncWebsiteSession();
+      // If /admin/profile returned NO_SUBSCRIPTION, the axios interceptor clears the token
+      // and may redirect to pricing — do not SPA-navigate to dashboard with no token.
+      if (!window.localStorage.getItem('clientAdminToken')) {
+        window.location.href = WEBSITE_URL + '/#pricing';
+        return;
+      }
       if (serverAdmin.hasActiveSubscription) {
         navigate('/dashboard', { replace: true });
       } else {

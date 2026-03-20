@@ -84,9 +84,11 @@ router.post('/login', async (req, res) => {
 });
 
 /**
- * Get admin profile
+ * Get admin profile (auth only — do not require active subscription).
+ * Needs to work right after login and for Google users syncing session; subscription
+ * status is included so the client can show gating without a catch-22.
  */
-router.get('/profile', authenticateAdmin, requireSubscription, async (req, res) => {
+router.get('/profile', authenticateAdmin, async (req, res) => {
   const admin = await Admin.findById(req.admin._id).lean();
   if (!admin) return res.status(401).json({ error: 'Unauthorized' });
   res.json({
