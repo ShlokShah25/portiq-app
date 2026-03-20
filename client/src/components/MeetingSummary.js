@@ -5,6 +5,7 @@ import TopNav from './TopNav';
 import { T } from '../config/terminology';
 import { isEducation } from '../config/product';
 import './MeetingSummary.css';
+import { getEffectiveDueDate } from '../utils/actionItemDueDate';
 
 function formatStatusLabel(status) {
   if (status === 'done') return 'Done';
@@ -184,7 +185,17 @@ const MeetingSummary = () => {
     (meeting.pendingImportantNotes && meeting.pendingImportantNotes.length) ? meeting.pendingImportantNotes
       : meeting.importantNotes || [];
 
-  const hasContent = summaryText || keyPoints.length || actionItems.length || decisions.length || nextSteps.length || importantNotes.length;
+  const decisionsDisplay = (decisions || []).filter(
+    (d) => String(d || '').trim().toLowerCase() !== 'not specified'
+  );
+
+  const hasContent =
+    summaryText ||
+    keyPoints.length ||
+    actionItems.length ||
+    decisionsDisplay.length ||
+    nextSteps.length ||
+    importantNotes.length;
   const pendingApproval = meeting.summaryStatus === 'Pending Approval';
 
   const startEditing = () => {
@@ -242,6 +253,16 @@ const MeetingSummary = () => {
         <div className="meeting-summary-card">
           <h1 className="meeting-summary-page-title">{meeting.title || 'Untitled meeting'}</h1>
           <p className="meeting-summary-subtitle">{T.meetingSummary()}</p>
+
+          <div className="meeting-summary-see-all-row">
+            <button
+              type="button"
+              className="meeting-summary-btn meeting-summary-btn--secondary meeting-summary-btn--see-all"
+              onClick={() => navigate('/meetings')}
+            >
+              See all meetings
+            </button>
+          </div>
 
           <p
             style={{
@@ -409,10 +430,10 @@ const MeetingSummary = () => {
                     {actionItems.map((item, idx) => {
                       const itemId = item?._id || String(idx);
                       const status = item?.status || 'not_started';
-                      const due = item?.dueDate ? new Date(item.dueDate) : null;
+                      const effectiveDue = getEffectiveDueDate(item, meeting);
                       const dueText =
-                        due && !Number.isNaN(due.getTime())
-                          ? due.toLocaleDateString()
+                        effectiveDue && !Number.isNaN(effectiveDue.getTime())
+                          ? effectiveDue.toLocaleDateString()
                           : null;
 
                       const title = item?.task || 'Action item';
@@ -423,23 +444,27 @@ const MeetingSummary = () => {
                         .filter(Boolean)
                         .join('\n');
 
+                      const dueIso = effectiveDue && !Number.isNaN(effectiveDue.getTime())
+                        ? effectiveDue.toISOString()
+                        : null;
+
                       const gcalUrl = buildGoogleCalendarUrl({
                         title,
                         details,
-                        dueDate: item?.dueDate,
+                        dueDate: dueIso,
                       });
 
                       const outlookUrl = buildOutlookCalendarUrl({
                         title,
                         details,
-                        dueDate: item?.dueDate,
+                        dueDate: dueIso,
                       });
 
-                      const ics = item?.dueDate
+                      const ics = dueIso
                         ? buildIcsContent({
                             title,
                             description: details,
-                            dueDate: item?.dueDate,
+                            dueDate: dueIso,
                           })
                         : null;
 
@@ -547,11 +572,11 @@ const MeetingSummary = () => {
                 </section>
               )}
 
-              {decisions.length > 0 && (
+              {decisionsDisplay.length > 0 && (
                 <section className="meeting-summary-section">
                   <h2 className="meeting-summary-heading">Decisions</h2>
                   <ul className="meeting-summary-list">
-                    {decisions.map((d, idx) => (
+                    {decisionsDisplay.map((d, idx) => (
                       <li key={idx}>{d}</li>
                     ))}
                   </ul>

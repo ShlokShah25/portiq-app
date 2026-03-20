@@ -8,6 +8,7 @@ const {
   buildOutlookCalendarUrlForMeeting,
   buildMeetingIcs,
 } = require('./calendarInviteLinks');
+const { enrichActionItemsWithDueDates } = require('./actionItemDueDate');
 const VoiceProfile = require('../models/VoiceProfile');
 let ffmpeg = null;
 try {
@@ -282,6 +283,7 @@ async function transcribeAndSummarize(audioFilePath, meeting) {
             `- Explicitly mention important specifics such as names, topics, projects, events, numbers, dates, and deadlines when they are clearly mentioned.\n` +
             `- CRITICAL: In keyPoints, ALWAYS include who said what when you can identify the speaker. Format as: "[Speaker Name]: [what they said]" or "[Speaker Name] mentioned/noted/stated: [key point]". If speaker cannot be identified, just state the point.\n` +
             `- In actionItems, each task must be a specific, actionable task tied to what people actually said (no generic or invented tasks). Include the assignee name if mentioned.\n` +
+            `- For actionItems, set dueDate to ISO format YYYY-MM-DD whenever any deadline is mentioned (e.g. "by 24th March", "March 24", "next Friday"). Use the meeting date context for the year if the year is not stated. If no deadline is mentioned, use null for dueDate.\n` +
             `- In decisions, include who made or proposed the decision when identifiable. Format as: "[Speaker Name] decided: [decision]" or just "[decision]" if speaker unknown.\n` +
             `- Do not hallucinate information that was not discussed.\n` +
             `- Only include decisions or actions that are clearly mentioned.\n` +
@@ -292,7 +294,7 @@ async function transcribeAndSummarize(audioFilePath, meeting) {
             `  "summary": "3–5 sentence executive summary of the meeting (in English). Include speaker attribution when possible, e.g., '[Name] discussed...' or '[Name] mentioned that...'",\n` +
             `  "keyPoints": ["[Speaker Name]: major discussion point 1", "[Speaker Name]: major discussion point 2", "point 3 (if speaker unknown)"],\n` +
             `  "actionItems": [\n` +
-            `    {"task": "task description", "assignee": "person name if mentioned", "dueDate": "deadline if mentioned", "notes": "extra detail if needed"}\n` +
+            `    {"task": "task description", "assignee": "person name if mentioned", "dueDate": "YYYY-MM-DD or null", "notes": "extra detail if needed"}\n` +
             `  ],\n` +
             `  "decisions": ["[Speaker Name] decided: decision1", "decision2 (if speaker unknown)"],\n` +
             `  "nextSteps": ["next step 1", "next step 2"],\n` +
@@ -339,6 +341,15 @@ async function transcribeAndSummarize(audioFilePath, meeting) {
     if (!Array.isArray(summaryData.decisions)) summaryData.decisions = [];
     if (!Array.isArray(summaryData.nextSteps)) summaryData.nextSteps = [];
     if (!Array.isArray(summaryData.importantNotes)) summaryData.importantNotes = [];
+
+    const referenceForDueDates =
+      meetingObj && (meetingObj.endTime || meetingObj.scheduledTime || meetingObj.startTime)
+        ? new Date(meetingObj.endTime || meetingObj.scheduledTime || meetingObj.startTime)
+        : new Date();
+    summaryData.actionItems = enrichActionItemsWithDueDates(
+      summaryData.actionItems,
+      referenceForDueDates
+    );
 
     console.log('✅ Summary generated');
 
