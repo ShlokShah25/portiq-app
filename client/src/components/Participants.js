@@ -28,11 +28,15 @@ const Participants = () => {
   const rafRef = React.useRef(null);
   const streamForMeterRef = React.useRef(null);
   const photoEditInputRef = React.useRef(null);
-  const photoEditCaptureInputRef = React.useRef(null);
   const newPhotoLibraryRef = React.useRef(null);
-  const newPhotoCaptureRef = React.useRef(null);
   const photoEditIndexRef = React.useRef(null);
   const [photoSourceMenuIndex, setPhotoSourceMenuIndex] = useState(null);
+
+  /** Live camera (getUserMedia) — file input + capture= often opens gallery on desktop */
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraTarget, setCameraTarget] = useState(null); // { type: 'new' } | { type: 'edit', index }
+  const videoRef = React.useRef(null);
+  const cameraStreamRef = React.useRef(null);
 
   useEffect(() => {
     loadParticipants();
@@ -55,6 +59,99 @@ const Participants = () => {
     } catch (err) {
       console.error('Error saving participant book:', err);
       throw err;
+    }
+  };
+
+  const stopCameraStream = () => {
+    const s = cameraStreamRef.current;
+    if (s) {
+      s.getTracks().forEach((t) => t.stop());
+      cameraStreamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  };
+
+  useEffect(() => {
+    if (!cameraOpen) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } },
+          audio: false,
+        });
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        cameraStreamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play().catch(() => {});
+        }
+      } catch (err) {
+        const msg =
+          err?.name === 'NotAllowedError'
+            ? 'Camera permission denied. Allow camera access or use Choose file.'
+            : err?.message || 'Could not open camera.';
+        alert(msg);
+        setCameraOpen(false);
+        setCameraTarget(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      stopCameraStream();
+    };
+  }, [cameraOpen]);
+
+  const closeCameraModal = () => {
+    stopCameraStream();
+    setCameraOpen(false);
+    setCameraTarget(null);
+  };
+
+  const openCameraModal = (target) => {
+    setPhotoSourceMenuIndex(null);
+    setCameraTarget(target);
+    setCameraOpen(true);
+  };
+
+  const applyPhotoDataUrlToParticipantIndex = async (idx, dataUrl) => {
+    const prev = participants;
+    const updated = prev.map((p, i) => (i === idx ? { ...p, photo: dataUrl } : p));
+    setParticipants(updated);
+    try {
+      await saveParticipantsToServer(updated);
+    } catch (saveErr) {
+      setParticipants(prev);
+      alert(saveErr.response?.data?.error || 'Failed to save photo.');
+    }
+  };
+
+  const captureFromCamera = () => {
+    const video = videoRef.current;
+    const target = cameraTarget;
+    if (!video || !video.videoWidth || !target) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0);
+    let dataUrl;
+    try {
+      dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+    } catch (e) {
+      alert('Could not capture image.');
+      return;
+    }
+    closeCameraModal();
+    if (target.type === 'new') {
+      setNewParticipant((p) => ({ ...p, photo: dataUrl }));
+    } else if (target.type === 'edit' && typeof target.index === 'number') {
+      applyPhotoDataUrlToParticipantIndex(target.index, dataUrl);
     }
   };
 
@@ -217,13 +314,7 @@ const Participants = () => {
 
   const openPhotoCameraForIndex = (index) => {
     photoEditIndexRef.current = index;
-    setPhotoSourceMenuIndex(null);
-    requestAnimationFrame(() => {
-      if (photoEditCaptureInputRef.current) {
-        photoEditCaptureInputRef.current.value = '';
-        photoEditCaptureInputRef.current.click();
-      }
-    });
+    openCameraModal({ type: 'edit', index });
   };
 
   const handleExistingPhotoFile = async (e) => {
@@ -466,16 +557,6 @@ const Participants = () => {
         tabIndex={-1}
         onChange={handleExistingPhotoFile}
       />
-      <input
-        ref={photoEditCaptureInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="participant-photo-file-hidden"
-        aria-hidden="true"
-        tabIndex={-1}
-        onChange={handleExistingPhotoFile}
-      />
       <div className="participants-wrapper">
         <div className="participants-top-bar">
           <div>
@@ -537,19 +618,6 @@ const Participants = () => {
                       if (e.target) e.target.value = '';
                     }}
                   />
-                  <input
-                    ref={newPhotoCaptureRef}
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    className="participant-photo-file-hidden"
-                    aria-hidden="true"
-                    tabIndex={-1}
-                    onChange={(e) => {
-                      handlePhotoChange(e.target.files && e.target.files[0]);
-                      if (e.target) e.target.value = '';
-                    }}
-                  />
                   <div className="participant-add-photo-row">
                     <button
                       type="button"
@@ -561,7 +629,7 @@ const Participants = () => {
                     <button
                       type="button"
                       className="participant-add-photo-btn"
-                      onClick={() => newPhotoCaptureRef.current && newPhotoCaptureRef.current.click()}
+                      onClick={() => openCameraModal({ type: 'new' })}
                     >
                       Take photo
                     </button>
@@ -822,6 +890,30 @@ const Participants = () => {
           )}
         </div>
       </div>
+
+      {cameraOpen && (
+        <div className="participant-camera-modal" role="dialog" aria-modal="true" aria-label="Take photo">
+          <div className="participant-camera-modal-backdrop" role="presentation" onClick={closeCameraModal} />
+          <div className="participant-camera-modal-panel">
+            <p className="participant-camera-modal-hint">Position in frame, then capture</p>
+            <video
+              ref={videoRef}
+              className="participant-camera-video"
+              playsInline
+              muted
+              autoPlay
+            />
+            <div className="participant-camera-modal-actions">
+              <button type="button" className="participant-camera-btn participant-camera-btn--secondary" onClick={closeCameraModal}>
+                Cancel
+              </button>
+              <button type="button" className="participant-camera-btn participant-camera-btn--primary" onClick={captureFromCamera}>
+                Capture
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

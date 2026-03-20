@@ -501,3 +501,87 @@
 .participants-content::-webkit-scrollbar-thumb:hover {
   background: var(--text-secondary);
 }
+
+/* Live camera capture (getUserMedia) */
+.participant-camera-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.participant-camera-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  border: none;
+  cursor: pointer;
+}
+
+.participant-camera-modal-panel {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 420px);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--surface-secondary, #1c1c1e);
+  padding: 16px;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.55);
+}
+
+.participant-camera-modal-hint {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.participant-camera-video {
+  display: block;
+  width: 100%;
+  max-height: 52vh;
+  border-radius: 12px;
+  background: #000;
+  object-fit: cover;
+}
+
+.participant-camera-modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+.participant-camera-btn {
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.participant-camera-btn--secondary {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.14);
+  color: var(--text-primary);
+}
+
+.participant-camera-btn--secondary:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.participant-camera-btn--primary {
+  background: var(--text-primary, #f5f5f7);
+  color: var(--bg-primary, #000);
+  border-color: transparent;
+}
+
+.participant-camera-btn--primary:hover {
+  opacity: 0.92;
+}

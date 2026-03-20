@@ -19,6 +19,7 @@ const MeetingsScreen = ({ config }) => {
   const [polling, setPolling] = useState(false);
   const [recording, setRecording] = useState(false);
   const [rightTab, setRightTab] = useState('scheduled'); // 'scheduled' | 'recent'
+  const [showAllMeetings, setShowAllMeetings] = useState(false);
 
   const mediaRecorderRef = useRef(null);
 
@@ -496,6 +497,56 @@ const MeetingsScreen = ({ config }) => {
       return db - da;
     });
 
+  const allMeetingsSorted = (meetings || [])
+    .filter(Boolean)
+    .slice()
+    .sort((a, b) => {
+      const da = new Date(a.updatedAt || a.createdAt || a.startTime || a.scheduledTime || 0).getTime();
+      const db = new Date(b.updatedAt || b.createdAt || b.startTime || b.scheduledTime || 0).getTime();
+      return db - da;
+    });
+
+  const meetingCardBadge = (m) => {
+    const s = m.status || 'Scheduled';
+    if (s === 'Completed') return { label: 'COMPLETED', mod: 'completed' };
+    if (s === 'In Progress') return { label: 'IN PROGRESS', mod: 'live' };
+    if (s === 'Cancelled') return { label: 'CANCELLED', mod: 'cancelled' };
+    return { label: 'SCHEDULED', mod: 'scheduled' };
+  };
+
+  const meetingCardWhen = (m) => {
+    const raw = m.scheduledTime || m.startTime || m.createdAt;
+    if (!raw) return null;
+    const dt = new Date(raw);
+    return Number.isNaN(dt.getTime()) ? null : dt;
+  };
+
+  const meetingCardPrimaryAction = (m) => {
+    const status = m.status || 'Scheduled';
+    if (status === 'Completed') {
+      return {
+        label: `View ${T.meetingSummary()}`,
+        path: `/meetings/${m._id}/summary`,
+      };
+    }
+    if (status === 'In Progress') {
+      return {
+        label: 'Continue meeting',
+        path: `/meetings/${m._id}/room`,
+      };
+    }
+    if (status === 'Scheduled') {
+      return {
+        label: 'View meeting',
+        path: `/meetings/${m._id}`,
+      };
+    }
+    return {
+      label: `View ${T.meetingSummary()}`,
+      path: `/meetings/${m._id}/summary`,
+    };
+  };
+
   const getMeetingDurationLabel = (meeting) => {
     if (!meeting || !meeting.startTime || !meeting.endTime) return '';
     const start = new Date(meeting.startTime);
@@ -613,6 +664,20 @@ const MeetingsScreen = ({ config }) => {
         <div className="meetings-top-bar">
           <h1 className="meetings-top-bar-title">{T.meetings()}</h1>
           <div className="meetings-top-bar-actions">
+            <button
+              type="button"
+              className="meetings-see-all-btn"
+              aria-expanded={showAllMeetings}
+              onClick={() => {
+                setSelectedMeeting(null);
+                setRightTab('scheduled');
+                fetchMeetings();
+                setShowAllMeetings((prev) => !prev);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            >
+              {showAllMeetings ? 'Hide all meetings' : 'See all meetings'}
+            </button>
             {false && selectedMeeting && (
               <button
                 className="btn btn-secondary"
@@ -628,9 +693,85 @@ const MeetingsScreen = ({ config }) => {
           </div>
         </div>
         
-        <div className="meetings-content">
+        <div
+          className={`meetings-content${showAllMeetings ? ' meetings-content--all-open' : ''}`}
+        >
 
         {error && <div className="error-message">{error}</div>}
+
+        {showAllMeetings && (
+          <section className="meetings-all-panel" aria-label="All meetings">
+            <div className="meetings-all-panel-head">
+              <h2 className="meetings-all-panel-title">All meetings</h2>
+              <p className="meetings-all-panel-sub">
+                Browse every meeting with date, time, and participants at a glance.
+              </p>
+            </div>
+            {allMeetingsSorted.length === 0 ? (
+              <p className="info-text meetings-all-empty">No meetings yet.</p>
+            ) : (
+              <div className="meetings-all-grid">
+                {allMeetingsSorted.map((m) => {
+                  const badge = meetingCardBadge(m);
+                  const when = meetingCardWhen(m);
+                  const dateStr = when
+                    ? when.toLocaleDateString(undefined, {
+                        weekday: 'short',
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })
+                    : '—';
+                  const timeStr = when
+                    ? when.toLocaleTimeString(undefined, {
+                        hour: 'numeric',
+                        minute: '2-digit',
+                      })
+                    : '—';
+                  const participantCount = Array.isArray(m.participants) ? m.participants.length : 0;
+                  const action = meetingCardPrimaryAction(m);
+                  return (
+                    <article key={m._id} className="meeting-card-portiq">
+                      <div className="meeting-card-portiq-body">
+                        <span
+                          className={`meeting-card-badge meeting-card-badge--${badge.mod}`}
+                        >
+                          {badge.label}
+                        </span>
+                        <h3 className="meeting-card-portiq-title">{m.title || 'Untitled'}</h3>
+                        <p className="meeting-card-portiq-location">
+                          {m.meetingRoom || 'No location'}
+                        </p>
+                        <div className="meeting-card-portiq-meta">
+                          <div className="meeting-card-portiq-meta-cell">
+                            <span className="meeting-card-portiq-label">DATE</span>
+                            <span className="meeting-card-portiq-value">{dateStr}</span>
+                          </div>
+                          <div className="meeting-card-portiq-meta-cell">
+                            <span className="meeting-card-portiq-label">TIME</span>
+                            <span className="meeting-card-portiq-value">{timeStr}</span>
+                          </div>
+                          <div className="meeting-card-portiq-meta-cell">
+                            <span className="meeting-card-portiq-label">PARTICIPANTS</span>
+                            <span className="meeting-card-portiq-value">{participantCount}</span>
+                          </div>
+                        </div>
+                        <div className="meeting-card-portiq-divider" role="presentation" />
+                        <button
+                          type="button"
+                          className="meeting-card-portiq-cta"
+                          onClick={() => navigate(action.path)}
+                        >
+                          {action.label}
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        )}
 
         {(() => {
           const needsApproval = (meetings || []).filter(

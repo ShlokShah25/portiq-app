@@ -462,8 +462,17 @@ const MeetingSummary = () => {
                           })
                         : null;
 
+                      const statusClass =
+                        status === 'in_progress' || status === 'done'
+                          ? status
+                          : 'not_started';
+
                       return (
-                        <li key={itemId} className="meeting-action-item">
+                        <li
+                          key={itemId}
+                          className={`meeting-action-item meeting-action-item--${statusClass}`}
+                          data-action-status={statusClass}
+                        >
                           <div className="meeting-action-item-main">
                             <div className="meeting-action-item-title">
                               <strong>{item.task}</strong>
