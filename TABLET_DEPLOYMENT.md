@@ -65,7 +65,7 @@ NODE_ENV=production
 MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/workplace_visitor_management
 
 # HuggingFace Token (for voice recognition)
-HF_TOKEN=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
+HF_TOKEN=your_huggingface_token_here
 
 # Email Configuration
 MAIL_HOST=smtp.gmail.com

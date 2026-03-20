@@ -295,7 +295,7 @@ HOST=0.0.0.0
 MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/workplace_visitor_management
 
 # HuggingFace (Voice Recognition)
-HF_TOKEN=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
+HF_TOKEN=your_huggingface_token_here
 
 # Email
 MAIL_HOST=smtp.gmail.com
