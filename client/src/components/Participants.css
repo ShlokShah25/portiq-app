@@ -254,6 +254,46 @@
   white-space: nowrap;
 }
 
+.participant-photo-file-hidden {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.participant-photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.participant-photo-link {
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent-blue, #3b82f6);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.participant-photo-link:hover {
+  color: #60a5fa;
+}
+
+.participant-photo-link--danger {
+  color: var(--text-secondary, rgba(148, 163, 184, 0.95));
+}
+
+.participant-photo-link--danger:hover {
+  color: var(--error-red, #ef4444);
+}
+
 .participant-voice-row {
   display: flex;
   align-items: center;

@@ -26,6 +26,8 @@ const Participants = () => {
   const analyserRef = React.useRef(null);
   const rafRef = React.useRef(null);
   const streamForMeterRef = React.useRef(null);
+  const photoEditInputRef = React.useRef(null);
+  const photoEditIndexRef = React.useRef(null);
 
   useEffect(() => {
     loadParticipants();
@@ -144,26 +146,91 @@ const Participants = () => {
     setShowAddForm(false);
   };
 
+  const validateImageFile = (file) => {
+    if (!file) return { ok: false, error: null };
+    if (!file.type.startsWith('image/')) {
+      return { ok: false, error: 'Please select an image file.' };
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      return { ok: false, error: 'Image size must be under 2MB.' };
+    }
+    return { ok: true, error: null };
+  };
+
+  const readImageFileAsDataUrl = (file) =>
+    new Promise((resolve, reject) => {
+      const v = validateImageFile(file);
+      if (!v.ok) {
+        if (v.error) reject(new Error(v.error));
+        else resolve('');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = typeof reader.result === 'string' ? reader.result : '';
+        resolve(result);
+      };
+      reader.onerror = () => reject(new Error('Could not read file.'));
+      reader.readAsDataURL(file);
+    });
+
   const handlePhotoChange = (file) => {
     if (!file) {
       setNewParticipant((prev) => ({ ...prev, photo: '' }));
       return;
     }
-    if (!file.type.startsWith('image/')) {
-      alert('Please select an image file.');
-      return;
-    }
-    if (file.size > 2 * 1024 * 1024) {
-      alert('Image size must be under 2MB.');
-      return;
-    }
+    readImageFileAsDataUrl(file)
+      .then((dataUrl) => setNewParticipant((prev) => ({ ...prev, photo: dataUrl })))
+      .catch((err) => alert(err.message || 'Invalid image.'));
+  };
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = typeof reader.result === 'string' ? reader.result : '';
-      setNewParticipant((prev) => ({ ...prev, photo: result }));
-    };
-    reader.readAsDataURL(file);
+  const openChangePhotoForIndex = (index) => {
+    photoEditIndexRef.current = index;
+    requestAnimationFrame(() => {
+      if (photoEditInputRef.current) {
+        photoEditInputRef.current.value = '';
+        photoEditInputRef.current.click();
+      }
+    });
+  };
+
+  const handleExistingPhotoFile = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    const idx = photoEditIndexRef.current;
+    photoEditIndexRef.current = null;
+    if (e.target) e.target.value = '';
+    if (idx == null || idx === undefined || !file) return;
+
+    try {
+      const dataUrl = await readImageFileAsDataUrl(file);
+      const prev = participants;
+      const updated = prev.map((p, i) =>
+        i === idx ? { ...p, photo: dataUrl } : p
+      );
+      setParticipants(updated);
+      try {
+        await saveParticipantsToServer(updated);
+      } catch (saveErr) {
+        setParticipants(prev);
+        alert(saveErr.response?.data?.error || 'Failed to save photo.');
+      }
+    } catch (err) {
+      alert(err.message || 'Failed to update photo.');
+    }
+  };
+
+  const handleRemoveParticipantPhoto = async (index) => {
+    const prev = participants;
+    const updated = prev.map((p, i) =>
+      i === index ? { ...p, photo: '' } : p
+    );
+    setParticipants(updated);
+    try {
+      await saveParticipantsToServer(updated);
+    } catch (err) {
+      setParticipants(prev);
+      alert(err.response?.data?.error || 'Failed to remove photo.');
+    }
   };
 
   const handleDeleteParticipant = async (index) => {
@@ -358,6 +425,15 @@ const Participants = () => {
   return (
     <div className="participants-screen">
       <TopNav />
+      <input
+        ref={photoEditInputRef}
+        type="file"
+        accept="image/*"
+        className="participant-photo-file-hidden"
+        aria-hidden="true"
+        tabIndex={-1}
+        onChange={handleExistingPhotoFile}
+      />
       <div className="participants-wrapper">
         <div className="participants-top-bar">
           <div>
@@ -498,6 +574,24 @@ const Participants = () => {
                   <div className="participant-info">
                     <div className="participant-name">{p.name || 'Unnamed'}</div>
                     <div className="participant-email">{p.email || 'No email'}</div>
+                    <div className="participant-photo-actions">
+                      <button
+                        type="button"
+                        className="participant-photo-link"
+                        onClick={() => openChangePhotoForIndex(idx)}
+                      >
+                        {p.photo ? 'Change photo' : 'Add photo'}
+                      </button>
+                      {p.photo ? (
+                        <button
+                          type="button"
+                          className="participant-photo-link participant-photo-link--danger"
+                          onClick={() => handleRemoveParticipantPhoto(idx)}
+                        >
+                          Remove photo
+                        </button>
+                      ) : null}
+                    </div>
                     {p.email && p.email.trim() && (
                       <div className="participant-voice-row">
                         <span className="participant-voice-status">
