@@ -22,6 +22,7 @@ const Profile = () => {
   const [cancelMessage, setCancelMessage] = useState('');
   const [cancelError, setCancelError] = useState('');
   const [uiLanguage, setUiLanguageState] = useState('en');
+  const [photoLightboxOpen, setPhotoLightboxOpen] = useState(false);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -67,6 +68,15 @@ const Profile = () => {
     loadProfile();
     setUiLanguageState(getUiLanguage());
   }, []);
+
+  useEffect(() => {
+    if (!photoLightboxOpen) return;
+    const onKey = (e) => {
+      if (e.key === 'Escape') setPhotoLightboxOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [photoLightboxOpen]);
 
   const handleChangePassword = async (e) => {
     e.preventDefault();
@@ -142,21 +152,29 @@ const Profile = () => {
       <div className="profile-content">
         <div className="profile-card">
           <div className="profile-identity">
-            <div
-              className={`profile-avatar-ring ${profilePhotoFromBook ? 'profile-avatar-ring--photo' : ''}`}
-            >
-              {profilePhotoFromBook ? (
-                <img
-                  src={profilePhotoFromBook}
-                  alt="Profile photo"
-                  className="profile-avatar-img"
-                />
-              ) : (
+            {profilePhotoFromBook ? (
+              <button
+                type="button"
+                className="profile-avatar-ring profile-avatar-ring--photo profile-avatar-ring--interactive"
+                onClick={() => setPhotoLightboxOpen(true)}
+                title="View full photo"
+                aria-label="View full photo"
+              >
+                <span className="profile-avatar-clip">
+                  <img
+                    src={profilePhotoFromBook}
+                    alt="Profile photo"
+                    className="profile-avatar-img"
+                  />
+                </span>
+              </button>
+            ) : (
+              <div className="profile-avatar-ring">
                 <span className="profile-avatar-initials">
                   {(username || '?').trim().charAt(0).toUpperCase()}
                 </span>
-              )}
-            </div>
+              </div>
+            )}
             <div className="profile-identity-text">
               <h1 className="profile-display-name">{username}</h1>
               {email ? (
@@ -303,6 +321,31 @@ const Profile = () => {
           </div>
         </div>
       </div>
+
+      {photoLightboxOpen && profilePhotoFromBook && (
+        <div
+          className="profile-photo-lightbox"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Profile photo"
+          onClick={() => setPhotoLightboxOpen(false)}
+        >
+          <button
+            type="button"
+            className="profile-photo-lightbox-close"
+            aria-label="Close"
+            onClick={() => setPhotoLightboxOpen(false)}
+          >
+            ×
+          </button>
+          <img
+            src={profilePhotoFromBook}
+            alt="Profile"
+            className="profile-photo-lightbox-img"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 };

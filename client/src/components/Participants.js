@@ -31,6 +31,7 @@ const Participants = () => {
   const newPhotoLibraryRef = React.useRef(null);
   const photoEditIndexRef = React.useRef(null);
   const [photoSourceMenuIndex, setPhotoSourceMenuIndex] = useState(null);
+  const [photoLightboxUrl, setPhotoLightboxUrl] = useState(null);
 
   /** Live camera (getUserMedia) — file input + capture= often opens gallery on desktop */
   const [cameraOpen, setCameraOpen] = useState(false);
@@ -41,6 +42,15 @@ const Participants = () => {
   useEffect(() => {
     loadParticipants();
   }, []);
+
+  useEffect(() => {
+    if (!photoLightboxUrl) return;
+    const onKey = (e) => {
+      if (e.key === 'Escape') setPhotoLightboxUrl(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [photoLightboxUrl]);
 
   useEffect(() => {
     if (photoSourceMenuIndex == null) return;
@@ -713,25 +723,52 @@ const Participants = () => {
                     className="participant-avatar-wrap"
                     data-photo-menu={idx}
                   >
-                    <button
-                      type="button"
-                      className={`participant-avatar-btn ${p.photo ? 'participant-avatar-btn--has-photo' : ''}`}
-                      onClick={() => togglePhotoSourceMenu(idx)}
-                      title={p.photo ? 'Change photo' : 'Add photo'}
-                      aria-label={p.photo ? 'Change photo' : 'Add photo'}
-                      aria-expanded={photoSourceMenuIndex === idx}
-                    >
-                      {p.photo ? (
-                        <>
-                          <img src={p.photo} alt="" className="participant-avatar-image" />
-                          <span className="participant-avatar-badge" aria-hidden>
-                            <CameraIcon size={14} />
-                          </span>
-                        </>
-                      ) : (
+                    {p.photo ? (
+                      <div className="participant-avatar-stack">
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          className="participant-avatar-face"
+                          onClick={() => setPhotoLightboxUrl(p.photo)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              setPhotoLightboxUrl(p.photo);
+                            }
+                          }}
+                          title="View full photo"
+                          aria-label="View full photo"
+                        >
+                          <div className="participant-avatar-clip">
+                            <img src={p.photo} alt="" />
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className="participant-avatar-menu-fab"
+                          title="Change photo"
+                          aria-label="Change photo"
+                          aria-expanded={photoSourceMenuIndex === idx}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            togglePhotoSourceMenu(idx);
+                          }}
+                        >
+                          <CameraIcon size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="participant-avatar-btn"
+                        onClick={() => togglePhotoSourceMenu(idx)}
+                        title="Add photo"
+                        aria-label="Add photo"
+                        aria-expanded={photoSourceMenuIndex === idx}
+                      >
                         <CameraIcon className="participant-avatar-camera-icon" size={22} />
-                      )}
-                    </button>
+                      </button>
+                    )}
                     {photoSourceMenuIndex === idx && (
                       <div className="participant-photo-source-popover" role="menu">
                         <button
@@ -758,6 +795,13 @@ const Participants = () => {
                     <div className="participant-email">{p.email || 'No email'}</div>
                     {p.photo ? (
                       <div className="participant-photo-actions">
+                        <button
+                          type="button"
+                          className="participant-photo-link"
+                          onClick={() => setPhotoLightboxUrl(p.photo)}
+                        >
+                          View photo
+                        </button>
                         <button
                           type="button"
                           className="participant-photo-link participant-photo-link--danger"
@@ -890,6 +934,31 @@ const Participants = () => {
           )}
         </div>
       </div>
+
+      {photoLightboxUrl && (
+        <div
+          className="participant-photo-lightbox"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Photo preview"
+          onClick={() => setPhotoLightboxUrl(null)}
+        >
+          <button
+            type="button"
+            className="participant-photo-lightbox-close"
+            aria-label="Close"
+            onClick={() => setPhotoLightboxUrl(null)}
+          >
+            ×
+          </button>
+          <img
+            src={photoLightboxUrl}
+            alt="Participant"
+            className="participant-photo-lightbox-img"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
 
       {cameraOpen && (
         <div className="participant-camera-modal" role="dialog" aria-modal="true" aria-label="Take photo">
