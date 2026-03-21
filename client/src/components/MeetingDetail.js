@@ -80,6 +80,13 @@ const MeetingDetail = () => {
   const [meeting, setMeeting] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [followUpOpen, setFollowUpOpen] = useState(false);
+  const [followUpDt, setFollowUpDt] = useState('');
+  const [checkpointText, setCheckpointText] = useState('');
+  const [sendEmailParticipants, setSendEmailParticipants] = useState(true);
+  const [endSessionForFollowUp, setEndSessionForFollowUp] = useState(true);
+  const [followUpSubmitting, setFollowUpSubmitting] = useState(false);
+  const [followUpError, setFollowUpError] = useState('');
 
   const fetchMeeting = async () => {
     if (!id) return;
@@ -123,6 +130,63 @@ const MeetingDetail = () => {
   const handleStartMeeting = () => {
     // Meeting only "starts" when user clicks Start recording in the room
     navigate(`/meetings/${id}/room`);
+  };
+
+  const openFollowUpModal = () => {
+    if (!meeting) return;
+    const t = new Date();
+    t.setDate(t.getDate() + 1);
+    t.setHours(10, 0, 0, 0);
+    const pad = (n) => String(n).padStart(2, '0');
+    const local = `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}T${pad(t.getHours())}:${pad(t.getMinutes())}`;
+    setFollowUpDt(local);
+    const parts = [
+      meeting.summary,
+      meeting.pendingSummary,
+      Array.isArray(meeting.keyPoints) && meeting.keyPoints.length
+        ? meeting.keyPoints.slice(0, 10).map((k) => `• ${k}`).join('\n')
+        : '',
+      meeting.sessionCheckpointSummary,
+    ].filter((x) => x && String(x).trim());
+    const suggestion = parts.length ? String(parts[0]).trim().slice(0, 4000) : '';
+    setCheckpointText(suggestion);
+    setFollowUpError('');
+    setFollowUpOpen(true);
+  };
+
+  const handleScheduleFollowUp = async (e) => {
+    e.preventDefault();
+    setFollowUpError('');
+    const when = new Date(followUpDt);
+    if (Number.isNaN(when.getTime())) {
+      setFollowUpError('Pick a valid date and time for the follow-up.');
+      return;
+    }
+    if (!checkpointText.trim()) {
+      setFollowUpError('Add a short recap of what you covered (participants will see this).');
+      return;
+    }
+    setFollowUpSubmitting(true);
+    try {
+      const res = await axios.post(`/meetings/${id}/schedule-follow-up`, {
+        scheduledTime: when.toISOString(),
+        checkpointSummary: checkpointText.trim(),
+        sendEmail: sendEmailParticipants,
+        endCurrentSession: meeting.status === 'In Progress' ? endSessionForFollowUp : false,
+      });
+      const nextId = res.data?.followUpMeeting?._id;
+      setFollowUpOpen(false);
+      await fetchMeeting();
+      if (nextId) {
+        navigate(`/meetings/${nextId}`);
+      }
+    } catch (err) {
+      setFollowUpError(
+        err.response?.data?.error || err.message || 'Could not schedule follow-up.'
+      );
+    } finally {
+      setFollowUpSubmitting(false);
+    }
   };
 
   if (loading) {
@@ -213,11 +277,61 @@ const MeetingDetail = () => {
         })
       : null;
 
+  const parentCont = meeting.parentContinuation;
+  const followCont = meeting.followUpContinuation;
+
   return (
     <div className="meeting-detail-screen">
       <TopNav />
       <div className="meeting-detail-container">
         <div className="meeting-detail-card">
+          {parentCont && (
+            <div className="meeting-detail-continuation">
+              <p className="meeting-detail-continuation-title">Continuing from prior session</p>
+              {parentCont.title && (
+                <p style={{ margin: '0 0 8px', fontWeight: 600 }}>{parentCont.title}</p>
+              )}
+              {parentCont.sessionCheckpointSummary && (
+                <p className="meeting-detail-continuation-recap">
+                  {parentCont.sessionCheckpointSummary}
+                </p>
+              )}
+              <a
+                className="meeting-detail-continuation-link"
+                href={`/meetings/${parentCont._id}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigate(`/meetings/${parentCont._id}`);
+                }}
+              >
+                View previous meeting →
+              </a>
+            </div>
+          )}
+          {followCont && (
+            <div className="meeting-detail-continuation" style={{ borderColor: 'rgba(34, 197, 94, 0.35)', background: 'rgba(34, 197, 94, 0.06)' }}>
+              <p className="meeting-detail-continuation-title" style={{ color: '#86efac' }}>
+                Follow-up scheduled
+              </p>
+              <p style={{ margin: 0, fontSize: 14 }}>
+                <strong>{followCont.title}</strong>
+                {followCont.scheduledTime && (
+                  <> — {formatDate(followCont.scheduledTime)} {formatTime(followCont.scheduledTime)}</>
+                )}
+              </p>
+              <a
+                className="meeting-detail-continuation-link"
+                href={`/meetings/${followCont._id}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigate(`/meetings/${followCont._id}`);
+                }}
+                style={{ display: 'inline-block', marginTop: 10 }}
+              >
+                Open follow-up →
+              </a>
+            </div>
+          )}
           <div className="meeting-detail-header">
             <span className={`meeting-detail-status meeting-detail-status--${(meeting.status || '').toLowerCase().replace(' ', '-')}`}>
               {meeting.status || 'Scheduled'}
@@ -309,6 +423,15 @@ const MeetingDetail = () => {
                 Open meeting
               </button>
             )}
+            {(isInProgress || isCompleted) && (
+              <button
+                type="button"
+                className="meeting-detail-btn meeting-detail-btn--secondary"
+                onClick={openFollowUpModal}
+              >
+                Schedule follow-up
+              </button>
+            )}
             {isCompleted && hasSummary && !pendingApproval && (
               <button
                 type="button"
@@ -333,6 +456,82 @@ const MeetingDetail = () => {
           </div>
         </div>
       </div>
+
+      {followUpOpen && (
+        <div
+          className="meeting-followup-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="followup-modal-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setFollowUpOpen(false);
+          }}
+        >
+          <form className="meeting-followup-modal" onSubmit={handleScheduleFollowUp}>
+            <h3 id="followup-modal-title">Schedule follow-up</h3>
+            <p className="meeting-followup-modal-desc">
+              Save a recap of what you covered (emailed to participants if you choose), pick when to
+              continue, and we&apos;ll create a linked follow-up meeting.
+            </p>
+            {followUpError && <div className="meeting-followup-error">{followUpError}</div>}
+            <div className="meeting-followup-field">
+              <label htmlFor="followup-when">Follow-up date &amp; time</label>
+              <input
+                id="followup-when"
+                type="datetime-local"
+                value={followUpDt}
+                onChange={(e) => setFollowUpDt(e.target.value)}
+                required
+              />
+            </div>
+            <div className="meeting-followup-field">
+              <label htmlFor="followup-recap">What we covered (recap)</label>
+              <textarea
+                id="followup-recap"
+                value={checkpointText}
+                onChange={(e) => setCheckpointText(e.target.value)}
+                placeholder="Summarize decisions, topics, and open items from this session..."
+                required
+              />
+            </div>
+            <label className="meeting-followup-check">
+              <input
+                type="checkbox"
+                checked={sendEmailParticipants}
+                onChange={(e) => setSendEmailParticipants(e.target.checked)}
+              />
+              <span>Email participants the recap and follow-up time</span>
+            </label>
+            {isInProgress && (
+              <label className="meeting-followup-check">
+                <input
+                  type="checkbox"
+                  checked={endSessionForFollowUp}
+                  onChange={(e) => setEndSessionForFollowUp(e.target.checked)}
+                />
+                <span>End this session now (mark current meeting completed without new recording)</span>
+              </label>
+            )}
+            <div className="meeting-followup-actions">
+              <button
+                type="submit"
+                className="meeting-detail-btn meeting-detail-btn--primary"
+                disabled={followUpSubmitting}
+              >
+                {followUpSubmitting ? 'Scheduling…' : 'Create follow-up'}
+              </button>
+              <button
+                type="button"
+                className="meeting-detail-btn meeting-detail-btn--secondary"
+                onClick={() => setFollowUpOpen(false)}
+                disabled={followUpSubmitting}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 };

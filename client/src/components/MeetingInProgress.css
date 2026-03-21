@@ -310,6 +310,26 @@
   justify-content: center;
 }
 
+.meeting-actions--split {
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: center;
+  align-items: center;
+}
+
+.btn-end-meeting--secondary {
+  background: transparent;
+  color: #e5e7eb;
+  border: 2px solid #3b82f6;
+  box-shadow: none;
+}
+
+.btn-end-meeting--secondary:hover:not(:disabled) {
+  background: rgba(59, 130, 246, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.25);
+}
+
 .btn-end-meeting {
   background: #ef4444;
   border: none;

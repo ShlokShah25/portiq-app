@@ -613,6 +613,212 @@ router.post('/:id/end', upload.single('audio'), async (req, res) => {
 });
 
 /**
+ * Schedule a follow-up meeting: save "what we covered", optionally end the current session,
+ * create a new scheduled meeting linked as continuation, optionally email participants.
+ */
+router.post('/:id/schedule-follow-up', async (req, res) => {
+  try {
+    const meeting = await Meeting.findById(req.params.id);
+    if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
+
+    const admin = await getAdminFromRequest(req);
+    if (!admin) {
+      return res.status(401).json({ error: 'Sign in to schedule a follow-up.' });
+    }
+    if (!canAccessMeeting(meeting, admin)) {
+      return res.status(404).json({ error: 'Meeting not found' });
+    }
+    if (admin.username !== 'admin' && !admin.hasActiveSubscription) {
+      return res.status(403).json({
+        error: 'No active subscription.',
+        code: 'NO_SUBSCRIPTION',
+      });
+    }
+
+    const {
+      scheduledTime,
+      checkpointSummary,
+      sendEmail: sendEmailFlag,
+      endCurrentSession,
+      followUpTitle,
+    } = req.body || {};
+
+    if (!scheduledTime) {
+      return res.status(400).json({ error: 'scheduledTime is required (ISO date string).' });
+    }
+    const when = new Date(scheduledTime);
+    if (Number.isNaN(when.getTime())) {
+      return res.status(400).json({ error: 'Invalid scheduledTime.' });
+    }
+
+    const summaryText = String(checkpointSummary || '').trim();
+    if (!summaryText) {
+      return res.status(400).json({
+        error: 'Please enter a short summary of what was covered (sent to participants).',
+      });
+    }
+
+    const allowedStatuses = ['Scheduled', 'In Progress', 'Completed'];
+    if (!allowedStatuses.includes(meeting.status)) {
+      return res.status(400).json({
+        error: 'Follow-up can only be scheduled from a scheduled, in-progress, or completed meeting.',
+      });
+    }
+
+    if (endCurrentSession && meeting.status === 'In Progress') {
+      meeting.status = 'Completed';
+      meeting.endTime = new Date();
+      if (meeting.transcriptionStatus !== 'Completed') {
+        meeting.transcriptionStatus = 'Not Started';
+      }
+    }
+
+    meeting.sessionCheckpointSummary = summaryText;
+    meeting.sessionCheckpointAt = new Date();
+
+    const child = new Meeting({
+      adminId: meeting.adminId || admin._id,
+      meetingRoom: meeting.meetingRoom,
+      title:
+        (followUpTitle && String(followUpTitle).trim()) ||
+        `${meeting.title.replace(/\s*\(Follow-up\)\s*$/i, '')} (Follow-up)`,
+      organizer: meeting.organizer,
+      participants: meeting.participants || [],
+      scheduledTime: when,
+      startTime: null,
+      endTime: null,
+      status: 'Scheduled',
+      transcriptionEnabled: !!meeting.transcriptionEnabled,
+      authorizedEditorEmail: meeting.authorizedEditorEmail || null,
+      parentMeetingId: meeting._id,
+    });
+
+    if (child.authorizedEditorEmail && child.transcriptionEnabled) {
+      child.editorVerificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      child.editorVerificationExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    }
+
+    await child.save();
+    meeting.followUpMeetingId = child._id;
+    await meeting.save();
+
+    const sendEmailNow = sendEmailFlag !== false;
+    if (sendEmailNow && isEmailConfigured()) {
+      const base =
+        process.env.MEETING_SUMMARY_BASE_URL ||
+        process.env.CLIENT_BASE_URL ||
+        'https://meetingassistant.portiqtechnologies.com';
+      const detailUrl = `${String(base).replace(/\/+$/, '')}/meetings/${child._id}`;
+      const whenLong = when.toLocaleString(undefined, {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+      const whenShort = when.toLocaleString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+      const roomLine =
+        meeting.meetingRoom && String(meeting.meetingRoom).trim()
+          ? String(meeting.meetingRoom).trim()
+          : null;
+
+      const participantEmails = (meeting.participants || [])
+        .map((p) => p && p.email && String(p.email).trim())
+        .filter((e) => e && /\S+@\S+\.\S+/.test(e));
+
+      const toSet = new Set(participantEmails.map((e) => e.toLowerCase()));
+      const org = meeting.organizer && String(meeting.organizer).trim();
+      if (org && /\S+@\S+\.\S+/.test(org)) {
+        toSet.add(org.toLowerCase());
+      }
+      const to = [...toSet];
+
+      if (to.length > 0) {
+        const subject = `Follow-up scheduled for ${whenShort} — ${child.title}`;
+        const safeSummary = summaryText.replace(/</g, '&lt;').replace(/\n/g, '<br/>');
+        const html = `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; color: #111827; line-height: 1.6;">
+            <p style="margin:0 0 16px;">Hello,</p>
+            <p style="margin:0 0 16px;">
+              A <strong>follow-up meeting</strong> has been scheduled to continue
+              <strong>${String(meeting.title).replace(/</g, '')}</strong>.
+            </p>
+            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:16px 18px;margin:0 0 20px;">
+              <p style="margin:0 0 6px;font-size:12px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:#1d4ed8;">
+                Follow-up date &amp; time
+              </p>
+              <p style="margin:0;font-size:18px;font-weight:700;color:#1e3a8a;">
+                ${whenLong.replace(/</g, '')}
+              </p>
+              ${
+                roomLine
+                  ? `<p style="margin:10px 0 0;font-size:14px;color:#1e40af;"><strong>Location:</strong> ${roomLine.replace(/</g, '')}</p>`
+                  : ''
+              }
+            </div>
+            <p style="margin:0 0 8px;font-size:12px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:#6b7280;">
+              Summary of what we covered
+            </p>
+            <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px;margin:0 0 20px;">
+              ${safeSummary}
+            </div>
+            <p style="margin:0 0 12px;">
+              <a href="${detailUrl}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:600;" target="_blank" rel="noopener noreferrer">Open follow-up meeting in PortIQ</a>
+            </p>
+            <p style="margin:0;font-size:13px;color:#4b5563;">
+              Or copy this link: <a href="${detailUrl}" target="_blank" rel="noopener noreferrer">${detailUrl}</a>
+            </p>
+            <p style="margin-top:20px;font-size:12px;color:#6b7280;">— PortIQ Meeting Assistant</p>
+          </div>
+        `;
+        const text = [
+          'Hello,',
+          '',
+          `A follow-up meeting has been scheduled to continue "${String(meeting.title).replace(/"/g, "'")}".`,
+          '',
+          `FOLLOW-UP SCHEDULED FOR: ${whenLong}`,
+          roomLine ? `Location: ${roomLine}` : '',
+          '',
+          'SUMMARY OF WHAT WE COVERED:',
+          summaryText,
+          '',
+          `Open the follow-up meeting: ${detailUrl}`,
+          '',
+          '— PortIQ Meeting Assistant',
+        ]
+          .filter(Boolean)
+          .join('\n');
+
+        try {
+          await sendEmail({ from: getDefaultFrom(), to, subject, html, text });
+        } catch (mailErr) {
+          console.warn('Follow-up email failed:', mailErr.message);
+        }
+      }
+    }
+
+    const parentFresh = await Meeting.findById(meeting._id);
+    const childFresh = await Meeting.findById(child._id);
+    res.json({
+      success: true,
+      message: 'Follow-up meeting scheduled.',
+      parentMeeting: parentFresh,
+      followUpMeeting: childFresh,
+    });
+  } catch (error) {
+    console.error('Error scheduling follow-up:', error);
+    res.status(500).json({ error: 'Failed to schedule follow-up.' });
+  }
+});
+
+/**
  * Get all meetings (kiosk view - filters completed meetings based on config)
  */
 router.get('/', async (req, res) => {
@@ -681,7 +887,41 @@ router.get('/:id', async (req, res) => {
     if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
     const admin = await getAdminFromRequest(req);
     if (!canAccessMeeting(meeting, admin)) return res.status(404).json({ error: 'Meeting not found' });
-    res.json({ meeting });
+
+    const payload = meeting.toObject ? meeting.toObject() : meeting;
+
+    if (meeting.parentMeetingId) {
+      const parent = await Meeting.findById(meeting.parentMeetingId).select(
+        'title status scheduledTime startTime sessionCheckpointSummary sessionCheckpointAt summary pendingSummary'
+      );
+      if (parent) {
+        payload.parentContinuation = {
+          _id: parent._id,
+          title: parent.title,
+          status: parent.status,
+          sessionCheckpointSummary: parent.sessionCheckpointSummary,
+          sessionCheckpointAt: parent.sessionCheckpointAt,
+          priorSummarySnippet:
+            (parent.summary || parent.pendingSummary || '').slice(0, 800) || null,
+        };
+      }
+    }
+
+    if (meeting.followUpMeetingId) {
+      const next = await Meeting.findById(meeting.followUpMeetingId).select(
+        '_id title status scheduledTime'
+      );
+      if (next) {
+        payload.followUpContinuation = {
+          _id: next._id,
+          title: next.title,
+          status: next.status,
+          scheduledTime: next.scheduledTime,
+        };
+      }
+    }
+
+    res.json({ meeting: payload });
   } catch (error) {
     console.error('Error fetching meeting:', error);
     res.status(500).json({ error: 'Failed to fetch meeting' });

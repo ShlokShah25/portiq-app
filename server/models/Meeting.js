@@ -183,6 +183,28 @@ const meetingSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  /** Set on a follow-up meeting — links back to the prior session */
+  parentMeetingId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Meeting',
+    default: null,
+    index: true,
+  },
+  /** Latest scheduled follow-up created from this meeting */
+  followUpMeetingId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Meeting',
+    default: null,
+  },
+  /** What was covered before pausing / scheduling a follow-up (shown to participants) */
+  sessionCheckpointSummary: {
+    type: String,
+    default: '',
+  },
+  sessionCheckpointAt: {
+    type: Date,
+    default: null,
+  },
   createdAt: {
     type: Date,
     default: Date.now
@@ -206,5 +228,6 @@ meetingSchema.pre('save', function(next) {
 meetingSchema.index({ meetingRoom: 1 });
 meetingSchema.index({ status: 1 });
 meetingSchema.index({ startTime: -1 });
+meetingSchema.index({ parentMeetingId: 1 });
 
 module.exports = mongoose.model('Meeting', meetingSchema);
