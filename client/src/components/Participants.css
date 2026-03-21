@@ -307,14 +307,6 @@
   display: block;
 }
 
-/* Stack: circular view (click = lightbox) + FAB for change photo */
-.participant-avatar-stack {
-  position: relative;
-  width: 56px;
-  height: 56px;
-  flex-shrink: 0;
-}
-
 .participant-avatar-face {
   box-sizing: border-box;
   position: relative;
@@ -349,36 +341,6 @@
   /* Avoid intrinsic aspect-ratio shrinking inside circle */
   min-width: 100%;
   min-height: 100%;
-}
-
-
-.participant-avatar-menu-fab {
-  position: absolute;
-  right: -3px;
-  bottom: -3px;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  background: rgba(28, 28, 30, 0.95);
-  color: rgba(255, 255, 255, 0.92);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  padding: 0;
-  z-index: 2;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-}
-
-.participant-avatar-menu-fab:hover {
-  background: rgba(55, 55, 58, 0.98);
-  border-color: rgba(255, 255, 255, 0.35);
-}
-
-.participant-avatar-menu-fab:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px rgba(10, 132, 255, 0.55);
 }
 
 /* Full-screen photo viewer */

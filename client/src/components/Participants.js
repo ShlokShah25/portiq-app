@@ -724,38 +724,23 @@ const Participants = () => {
                     data-photo-menu={idx}
                   >
                     {p.photo ? (
-                      <div className="participant-avatar-stack">
-                        <div
-                          role="button"
-                          tabIndex={0}
-                          className="participant-avatar-face"
-                          onClick={() => setPhotoLightboxUrl(p.photo)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault();
-                              setPhotoLightboxUrl(p.photo);
-                            }
-                          }}
-                          title="View full photo"
-                          aria-label="View full photo"
-                        >
-                          <div className="participant-avatar-clip">
-                            <img src={p.photo} alt="" />
-                          </div>
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        className="participant-avatar-face"
+                        onClick={() => setPhotoLightboxUrl(p.photo)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setPhotoLightboxUrl(p.photo);
+                          }
+                        }}
+                        title="View full photo"
+                        aria-label="View full photo"
+                      >
+                        <div className="participant-avatar-clip">
+                          <img src={p.photo} alt="" />
                         </div>
-                        <button
-                          type="button"
-                          className="participant-avatar-menu-fab"
-                          title="Change photo"
-                          aria-label="Change photo"
-                          aria-expanded={photoSourceMenuIndex === idx}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            togglePhotoSourceMenu(idx);
-                          }}
-                        >
-                          <CameraIcon size={14} />
-                        </button>
                       </div>
                     ) : (
                       <button
@@ -801,6 +786,14 @@ const Participants = () => {
                           onClick={() => setPhotoLightboxUrl(p.photo)}
                         >
                           View photo
+                        </button>
+                        <button
+                          type="button"
+                          className="participant-photo-link"
+                          aria-expanded={photoSourceMenuIndex === idx}
+                          onClick={() => togglePhotoSourceMenu(idx)}
+                        >
+                          Change photo
                         </button>
                         <button
                           type="button"
