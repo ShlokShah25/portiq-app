@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import TopNav from './TopNav';
 import axios from 'axios';
 import './Profile.css';
@@ -7,6 +8,7 @@ import { SUPPORTED_UI_LANGUAGES, getUiLanguage, setUiLanguage } from '../config/
 const Profile = () => {
   const [username, setUsername] = useState('Unknown user');
   const [email, setEmail] = useState('');
+  const [profilePhotoFromBook, setProfilePhotoFromBook] = useState('');
   const [productLabel, setProductLabel] = useState('Portiq Workplace');
   const [planLabel, setPlanLabel] = useState('Starter');
   const [subscriptionActive, setSubscriptionActive] = useState(false);
@@ -46,6 +48,11 @@ const Profile = () => {
         else if (plan === 'business') planText = 'Business';
         setPlanLabel(planText);
         setSubscriptionActive(!!admin.hasActiveSubscription);
+        setProfilePhotoFromBook(
+          typeof admin.profilePhotoFromBook === 'string'
+            ? admin.profilePhotoFromBook.trim()
+            : ''
+        );
       } catch (e) {
         // Fallback: best-effort from localStorage if API fails
         const product =
@@ -134,13 +141,44 @@ const Profile = () => {
       <TopNav />
       <div className="profile-content">
         <div className="profile-card">
-          <div className="profile-header">
-            <div className="profile-avatar">
-              <span>{username.charAt(0).toUpperCase()}</span>
+          <div className="profile-identity">
+            <div
+              className={`profile-avatar-ring ${profilePhotoFromBook ? 'profile-avatar-ring--photo' : ''}`}
+            >
+              {profilePhotoFromBook ? (
+                <img
+                  src={profilePhotoFromBook}
+                  alt="Profile photo"
+                  className="profile-avatar-img"
+                />
+              ) : (
+                <span className="profile-avatar-initials">
+                  {(username || '?').trim().charAt(0).toUpperCase()}
+                </span>
+              )}
             </div>
-            <div>
-              <h1>Profile</h1>
-              <p>Manage your account and subscription</p>
+            <div className="profile-identity-text">
+              <h1 className="profile-display-name">{username}</h1>
+              {email ? (
+                <p className="profile-display-email">{email}</p>
+              ) : null}
+              <p className="profile-display-tagline">Account, subscription &amp; security</p>
+              {email && (
+                <p className="profile-photo-hint">
+                  {profilePhotoFromBook ? (
+                    <>
+                      Photo from your{' '}
+                      <Link to="/participants">participant book</Link> (same email). Update it there.
+                    </>
+                  ) : (
+                    <>
+                      Add yourself to the{' '}
+                      <Link to="/participants">participant book</Link> with this email to show a photo
+                      here.
+                    </>
+                  )}
+                </p>
+              )}
             </div>
           </div>
 

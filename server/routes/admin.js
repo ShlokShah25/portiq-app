@@ -104,6 +104,21 @@ router.post('/login', async (req, res) => {
 router.get('/profile', authenticateAdmin, async (req, res) => {
   const admin = await Admin.findById(req.admin._id).lean();
   if (!admin) return res.status(401).json({ error: 'Unauthorized' });
+
+  let profilePhotoFromBook = null;
+  const emailLower = (admin.email || '').toLowerCase().trim();
+  if (emailLower && Array.isArray(admin.savedParticipants)) {
+    const hit = admin.savedParticipants.find(
+      (p) =>
+        p &&
+        p.email &&
+        String(p.email).toLowerCase().trim() === emailLower &&
+        p.photo &&
+        String(p.photo).trim()
+    );
+    if (hit) profilePhotoFromBook = String(hit.photo).trim();
+  }
+
   res.json({
     admin: {
       id: req.admin._id,
@@ -114,6 +129,7 @@ router.get('/profile', authenticateAdmin, async (req, res) => {
       productType: req.admin.productType,
       plan: req.admin.plan,
       hasActiveSubscription: !!admin.hasActiveSubscription,
+      profilePhotoFromBook,
     }
   });
 });
