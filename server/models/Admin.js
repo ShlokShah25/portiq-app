@@ -64,7 +64,7 @@ const adminSchema = new mongoose.Schema({
   },
   // Participant book: persisted per admin so it's available across devices/sessions
   savedParticipants: {
-    type: [{ name: String, email: String, photo: String }],
+    type: [{ name: String, email: String }],
     default: []
   }
 });

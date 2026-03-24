@@ -48,43 +48,6 @@
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
-.profile-avatar-ring--photo {
-  border-color: rgba(255, 255, 255, 0.12);
-  padding: 0;
-}
-
-.profile-avatar-ring--interactive {
-  cursor: zoom-in;
-  appearance: none;
-  -webkit-appearance: none;
-  font: inherit;
-  color: inherit;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.profile-avatar-ring--interactive:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px #050505, 0 0 0 4px rgba(59, 130, 246, 0.55);
-}
-
-.profile-avatar-clip {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.profile-avatar-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center center;
-  display: block;
-  min-width: 100%;
-  min-height: 100%;
-}
-
 .profile-avatar-initials {
   font-weight: 700;
   font-size: 34px;
@@ -117,71 +80,6 @@
   margin: 0 0 10px;
   font-size: 13px;
   color: #6b7280;
-}
-
-.profile-photo-hint {
-  margin: 0;
-  font-size: 12px;
-  color: #6b7280;
-  line-height: 1.45;
-  max-width: 420px;
-}
-
-.profile-photo-hint a {
-  color: #93c5fd;
-  font-weight: 500;
-  text-decoration: none;
-}
-
-.profile-photo-hint a:hover {
-  text-decoration: underline;
-}
-
-.profile-photo-lightbox {
-  position: fixed;
-  inset: 0;
-  z-index: 4000;
-  background: rgba(0, 0, 0, 0.88);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  box-sizing: border-box;
-  cursor: zoom-out;
-}
-
-.profile-photo-lightbox-close {
-  position: absolute;
-  top: 16px;
-  right: 20px;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(30, 30, 32, 0.9);
-  color: #fff;
-  font-size: 28px;
-  line-height: 1;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1;
-}
-
-.profile-photo-lightbox-close:hover {
-  background: rgba(50, 50, 54, 0.95);
-}
-
-.profile-photo-lightbox-img {
-  max-width: min(96vw, 1200px);
-  max-height: 88vh;
-  width: auto;
-  height: auto;
-  object-fit: contain;
-  border-radius: 12px;
-  cursor: default;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
 }
 
 @media (max-width: 520px) {

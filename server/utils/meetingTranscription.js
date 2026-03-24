@@ -509,8 +509,6 @@ async function sendMeetingSummary(meeting, summaryData, options = {}) {
     '',
     'The attached document contains the executive summary, key discussion points, decisions made, and action items identified during the meeting.',
     '',
-    'If you have any feedback regarding the accuracy or structure of the summary, please feel free to reply to this email.',
-    '',
     '---',
     'PortIQ Technologies',
     'Meeting Intelligence Platform',
@@ -788,10 +786,12 @@ async function sendMeetingSummary(meeting, summaryData, options = {}) {
                 ${a.assignee ? `<span>Assignee: ${String(a.assignee).replace(/</g, '&lt;')}</span><br/>` : ''}
                 ${dueText ? `<span>Due: ${dueText}</span>` : ''}
               </div>
-              <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                ${gcal ? `<a href="${gcal}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:none;font-weight:600;">Add to Google Calendar</a>` : ''}
-                ${outlook ? `<a href="${outlook}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:none;font-weight:600;">Add to Outlook</a>` : ''}
-              </div>
+              <table cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin:0;">
+                <tr>
+                  ${gcal ? `<td style="padding:0 16px 8px 0;vertical-align:middle;"><a href="${gcal}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:none;font-weight:600;white-space:nowrap;">Add to Google Calendar</a></td>` : ''}
+                  ${outlook ? `<td style="padding:0 0 8px 0;vertical-align:middle;"><a href="${outlook}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:none;font-weight:600;white-space:nowrap;">Add to Outlook</a></td>` : ''}
+                </tr>
+              </table>
             </div>
           `;
         }).join('')}
@@ -856,10 +856,12 @@ async function sendMeetingSummary(meeting, summaryData, options = {}) {
       <p style="margin: 0 0 10px 0; font-size: 13px; color: #4b5563;">
         <strong>Add this meeting to your calendar:</strong>
       </p>
-      <div style="display: flex; gap: 12px; flex-wrap: wrap; font-size: 13px;">
-        ${meetingCalendarGoogle ? `<a href="${meetingCalendarGoogle}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:none;font-weight:600;">Add to Google Calendar</a>` : ''}
-        ${meetingCalendarOutlook ? `<a href="${meetingCalendarOutlook}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:none;font-weight:600;">Add to Outlook</a>` : ''}
-      </div>
+      <table cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin:0;font-size:13px;">
+        <tr>
+          ${meetingCalendarGoogle ? `<td style="padding:0 16px 8px 0;vertical-align:middle;"><a href="${meetingCalendarGoogle}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:none;font-weight:600;white-space:nowrap;">Add to Google Calendar</a></td>` : ''}
+          ${meetingCalendarOutlook ? `<td style="padding:0 0 8px 0;vertical-align:middle;"><a href="${meetingCalendarOutlook}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:none;font-weight:600;white-space:nowrap;">Add to Outlook</a></td>` : ''}
+        </tr>
+      </table>
       <p style="margin: 10px 0 0 0; font-size: 12px; color: #6b7280;">
         Tip: You can also import the attached <strong>Meeting .ics</strong> file.
       </p>
@@ -894,10 +896,6 @@ async function sendMeetingSummary(meeting, summaryData, options = {}) {
       <p>
         The attached document contains the executive summary, key discussion points, decisions made,
         and action items identified during the meeting.
-      </p>
-      <p>
-        If you have any feedback regarding the accuracy or structure of the summary,
-        please feel free to reply to this email.
       </p>
       <p>
         View the meeting summary online:<br/>

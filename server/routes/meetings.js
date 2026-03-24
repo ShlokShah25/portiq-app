@@ -303,10 +303,12 @@ router.post('/', async (req, res) => {
       <p style="margin: 0 0 10px 0; font-size: 13px; color: #4b5563;">
         <strong>Add this meeting to your calendar:</strong>
       </p>
-      <div style="display: flex; gap: 12px; flex-wrap: wrap; font-size: 13px;">
-        ${meetingCalendarGoogle ? `<a href="${meetingCalendarGoogle}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:none;font-weight:600;">Add to Google Calendar</a>` : ''}
-        ${meetingCalendarOutlook ? `<a href="${meetingCalendarOutlook}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:none;font-weight:600;">Add to Outlook</a>` : ''}
-      </div>
+      <table cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin:0;font-size:13px;">
+        <tr>
+          ${meetingCalendarGoogle ? `<td style="padding:0 16px 8px 0;vertical-align:middle;"><a href="${meetingCalendarGoogle}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:none;font-weight:600;white-space:nowrap;">Add to Google Calendar</a></td>` : ''}
+          ${meetingCalendarOutlook ? `<td style="padding:0 0 8px 0;vertical-align:middle;"><a href="${meetingCalendarOutlook}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:none;font-weight:600;white-space:nowrap;">Add to Outlook</a></td>` : ''}
+        </tr>
+      </table>
       <p style="margin: 10px 0 0 0; font-size: 12px; color: #6b7280;">
         Tip: You can also import the attached <strong>Meeting .ics</strong> file.
       </p>`

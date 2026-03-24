@@ -24,8 +24,42 @@ const MeetingInProgress = () => {
   const [sendEmailParticipants, setSendEmailParticipants] = useState(true);
   const [followUpSubmitting, setFollowUpSubmitting] = useState(false);
   const [followUpError, setFollowUpError] = useState('');
+  const [voiceProfiles, setVoiceProfiles] = useState({});
   const mediaRecorderRef = React.useRef(null);
   const streamRef = React.useRef(null);
+
+  useEffect(() => {
+    const emails = (meeting?.participants || [])
+      .map((p) => (p.email && String(p.email).trim()) || '')
+      .filter(Boolean);
+    if (emails.length === 0) {
+      setVoiceProfiles({});
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await axios.get(
+          `/meetings/voice/profiles?emails=${encodeURIComponent(emails.join(','))}`
+        );
+        const profiles = res.data?.profiles || [];
+        const next = {};
+        emails.forEach((email) => {
+          const profile = profiles.find(
+            (pr) =>
+              pr.email && pr.email.toLowerCase() === email.toLowerCase()
+          );
+          next[email.toLowerCase()] = { hasProfile: !!profile };
+        });
+        if (!cancelled) setVoiceProfiles(next);
+      } catch (_) {
+        if (!cancelled) setVoiceProfiles({});
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [meeting?.participants]);
 
   useEffect(() => {
     if (meetingId) {
@@ -479,15 +513,50 @@ const MeetingInProgress = () => {
         </div>
 
         {meeting.participants && meeting.participants.length > 0 && (
-          <div className="participants-list">
+          <div className="participants-list participants-list--room">
             <h3>Participants</h3>
-            <div className="participants-grid">
-              {meeting.participants.map((p, idx) => (
-                <div key={idx} className="participant-chip">
-                  <div className="participant-name">{p.name || 'Unnamed'}</div>
-                  {p.email && <div className="participant-email">{p.email}</div>}
-                </div>
-              ))}
+            <div className="participants-grid participants-grid--room">
+              {meeting.participants.map((p, idx) => {
+                const emailKey = p.email && String(p.email).trim().toLowerCase();
+                const hasVoice =
+                  emailKey && voiceProfiles[emailKey]?.hasProfile;
+                return (
+                  <div key={idx} className="mip-participant-row">
+                    <div className="mip-participant-avatar" aria-hidden>
+                      <span className="mip-participant-initials">
+                        {(p.name || p.email || '?').trim().charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="mip-participant-text">
+                      <div className="mip-participant-name">{p.name || 'Unnamed'}</div>
+                      {p.email ? (
+                        <div className="mip-participant-email">{p.email}</div>
+                      ) : null}
+                    </div>
+                    {hasVoice ? (
+                      <span
+                        className="mip-participant-voice"
+                        title="Voice profile configured"
+                      >
+                        <svg
+                          width="18"
+                          height="18"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          aria-hidden
+                        >
+                          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                          <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                          <line x1="12" y1="19" x2="12" y2="23" />
+                          <line x1="8" y1="23" x2="16" y2="23" />
+                        </svg>
+                      </span>
+                    ) : null}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

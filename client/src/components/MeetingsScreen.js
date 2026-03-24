@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import TopNav from './TopNav';
-import CameraIcon from './icons/CameraIcon';
 import { isEducation } from '../config/product';
 import { T } from '../config/terminology';
 import { getClassrooms } from '../utils/classroomsStorage';
@@ -45,9 +44,7 @@ const MeetingsScreen = ({ config }) => {
     { name: '', email: '' }
   ]);
 
-  const [participants, setParticipants] = useState([
-    { name: '', email: '', remember: false }
-  ]);
+  const [participants, setParticipants] = useState([{ name: '', email: '' }]);
   const [rememberedParticipants, setRememberedParticipants] = useState([]);
   const [savedSearch, setSavedSearch] = useState('');
   const [showSavedDropdown, setShowSavedDropdown] = useState(false);
@@ -385,7 +382,7 @@ const MeetingsScreen = ({ config }) => {
       );
 
       const newMeetingId = res.data.meeting._id;
-      setParticipants([{ name: '', email: '', remember: false }]);
+      setParticipants([{ name: '', email: '' }]);
       setForm(prev => ({
         ...prev,
         meetingRoom: '',
@@ -399,22 +396,6 @@ const MeetingsScreen = ({ config }) => {
       setShowEditorDropdown(false);
       setLoading(false);
       navigate(`/meetings/${newMeetingId}`);
-
-      // Persist participant book in background (no state updates after navigate)
-      const toRemember = participants
-        .filter(p => p.remember && p.email && p.email.trim())
-        .map(p => ({ name: p.name?.trim() || '', email: p.email.trim() }));
-      if (toRemember.length > 0) {
-        const existing = [...rememberedParticipants];
-        toRemember.forEach(p => {
-          if (!existing.find(ep => ep.email && ep.email.toLowerCase() === p.email.toLowerCase())) {
-            existing.push(p);
-          }
-        });
-        axios.put('/admin/participant-book', { participants: existing }).catch(err => {
-          console.error('Error saving participant book:', err);
-        });
-      }
     } catch (err) {
       console.error('Error creating meeting:', err);
       const rawError = err.response?.data?.error || err.response?.data?.details || err.message;
@@ -654,7 +635,7 @@ const MeetingsScreen = ({ config }) => {
 
   const handleAddParticipantRow = () => {
     if (atMeetingParticipantLimit) return;
-    setParticipants(prev => [...prev, { name: '', email: '', remember: false }]);
+    setParticipants(prev => [...prev, { name: '', email: '' }]);
   };
 
   const handleRemoveParticipantRow = (idx) => {
@@ -667,7 +648,7 @@ const MeetingsScreen = ({ config }) => {
       if (prev.find(p => p.email && p.email.toLowerCase() === saved.email.toLowerCase())) {
         return prev;
       }
-      return [...prev, { name: saved.name, email: saved.email, photo: saved.photo || '', remember: false }];
+      return [...prev, { name: saved.name, email: saved.email }];
     });
   };
 
@@ -948,18 +929,10 @@ const MeetingsScreen = ({ config }) => {
                                   }}
                                 >
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
-                                    <div className="saved-participant-avatar">
-                                      {sp.photo ? (
-                                        <img
-                                          src={sp.photo}
-                                          alt={sp.name || sp.email || 'Participant'}
-                                          className="saved-participant-avatar-image"
-                                        />
-                                      ) : (
-                                        <span className="saved-participant-avatar-camera" aria-hidden>
-                                          <CameraIcon size={16} />
-                                        </span>
-                                      )}
+                                    <div className="saved-participant-avatar" aria-hidden>
+                                      <span className="saved-participant-avatar-initials">
+                                        {(sp.name || sp.email || '?').trim().charAt(0).toUpperCase()}
+                                      </span>
                                     </div>
                                     <div>
                                       <div className="saved-participant-name">{sp.name || sp.email}</div>
@@ -1031,18 +1004,6 @@ const MeetingsScreen = ({ config }) => {
                             setParticipants(next);
                           }}
                         />
-                        <label className="premium-checkbox-container">
-                          <input
-                            type="checkbox"
-                            checked={!!p.remember}
-                            onChange={e => {
-                              const next = [...participants];
-                              next[idx] = { ...next[idx], remember: e.target.checked };
-                              setParticipants(next);
-                            }}
-                          />
-                          <span>Remember</span>
-                        </label>
                         {hasVoiceProfile && (
                           <span 
                             style={{
@@ -1330,9 +1291,6 @@ const MeetingsScreen = ({ config }) => {
                                       <polyline points="20 6 9 17 4 12"></polyline>
                                     </svg>
                                     Voice profile configured
-                                    <span style={{ fontSize: '11px', marginLeft: '4px', fontStyle: 'italic', color: 'rgba(255, 255, 255, 0.6)' }}>
-                                      (Remembered from previous meetings)
-                                    </span>
                                   </span>
                                 ) : (
                                   <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>

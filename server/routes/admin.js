@@ -105,20 +105,6 @@ router.get('/profile', authenticateAdmin, async (req, res) => {
   const admin = await Admin.findById(req.admin._id).lean();
   if (!admin) return res.status(401).json({ error: 'Unauthorized' });
 
-  let profilePhotoFromBook = null;
-  const emailLower = (admin.email || '').toLowerCase().trim();
-  if (emailLower && Array.isArray(admin.savedParticipants)) {
-    const hit = admin.savedParticipants.find(
-      (p) =>
-        p &&
-        p.email &&
-        String(p.email).toLowerCase().trim() === emailLower &&
-        p.photo &&
-        String(p.photo).trim()
-    );
-    if (hit) profilePhotoFromBook = String(hit.photo).trim();
-  }
-
   res.json({
     admin: {
       id: req.admin._id,
@@ -129,7 +115,6 @@ router.get('/profile', authenticateAdmin, async (req, res) => {
       productType: req.admin.productType,
       plan: req.admin.plan,
       hasActiveSubscription: !!admin.hasActiveSubscription,
-      profilePhotoFromBook,
     }
   });
 });
@@ -140,8 +125,12 @@ router.get('/profile', authenticateAdmin, async (req, res) => {
 router.get('/participant-book', authenticateAdmin, requireSubscription, async (req, res) => {
   try {
     const admin = await Admin.findById(req.admin._id).select('savedParticipants').lean();
-    const list = (admin && admin.savedParticipants) ? admin.savedParticipants : [];
-    res.json({ participants: list });
+    const raw = admin && admin.savedParticipants ? admin.savedParticipants : [];
+    const participants = raw.map((p) => ({
+      name: p && p.name != null ? String(p.name).trim() : '',
+      email: p && p.email != null ? String(p.email).trim().toLowerCase() : '',
+    })).filter((p) => p.name || p.email);
+    res.json({ participants });
   } catch (e) {
     console.error('Error fetching participant book:', e);
     res.status(500).json({ error: 'Failed to load participant book' });
@@ -164,11 +153,12 @@ router.put('/participant-book', authenticateAdmin, requireSubscription, async (r
         error: `Your plan allows up to ${maxInBook} participants in the participant book.`,
       });
     }
-    const normalized = list.map((p) => ({
-      name: (p && p.name) ? String(p.name).trim() : '',
-      email: (p && p.email) ? String(p.email).trim().toLowerCase() : '',
-      photo: (p && p.photo) ? String(p.photo).trim() : '',
-    })).filter((p) => p.name || p.email);
+    const normalized = list
+      .map((p) => ({
+        name: p && p.name ? String(p.name).trim() : '',
+        email: p && p.email ? String(p.email).trim().toLowerCase() : '',
+      }))
+      .filter((p) => p.name || p.email);
     const admin = await Admin.findByIdAndUpdate(
       req.admin._id,
       { savedParticipants: normalized },

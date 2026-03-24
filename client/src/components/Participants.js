@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import TopNav from './TopNav';
 import { T } from '../config/terminology';
-import CameraIcon from './icons/CameraIcon';
 import './Participants.css';
 
 // Max participants allowed in the participant book by plan (workplace). null = no limit.
@@ -12,7 +11,7 @@ const Participants = () => {
   const [participants, setParticipants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newParticipant, setNewParticipant] = useState({ name: '', email: '', photo: '', remember: true });
+  const [newParticipant, setNewParticipant] = useState({ name: '', email: '' });
   const [maxInBook, setMaxInBook] = useState(null); // null = unlimited or unknown
 
   // Voice configuration state
@@ -27,141 +26,21 @@ const Participants = () => {
   const analyserRef = React.useRef(null);
   const rafRef = React.useRef(null);
   const streamForMeterRef = React.useRef(null);
-  const photoEditInputRef = React.useRef(null);
-  const newPhotoLibraryRef = React.useRef(null);
-  const photoEditIndexRef = React.useRef(null);
-  const [photoSourceMenuIndex, setPhotoSourceMenuIndex] = useState(null);
-  const [photoLightboxUrl, setPhotoLightboxUrl] = useState(null);
-
-  /** Live camera (getUserMedia) — file input + capture= often opens gallery on desktop */
-  const [cameraOpen, setCameraOpen] = useState(false);
-  const [cameraTarget, setCameraTarget] = useState(null); // { type: 'new' } | { type: 'edit', index }
-  const videoRef = React.useRef(null);
-  const cameraStreamRef = React.useRef(null);
 
   useEffect(() => {
     loadParticipants();
   }, []);
 
-  useEffect(() => {
-    if (!photoLightboxUrl) return;
-    const onKey = (e) => {
-      if (e.key === 'Escape') setPhotoLightboxUrl(null);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [photoLightboxUrl]);
-
-  useEffect(() => {
-    if (photoSourceMenuIndex == null) return;
-    const onDoc = (e) => {
-      const el = e.target.closest('[data-photo-menu]');
-      if (el && el.getAttribute('data-photo-menu') === String(photoSourceMenuIndex)) return;
-      setPhotoSourceMenuIndex(null);
-    };
-    document.addEventListener('mousedown', onDoc);
-    return () => document.removeEventListener('mousedown', onDoc);
-  }, [photoSourceMenuIndex]);
-
   const saveParticipantsToServer = async (list) => {
+    const slim = list.map((p) => ({
+      name: (p.name && String(p.name).trim()) || '',
+      email: (p.email && String(p.email).trim().toLowerCase()) || '',
+    })).filter((p) => p.name || p.email);
     try {
-      await axios.put('/admin/participant-book', { participants: list });
+      await axios.put('/admin/participant-book', { participants: slim });
     } catch (err) {
       console.error('Error saving participant book:', err);
       throw err;
-    }
-  };
-
-  const stopCameraStream = () => {
-    const s = cameraStreamRef.current;
-    if (s) {
-      s.getTracks().forEach((t) => t.stop());
-      cameraStreamRef.current = null;
-    }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-  };
-
-  useEffect(() => {
-    if (!cameraOpen) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } },
-          audio: false,
-        });
-        if (cancelled) {
-          stream.getTracks().forEach((t) => t.stop());
-          return;
-        }
-        cameraStreamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play().catch(() => {});
-        }
-      } catch (err) {
-        const msg =
-          err?.name === 'NotAllowedError'
-            ? 'Camera permission denied. Allow camera access or use Choose file.'
-            : err?.message || 'Could not open camera.';
-        alert(msg);
-        setCameraOpen(false);
-        setCameraTarget(null);
-      }
-    })();
-    return () => {
-      cancelled = true;
-      stopCameraStream();
-    };
-  }, [cameraOpen]);
-
-  const closeCameraModal = () => {
-    stopCameraStream();
-    setCameraOpen(false);
-    setCameraTarget(null);
-  };
-
-  const openCameraModal = (target) => {
-    setPhotoSourceMenuIndex(null);
-    setCameraTarget(target);
-    setCameraOpen(true);
-  };
-
-  const applyPhotoDataUrlToParticipantIndex = async (idx, dataUrl) => {
-    const prev = participants;
-    const updated = prev.map((p, i) => (i === idx ? { ...p, photo: dataUrl } : p));
-    setParticipants(updated);
-    try {
-      await saveParticipantsToServer(updated);
-    } catch (saveErr) {
-      setParticipants(prev);
-      alert(saveErr.response?.data?.error || 'Failed to save photo.');
-    }
-  };
-
-  const captureFromCamera = () => {
-    const video = videoRef.current;
-    const target = cameraTarget;
-    if (!video || !video.videoWidth || !target) return;
-    const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(video, 0, 0);
-    let dataUrl;
-    try {
-      dataUrl = canvas.toDataURL('image/jpeg', 0.92);
-    } catch (e) {
-      alert('Could not capture image.');
-      return;
-    }
-    closeCameraModal();
-    if (target.type === 'new') {
-      setNewParticipant((p) => ({ ...p, photo: dataUrl }));
-    } else if (target.type === 'edit' && typeof target.index === 'number') {
-      applyPhotoDataUrlToParticipantIndex(target.index, dataUrl);
     }
   };
 
@@ -249,13 +128,14 @@ const Participants = () => {
       return;
     }
 
-    const updated = [...participants, { 
-      name: newParticipant.name.trim(), 
-      email: newParticipant.email.trim().toLowerCase(),
-      photo: newParticipant.photo || '',
-      remember: newParticipant.remember
-    }];
-    
+    const updated = [
+      ...participants,
+      {
+        name: newParticipant.name.trim(),
+        email: newParticipant.email.trim().toLowerCase(),
+      },
+    ];
+
     setParticipants(updated);
     try {
       await saveParticipantsToServer(updated);
@@ -265,105 +145,8 @@ const Participants = () => {
       alert(isLimitError ? "You've reached your plan limit. Please upgrade to add more." : (msg || 'Failed to save. Try again.'));
       return;
     }
-    setNewParticipant({ name: '', email: '', photo: '', remember: true });
+    setNewParticipant({ name: '', email: '' });
     setShowAddForm(false);
-  };
-
-  const validateImageFile = (file) => {
-    if (!file) return { ok: false, error: null };
-    if (!file.type.startsWith('image/')) {
-      return { ok: false, error: 'Please select an image file.' };
-    }
-    if (file.size > 2 * 1024 * 1024) {
-      return { ok: false, error: 'Image size must be under 2MB.' };
-    }
-    return { ok: true, error: null };
-  };
-
-  const readImageFileAsDataUrl = (file) =>
-    new Promise((resolve, reject) => {
-      const v = validateImageFile(file);
-      if (!v.ok) {
-        if (v.error) reject(new Error(v.error));
-        else resolve('');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = typeof reader.result === 'string' ? reader.result : '';
-        resolve(result);
-      };
-      reader.onerror = () => reject(new Error('Could not read file.'));
-      reader.readAsDataURL(file);
-    });
-
-  const handlePhotoChange = (file) => {
-    if (!file) {
-      setNewParticipant((prev) => ({ ...prev, photo: '' }));
-      return;
-    }
-    readImageFileAsDataUrl(file)
-      .then((dataUrl) => setNewParticipant((prev) => ({ ...prev, photo: dataUrl })))
-      .catch((err) => alert(err.message || 'Invalid image.'));
-  };
-
-  const togglePhotoSourceMenu = (index) => {
-    setPhotoSourceMenuIndex((prev) => (prev === index ? null : index));
-  };
-
-  const openPhotoLibraryForIndex = (index) => {
-    photoEditIndexRef.current = index;
-    setPhotoSourceMenuIndex(null);
-    requestAnimationFrame(() => {
-      if (photoEditInputRef.current) {
-        photoEditInputRef.current.value = '';
-        photoEditInputRef.current.click();
-      }
-    });
-  };
-
-  const openPhotoCameraForIndex = (index) => {
-    photoEditIndexRef.current = index;
-    openCameraModal({ type: 'edit', index });
-  };
-
-  const handleExistingPhotoFile = async (e) => {
-    const file = e.target.files && e.target.files[0];
-    const idx = photoEditIndexRef.current;
-    photoEditIndexRef.current = null;
-    if (e.target) e.target.value = '';
-    if (idx == null || idx === undefined || !file) return;
-
-    try {
-      const dataUrl = await readImageFileAsDataUrl(file);
-      const prev = participants;
-      const updated = prev.map((p, i) =>
-        i === idx ? { ...p, photo: dataUrl } : p
-      );
-      setParticipants(updated);
-      try {
-        await saveParticipantsToServer(updated);
-      } catch (saveErr) {
-        setParticipants(prev);
-        alert(saveErr.response?.data?.error || 'Failed to save photo.');
-      }
-    } catch (err) {
-      alert(err.message || 'Failed to update photo.');
-    }
-  };
-
-  const handleRemoveParticipantPhoto = async (index) => {
-    const prev = participants;
-    const updated = prev.map((p, i) =>
-      i === index ? { ...p, photo: '' } : p
-    );
-    setParticipants(updated);
-    try {
-      await saveParticipantsToServer(updated);
-    } catch (err) {
-      setParticipants(prev);
-      alert(err.response?.data?.error || 'Failed to remove photo.');
-    }
   };
 
   const handleDeleteParticipant = async (index) => {
@@ -558,15 +341,6 @@ const Participants = () => {
   return (
     <div className="participants-screen">
       <TopNav />
-      <input
-        ref={photoEditInputRef}
-        type="file"
-        accept="image/*"
-        className="participant-photo-file-hidden"
-        aria-hidden="true"
-        tabIndex={-1}
-        onChange={handleExistingPhotoFile}
-      />
       <div className="participants-wrapper">
         <div className="participants-top-bar">
           <div>
@@ -613,52 +387,6 @@ const Participants = () => {
                     className="form-input"
                     required
                   />
-                </div>
-                <div className="form-group">
-                  <label>Photograph (optional)</label>
-                  <input
-                    ref={newPhotoLibraryRef}
-                    type="file"
-                    accept="image/*"
-                    className="participant-photo-file-hidden"
-                    aria-hidden="true"
-                    tabIndex={-1}
-                    onChange={(e) => {
-                      handlePhotoChange(e.target.files && e.target.files[0]);
-                      if (e.target) e.target.value = '';
-                    }}
-                  />
-                  <div className="participant-add-photo-row">
-                    <button
-                      type="button"
-                      className="participant-add-photo-btn"
-                      onClick={() => newPhotoLibraryRef.current && newPhotoLibraryRef.current.click()}
-                    >
-                      Choose file
-                    </button>
-                    <button
-                      type="button"
-                      className="participant-add-photo-btn"
-                      onClick={() => openCameraModal({ type: 'new' })}
-                    >
-                      Take photo
-                    </button>
-                  </div>
-                  {newParticipant.photo && (
-                    <div className="participant-photo-preview-wrap">
-                      <img src={newParticipant.photo} alt="Preview" className="participant-photo-preview" />
-                    </div>
-                  )}
-                </div>
-                <div className="form-group">
-                  <label className="checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={newParticipant.remember}
-                      onChange={(e) => setNewParticipant({ ...newParticipant, remember: e.target.checked })}
-                    />
-                    <span>Remember for future meetings</span>
-                  </label>
                 </div>
                 <div className="form-actions">
                   <button type="submit" className="btn btn-primary">Add Participant</button>
@@ -719,91 +447,12 @@ const Participants = () => {
                 const standardSentence = `Hello, my name is ${participantName}. This is my sample voice for PortIQ so the system can recognize me clearly in future meetings.`;
                 return (
                 <div key={idx} className="participant-card">
-                  <div
-                    className="participant-avatar-wrap"
-                    data-photo-menu={idx}
-                  >
-                    {p.photo ? (
-                      <div
-                        role="button"
-                        tabIndex={0}
-                        className="participant-avatar-face"
-                        onClick={() => setPhotoLightboxUrl(p.photo)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            setPhotoLightboxUrl(p.photo);
-                          }
-                        }}
-                        title="View full photo"
-                        aria-label="View full photo"
-                      >
-                        <div className="participant-avatar-clip">
-                          <img src={p.photo} alt="" />
-                        </div>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        className="participant-avatar-btn"
-                        onClick={() => togglePhotoSourceMenu(idx)}
-                        title="Add photo"
-                        aria-label="Add photo"
-                        aria-expanded={photoSourceMenuIndex === idx}
-                      >
-                        <CameraIcon className="participant-avatar-camera-icon" size={22} />
-                      </button>
-                    )}
-                    {photoSourceMenuIndex === idx && (
-                      <div className="participant-photo-source-popover" role="menu">
-                        <button
-                          type="button"
-                          role="menuitem"
-                          className="participant-photo-source-item"
-                          onClick={() => openPhotoLibraryForIndex(idx)}
-                        >
-                          Choose from library
-                        </button>
-                        <button
-                          type="button"
-                          role="menuitem"
-                          className="participant-photo-source-item"
-                          onClick={() => openPhotoCameraForIndex(idx)}
-                        >
-                          Take photo
-                        </button>
-                      </div>
-                    )}
+                  <div className="participant-list-initials" aria-hidden>
+                    {(p.name || p.email || '?').trim().charAt(0).toUpperCase()}
                   </div>
                   <div className="participant-info">
                     <div className="participant-name">{p.name || 'Unnamed'}</div>
                     <div className="participant-email">{p.email || 'No email'}</div>
-                    {p.photo ? (
-                      <div className="participant-photo-actions">
-                        <button
-                          type="button"
-                          className="participant-photo-link"
-                          onClick={() => setPhotoLightboxUrl(p.photo)}
-                        >
-                          View photo
-                        </button>
-                        <button
-                          type="button"
-                          className="participant-photo-link"
-                          aria-expanded={photoSourceMenuIndex === idx}
-                          onClick={() => togglePhotoSourceMenu(idx)}
-                        >
-                          Change photo
-                        </button>
-                        <button
-                          type="button"
-                          className="participant-photo-link participant-photo-link--danger"
-                          onClick={() => handleRemoveParticipantPhoto(idx)}
-                        >
-                          Remove photo
-                        </button>
-                      </div>
-                    ) : null}
                     {p.email && p.email.trim() && (
                       <div className="participant-voice-row">
                         <span className="participant-voice-status">
@@ -928,54 +577,6 @@ const Participants = () => {
         </div>
       </div>
 
-      {photoLightboxUrl && (
-        <div
-          className="participant-photo-lightbox"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Photo preview"
-          onClick={() => setPhotoLightboxUrl(null)}
-        >
-          <button
-            type="button"
-            className="participant-photo-lightbox-close"
-            aria-label="Close"
-            onClick={() => setPhotoLightboxUrl(null)}
-          >
-            ×
-          </button>
-          <img
-            src={photoLightboxUrl}
-            alt="Participant"
-            className="participant-photo-lightbox-img"
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
-      )}
-
-      {cameraOpen && (
-        <div className="participant-camera-modal" role="dialog" aria-modal="true" aria-label="Take photo">
-          <div className="participant-camera-modal-backdrop" role="presentation" onClick={closeCameraModal} />
-          <div className="participant-camera-modal-panel">
-            <p className="participant-camera-modal-hint">Position in frame, then capture</p>
-            <video
-              ref={videoRef}
-              className="participant-camera-video"
-              playsInline
-              muted
-              autoPlay
-            />
-            <div className="participant-camera-modal-actions">
-              <button type="button" className="participant-camera-btn participant-camera-btn--secondary" onClick={closeCameraModal}>
-                Cancel
-              </button>
-              <button type="button" className="participant-camera-btn participant-camera-btn--primary" onClick={captureFromCamera}>
-                Capture
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
