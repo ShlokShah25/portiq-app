@@ -83,12 +83,12 @@ export default function MeetingSummaryReadonlyBody({
           <ul className="meeting-summary-list meeting-summary-list--action">
             {actionItems.map((item, idx) => {
               const itemId = item?._id || String(idx);
-              const status = item?.status || 'not_started';
+              const rawStatus = item?.status || 'not_started';
+              const status =
+                rawStatus === 'in_progress' || rawStatus === 'done' || rawStatus === 'not_started'
+                  ? rawStatus
+                  : 'not_started';
               const effectiveDue = getEffectiveDueDate(item, meeting);
-              const dueText =
-                effectiveDue && !Number.isNaN(effectiveDue.getTime())
-                  ? effectiveDue.toLocaleDateString()
-                  : null;
 
               const title = item?.task || 'Action item';
               const details = [
@@ -123,93 +123,112 @@ export default function MeetingSummaryReadonlyBody({
                   })
                 : null;
 
-              const statusClass =
-                status === 'in_progress' || status === 'done' ? status : 'not_started';
+              const dueBadge =
+                effectiveDue && !Number.isNaN(effectiveDue.getTime())
+                  ? `DUE ${effectiveDue
+                      .toLocaleDateString('en-US', { weekday: 'short' })
+                      .toUpperCase()}`
+                  : null;
+
+              const statusGroupName = `action-status-${String(item._id || idx)}`;
+              const statusDisabled = !!statusSaving[itemId] || !item?._id || !meetingId;
 
               return (
-                <li
-                  key={itemId}
-                  className={`meeting-action-item meeting-action-item--${statusClass}`}
-                  data-action-status={statusClass}
-                >
-                  <div className="meeting-action-item-main">
-                    <div className="meeting-action-item-line">
-                      <span className="meeting-action-item-title">
-                        <strong>{item.task}</strong>
-                        {item.assignee && <span> — {item.assignee}</span>}
-                      </span>
-                      {dueText && (
-                        <span className="meeting-action-item-due-wrap">
-                          <span className="meeting-action-meta-pill meeting-action-meta-pill--due">
-                            Due {dueText}
+                <li key={itemId} className="meeting-action-item" data-action-status={status}>
+                  {dueBadge ? (
+                    <div className="meeting-action-item-badges">
+                      <span className="meeting-action-meta-pill">{dueBadge}</span>
+                    </div>
+                  ) : null}
+
+                  <p className="meeting-action-item-text">
+                    <span className="meeting-action-item-task">{item.task}</span>
+                    {item.assignee ? (
+                      <span className="meeting-action-item-assignee"> — {item.assignee}</span>
+                    ) : null}
+                  </p>
+
+                  <fieldset className="meeting-action-status-fieldset">
+                    <legend className="meeting-action-status-legend">Status</legend>
+                    <div className="meeting-action-status-rail" role="presentation">
+                      {[
+                        { value: 'not_started', label: 'Not done', hint: 'Not started' },
+                        { value: 'in_progress', label: 'IP', hint: 'In progress' },
+                        { value: 'done', label: 'Done', hint: 'Done' },
+                      ].map((opt) => (
+                        <label
+                          key={opt.value}
+                          className="meeting-action-status-option"
+                          title={opt.hint}
+                        >
+                          <span className="meeting-action-status-hit">
+                            <input
+                              type="radio"
+                              name={statusGroupName}
+                              value={opt.value}
+                              checked={status === opt.value}
+                              disabled={statusDisabled}
+                              onChange={() => patchStatus(item, itemId, opt.value)}
+                            />
+                            <span className="meeting-action-status-mark" aria-hidden />
                           </span>
-                        </span>
+                          <span className="meeting-action-status-label">{opt.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+
+                  {(gcalUrl || outlookUrl || ics) && (
+                    <div className="meeting-action-item-links">
+                      {gcalUrl && (
+                        <a
+                          className="meeting-action-link meeting-action-link--minimal"
+                          href={gcalUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Add to Google Calendar"
+                        >
+                          Google Calendar
+                        </a>
+                      )}
+                      {outlookUrl && (
+                        <a
+                          className="meeting-action-link meeting-action-link--minimal"
+                          href={outlookUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Add to Outlook Calendar"
+                        >
+                          Outlook
+                        </a>
+                      )}
+                      {ics && (
+                        <button
+                          type="button"
+                          className="meeting-action-link meeting-action-link--minimal meeting-action-link--button"
+                          onClick={() => {
+                            const blob = new Blob([ics], {
+                              type: 'text/calendar;charset=utf-8',
+                            });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `action-item-${(item.task || 'task')
+                              .slice(0, 40)
+                              .replace(/[^a-z0-9]+/gi, '-')
+                              .toLowerCase()}.ics`;
+                            document.body.appendChild(a);
+                            a.click();
+                            a.remove();
+                            URL.revokeObjectURL(url);
+                          }}
+                          title="Download .ics"
+                        >
+                          .ics
+                        </button>
                       )}
                     </div>
-                  </div>
-
-                  <div className="meeting-action-item-actions">
-                    <select
-                      className="meeting-action-status-select"
-                      value={status}
-                      disabled={!!statusSaving[itemId] || !item?._id || !meetingId}
-                      onChange={(e) => patchStatus(item, itemId, e.target.value)}
-                    >
-                      <option value="not_started">Not started</option>
-                      <option value="in_progress">In progress</option>
-                      <option value="done">Done</option>
-                    </select>
-
-                    {gcalUrl && (
-                      <a
-                        className="meeting-action-link"
-                        href={gcalUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title="Add to Google Calendar"
-                      >
-                        Add to Google Calendar
-                      </a>
-                    )}
-
-                    {outlookUrl && (
-                      <a
-                        className="meeting-action-link"
-                        href={outlookUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title="Add to Outlook Calendar"
-                      >
-                        Add to Outlook
-                      </a>
-                    )}
-
-                    {ics && (
-                      <button
-                        type="button"
-                        className="meeting-action-link meeting-action-link--button"
-                        onClick={() => {
-                          const blob = new Blob([ics], {
-                            type: 'text/calendar;charset=utf-8',
-                          });
-                          const url = URL.createObjectURL(blob);
-                          const a = document.createElement('a');
-                          a.href = url;
-                          a.download = `action-item-${(item.task || 'task')
-                            .slice(0, 40)
-                            .replace(/[^a-z0-9]+/gi, '-')
-                            .toLowerCase()}.ics`;
-                          document.body.appendChild(a);
-                          a.click();
-                          a.remove();
-                          URL.revokeObjectURL(url);
-                        }}
-                        title="Download .ics"
-                      >
-                        Download .ics
-                      </button>
-                    )}
-                  </div>
+                  )}
                 </li>
               );
             })}

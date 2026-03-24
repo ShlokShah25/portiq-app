@@ -1,82 +1,135 @@
-.meeting-in-progress {
-  /* Fill viewport (mobile toolbars / Safari) */
-  min-height: 100vh;
-  min-height: 100dvh;
-  min-height: -webkit-fill-available;
-  width: 100%;
-  max-width: 100%;
-  background: var(--bg-primary, #000000);
-  display: flex;
-  flex-direction: column;
-  position: relative;
+/* Live session uses MeetingSummary shell (TopNav + card). Keep scroll/width sane on small viewports. */
+.meeting-summary-screen.meeting-in-progress {
   overflow-x: hidden;
-  overflow-y: auto;
-  box-sizing: border-box;
 }
 
-.meeting-in-progress::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: transparent; /* remove radial glow */
-  pointer-events: none;
+.meeting-summary-card.mip-card {
+  max-width: 720px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
-.meeting-in-progress-header {
+.mip-ai-disclaimer {
+  margin: 4px 0 16px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(148, 163, 184, 0.95);
+  font-style: italic;
+}
+
+.mip-ready-badge--neutral {
+  background: rgba(31, 41, 55, 0.65);
+  border-color: rgba(75, 85, 99, 0.5);
+  color: #9ca3af;
+}
+
+.mip-ready-badge__dot--neutral {
+  background: #6b7280 !important;
+  animation: none !important;
+}
+
+.mip-ready-badge--live .meeting-summary-ready-badge__dot {
+  background: #22c55e;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.mip-continuation {
+  margin-bottom: 8px;
+}
+
+.mip-continuation-parent-title {
+  margin: 0 0 8px;
+  font-weight: 600;
+  color: #f9fafb;
+  font-size: 15px;
+}
+
+.mip-details-grid {
+  margin-bottom: 0;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.mip-participants-section {
+  margin-top: 4px;
+}
+
+.mip-participants-list.participants-list {
+  margin-bottom: 0;
+  padding: 20px;
+  background: #111111;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+}
+
+.mip-recording-section {
+  margin-top: 4px;
+}
+
+.mip-recording-controls {
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
   align-items: center;
-  padding: 20px 32px;
-  position: relative;
-  z-index: 10;
+  gap: 12px;
+  margin-bottom: 0;
+  justify-content: flex-start;
 }
 
-.meeting-in-progress-logo {
-  display: flex;
+.mip-btn-start-recording {
+  display: inline-flex;
   align-items: center;
   gap: 10px;
 }
 
-.meeting-in-progress-logo-text {
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: #e5e7eb;
+.mip-record-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #fecaca;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.35);
+  animation: pulse 1.5s ease-in-out infinite;
 }
 
-.meeting-in-progress-close {
-  background: rgba(15, 23, 42, 0.9);
-  border: none;
-  color: #e5e7eb;
-  width: 40px;
-  height: 40px;
-  border-radius: 999px;
-  cursor: pointer;
-  display: flex;
+.mip-btn-stop-upload {
+  background: transparent;
+  color: #fecaca;
+  border-color: rgba(248, 113, 113, 0.55);
+}
+
+.mip-btn-stop-upload:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(248, 113, 113, 0.85);
+  color: #fef2f2;
+}
+
+.mip-uploading-status {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-  backdrop-filter: blur(14px);
-  line-height: 1;
-  padding: 0;
+  gap: 12px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #111111;
+  color: #9ca3af;
+  font-size: 14px;
+  font-weight: 600;
 }
 
-.meeting-in-progress-close:hover {
-  background: rgba(30, 64, 175, 0.95);
-  transform: translateY(-1px);
+.mip-footer-actions {
+  margin-top: 8px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.meeting-in-progress-content {
-  flex: 1 1 0;
-  min-height: 0;
-  max-width: 1200px;
-  width: 100%;
-  margin: 0 auto;
-  padding: 40px 32px 56px;
-  position: relative;
-  z-index: 10;
-  box-sizing: border-box;
+.mip-btn-end-meeting {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #fff;
+}
+
+.mip-btn-end-meeting:hover:not(:disabled) {
+  background: #b91c1c;
+  border-color: #b91c1c;
 }
 
 .meeting-status-badge {
@@ -544,15 +597,8 @@
 }
 
 @media (max-width: 768px) {
-  .meeting-title {
-    font-size: 32px;
-  }
-
-  .meeting-details-grid {
+  .meeting-details-grid,
+  .mip-details-grid {
     grid-template-columns: 1fr;
-  }
-
-  .meeting-in-progress-content {
-    padding: 24px 16px;
   }
 }

@@ -7,6 +7,11 @@ import { T } from '../config/terminology';
 import { getClassrooms } from '../utils/classroomsStorage';
 import { PORTIQ_MEETINGS_HINT, PORTIQ_PRICE_ROW } from '../config/productPitch';
 import MeetingSummaryReadonlyBody from './MeetingSummaryReadonlyBody';
+import {
+  VOICE_ENROLLMENT_API_TEMPLATE,
+  VOICE_ENROLLMENT_BOOK_PHRASE,
+  voiceEnrollmentSentenceForParticipant,
+} from '../utils/voiceEnrollment';
 import './MeetingSummary.css';
 import './MeetingsScreen.css';
 
@@ -329,7 +334,7 @@ const MeetingsScreen = ({ config }) => {
       const audioFile = new File([audioBlob], `voice-sample-${Date.now()}.webm`, { type: 'audio/webm' });
       formData.append('audio', audioFile);
       formData.append('participants', JSON.stringify(participantList));
-      formData.append('standardSentence', 'Hello, my name is [Your Name] and I am ready for the meeting.');
+      formData.append('standardSentence', VOICE_ENROLLMENT_API_TEMPLATE);
 
       const res = await axios.post('/meetings/voice/register', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
@@ -1311,7 +1316,7 @@ const MeetingsScreen = ({ config }) => {
                           textAlign: 'center',
                           letterSpacing: '0.3px'
                         }}>
-                          "Hello, my name is [Your Name] and I am ready for the meeting."
+                          “{VOICE_ENROLLMENT_BOOK_PHRASE}”
                         </p>
                       </div>
                       <p style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '13px', margin: 0, lineHeight: '1.6' }}>
@@ -1322,7 +1327,7 @@ const MeetingsScreen = ({ config }) => {
                             <line x1="12" y1="8" x2="12.01" y2="8"></line>
                           </svg>
                         </span>
-                        <strong>Instructions:</strong> Click "Record Voice" next to your name and clearly say the sentence above, replacing "[Your Name]" with your actual name. The system will automatically detect your name from the audio and assign your voice profile to the correct participant from the list. Speak naturally and clearly.
+                        <strong>Instructions:</strong> Click “Record Voice” next to your name and clearly say the sentence above, replacing {'{Your name}'} with your actual name. The system will match your voice to the right participant in the list. Speak naturally and clearly.
                       </p>
                       <p style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '12px', margin: '8px 0 0 0', fontStyle: 'italic' }}>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginRight: '4px' }}>
@@ -1339,7 +1344,7 @@ const MeetingsScreen = ({ config }) => {
                         const hasProfile = voiceProfiles[p.email]?.hasProfile || false;
                         const isRecording = recordingParticipant === p.email;
                         const participantName = p.name || p.email;
-                        const standardSentence = `Hello, my name is ${participantName} and I am ready for the meeting.`;
+                        const standardSentence = voiceEnrollmentSentenceForParticipant(participantName);
                         
                         return (
                           <div key={idx} style={{

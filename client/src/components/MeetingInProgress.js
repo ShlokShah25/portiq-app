@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { T } from '../config/terminology';
+import TopNav from './TopNav';
+import './MeetingSummary.css';
 import './MeetingInProgress.css';
 import './MeetingDetail.css';
 
@@ -319,110 +321,147 @@ const MeetingInProgress = () => {
 
   if (loading) {
     return (
-      <div className="meeting-in-progress-loading">
-        <div className="loading-spinner"></div>
-        <p>Loading meeting details...</p>
+      <div className="meeting-summary-screen meeting-in-progress">
+        <TopNav />
+        <div className="meeting-summary-loading">
+          <div className="loading-spinner" />
+          <p>Loading meeting details...</p>
+        </div>
       </div>
     );
   }
 
   if (error && !meeting) {
     return (
-      <div className="meeting-in-progress-error">
-        <p>{error}</p>
-        <button onClick={() => navigate('/meetings')}>Back to {T.meetings()}</button>
+      <div className="meeting-summary-screen meeting-in-progress">
+        <TopNav />
+        <div className="meeting-summary-container">
+          <div className="meeting-summary-error">{error}</div>
+          <button
+            type="button"
+            className="meeting-summary-btn meeting-summary-btn--secondary"
+            style={{ marginTop: 16 }}
+            onClick={() => navigate('/meetings')}
+          >
+            Back to {T.meetings()}
+          </button>
+        </div>
       </div>
     );
   }
 
   if (!meeting) {
     return (
-      <div className="meeting-in-progress-error">
-        <p>Meeting not found</p>
-        <button onClick={() => navigate('/meetings')}>Back to {T.meetings()}</button>
+      <div className="meeting-summary-screen meeting-in-progress">
+        <TopNav />
+        <div className="meeting-summary-container">
+          <div className="meeting-summary-error">Meeting not found</div>
+          <button
+            type="button"
+            className="meeting-summary-btn meeting-summary-btn--secondary"
+            style={{ marginTop: 16 }}
+            onClick={() => navigate('/meetings')}
+          >
+            Back to {T.meetings()}
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="meeting-in-progress">
-      <div className="meeting-in-progress-header">
-        <div className="meeting-in-progress-logo">
-          <img
-            src="/assets/portiq-icon.png"
-            alt="Portiq"
-            style={{ width: 37, height: 37, objectFit: 'contain' }}
-            onError={(e) => {
-              e.target.style.display = 'none';
-            }}
-          />
-          <span className="meeting-in-progress-logo-text">Portiq</span>
-        </div>
-        <button
-          className="meeting-in-progress-close"
-          onClick={() => navigate(meetingEnded ? `/meetings/${meetingId}` : '/meetings')}
-          title={meetingEnded ? `Back to ${T.meeting()}` : `Back to ${T.meetings()}`}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
-      </div>
-
-      {meetingEnded ? (
-        <div className="meeting-in-progress-content meeting-in-progress-ended">
-          <div className="meeting-status-badge meeting-status-badge--ended">
-            <div className="status-indicator status-indicator--ended"></div>
-            <span>Meeting ended</span>
-          </div>
-          <h1 className="meeting-title">{meeting.title || 'Untitled meeting'}</h1>
-          <p className="meeting-ended-message">
-            Your {T.meeting().toLowerCase()} has ended. The summary will be generated shortly.
-          </p>
-          <div className="meeting-ended-actions">
-            <button
-              type="button"
-              className="btn-end-meeting meeting-ended-btn-primary"
-              onClick={() => navigate(`/meetings/${meetingId}/summary`)}
-            >
-              View {T.meetingSummary()}
-            </button>
-            <button
-              type="button"
-              className="meeting-in-progress-back-text"
-              onClick={() => navigate(`/meetings/${meetingId}`)}
-            >
-              ← Back to {T.meeting()} details
-            </button>
-          </div>
-        </div>
-      ) : (
-      <div className="meeting-in-progress-content">
-        <div className="meeting-status-badge">
-          <div className="status-indicator"></div>
-          <span>Meeting in progress</span>
-        </div>
-
-        {meeting.parentContinuation && (
-          <div className="meeting-detail-continuation" style={{ marginBottom: 20 }}>
-            <p className="meeting-detail-continuation-title">Continuing from prior session</p>
-            {meeting.parentContinuation.title && (
-              <p style={{ margin: '0 0 8px', fontWeight: 600, color: '#f9fafb' }}>
-                {meeting.parentContinuation.title}
+    <div className="meeting-summary-screen meeting-in-progress">
+      <TopNav />
+      <div className="meeting-summary-container">
+        <div className="meeting-summary-card mip-card">
+          {meetingEnded ? (
+            <>
+              <div className="meeting-summary-ready-badge mip-ready-badge mip-ready-badge--neutral">
+                <span className="meeting-summary-ready-badge__dot mip-ready-badge__dot--neutral" />
+                Meeting ended
+              </div>
+              <h1 className="meeting-summary-page-title">{meeting.title || 'Untitled meeting'}</h1>
+              <p className="meeting-summary-subtitle">Session ended</p>
+              <div className="meeting-summary-see-all-row">
+                <button
+                  type="button"
+                  className="meeting-summary-btn meeting-summary-btn--secondary meeting-summary-btn--see-all"
+                  onClick={() => navigate('/meetings', { state: { showAllMeetings: true } })}
+                >
+                  See all meetings
+                </button>
+              </div>
+              <p className="mip-ai-disclaimer">
+                Your {T.meeting().toLowerCase()} is closed. Open the summary to review the transcript and AI-generated
+                minutes before you send anything to participants.
               </p>
-            )}
-            {meeting.parentContinuation.sessionCheckpointSummary && (
-              <p className="meeting-detail-continuation-recap">
-                {meeting.parentContinuation.sessionCheckpointSummary}
+              <div className="meeting-summary-actions">
+                <button
+                  type="button"
+                  className="meeting-summary-btn meeting-summary-btn--primary"
+                  onClick={() => navigate(`/meetings/${meetingId}/summary`)}
+                >
+                  View {T.meetingSummary()}
+                </button>
+                <button
+                  type="button"
+                  className="meeting-summary-btn meeting-summary-btn--secondary"
+                  onClick={() => navigate(`/meetings/${meetingId}`)}
+                >
+                  Back to {T.meeting()} details
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <h1 className="meeting-summary-page-title">{meeting.title || 'Untitled meeting'}</h1>
+              <p className="meeting-summary-subtitle">Meeting in progress</p>
+              <div className="meeting-summary-see-all-row">
+                <button
+                  type="button"
+                  className="meeting-summary-btn meeting-summary-btn--secondary meeting-summary-btn--see-all"
+                  onClick={() => navigate('/meetings', { state: { showAllMeetings: true } })}
+                >
+                  See all meetings
+                </button>
+              </div>
+              <p className="mip-ai-disclaimer">
+                Audio is captured in your browser. When you stop recording or end the meeting, we&apos;ll upload audio
+                and generate your transcript and summary.
               </p>
-            )}
-          </div>
-        )}
 
-        <h1 className="meeting-title">{meeting.title || 'Untitled meeting'}</h1>
+              <div
+                className={`meeting-summary-ready-badge mip-ready-badge${
+                  recording && !paused ? ' mip-ready-badge--live' : ''
+                }`}
+              >
+                <span className="meeting-summary-ready-badge__dot" />
+                {uploading
+                  ? 'Uploading audio'
+                  : recording
+                    ? paused
+                      ? 'Recording paused'
+                      : 'Recording'
+                    : 'Session active'}
+              </div>
 
-        <div className="meeting-details-grid">
+              {meeting.parentContinuation && (
+                <div className="meeting-detail-continuation mip-continuation">
+                  <p className="meeting-detail-continuation-title">Continuing from prior session</p>
+                  {meeting.parentContinuation.title && (
+                    <p className="mip-continuation-parent-title">{meeting.parentContinuation.title}</p>
+                  )}
+                  {meeting.parentContinuation.sessionCheckpointSummary && (
+                    <p className="meeting-detail-continuation-recap">
+                      {meeting.parentContinuation.sessionCheckpointSummary}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <div className="meeting-summary-section">
+                <h2 className="meeting-summary-heading">Session details</h2>
+                <div className="meeting-details-grid mip-details-grid">
           <div className="meeting-detail-card">
             <div className="detail-icon">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
@@ -478,7 +517,7 @@ const MeetingInProgress = () => {
               </svg>
             </div>
             <div className="detail-content">
-              <div className="detail-label">Room</div>
+              <div className="detail-label">Location</div>
               <div className="detail-value">{meeting.meetingRoom || 'Not specified'}</div>
             </div>
           </div>
@@ -511,10 +550,12 @@ const MeetingInProgress = () => {
             </div>
           </div>
         </div>
+              </div>
 
         {meeting.participants && meeting.participants.length > 0 && (
-          <div className="participants-list participants-list--room">
-            <h3>Participants</h3>
+          <div className="meeting-summary-section meeting-summary-section--keypoints mip-participants-section">
+            <h2 className="meeting-summary-heading">Participants</h2>
+            <div className="participants-list participants-list--room mip-participants-list">
             <div className="participants-grid participants-grid--room">
               {meeting.participants.map((p, idx) => {
                 const emailKey = p.email && String(p.email).trim().toLowerCase();
@@ -558,63 +599,69 @@ const MeetingInProgress = () => {
                 );
               })}
             </div>
+            </div>
           </div>
         )}
 
         {meeting.transcriptionEnabled && (
-          <div className="recording-controls">
+          <div className="meeting-summary-section mip-recording-section">
+            <h2 className="meeting-summary-heading">Recording</h2>
+            <div className="recording-controls mip-recording-controls">
             {!recording && !uploading && (
               <button
-                className="btn-record"
+                type="button"
+                className="meeting-summary-btn meeting-summary-btn--primary mip-btn-start-recording"
                 onClick={startRecording}
               >
-                <span className="record-icon">●</span>
-                Start Recording
+                <span className="mip-record-dot" aria-hidden />
+                Start recording
               </button>
             )}
             {recording && (
               <>
                 {!paused ? (
                   <button
-                    className="btn-pause"
+                    type="button"
+                    className="meeting-summary-btn meeting-summary-btn--secondary"
                     onClick={pauseRecording}
                   >
-                    <span className="pause-icon">⏸</span>
                     Pause
                   </button>
                 ) : (
                   <button
-                    className="btn-record"
+                    type="button"
+                    className="meeting-summary-btn meeting-summary-btn--primary mip-btn-start-recording"
                     onClick={resumeRecording}
                   >
-                    <span className="record-icon">●</span>
+                    <span className="mip-record-dot" aria-hidden />
                     Resume
                   </button>
                 )}
                 <button
-                  className="btn-stop"
+                  type="button"
+                  className="meeting-summary-btn mip-btn-stop-upload"
                   onClick={stopRecording}
                 >
-                  <span className="stop-icon">■</span>
-                  Stop & Upload
+                  Stop &amp; upload
                 </button>
               </>
             )}
             {uploading && (
-              <div className="uploading-status">
-                <div className="upload-spinner"></div>
-                <span>Uploading audio...</span>
+              <div className="mip-uploading-status">
+                <div className="upload-spinner" />
+                <span>Uploading audio…</span>
               </div>
             )}
+            </div>
           </div>
         )}
 
-        {error && <div className="error-message">{error}</div>}
+        {error && <div className="meeting-summary-action-error">{error}</div>}
 
-        <div className="meeting-actions meeting-actions--split">
+        <div className="meeting-summary-actions mip-footer-actions">
           <button
             type="button"
-            className="btn-end-meeting btn-end-meeting--secondary"
+            className="meeting-summary-btn meeting-summary-btn--secondary"
             onClick={openFollowUpFromRoom}
             disabled={uploading || followUpSubmitting || recording}
             title={recording ? 'Stop recording first' : undefined}
@@ -622,15 +669,18 @@ const MeetingInProgress = () => {
             Schedule follow-up &amp; close
           </button>
           <button
-            className="btn-end-meeting"
+            type="button"
+            className="meeting-summary-btn mip-btn-end-meeting"
             onClick={handleEndMeeting}
             disabled={uploading}
           >
-            End Meeting
+            End meeting
           </button>
         </div>
+            </>
+          )}
+        </div>
       </div>
-      )}
       {followUpOpen && (
         <div
           className="meeting-followup-overlay"

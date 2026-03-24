@@ -2,6 +2,11 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import TopNav from './TopNav';
 import { T } from '../config/terminology';
+import {
+  VOICE_ENROLLMENT_API_TEMPLATE,
+  VOICE_ENROLLMENT_BOOK_PHRASE,
+  voiceEnrollmentSentenceForParticipant,
+} from '../utils/voiceEnrollment';
 import './Participants.css';
 
 // Max participants allowed in the participant book by plan (workplace). null = no limit.
@@ -274,7 +279,7 @@ const Participants = () => {
       formData.append('participants', JSON.stringify(participantList));
       formData.append(
         'standardSentence',
-        'Hello, my name is [Your Name]. This is my sample voice for PortIQ so the system can recognize me clearly in future meetings.'
+        VOICE_ENROLLMENT_API_TEMPLATE
       );
 
       if (targetParticipant && targetParticipant.email) {
@@ -409,11 +414,7 @@ const Participants = () => {
             <ol>
               <li>Click <strong>Configure Voice</strong> on a participant card.</li>
               <li>
-                Ask them to clearly say:{' '}
-                <em>
-                  “Hello, my name is {'{Your name}'}. This is my sample voice for
-                  PortIQ so the system can recognize me clearly in future meetings.”
-                </em>
+                Ask them to clearly say: <em>“{VOICE_ENROLLMENT_BOOK_PHRASE}”</em>
               </li>
               <li>Wait for the upload to finish. The status will change to “Voice configured”.</li>
             </ol>
@@ -447,7 +448,7 @@ const Participants = () => {
             <div className="participants-grid">
               {participants.map((p, idx) => {
                 const participantName = p.name || p.email || 'This participant';
-                const standardSentence = `Hello, my name is ${participantName}. This is my sample voice for PortIQ so the system can recognize me clearly in future meetings.`;
+                const standardSentence = voiceEnrollmentSentenceForParticipant(participantName);
                 return (
                 <div key={idx} className="participant-card">
                   <div className="participant-list-initials" aria-hidden>
