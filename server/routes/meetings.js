@@ -817,7 +817,8 @@ router.post('/:id/schedule-follow-up', async (req, res) => {
 });
 
 /**
- * Get all meetings (kiosk view - filters completed meetings based on config)
+ * List meetings. Unauthenticated requests apply completedMeetingDisplayHours + kiosk visibility;
+ * authenticated admins get full list (scoped by adminId when not global admin).
  */
 router.get('/', async (req, res) => {
   try {
@@ -841,24 +842,23 @@ router.get('/', async (req, res) => {
       query.startTime = { $gte: startDate, $lte: endDate };
     }
 
-    // Filter completed meetings based on display duration config (only for kiosk view)
-    // Admin panel uses /admin/meetings route which shows all meetings
+    // Filter completed meetings by age only for unauthenticated kiosk-style lists.
+    // Logged-in teachers/admins use this same route for the Meetings dashboard and must
+    // see full history; /admin/meetings also shows all, but the SPA calls GET /meetings.
     const Config = require('../models/Config');
     const config = await Config.getConfig();
     const displayHours = config.completedMeetingDisplayHours || 24;
-    
-    // Apply filter only if not specifically querying for a status
-    // This ensures completed meetings older than displayHours are hidden from kiosk
-    if (!query.status && displayHours > 0) {
+
+    if (!query.status && displayHours > 0 && !admin) {
       const cutoffTime = new Date();
       cutoffTime.setHours(cutoffTime.getHours() - displayHours);
-      
+
       query.$or = [
-        { status: { $ne: 'Completed' } }, // Show all non-completed
-        { 
+        { status: { $ne: 'Completed' } },
+        {
           status: 'Completed',
-          endTime: { $gte: cutoffTime } // Only completed within display window
-        }
+          endTime: { $gte: cutoffTime },
+        },
       ];
     }
 
