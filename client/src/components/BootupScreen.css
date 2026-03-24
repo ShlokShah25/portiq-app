@@ -51,14 +51,6 @@
   max-width: 22rem;
 }
 
-.bootup-pricing {
-  margin: 10px 0 0;
-  font-size: 12px;
-  font-weight: 500;
-  color: #d1d5db;
-  letter-spacing: 0.01em;
-}
-
 .bootup-progress {
   width: 320px;
 }

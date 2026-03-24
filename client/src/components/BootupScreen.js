@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { PORTIQ_PRICE_ROW, PORTIQ_TAGLINE } from '../config/productPitch';
+import { PORTIQ_TAGLINE } from '../config/productPitch';
 import './BootupScreen.css';
 
 const BootupScreen = ({ onComplete }) => {
@@ -44,7 +44,6 @@ const BootupScreen = ({ onComplete }) => {
           />
           <h1 className="bootup-title">Portiq</h1>
           <p className="bootup-tagline">{PORTIQ_TAGLINE}</p>
-          <p className="bootup-pricing">{PORTIQ_PRICE_ROW}</p>
         </div>
 
         <div className="bootup-progress">
