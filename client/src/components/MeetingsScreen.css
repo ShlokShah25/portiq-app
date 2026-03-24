@@ -630,7 +630,7 @@
   height: 18px;
   border: 1px solid #3b3b3b;
   border-radius: 4px;
-  background: #050505;
+  background: var(--bg-primary, #000000);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1181,6 +1181,64 @@
 
 .meetings-content::-webkit-scrollbar-thumb:hover {
   background: #2a2a2a;
+}
+
+.meetings-transcription-hint {
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+/* Subscription gate (new meeting) */
+.meetings-subscription-banner {
+  margin: 0 20px 16px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 14px;
+  line-height: 1.45;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.meetings-subscription-banner-text {
+  flex: 1 1 200px;
+}
+
+.meetings-subscription-banner-text > p {
+  margin: 0;
+  color: #e5e7eb;
+}
+
+.meetings-subscription-banner-prices {
+  margin: 8px 0 0 !important;
+  font-size: 12px;
+  font-weight: 500;
+  color: #cbd5e1 !important;
+}
+
+.meetings-subscription-banner--inactive {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+.meetings-subscription-banner--payment {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.35);
+}
+
+.meetings-subscription-banner-link {
+  color: #93c5fd;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.meetings-subscription-banner-link:hover {
+  text-decoration: underline;
 }
 
 /* Responsive */

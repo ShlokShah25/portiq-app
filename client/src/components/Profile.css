@@ -1,7 +1,7 @@
 .profile-screen {
   width: 100vw;
   height: 100vh;
-  background: #050505;
+  background: var(--bg-primary, #000000);
   color: #f9fafb;
   display: flex;
   flex-direction: column;
@@ -212,7 +212,7 @@
   height: 40px;
   border-radius: 10px;
   border: 1px solid #1f2933;
-  background: #050505;
+  background: var(--bg-primary, #000000);
   color: #f9fafb;
   padding: 0 12px;
   font-size: 14px;

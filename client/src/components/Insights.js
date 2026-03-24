@@ -66,7 +66,12 @@ const Insights = () => {
       <TopNav />
       <div className="insights-wrapper">
         <div className="insights-top-bar">
-          <h1 className="insights-title">Insights</h1>
+          <div>
+            <h1 className="insights-title">Insights</h1>
+            <p className="insights-subtitle">
+              Fast view of your meetings and the tasks we pulled out for you.
+            </p>
+          </div>
         </div>
         
         <div className="insights-content">
@@ -105,13 +110,13 @@ const Insights = () => {
                 </svg>
               </div>
               <div className="insight-stat-value">{actionItems.length}</div>
-              <div className="insight-stat-label">Action Items</div>
+              <div className="insight-stat-label">Tasks</div>
             </div>
           </div>
 
           {actionItems.length > 0 && (
             <div className="insights-section">
-              <h2>Recent Action Items</h2>
+              <h2>Recent tasks</h2>
               <div className="action-items-list">
                 {actionItems.map((item, idx) => (
                   <div key={idx} className="action-item-card" onClick={() => navigate('/meetings')}>

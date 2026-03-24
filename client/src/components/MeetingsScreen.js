@@ -5,7 +5,13 @@ import TopNav from './TopNav';
 import { isEducation } from '../config/product';
 import { T } from '../config/terminology';
 import { getClassrooms } from '../utils/classroomsStorage';
+import { PORTIQ_MEETINGS_HINT, PORTIQ_PRICE_ROW } from '../config/productPitch';
 import './MeetingsScreen.css';
+
+const MARKETING_URL =
+  process.env.REACT_APP_MARKETING_URL ||
+  process.env.REACT_APP_WEBSITE_URL ||
+  'https://www.portiqtechnologies.com';
 
 const MeetingsScreen = ({ config }) => {
   const navigate = useNavigate();
@@ -29,7 +35,6 @@ const MeetingsScreen = ({ config }) => {
     scheduledDate: '',
     scheduledTime: '',
     sendNotification: true,
-    transcriptionEnabled: true,
     authorizedEditorEmail: '',
     authorizedEditorSource: 'participant'
   });
@@ -57,6 +62,8 @@ const MeetingsScreen = ({ config }) => {
   const [voiceMediaRecorder, setVoiceMediaRecorder] = useState(null);
   const [savedParticipantsVoiceProfiles, setSavedParticipantsVoiceProfiles] = useState({}); // Voice profiles for saved participants
   const [maxParticipantsPerMeeting, setMaxParticipantsPerMeeting] = useState(null); // 10/30/60 by plan, null = no limit
+  /** null = loading profile; ok = can create; inactive / payment_pending = blocked */
+  const [subscriptionGate, setSubscriptionGate] = useState(null);
 
   useEffect(() => {
     fetchMeetings();
@@ -93,14 +100,32 @@ const MeetingsScreen = ({ config }) => {
     loadParticipantBook();
   }, []);
 
-  // Fetch plan limit for participants per meeting (workplace: 10/30/60)
+  // Profile: plan limits + subscription gate for creating meetings
   useEffect(() => {
-    if (isEducation) return;
-    const fetchPlan = async () => {
+    const fetchProfile = async () => {
       try {
         const res = await axios.get('/admin/profile');
-        const product = (res.data?.admin?.productType || 'workplace').toLowerCase();
-        const plan = (res.data?.admin?.plan || 'starter').toLowerCase();
+        const admin = res.data?.admin;
+        if (!admin) {
+          setSubscriptionGate('ok');
+          setMaxParticipantsPerMeeting(null);
+          return;
+        }
+        const u = String(admin.username || '').toLowerCase();
+        if (u === 'admin' || admin.hasActiveSubscription) {
+          setSubscriptionGate('ok');
+        } else if (admin.subscriptionPaymentPending) {
+          setSubscriptionGate('payment_pending');
+        } else {
+          setSubscriptionGate('inactive');
+        }
+
+        if (isEducation) {
+          setMaxParticipantsPerMeeting(null);
+          return;
+        }
+        const product = (admin.productType || 'workplace').toLowerCase();
+        const plan = (admin.plan || 'starter').toLowerCase();
         if (product === 'workplace') {
           const maxByPlan = { starter: 10, professional: 30, business: 60 };
           setMaxParticipantsPerMeeting(maxByPlan[plan] ?? null);
@@ -109,9 +134,10 @@ const MeetingsScreen = ({ config }) => {
         }
       } catch (e) {
         setMaxParticipantsPerMeeting(null);
+        setSubscriptionGate('ok');
       }
     };
-    fetchPlan();
+    fetchProfile();
   }, [isEducation]);
 
   const checkVoiceProfilesForSaved = async (emails) => {
@@ -331,6 +357,14 @@ const MeetingsScreen = ({ config }) => {
   const handleCreate = async (e) => {
     e.preventDefault();
     setError('');
+    if (subscriptionGate === 'inactive' || subscriptionGate === 'payment_pending') {
+      setError(
+        subscriptionGate === 'payment_pending'
+          ? "Payment didn't finish—wrap that up, then try again."
+          : `No active plan. Grab one on the site (${PORTIQ_PRICE_ROW}).`
+      );
+      return;
+    }
     if (isEducation && !selectedClassroomId) {
       setError('Please select a classroom.');
       return;
@@ -371,7 +405,7 @@ const MeetingsScreen = ({ config }) => {
           participants: payloadParticipants,
           scheduledTime: scheduledTimeValue,
           sendNotification: form.sendNotification,
-          transcriptionEnabled: form.transcriptionEnabled,
+          transcriptionEnabled: true,
           authorizedEditorEmail: form.authorizedEditorEmail.trim() || undefined
         },
         {
@@ -398,7 +432,13 @@ const MeetingsScreen = ({ config }) => {
       navigate(`/meetings/${newMeetingId}`);
     } catch (err) {
       console.error('Error creating meeting:', err);
+      const code = err.response?.data?.code;
       const rawError = err.response?.data?.error || err.response?.data?.details || err.message;
+      if (code === 'SUBSCRIPTION_INACTIVE' || code === 'SUBSCRIPTION_PAYMENT_PENDING') {
+        setError(typeof rawError === 'string' ? rawError : 'Subscription required.');
+        setLoading(false);
+        return;
+      }
       const isLimitError = typeof rawError === 'string' && (
         /plan allows up to|participants per meeting|participant book|max participants/i.test(rawError)
       );
@@ -809,6 +849,27 @@ const MeetingsScreen = ({ config }) => {
               <div className="card-header">
                 <h2>{T.newMeeting()}</h2>
               </div>
+              {subscriptionGate === 'inactive' && (
+                <div className="meetings-subscription-banner meetings-subscription-banner--inactive" role="alert">
+                  <div className="meetings-subscription-banner-text">
+                    <p>No active plan—you need one to start a meeting.</p>
+                    <p className="meetings-subscription-banner-prices">{PORTIQ_PRICE_ROW}</p>
+                  </div>
+                  <a className="meetings-subscription-banner-link" href={`${MARKETING_URL}#pricing`}>
+                    See plans
+                  </a>
+                </div>
+              )}
+              {subscriptionGate === 'payment_pending' && (
+                <div className="meetings-subscription-banner meetings-subscription-banner--payment" role="alert">
+                  <div className="meetings-subscription-banner-text">
+                    <p>{'Almost there—finish checkout and you\'re in.'}</p>
+                  </div>
+                  <a className="meetings-subscription-banner-link" href={`${MARKETING_URL}#pricing`}>
+                    Finish payment
+                  </a>
+                </div>
+              )}
               <form onSubmit={handleCreate} className="meetings-form">
                 {isEducation && (
                   <div className="form-group">
@@ -1163,29 +1224,20 @@ const MeetingsScreen = ({ config }) => {
                   </div>
                   <small>This person will be able to review and edit the summary before it's sent to participants.</small>
                 </div>
+                <p className="meetings-transcription-hint">{PORTIQ_MEETINGS_HINT}</p>
                 <div className="form-group-inline">
                   <label className="premium-checkbox-container">
                     <input
                       type="checkbox"
-                      checked={form.transcriptionEnabled}
-                      onChange={e => setForm({ ...form, transcriptionEnabled: e.target.checked })}
+                      checked={enableVoiceConfig}
+                      onChange={e => setEnableVoiceConfig(e.target.checked)}
                     />
-                    <span>Enable AI meeting summary</span>
+                    <span>Voice ID (optional—helps label who spoke)</span>
                   </label>
-                  {form.transcriptionEnabled && (
-                    <label className="premium-checkbox-container">
-                      <input
-                        type="checkbox"
-                        checked={enableVoiceConfig}
-                        onChange={e => setEnableVoiceConfig(e.target.checked)}
-                      />
-                      <span>Enable voice recognition (speaker identification)</span>
-                    </label>
-                  )}
                 </div>
 
                 {/* Voice Configuration Section */}
-                {enableVoiceConfig && form.transcriptionEnabled && participants.filter(p => p.email && p.email.trim()).length > 0 && (
+                {enableVoiceConfig && participants.filter(p => p.email && p.email.trim()).length > 0 && (
                   <div className="form-group" style={{
                     background: 'rgba(255, 255, 255, 0.1)',
                     border: '2px solid rgba(255, 255, 255, 0.2)',
@@ -1392,7 +1444,16 @@ const MeetingsScreen = ({ config }) => {
                   </div>
                 )}
 
-                <button type="submit" className="btn btn-primary" disabled={loading}>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={
+                    loading ||
+                    subscriptionGate === null ||
+                    subscriptionGate === 'inactive' ||
+                    subscriptionGate === 'payment_pending'
+                  }
+                >
                   {loading ? 'Creating...' : 'Create Meeting'}
                 </button>
               </form>

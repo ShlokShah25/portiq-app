@@ -3,7 +3,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #020617;
+  background: var(--bg-primary, #000000);
 }
 
 .admin-login-card {
@@ -11,7 +11,7 @@
   max-width: 380px;
   padding: 26px 24px 24px;
   border-radius: 20px;
-  background: #020617;
+  background: var(--bg-primary, #000000);
   border: 1px solid rgba(31, 41, 55, 0.9);
   box-shadow: 0 16px 36px rgba(15, 23, 42, 0.9);
   color: #e5e7eb;
@@ -75,7 +75,7 @@
   display: inline-flex;
   padding: 3px;
   border-radius: 999px;
-  background: #020617;
+  background: var(--bg-primary, #000000);
   border: 1px solid rgba(55, 65, 81, 0.7);
 }
 
@@ -92,7 +92,7 @@
 }
 
 .admin-login-product-option.active {
-  background: #111827;
+  background: var(--surface-secondary, #121212);
   color: #f9fafb;
   box-shadow: none;
 }
@@ -109,7 +109,7 @@
   padding: 10px 11px;
   border-radius: 10px;
   border: 1px solid rgba(148, 163, 184, 0.5);
-  background: #020617;
+  background: var(--bg-primary, #000000);
   color: #e5e7eb;
   font-size: 14px;
 }
@@ -138,7 +138,7 @@
   font-size: 14px;
   font-weight: 500;
   color: #f9fafb;
-  background: #1f2937;
+  background: var(--surface-input, #1c1c1e);
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.9);
   cursor: pointer;
   transition: all 0.18s ease;
@@ -199,7 +199,7 @@
   width: 100%;
   border-radius: 999px;
   border: 1px solid rgba(148, 163, 184, 0.5);
-  background: #020617;
+  background: var(--bg-primary, #000000);
   color: #e5e7eb;
   padding: 9px 14px;
   font-size: 13px;
@@ -211,7 +211,7 @@
 }
 
 .admin-login-oauth:hover {
-  background: #030712;
+  background: var(--bg-elevated, #0a0a0a);
 }
 
 .admin-login-success {

@@ -46,7 +46,12 @@ const Transcripts = () => {
       <TopNav />
       <div className="transcripts-wrapper">
         <div className="transcripts-top-bar">
-          <h1 className="transcripts-title">Transcripts</h1>
+          <div>
+            <h1 className="transcripts-title">Transcripts</h1>
+            <p className="transcripts-subtitle">
+              Each meeting also pulls out a summary and a task list—open one for the full picture.
+            </p>
+          </div>
         </div>
         
         <div className="transcripts-content">
@@ -59,7 +64,7 @@ const Transcripts = () => {
                 <line x1="16" y1="17" x2="8" y2="17"></line>
                 <polyline points="10 9 9 9 8 9"></polyline>
               </svg>
-              <p>No transcripts available</p>
+              <p>No transcripts yet. Wrap a meeting and your notes, summary, and tasks show up here.</p>
             </div>
           ) : (
             <div className="transcripts-list">

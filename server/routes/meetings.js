@@ -4,6 +4,7 @@ const Meeting = require('../models/Meeting');
 const VoiceProfile = require('../models/VoiceProfile');
 const { transcribeAndSummarize, sendMeetingSummary, getMailTransporter } = require('../utils/meetingTranscription');
 const { getPlanConstraints } = require('../utils/planConstraints');
+const { subscriptionDeniedResponse } = require('../utils/subscriptionGate');
 const jwt = require('jsonwebtoken');
 const Admin = require('../models/Admin');
 const { generateVoiceEmbedding } = require('../utils/voiceRecognition');
@@ -116,19 +117,16 @@ function canAccessMeeting(meeting, admin) {
  */
 router.post('/', async (req, res) => {
   try {
-    const { meetingRoom, title, organizer, participants, startTime, scheduledTime, sendNotification, transcriptionEnabled, authorizedEditorEmail } = req.body;
+    const { meetingRoom, title, organizer, participants, startTime, scheduledTime, sendNotification, authorizedEditorEmail } = req.body;
     
     if (!meetingRoom || !title || !organizer) {
       return res.status(400).json({ error: 'Meeting room, title, and organizer are required' });
     }
 
     const admin = await getAdminFromRequest(req);
-    // If authenticated, require active subscription to create meetings
-    if (admin && admin.username !== 'admin' && !admin.hasActiveSubscription) {
-      return res.status(403).json({
-        error: 'No active subscription. Please purchase a plan to create meetings.',
-        code: 'NO_SUBSCRIPTION',
-      });
+    const denied = subscriptionDeniedResponse(admin);
+    if (denied) {
+      return res.status(denied.status).json(denied.json);
     }
     const planInfo = getPlanConstraints(admin);
 
@@ -151,12 +149,12 @@ router.post('/', async (req, res) => {
       participants: participants || [],
       startTime: null, // Set when user clicks "Start recording", not at creation
       scheduledTime: scheduledTime ? new Date(scheduledTime) : null,
-      transcriptionEnabled: transcriptionEnabled === true,
+      transcriptionEnabled: true,
       authorizedEditorEmail: authorizedEditorEmail || null
     });
 
     // Generate verification code for authorized editor if specified
-    if (authorizedEditorEmail && transcriptionEnabled) {
+    if (authorizedEditorEmail) {
       // Generate 6-digit OTP
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
       // Set expiry to 7 days from now (plenty of time for meeting to happen and be processed)
@@ -167,7 +165,7 @@ router.post('/', async (req, res) => {
     await meeting.save();
 
     // Send separate verification code email to authorized editor (if specified)
-    if (authorizedEditorEmail && transcriptionEnabled && meeting.editorVerificationCode) {
+    if (authorizedEditorEmail && meeting.editorVerificationCode) {
       const transporter = getMailTransporter();
       if (transporter) {
         try {
@@ -630,11 +628,9 @@ router.post('/:id/schedule-follow-up', async (req, res) => {
     if (!canAccessMeeting(meeting, admin)) {
       return res.status(404).json({ error: 'Meeting not found' });
     }
-    if (admin.username !== 'admin' && !admin.hasActiveSubscription) {
-      return res.status(403).json({
-        error: 'No active subscription.',
-        code: 'NO_SUBSCRIPTION',
-      });
+    const denied = subscriptionDeniedResponse(admin);
+    if (denied) {
+      return res.status(denied.status).json(denied.json);
     }
 
     const {
@@ -690,12 +686,12 @@ router.post('/:id/schedule-follow-up', async (req, res) => {
       startTime: null,
       endTime: null,
       status: 'Scheduled',
-      transcriptionEnabled: !!meeting.transcriptionEnabled,
+      transcriptionEnabled: true,
       authorizedEditorEmail: meeting.authorizedEditorEmail || null,
       parentMeetingId: meeting._id,
     });
 
-    if (child.authorizedEditorEmail && child.transcriptionEnabled) {
+    if (child.authorizedEditorEmail) {
       child.editorVerificationCode = Math.floor(100000 + Math.random() * 900000).toString();
       child.editorVerificationExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     }

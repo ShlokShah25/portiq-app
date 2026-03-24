@@ -44,19 +44,19 @@
 .dashboard-title {
   font-size: 34px;
   font-weight: 600;
-  color: #F5F5F5;
+  color: var(--text-primary, #f5f5f7);
   letter-spacing: -0.02em;
   margin: 0 0 8px 0;
   line-height: 1.2;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-family: var(--font-sans, "Inter", system-ui, sans-serif);
 }
 
 .dashboard-subtitle {
   font-size: 14px;
-  color: #9CA3AF;
+  color: var(--text-muted, #9ca3af);
   margin: 0;
   font-weight: 400;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-family: var(--font-sans, "Inter", system-ui, sans-serif);
 }
 
 .dashboard-actions {
@@ -70,13 +70,13 @@
   gap: 8px;
   height: 40px;
   padding: 0 16px;
-  background: #0a84ff;
-  color: #FFFFFF !important;
+  background: var(--accent-blue, #3b82f6);
+  color: #ffffff !important;
   border: none;
   border-radius: 10px;
   font-size: 14px;
   font-weight: 500;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-family: var(--font-sans, "Inter", system-ui, sans-serif);
   cursor: pointer;
   white-space: nowrap;
   pointer-events: auto;
@@ -86,7 +86,7 @@
 }
 
 .dashboard-btn-primary:hover {
-  background: #0077ed;
+  filter: brightness(1.08);
 }
 
 .dashboard-btn-primary:active {

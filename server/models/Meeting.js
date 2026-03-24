@@ -49,7 +49,7 @@ const meetingSchema = new mongoose.Schema({
   },
   transcriptionEnabled: {
     type: Boolean,
-    default: false
+    default: true
   },
   audioFile: {
     type: String, // Path to recorded audio

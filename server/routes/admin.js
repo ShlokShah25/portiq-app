@@ -115,6 +115,8 @@ router.get('/profile', authenticateAdmin, async (req, res) => {
       productType: req.admin.productType,
       plan: req.admin.plan,
       hasActiveSubscription: !!admin.hasActiveSubscription,
+      subscriptionPaymentPending:
+        !!admin.razorpaySubscriptionId && !admin.hasActiveSubscription,
     }
   });
 });

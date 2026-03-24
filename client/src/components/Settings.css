@@ -11,7 +11,7 @@
   right: 0;
   bottom: 0;
   overflow: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Helvetica Neue", system-ui, sans-serif;
+  font-family: var(--font-sans, "Inter", system-ui, sans-serif);
 }
 
 .settings-wrapper {
@@ -83,7 +83,7 @@
   border-radius: 10px;
   color: var(--text-primary);
   font-size: 14px;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Helvetica Neue", system-ui, sans-serif;
+  font-family: var(--font-sans, "Inter", system-ui, sans-serif);
   transition: all 150ms ease;
 }
 
@@ -181,7 +181,7 @@
   font-weight: 500;
   cursor: pointer;
   transition: all 150ms ease;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Helvetica Neue", system-ui, sans-serif;
+  font-family: var(--font-sans, "Inter", system-ui, sans-serif);
 }
 
 .theme-option:hover {

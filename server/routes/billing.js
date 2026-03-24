@@ -201,23 +201,48 @@ async function handleWebhook(req, res) {
   const subId = event.payload?.subscription?.entity?.id;
   const eventName = event.event;
 
-  if (eventName === 'subscription.activated' && subId && razorpay) {
+  /**
+   * Fetch subscription from Razorpay and sync admin: id + plan + hasActiveSubscription (true only when status is active).
+   * Used for subscription.authenticated (mandate done, payment may be pending) and subscription.activated.
+   */
+  async function syncSubscriptionById(id) {
+    if (!id || !razorpay) return;
     try {
-      const sub = await razorpay.subscriptions.fetch(subId);
+      const sub = await razorpay.subscriptions.fetch(id);
       const notes = sub.notes || {};
       const username = notes.username;
-      if (username) {
-        const admin = await Admin.findOne({ username });
-        if (admin) {
-          admin.hasActiveSubscription = true;
-          admin.razorpaySubscriptionId = subId;
-          if (notes.planType) admin.plan = String(notes.planType).toLowerCase();
-          await admin.save();
-          console.log('Activated subscription for admin:', username);
-        }
+      if (!username) return;
+      const admin = await Admin.findOne({ username });
+      if (!admin) return;
+      admin.razorpaySubscriptionId = id;
+      if (notes.planType) admin.plan = String(notes.planType).toLowerCase();
+      admin.hasActiveSubscription = sub.status === 'active';
+      await admin.save();
+      console.log('Subscription sync for', username, 'status=', sub.status);
+    } catch (e) {
+      console.error('Webhook subscription sync error:', e);
+    }
+  }
+
+  if (
+    (eventName === 'subscription.authenticated' || eventName === 'subscription.activated') &&
+    subId &&
+    razorpay
+  ) {
+    await syncSubscriptionById(subId);
+    return res.status(200).send('OK');
+  }
+
+  if (eventName === 'subscription.halted' && subId) {
+    try {
+      const admin = await Admin.findOne({ razorpaySubscriptionId: subId });
+      if (admin) {
+        admin.hasActiveSubscription = false;
+        await admin.save();
+        console.log('Subscription halted for admin:', admin.username);
       }
     } catch (e) {
-      console.error('Webhook subscription.activated processing error:', e);
+      console.error('Webhook subscription.halted processing error:', e);
     }
     return res.status(200).send('OK');
   }

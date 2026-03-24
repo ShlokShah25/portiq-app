@@ -237,3 +237,87 @@ p {
 .text-secondary { color: var(--text-secondary); }
 .bg-primary { background: var(--bg-primary); }
 .bg-secondary { background: var(--bg-secondary); }
+
+/* —— Reference UI: section labels, badges, keypoints, skeletons —— */
+
+.ds-section-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-label);
+  margin: 0 0 12px;
+}
+
+.ds-divider {
+  border: none;
+  border-top: 1px solid var(--divider);
+  margin: 20px 0 0;
+  padding-top: 20px;
+}
+
+.ds-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--badge-bg);
+  border: 1px solid var(--badge-border);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--badge-text);
+}
+
+.ds-status-badge__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success-green);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
+  flex-shrink: 0;
+}
+
+.ds-task-pill {
+  display: inline-block;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--badge-text);
+  background: var(--accent-blue-dim);
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--badge-border);
+}
+
+.ds-keypoint-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.ds-keypoint-row svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--accent-blue);
+}
+
+.ds-skeleton-line {
+  height: 10px;
+  border-radius: 5px;
+  background: linear-gradient(90deg, var(--skeleton) 0%, var(--skeleton-shine) 50%, var(--skeleton) 100%);
+  background-size: 200% 100%;
+  animation: ds-shimmer 2s ease-in-out infinite;
+}
+
+@keyframes ds-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}

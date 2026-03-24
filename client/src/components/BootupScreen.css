@@ -3,7 +3,7 @@
 .bootup-screen {
   width: 100vw;
   height: 100vh;
-  background: #050505;
+  background: var(--bg-primary, #000000);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -47,6 +47,16 @@
   margin: 0;
   font-size: 13px;
   color: #9ca3af;
+  line-height: 1.45;
+  max-width: 22rem;
+}
+
+.bootup-pricing {
+  margin: 10px 0 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: #d1d5db;
+  letter-spacing: 0.01em;
 }
 
 .bootup-progress {

@@ -3,8 +3,8 @@
 .sidebar {
   width: 240px;
   height: 100vh;
-  background: #1C1C1E;
-  border-right: 1px solid #2A2A2C;
+  background: var(--surface-secondary, #121212);
+  border-right: 1px solid var(--border-strong, rgba(255, 255, 255, 0.1));
   padding: 24px 16px;
   position: fixed;
   left: 0;
@@ -19,7 +19,7 @@
 .sidebar-header {
   margin-bottom: 32px;
   padding-bottom: 24px;
-  border-bottom: 1px solid #2A2A2C;
+  border-bottom: 1px solid var(--divider, rgba(255, 255, 255, 0.08));
 }
 
 .sidebar-logo {
@@ -37,8 +37,9 @@
 .sidebar-logo-text {
   font-size: 18px;
   font-weight: 600;
-  color: #F5F5F7;
+  color: var(--text-primary, #f5f5f7);
   letter-spacing: -0.01em;
+  font-family: var(--font-sans, "Inter", system-ui, sans-serif);
 }
 
 .sidebar-nav {
@@ -53,26 +54,26 @@
   gap: 12px;
   padding: 10px 14px;
   border-radius: 10px;
-  color: #A1A1A6;
+  color: var(--text-secondary, #a1a1a6);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 150ms ease;
+  transition: background 150ms ease, color 150ms ease;
   border: none;
   background: transparent;
   text-align: left;
   width: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Helvetica Neue", system-ui, sans-serif;
+  font-family: var(--font-sans, "Inter", system-ui, sans-serif);
 }
 
 .sidebar-item:hover {
-  background: #2A2A2C;
-  color: #F5F5F7;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary, #f5f5f7);
 }
 
 .sidebar-item.active {
-  background: #2A2A2C;
-  color: #F5F5F7;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary, #f5f5f7);
 }
 
 .sidebar-item svg {
@@ -96,7 +97,7 @@
 }
 
 .sidebar::-webkit-scrollbar-thumb {
-  background: #2A2A2C;
+  background: var(--border-strong, rgba(255, 255, 255, 0.12));
   border-radius: 3px;
 }
 
