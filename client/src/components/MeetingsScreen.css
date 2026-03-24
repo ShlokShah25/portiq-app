@@ -1241,6 +1241,15 @@
   text-decoration: underline;
 }
 
+/* Inline summary blocks (shared MeetingSummary.css classes) */
+.meetings-inline-summary {
+  margin-top: 20px;
+}
+
+.meetings-inline-summary .meeting-summary-page-title {
+  margin-bottom: 12px;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .meetings-layout {

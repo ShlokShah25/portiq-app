@@ -6,6 +6,8 @@ import { isEducation } from '../config/product';
 import { T } from '../config/terminology';
 import { getClassrooms } from '../utils/classroomsStorage';
 import { PORTIQ_MEETINGS_HINT, PORTIQ_PRICE_ROW } from '../config/productPitch';
+import MeetingSummaryReadonlyBody from './MeetingSummaryReadonlyBody';
+import './MeetingSummary.css';
 import './MeetingsScreen.css';
 
 const MARKETING_URL =
@@ -64,6 +66,23 @@ const MeetingsScreen = ({ config }) => {
   const [maxParticipantsPerMeeting, setMaxParticipantsPerMeeting] = useState(null); // 10/30/60 by plan, null = no limit
   /** null = loading profile; ok = can create; inactive / payment_pending = blocked */
   const [subscriptionGate, setSubscriptionGate] = useState(null);
+
+  const syncMeetingAfterActionItemPatch = (m) => {
+    setSelectedMeeting(m);
+    setEditableSummary((prev) => {
+      if (!prev) return prev;
+      return {
+        summary: m.pendingSummary || m.summary || prev.summary,
+        keyPoints: m.pendingKeyPoints?.length ? m.pendingKeyPoints : m.keyPoints ?? prev.keyPoints,
+        actionItems: m.pendingActionItems?.length ? m.pendingActionItems : m.actionItems ?? prev.actionItems,
+        decisions: m.pendingDecisions?.length ? m.pendingDecisions : m.decisions ?? prev.decisions,
+        nextSteps: m.pendingNextSteps?.length ? m.pendingNextSteps : m.nextSteps ?? prev.nextSteps,
+        importantNotes: m.pendingImportantNotes?.length
+          ? m.pendingImportantNotes
+          : m.importantNotes ?? prev.importantNotes,
+      };
+    });
+  };
 
   useEffect(() => {
     fetchMeetings();
@@ -1655,27 +1674,12 @@ const MeetingsScreen = ({ config }) => {
                 {selectedMeeting.summaryStatus === 'Pending Approval' &&
                   selectedMeeting.transcriptionStatus === 'Completed' &&
                   !editableSummary && selectedMeeting.summary && (
-                    <div
-                      className="summary-section"
-                      style={{
-                        border: '2px solid #2563eb',
-                        borderRadius: '12px',
-                        padding: '24px',
-                        marginTop: '20px',
-                        background: 'rgba(37, 99, 235, 0.05)',
-                      }}
-                    >
-                      <h3
-                        style={{
-                          color: 'white',
-                          marginBottom: '12px',
-                          fontSize: '20px',
-                          fontWeight: '600',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '10px',
-                        }}
-                      >
+                    <div className="meeting-summary-card meetings-inline-summary">
+                      <div className="meeting-summary-ready-badge" style={{ marginBottom: 16 }}>
+                        <span className="meeting-summary-ready-badge__dot" aria-hidden="true" />
+                        Summary ready
+                      </div>
+                      <h3 className="meeting-summary-page-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <svg
                           width="20"
                           height="20"
@@ -1683,6 +1687,7 @@ const MeetingsScreen = ({ config }) => {
                           fill="none"
                           stroke="currentColor"
                           strokeWidth="2"
+                          aria-hidden="true"
                         >
                           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                           <polyline points="14 2 14 8 20 8"></polyline>
@@ -1690,33 +1695,19 @@ const MeetingsScreen = ({ config }) => {
                           <line x1="16" y1="17" x2="8" y2="17"></line>
                           <polyline points="10 9 9 9 8 9"></polyline>
                         </svg>
-                        Summary Ready
+                        Review before send
                       </h3>
-                      <p
-                        style={{
-                          marginBottom: '16px',
-                          color: 'white',
-                          fontSize: '15px',
-                        }}
-                      >
-                        The meeting summary has been generated and will be emailed
-                        to participants automatically.
+                      <p className="meeting-summary-body" style={{ marginBottom: 12 }}>
+                        The summary is generated and can be emailed to participants once you approve it.
                       </p>
-                      <p
-                        style={{
-                          marginBottom: '20px',
-                          color: '#9ca3af',
-                          fontSize: '13px',
-                        }}
-                      >
-                        You can optionally review and edit the summary before it
-                        is sent. Click below to open it.
+                      <p style={{ marginBottom: 20, color: '#9ca3af', fontSize: 13 }}>
+                        Open to review, edit if needed, add late participants, then approve and send.
                       </p>
-
                       <button
-                        className="btn btn-primary"
+                        type="button"
+                        className="meeting-summary-btn meeting-summary-btn--primary"
+                        style={{ width: '100%' }}
                         onClick={() => {
-                          // Seed editableSummary from pending fields if present, otherwise from final fields.
                           const base = {
                             summary:
                               selectedMeeting.pendingSummary ||
@@ -1749,24 +1740,17 @@ const MeetingsScreen = ({ config }) => {
                           setError('');
                           setAdditionalParticipants([{ name: '', email: '' }]);
                         }}
-                        style={{
-                          width: '100%',
-                          padding: '16px',
-                          fontSize: '16px',
-                          fontWeight: '600',
-                          marginTop: '8px',
-                        }}
                       >
-                        View & Edit Summary
+                        View &amp; Edit Summary
                       </button>
                     </div>
                   )}
 
                 {/* Summary View & Edit (ONLY after code is verified) */}
                 {verificationStep === 'edit' && editableSummary && (
-                  <div className="summary-section" style={{ border: '2px solid #2563eb', borderRadius: '12px', padding: '24px', marginTop: '20px', background: 'rgba(37, 99, 235, 0.05)' }}>
-                    <h3 style={{ color: '#2563eb', marginBottom: '20px', fontSize: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <div className="meeting-summary-card meetings-inline-summary">
+                    <h3 className="meeting-summary-page-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                         <polyline points="14 2 14 8 20 8"></polyline>
                         <line x1="16" y1="13" x2="8" y2="13"></line>
@@ -1775,16 +1759,18 @@ const MeetingsScreen = ({ config }) => {
                       </svg>
                       {T.meetingSummary()}
                     </h3>
-                    
-                    <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+
+                    <div className="meeting-summary-actions">
                           <button
-                            className="btn btn-secondary"
+                            type="button"
+                            className="meeting-summary-btn meeting-summary-btn--secondary"
                             onClick={() => setEditingSummary(!editingSummary)}
                           >
                             {editingSummary ? 'Cancel Edit' : 'Edit Summary'}
                           </button>
                           <button
-                            className="btn btn-primary"
+                            type="button"
+                            className="meeting-summary-btn meeting-summary-btn--primary"
                             onClick={async () => {
                               try {
                                 const emailToUse = verificationEmail || selectedMeeting.authorizedEditorEmail;
@@ -1834,102 +1820,57 @@ const MeetingsScreen = ({ config }) => {
                         </div>
                         
                         {editingSummary ? (
-                          <div style={{ marginTop: '20px' }}>
-                            <div className="form-group">
-                              <label style={{ color: 'white', fontSize: '15px', fontWeight: '600', marginBottom: '8px', display: 'block' }}>Minutes of the meeting</label>
+                          <div className="meeting-summary-edit">
+                            <div className="meeting-summary-edit-field">
+                              <label>{isEducation ? 'Summary' : 'Minutes of the meeting'}</label>
                               <textarea
                                 value={editableSummary.summary}
                                 onChange={e => setEditableSummary({ ...editableSummary, summary: e.target.value })}
                                 rows="5"
-                                style={{ 
-                                  width: '100%', 
-                                  padding: '14px', 
-                                  background: 'rgba(255, 255, 255, 0.15)',
-                                  border: '2px solid rgba(255, 255, 255, 0.3)',
-                                  borderRadius: '12px',
-                                  color: 'white',
-                                  fontSize: '15px',
-                                  fontFamily: 'inherit'
-                                }}
+                                className="meeting-summary-textarea"
                               />
                             </div>
-                            <div className="form-group">
-                              <label style={{ color: 'white', fontSize: '15px', fontWeight: '600', marginBottom: '8px', display: 'block' }}>Key Points (one per line)</label>
+                            <div className="meeting-summary-edit-field">
+                              <label>Key Points (one per line)</label>
                               <textarea
                                 value={(editableSummary.keyPoints || []).join('\n')}
                                 onChange={e => setEditableSummary({ ...editableSummary, keyPoints: e.target.value.split('\n').filter(l => l.trim()) })}
                                 rows="6"
-                                style={{ 
-                                  width: '100%', 
-                                  padding: '14px', 
-                                  background: 'rgba(255, 255, 255, 0.15)',
-                                  border: '2px solid rgba(255, 255, 255, 0.3)',
-                                  borderRadius: '12px',
-                                  color: 'white',
-                                  fontSize: '15px',
-                                  fontFamily: 'inherit'
-                                }}
+                                className="meeting-summary-textarea"
                               />
                             </div>
-                            <div className="form-group">
-                              <label style={{ color: 'white', fontSize: '15px', fontWeight: '600', marginBottom: '8px', display: 'block' }}>Decisions (one per line)</label>
+                            <div className="meeting-summary-edit-field">
+                              <label>Decisions (one per line)</label>
                               <textarea
                                 value={(editableSummary.decisions || []).join('\n')}
                                 onChange={e => setEditableSummary({ ...editableSummary, decisions: e.target.value.split('\n').filter(l => l.trim()) })}
                                 rows="4"
-                                style={{ 
-                                  width: '100%', 
-                                  padding: '14px', 
-                                  background: 'rgba(255, 255, 255, 0.15)',
-                                  border: '2px solid rgba(255, 255, 255, 0.3)',
-                                  borderRadius: '12px',
-                                  color: 'white',
-                                  fontSize: '15px',
-                                  fontFamily: 'inherit'
-                                }}
+                                className="meeting-summary-textarea"
                               />
                             </div>
-                            <div className="form-group">
-                              <label style={{ color: 'white', fontSize: '15px', fontWeight: '600', marginBottom: '8px', display: 'block' }}>Next Steps (one per line)</label>
+                            <div className="meeting-summary-edit-field">
+                              <label>Next Steps (one per line)</label>
                               <textarea
                                 value={(editableSummary.nextSteps || []).join('\n')}
                                 onChange={e => setEditableSummary({ ...editableSummary, nextSteps: e.target.value.split('\n').filter(l => l.trim()) })}
                                 rows="4"
-                                style={{ 
-                                  width: '100%', 
-                                  padding: '14px', 
-                                  background: 'rgba(255, 255, 255, 0.15)',
-                                  border: '2px solid rgba(255, 255, 255, 0.3)',
-                                  borderRadius: '12px',
-                                  color: 'white',
-                                  fontSize: '15px',
-                                  fontFamily: 'inherit'
-                                }}
+                                className="meeting-summary-textarea"
                               />
                             </div>
-                            <div className="form-group">
-                              <label style={{ color: 'white', fontSize: '15px', fontWeight: '600', marginBottom: '8px', display: 'block' }}>
+                            <div className="meeting-summary-edit-field">
+                              <label>
                                 {isEducation ? 'Important Concepts (one per line)' : 'Important Notes (one per line)'}
                               </label>
                               <textarea
                                 value={(editableSummary.importantNotes || []).join('\n')}
                                 onChange={e => setEditableSummary({ ...editableSummary, importantNotes: e.target.value.split('\n').filter(l => l.trim()) })}
                                 rows="4"
-                                style={{ 
-                                  width: '100%', 
-                                  padding: '14px', 
-                                  background: 'rgba(255, 255, 255, 0.15)',
-                                  border: '2px solid rgba(255, 255, 255, 0.3)',
-                                  borderRadius: '12px',
-                                  color: 'white',
-                                  fontSize: '15px',
-                                  fontFamily: 'inherit'
-                                }}
+                                className="meeting-summary-textarea"
                               />
                             </div>
-                            <div className="form-group">
-                              <label style={{ color: 'white', fontSize: '15px', fontWeight: '600', marginBottom: '8px', display: 'block' }}>Action Items</label>
-                              <small style={{ display: 'block', marginBottom: '10px', color: 'rgba(255, 255, 255, 0.8)', fontSize: '13px' }}>
+                            <div className="meeting-summary-edit-field">
+                              <label>Action Items</label>
+                              <small className="meeting-summary-edit-hint">
                                 Format: Task | Assignee | Due Date (optional)
                               </small>
                               <textarea
@@ -1949,47 +1890,27 @@ const MeetingsScreen = ({ config }) => {
                                   setEditableSummary({ ...editableSummary, actionItems: items });
                                 }}
                                 rows="6"
-                                style={{ 
-                                  width: '100%', 
-                                  padding: '14px', 
-                                  background: 'rgba(255, 255, 255, 0.15)',
-                                  border: '2px solid rgba(255, 255, 255, 0.3)',
-                                  borderRadius: '12px',
-                                  color: 'white',
-                                  fontSize: '15px',
-                                  fontFamily: 'monospace'
-                                }}
+                                className="meeting-summary-textarea"
+                                style={{ fontFamily: 'ui-monospace, monospace' }}
                                 placeholder="Complete project documentation | John Doe | 2024-03-15"
                               />
                             </div>
                           </div>
                         ) : (
-                          <div style={{ marginTop: '20px' }}>
-                            <h4 style={{ color: 'white', fontSize: '18px', fontWeight: '600', marginBottom: '12px' }}>Executive Summary</h4>
-                            <p style={{ color: 'rgba(255, 255, 255, 0.95)', fontSize: '15px', lineHeight: '1.7', marginBottom: '20px' }}>{editableSummary.summary}</p>
-                            {editableSummary.keyPoints && editableSummary.keyPoints.length > 0 && (
-                              <>
-                                <h4>Key Points</h4>
-                                <ul>
-                                  {editableSummary.keyPoints.map((p, idx) => <li key={idx}>{p}</li>)}
-                                </ul>
-                              </>
-                            )}
-                            {editableSummary.actionItems && editableSummary.actionItems.length > 0 && (
-                              <>
-                                <h4>Action Items</h4>
-                                <ul>
-                                  {editableSummary.actionItems.map((item, idx) => (
-                                    <li key={idx}>
-                                      <strong>{item.task}</strong>
-                                      {item.assignee && ` - ${item.assignee}`}
-                                      {item.dueDate && ` (Due: ${new Date(item.dueDate).toLocaleDateString()})`}
-                                    </li>
-                                  ))}
-                                </ul>
-                              </>
-                            )}
-                            
+                          <div>
+                            <MeetingSummaryReadonlyBody
+                              meeting={selectedMeeting}
+                              meetingId={selectedMeeting._id}
+                              summaryText={editableSummary.summary}
+                              keyPoints={editableSummary.keyPoints}
+                              actionItems={editableSummary.actionItems}
+                              decisions={editableSummary.decisions}
+                              nextSteps={editableSummary.nextSteps}
+                              importantNotes={editableSummary.importantNotes}
+                              isEducation={isEducation}
+                              onMeetingPatched={syncMeetingAfterActionItemPatch}
+                            />
+
                             {/* Add Additional Participants Section - Only after summary is visible */}
                             <div style={{ 
                               background: 'rgba(255, 255, 255, 0.05)', 
@@ -2086,61 +2007,26 @@ const MeetingsScreen = ({ config }) => {
                   </div>
                 )}
                 
-                {/* Regular summary display (if already sent) */}
-                {selectedMeeting.summary && selectedMeeting.summaryStatus !== 'Pending Approval' && selectedMeeting.summaryStatus !== 'Pending Approval' && (
-                  <div className="summary-section" style={{ border: '2px solid rgba(255, 255, 255, 0.2)', borderRadius: '12px', padding: '24px', marginTop: '20px', background: 'rgba(255, 255, 255, 0.1)' }}>
-                    <h3 style={{ color: 'white', fontSize: '20px', fontWeight: '600', marginBottom: '16px' }}>
-                      {isEducation ? 'AI Generated Lecture Notes' : 'AI Meeting Summary'}
+                {/* Sent / archived summary (same layout as full Meeting Summary page) */}
+                {selectedMeeting.summary &&
+                  selectedMeeting.summaryStatus !== 'Pending Approval' &&
+                  !(verificationStep === 'edit' && editableSummary) && (
+                  <div className="meeting-summary-card meetings-inline-summary">
+                    <h3 className="meeting-summary-page-title">
+                      {isEducation ? 'Lecture notes' : 'Meeting summary'}
                     </h3>
-                    <p style={{ color: 'rgba(255, 255, 255, 0.95)', fontSize: '15px', lineHeight: '1.7', marginBottom: '20px' }}>{selectedMeeting.summary}</p>
-                    {!!(selectedMeeting.keyPoints || []).length && (
-                      <>
-                        <h4 style={{ color: 'white', fontSize: '18px', fontWeight: '600', marginTop: '24px', marginBottom: '12px' }}>Key Points</h4>
-                        <ul style={{ color: 'rgba(255, 255, 255, 0.95)', fontSize: '15px', lineHeight: '1.8', paddingLeft: '24px' }}>
-                          {selectedMeeting.keyPoints.map((p, idx) => <li key={idx} style={{ marginBottom: '8px' }}>{p}</li>)}
-                        </ul>
-                      </>
-                    )}
-                    {selectedMeeting.actionItems && selectedMeeting.actionItems.length > 0 && (
-                      <>
-                        <h4 style={{ color: 'white', fontSize: '18px', fontWeight: '600', marginTop: '24px', marginBottom: '12px' }}>Action Items</h4>
-                        <ul style={{ color: 'rgba(255, 255, 255, 0.95)', fontSize: '15px', lineHeight: '1.8', paddingLeft: '24px' }}>
-                          {selectedMeeting.actionItems.map((item, idx) => (
-                            <li key={idx} style={{ marginBottom: '8px' }}>
-                              <strong style={{ color: 'white' }}>{item.task}</strong>
-                              {item.assignee && <span style={{ color: 'rgba(255, 255, 255, 0.8)' }}> - {item.assignee}</span>}
-                              {item.dueDate && <span style={{ color: 'rgba(255, 255, 255, 0.7)' }}> (Due: {new Date(item.dueDate).toLocaleDateString()})</span>}
-                            </li>
-                          ))}
-                        </ul>
-                      </>
-                    )}
-                    {selectedMeeting.decisions && selectedMeeting.decisions.length > 0 && (
-                      <>
-                        <h4 style={{ color: 'white', fontSize: '18px', fontWeight: '600', marginTop: '24px', marginBottom: '12px' }}>Decisions Made</h4>
-                        <ul style={{ color: 'rgba(255, 255, 255, 0.95)', fontSize: '15px', lineHeight: '1.8', paddingLeft: '24px' }}>
-                          {selectedMeeting.decisions.map((d, idx) => <li key={idx} style={{ marginBottom: '8px' }}>{d}</li>)}
-                        </ul>
-                      </>
-                    )}
-                    {selectedMeeting.nextSteps && selectedMeeting.nextSteps.length > 0 && (
-                      <>
-                        <h4 style={{ color: 'white', fontSize: '18px', fontWeight: '600', marginTop: '24px', marginBottom: '12px' }}>Next Steps</h4>
-                        <ul style={{ color: 'rgba(255, 255, 255, 0.95)', fontSize: '15px', lineHeight: '1.8', paddingLeft: '24px' }}>
-                          {selectedMeeting.nextSteps.map((s, idx) => <li key={idx} style={{ marginBottom: '8px' }}>{s}</li>)}
-                        </ul>
-                      </>
-                    )}
-                    {selectedMeeting.importantNotes && selectedMeeting.importantNotes.length > 0 && (
-                      <>
-                        <h4 style={{ color: 'white', fontSize: '18px', fontWeight: '600', marginTop: '24px', marginBottom: '12px' }}>
-                          {isEducation ? 'Important Concepts' : 'Important Notes'}
-                        </h4>
-                        <ul style={{ color: 'rgba(255, 255, 255, 0.95)', fontSize: '15px', lineHeight: '1.8', paddingLeft: '24px' }}>
-                          {selectedMeeting.importantNotes.map((n, idx) => <li key={idx} style={{ marginBottom: '8px' }}>{n}</li>)}
-                        </ul>
-                      </>
-                    )}
+                    <MeetingSummaryReadonlyBody
+                      meeting={selectedMeeting}
+                      meetingId={selectedMeeting._id}
+                      summaryText={selectedMeeting.summary}
+                      keyPoints={selectedMeeting.keyPoints}
+                      actionItems={selectedMeeting.actionItems}
+                      decisions={selectedMeeting.decisions}
+                      nextSteps={selectedMeeting.nextSteps}
+                      importantNotes={selectedMeeting.importantNotes}
+                      isEducation={isEducation}
+                      onMeetingPatched={(m) => setSelectedMeeting(m)}
+                    />
                   </div>
                 )}
               </div>
