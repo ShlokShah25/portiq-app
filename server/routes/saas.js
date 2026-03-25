@@ -172,15 +172,12 @@ router.get('/session', async (req, res) => {
       return res.status(401).json({ error: 'User not found.' });
     }
 
+    const accessToken = issuePortiqAccessToken(admin);
+
     return res.status(200).json({
       success: true,
-      user: {
-        email: admin.email || '',
-        username: admin.username,
-        plan: (admin.plan || 'starter').toLowerCase(),
-        productType: (admin.productType || 'workplace').toLowerCase(),
-        hasActiveSubscription: !!admin.hasActiveSubscription,
-      },
+      token: accessToken,
+      user: userPayload(admin),
     });
   } catch (err) {
     console.error('SaaS session exchange error:', err);
