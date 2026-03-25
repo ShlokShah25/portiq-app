@@ -8,7 +8,8 @@ const Insights = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [recentMeetings, setRecentMeetings] = useState([]);
-  const [actionItems, setActionItems] = useState([]);
+  const [allActionItems, setAllActionItems] = useState([]);
+  const [showAllTasks, setShowAllTasks] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -19,28 +20,40 @@ const Insights = () => {
     try {
       const [statsRes, meetingsRes] = await Promise.all([
         axios.get('/admin/stats').catch(() => ({ data: {} })),
-        axios.get('/meetings?limit=10').catch(() => ({ data: { meetings: [] } }))
+        axios.get('/meetings').catch(() => ({ data: { meetings: [] } }))
       ]);
       
       setStats(statsRes.data || {});
       const meetings = meetingsRes.data.meetings || [];
       setRecentMeetings(meetings.slice(0, 5));
       
-      // Extract action items from all meetings
-      const allActionItems = [];
+      // Extract action items from all meetings.
+      // Prefer `meeting.actionItems` (our schema). Fall back to `meeting.summary.actionItems`
+      // in case older data / transformations exist.
+      var extracted = [];
       meetings.forEach(meeting => {
-        if (meeting.summary?.actionItems && Array.isArray(meeting.summary.actionItems)) {
-          meeting.summary.actionItems.forEach(item => {
-            allActionItems.push({
-              ...item,
-              meetingTitle: meeting.title,
-              meetingId: meeting._id,
-              date: meeting.createdAt
-            });
-          });
+        var actionItems =
+          Array.isArray(meeting?.actionItems) ? meeting.actionItems : [];
+        if ((!actionItems || actionItems.length === 0) && Array.isArray(meeting?.summary?.actionItems)) {
+          actionItems = meeting.summary.actionItems;
         }
+
+        actionItems.forEach(item => {
+          var normalized = item;
+          if (typeof item === 'string') {
+            normalized = { task: item };
+          }
+          extracted.push({
+            ...normalized,
+            meetingTitle: meeting.title,
+            meetingId: meeting._id,
+            // Meeting createdAt is the best "context date" if present.
+            date: meeting.createdAt || meeting.startTime || meeting.endTime || null,
+          });
+        });
       });
-      setActionItems(allActionItems.slice(0, 10));
+
+      setAllActionItems(extracted);
     } catch (error) {
       console.error('Error fetching insights:', error);
     } finally {
@@ -100,7 +113,14 @@ const Insights = () => {
               <div className="insight-stat-label">Today</div>
             </div>
             
-            <div className="insight-stat-card" onClick={() => navigate('/participants')}>
+            <div
+              className="insight-stat-card"
+              onClick={() => {
+                setShowAllTasks(true);
+                var el = document.getElementById('insights-tasks-section');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }}
+            >
               <div className="insight-stat-icon">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
@@ -109,32 +129,108 @@ const Insights = () => {
                   <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                 </svg>
               </div>
-              <div className="insight-stat-value">{actionItems.length}</div>
+              <div className="insight-stat-value">{allActionItems.length}</div>
               <div className="insight-stat-label">Tasks</div>
             </div>
           </div>
 
-          {actionItems.length > 0 && (
+          {allActionItems.length > 0 && (
             <div className="insights-section">
-              <h2>Recent tasks</h2>
+              <h2 id="insights-tasks-section">{showAllTasks ? 'All tasks' : 'Recent tasks'}</h2>
               <div className="action-items-list">
-                {actionItems.map((item, idx) => (
-                  <div key={idx} className="action-item-card" onClick={() => navigate('/meetings')}>
-                    <div className="action-item-content">
-                      <div className="action-item-text">{item}</div>
-                      <div className="action-item-meta">
-                        <span className="action-item-meeting">{item.meetingTitle}</span>
-                        <span className="action-item-date">
-                          {new Date(item.date).toLocaleDateString()}
-                        </span>
+                {showAllTasks ? (
+                  (() => {
+                    // Group tasks by meeting
+                    var byMeeting = {};
+                    allActionItems.forEach(item => {
+                      var key = item.meetingId || item.meetingTitle || '—';
+                      if (!byMeeting[key]) {
+                        byMeeting[key] = { meetingTitle: item.meetingTitle || 'Untitled Meeting', date: item.date, items: [] };
+                      }
+                      byMeeting[key].items.push(item);
+                    });
+
+                    var groups = Object.keys(byMeeting).map(k => byMeeting[k]);
+                    groups.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+
+                    return groups.map((g, gi) => (
+                      <div key={gi} className="tasks-meeting-group">
+                        <div className="tasks-meeting-header">
+                          <div className="tasks-meeting-title">{g.meetingTitle}</div>
+                          {g.date ? (
+                            <div className="tasks-meeting-date">{new Date(g.date).toLocaleDateString()}</div>
+                          ) : null}
+                        </div>
+
+                        <div className="tasks-meeting-items">
+                          {g.items.map((item, idx) => (
+                            <div
+                              key={item._id || `${item.meetingId}-${idx}`}
+                              className="action-item-card"
+                              onClick={() => navigate(`/meetings/${item.meetingId}`)}
+                            >
+                              <div className="action-item-content">
+                                <div className="action-item-text">
+                                  {typeof item === 'string' ? item : (item.task || item.title || 'Action item')}
+                                </div>
+                                <div className="action-item-meta">
+                                  {item.assignee ? <span className="action-item-meeting">{item.assignee}</span> : null}
+                                  {item.dueDate ? (
+                                    <span className="action-item-date">
+                                      Due {new Date(item.dueDate).toLocaleDateString()}
+                                    </span>
+                                  ) : null}
+                                </div>
+                              </div>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                              </svg>
+                            </div>
+                          ))}
+                        </div>
                       </div>
+                    ));
+                  })()
+                ) : (
+                  allActionItems.slice(0, 10).map((item, idx) => (
+                    <div
+                      key={item._id || idx}
+                      className="action-item-card"
+                      onClick={() => navigate(`/meetings/${item.meetingId}`)}
+                    >
+                      <div className="action-item-content">
+                        <div className="action-item-text">
+                          {typeof item === 'string' ? item : (item.task || item.title || 'Action item')}
+                        </div>
+                        <div className="action-item-meta">
+                          <span className="action-item-meeting">{item.meetingTitle}</span>
+                          {item.date ? (
+                            <span className="action-item-date">{new Date(item.date).toLocaleDateString()}</span>
+                          ) : null}
+                        </div>
+                      </div>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                      </svg>
                     </div>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <polyline points="9 18 15 12 9 6"></polyline>
-                    </svg>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
+
+              {!showAllTasks ? (
+                <button
+                  type="button"
+                  className="btn btn--ghost"
+                  style={{ marginTop: 18, width: '100%' }}
+                  onClick={() => {
+                    setShowAllTasks(true);
+                    var el = document.getElementById('insights-tasks-section');
+                    if (el) el.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                >
+                  View all tasks
+                </button>
+              ) : null}
             </div>
           )}
 
