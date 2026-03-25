@@ -176,7 +176,7 @@ router.put('/participant-book', authenticateAdmin, requireSubscription, async (r
 /**
  * Change password (in-app profile)
  */
-router.put('/password', authenticateAdmin, requireSubscription, async (req, res) => {
+router.put('/password', authenticateAdmin, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body || {};
     if (!currentPassword || !newPassword) {

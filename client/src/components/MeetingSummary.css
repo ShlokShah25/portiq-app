@@ -288,11 +288,11 @@
   border-top: none;
 }
 
-/* Dashed rule before Key Points (matches site mock between tasks and key points) */
+/* Dashed rule before Key Points (single divider after action items) */
 .meeting-summary-section--keypoints {
   border-top: 1px dashed rgba(59, 130, 246, 0.28);
-  padding-top: 20px;
-  margin-top: 4px;
+  padding-top: 14px;
+  margin-top: 2px;
 }
 
 .meeting-summary-heading {
@@ -367,33 +367,38 @@
   margin: 0;
 }
 
-/* Action items: marketing mock — badge row, body text, monochrome status radios, subtle dividers */
+/* Action items: compact stack — badge, task, status row, calendar links */
 .meeting-summary-section--tasks {
-  margin-top: 4px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  padding-bottom: 8px;
-  margin-bottom: 4px;
+  margin-top: 0;
+  padding-top: 16px;
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.meeting-summary-section--tasks .meeting-summary-heading {
+  margin-bottom: 8px;
 }
 
 .meeting-summary-list--action .meeting-action-item {
   list-style: none;
   margin: 0;
-  padding: 22px 0 26px;
+  padding: 12px 0 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   box-sizing: border-box;
 }
 
 .meeting-summary-list--action .meeting-action-item:last-child {
   border-bottom: none;
-  padding-bottom: 4px;
+  padding-bottom: 6px;
 }
 
 .meeting-action-item-badges {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
   min-height: 0;
 }
 
@@ -404,19 +409,19 @@
   font-size: 0.625rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   color: #93c5fd;
   background: rgba(15, 23, 42, 0.92);
-  padding: 5px 10px;
-  border-radius: 6px;
+  padding: 4px 8px;
+  border-radius: 5px;
   border: 1px solid rgba(51, 65, 85, 0.85);
   white-space: nowrap;
 }
 
 .meeting-action-item-text {
-  margin: 0 0 14px;
+  margin: 0 0 8px;
   font-size: 15px;
-  line-height: 1.55;
+  line-height: 1.45;
   font-weight: 400;
   color: #d4d4d8;
   word-break: break-word;
@@ -455,20 +460,21 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 18px 22px;
+  gap: 10px 14px;
 }
 
 .meeting-action-status-option {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   cursor: pointer;
   margin: 0;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   color: #71717a;
   user-select: none;
+  white-space: nowrap;
 }
 
 .meeting-action-status-hit {
@@ -539,9 +545,9 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 14px 20px;
-  margin-top: 16px;
-  padding-top: 14px;
+  gap: 10px 16px;
+  margin-top: 10px;
+  padding-top: 10px;
   border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 

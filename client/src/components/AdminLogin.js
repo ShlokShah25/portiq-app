@@ -44,12 +44,12 @@ const AdminLogin = () => {
   // Handle social / auto-login tokens from query string
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const socialToken = params.get('social_token');
+    const urlToken = params.get('token') || params.get('social_token');
     const next = params.get('next') || '/dashboard';
 
-    if (socialToken) {
-      window.localStorage.setItem('clientAdminToken', socialToken);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${socialToken}`;
+    if (urlToken) {
+      window.localStorage.setItem('clientAdminToken', urlToken);
+      axios.defaults.headers.common['Authorization'] = `Bearer ${urlToken}`;
       navigate(next, { replace: true });
     }
   }, [location, navigate]);

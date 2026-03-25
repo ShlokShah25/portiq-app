@@ -22,6 +22,13 @@ const allowedOrigins = [
   'https://meetingassistant.portiqtechnologies.com'
 ];
 
+if (process.env.CORS_EXTRA_ORIGINS) {
+  process.env.CORS_EXTRA_ORIGINS.split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .forEach((o) => allowedOrigins.push(o));
+}
+
 // Add local network IPs (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
 const os = require('os');
 const interfaces = os.networkInterfaces();

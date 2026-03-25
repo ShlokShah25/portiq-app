@@ -153,7 +153,7 @@ export default function MeetingSummaryReadonlyBody({
                     <div className="meeting-action-status-rail" role="presentation">
                       {[
                         { value: 'not_started', label: 'Not done', hint: 'Not started' },
-                        { value: 'in_progress', label: 'IP', hint: 'In progress' },
+                        { value: 'in_progress', label: 'In progress', hint: 'In progress' },
                         { value: 'done', label: 'Done', hint: 'Done' },
                       ].map((opt) => (
                         <label

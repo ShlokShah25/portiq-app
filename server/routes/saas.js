@@ -1,9 +1,37 @@
 const express = require('express');
 const router = express.Router();
-const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { sendEmail, isEmailConfigured, getDefaultFrom } = require('../utils/emailService');
 const Admin = require('../models/Admin');
+
+function jwtSecret() {
+  return process.env.JWT_SECRET || 'your_secret_key';
+}
+
+/** Same claims as /api/admin/login — works with app Bearer auth & website session. */
+function issuePortiqAccessToken(admin) {
+  return jwt.sign(
+    {
+      id: admin._id.toString(),
+      username: admin.username,
+      role: admin.role,
+      productType: admin.productType,
+      plan: admin.plan,
+    },
+    jwtSecret(),
+    { expiresIn: '24h' }
+  );
+}
+
+function userPayload(admin) {
+  return {
+    email: admin.email || '',
+    username: admin.username,
+    plan: (admin.plan || 'starter').toLowerCase(),
+    productType: (admin.productType || 'workplace').toLowerCase(),
+    hasActiveSubscription: !!admin.hasActiveSubscription,
+  };
+}
 
 /**
  * Lightweight SaaS signup endpoint.
@@ -38,6 +66,8 @@ router.post('/signup', async (req, res) => {
 
     await admin.save();
 
+    const token = issuePortiqAccessToken(admin);
+
     // Best-effort welcome email (non-blocking for response)
     if (isEmailConfigured()) {
       const productLabel =
@@ -68,7 +98,9 @@ router.post('/signup', async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: 'Account created. You can now sign in from the app.',
+      message: 'Account created. Complete checkout below, then open the app.',
+      token,
+      user: userPayload(admin),
     });
   } catch (err) {
     console.error('SaaS signup error:', err);
@@ -99,15 +131,12 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
+    const token = issuePortiqAccessToken(admin);
+
     return res.status(200).json({
       success: true,
-      user: {
-        email: admin.email || '',
-        username: admin.username,
-        plan: (admin.plan || 'starter').toLowerCase(),
-        productType: (admin.productType || 'workplace').toLowerCase(),
-        hasActiveSubscription: !!admin.hasActiveSubscription,
-      },
+      token,
+      user: userPayload(admin),
     });
   } catch (err) {
     console.error('SaaS login error:', err);
