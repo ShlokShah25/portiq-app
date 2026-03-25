@@ -1,7 +1,9 @@
 const cron = require('node-cron');
 const Meeting = require('../models/Meeting');
+const Admin = require('../models/Admin');
 const Config = require('../models/Config');
 const { sendEmail, isEmailConfigured, getDefaultFrom } = require('./emailService');
+const { getPlanConstraints } = require('./planConstraints');
 
 /**
  * Determine if an organizer string looks like an email address.
@@ -85,12 +87,38 @@ async function startActionItemReminderCron() {
         status: 'Completed',
         transcriptionStatus: 'Completed',
         actionItems: { $exists: true, $ne: [] }
-      }).select('title organizer participants endTime actionItems');
+      }).select('adminId title organizer participants endTime actionItems');
+
+      const adminIds = [
+        ...new Set(
+          meetings
+            .map((m) => m.adminId)
+            .filter(Boolean)
+            .map((id) => String(id))
+        ),
+      ];
+      const admins =
+        adminIds.length > 0
+          ? await Admin.find({ _id: { $in: adminIds } }).lean()
+          : [];
+      const reminderAllowedByAdminId = new Map();
+      for (const a of admins) {
+        reminderAllowedByAdminId.set(
+          String(a._id),
+          !!getPlanConstraints(a).allowsActionItemReminders
+        );
+      }
 
       let remindersSent = 0;
 
       for (const meeting of meetings) {
         if (!meeting.endTime) continue;
+        if (
+          meeting.adminId &&
+          reminderAllowedByAdminId.get(String(meeting.adminId)) !== true
+        ) {
+          continue;
+        }
 
         for (const actionItem of meeting.actionItems || []) {
           if (!actionItem || !actionItem.dueDate) continue;

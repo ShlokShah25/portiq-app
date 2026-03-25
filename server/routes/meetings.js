@@ -1217,6 +1217,18 @@ router.post('/:id/approve-and-send', async (req, res) => {
     if (!canAccessMeeting(meeting, admin)) return res.status(404).json({ error: 'Meeting not found' });
     const { additionalParticipants, translationLanguage } = req.body;
 
+    const planInfo = getPlanConstraints(admin);
+    const translation =
+      translationLanguage && String(translationLanguage).trim()
+        ? String(translationLanguage).trim()
+        : null;
+    if (translation && !planInfo.allowsTranslatedSummary) {
+      return res.status(403).json({
+        error:
+          'Translated summaries are not included on your plan. Upgrade to Business or send in English only.',
+      });
+    }
+
     // Add additional participants if provided (no verification / code required anymore)
     if (additionalParticipants && Array.isArray(additionalParticipants) && additionalParticipants.length > 0) {
       const existingEmails = (meeting.participants || []).map(p => p.email?.toLowerCase()).filter(Boolean);
@@ -1261,7 +1273,7 @@ router.post('/:id/approve-and-send', async (req, res) => {
     let emailSent = false;
     try {
       const result = await sendMeetingSummary(meeting, summaryData, {
-        translationLanguage: translationLanguage && translationLanguage.trim() ? translationLanguage.trim() : null,
+        translationLanguage: translation,
       });
       emailSent = !!(result && result.success);
     } catch (err) {

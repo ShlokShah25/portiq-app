@@ -68,7 +68,7 @@ const MeetingsScreen = ({ config }) => {
   const [recordingParticipant, setRecordingParticipant] = useState(null);
   const [voiceMediaRecorder, setVoiceMediaRecorder] = useState(null);
   const [savedParticipantsVoiceProfiles, setSavedParticipantsVoiceProfiles] = useState({}); // Voice profiles for saved participants
-  const [maxParticipantsPerMeeting, setMaxParticipantsPerMeeting] = useState(null); // 10/30/60 by plan, null = no limit
+  const [maxParticipantsPerMeeting, setMaxParticipantsPerMeeting] = useState(null); // 10/20/30 by plan, null = no limit
   /** null = loading profile; ok = can create; inactive / payment_pending = blocked */
   const [subscriptionGate, setSubscriptionGate] = useState(null);
 
@@ -144,25 +144,16 @@ const MeetingsScreen = ({ config }) => {
           setSubscriptionGate('inactive');
         }
 
-        if (isEducation) {
-          setMaxParticipantsPerMeeting(null);
-          return;
-        }
-        const product = (admin.productType || 'workplace').toLowerCase();
         const plan = (admin.plan || 'starter').toLowerCase();
-        if (product === 'workplace') {
-          const maxByPlan = { starter: 10, professional: 30, business: 60 };
-          setMaxParticipantsPerMeeting(maxByPlan[plan] ?? null);
-        } else {
-          setMaxParticipantsPerMeeting(null);
-        }
+        const maxByPlan = { starter: 10, professional: 20, business: 30 };
+        setMaxParticipantsPerMeeting(maxByPlan[plan] ?? null);
       } catch (e) {
         setMaxParticipantsPerMeeting(null);
         setSubscriptionGate('ok');
       }
     };
     fetchProfile();
-  }, [isEducation]);
+  }, []);
 
   const checkVoiceProfilesForSaved = async (emails) => {
     try {

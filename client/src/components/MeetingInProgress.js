@@ -89,8 +89,8 @@ const MeetingInProgress = () => {
         const productType = res.data?.admin?.productType || 'workplace';
         const plan = (res.data?.admin?.plan || 'starter').toLowerCase();
 
-        // Mirror the server-side limits defined in planConstraints.js
-        if (productType === 'workplace') {
+        // Mirror planConstraints.js (workplace + education use the same tier caps for now).
+        if (productType === 'workplace' || productType === 'education') {
           if (plan === 'starter') setMaxDurationMinutes(60);
           else if (plan === 'professional') setMaxDurationMinutes(180);
           else if (plan === 'business') setMaxDurationMinutes(480);

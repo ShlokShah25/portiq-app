@@ -18,6 +18,7 @@ const MeetingSummary = () => {
   const [actionError, setActionError] = useState('');
   const [saving, setSaving] = useState(false);
   const [translationLanguage, setTranslationLanguage] = useState('');
+  const [allowsTranslatedSummary, setAllowsTranslatedSummary] = useState(false);
 
   const fetchMeeting = async () => {
     if (!id) return;
@@ -36,6 +37,22 @@ const MeetingSummary = () => {
   useEffect(() => {
     fetchMeeting();
   }, [id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await axios.get('/admin/profile');
+        const v = !!res.data?.admin?.allowsTranslatedSummary;
+        if (!cancelled) setAllowsTranslatedSummary(v);
+      } catch (_) {
+        if (!cancelled) setAllowsTranslatedSummary(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -128,7 +145,10 @@ const MeetingSummary = () => {
       }
       const res = await axios.post(`/meetings/${id}/approve-and-send`, {
         additionalParticipants: [],
-        translationLanguage: translationLanguage || null,
+        translationLanguage:
+          allowsTranslatedSummary && translationLanguage
+            ? translationLanguage
+            : null,
       });
       setMeeting(res.data.meeting);
       setEditingSummary(false);
@@ -176,7 +196,7 @@ const MeetingSummary = () => {
             Please review carefully before sharing or acting on them.
           </p>
 
-          {pendingApproval && !!hasContent && (
+          {pendingApproval && !!hasContent && allowsTranslatedSummary && (
             <div className="meeting-summary-language-row">
               <label className="meeting-summary-language-label">
                 Also send translated summary in:

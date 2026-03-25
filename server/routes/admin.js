@@ -105,6 +105,8 @@ router.get('/profile', authenticateAdmin, async (req, res) => {
   const admin = await Admin.findById(req.admin._id).lean();
   if (!admin) return res.status(401).json({ error: 'Unauthorized' });
 
+  const pc = getPlanConstraints(req.admin);
+
   res.json({
     admin: {
       id: req.admin._id,
@@ -117,6 +119,8 @@ router.get('/profile', authenticateAdmin, async (req, res) => {
       hasActiveSubscription: !!admin.hasActiveSubscription,
       subscriptionPaymentPending:
         !!admin.razorpaySubscriptionId && !admin.hasActiveSubscription,
+      allowsTranslatedSummary: !!pc.allowsTranslatedSummary,
+      allowsActionItemReminders: !!pc.allowsActionItemReminders,
     }
   });
 });
