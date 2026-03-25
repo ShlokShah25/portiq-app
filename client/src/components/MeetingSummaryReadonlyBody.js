@@ -130,14 +130,30 @@ export default function MeetingSummaryReadonlyBody({
                       .toUpperCase()}`
                   : null;
 
+              const isOverdue =
+                dueBadge &&
+                status !== 'done' &&
+                effectiveDue &&
+                !Number.isNaN(effectiveDue.getTime()) &&
+                effectiveDue.getTime() < Date.now();
+
+              const overdueBadge = isOverdue ? 'OVERDUE' : null;
+
               const statusGroupName = `action-status-${String(item._id || idx)}`;
               const statusDisabled = !!statusSaving[itemId] || !item?._id || !meetingId;
 
               return (
                 <li key={itemId} className="meeting-action-item" data-action-status={status}>
-                  {dueBadge ? (
+                  {dueBadge || overdueBadge ? (
                     <div className="meeting-action-item-badges">
-                      <span className="meeting-action-meta-pill">{dueBadge}</span>
+                      {dueBadge ? (
+                        <span className="meeting-action-meta-pill">{dueBadge}</span>
+                      ) : null}
+                      {overdueBadge ? (
+                        <span className="meeting-action-meta-pill meeting-action-meta-pill--overdue">
+                          {overdueBadge}
+                        </span>
+                      ) : null}
                     </div>
                   ) : null}
 

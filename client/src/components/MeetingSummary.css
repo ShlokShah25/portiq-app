@@ -418,6 +418,11 @@
   white-space: nowrap;
 }
 
+.meeting-action-meta-pill--overdue {
+  color: #9ca3af;
+  border-color: rgba(156, 163, 175, 0.35);
+}
+
 .meeting-action-item-text {
   margin: 0 0 8px;
   font-size: 15px;

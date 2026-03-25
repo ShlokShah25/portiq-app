@@ -86,6 +86,14 @@ const meetingSchema = new mongoose.Schema({
     reviewReminderSentAt: {
       type: Date,
       default: null
+    },
+    overdueReminderSent: {
+      type: Boolean,
+      default: false
+    },
+    overdueReminderSentAt: {
+      type: Date,
+      default: null
     }
   }],
   originalDecisions: [{
@@ -114,6 +122,14 @@ const meetingSchema = new mongoose.Schema({
       default: false
     },
     reviewReminderSentAt: {
+      type: Date,
+      default: null
+    },
+    overdueReminderSent: {
+      type: Boolean,
+      default: false
+    },
+    overdueReminderSentAt: {
       type: Date,
       default: null
     }
@@ -162,6 +178,14 @@ const meetingSchema = new mongoose.Schema({
       default: false
     },
     reviewReminderSentAt: {
+      type: Date,
+      default: null
+    },
+    overdueReminderSent: {
+      type: Boolean,
+      default: false
+    },
+    overdueReminderSentAt: {
       type: Date,
       default: null
     }
