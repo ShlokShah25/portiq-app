@@ -45,9 +45,9 @@
 }
 
 .top-nav-logo {
-  height: 52px !important;
+  height: 64px !important;
   width: auto !important;
-  max-width: 52px !important;
+  max-width: 64px !important;
   object-fit: contain !important;
   display: block;
   flex-shrink: 0;
