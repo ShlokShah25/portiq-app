@@ -37,6 +37,96 @@ function safeListParticipantNames(participants = []) {
     .slice(0, 40);
 }
 
+function extractGroundingKeywords(text) {
+  const s = String(text || '');
+  const stop = new Set([
+    'the',
+    'and',
+    'for',
+    'with',
+    'that',
+    'this',
+    'from',
+    'into',
+    'your',
+    'you',
+    'are',
+    'was',
+    'were',
+    'will',
+    'can',
+    'could',
+    'should',
+    'would',
+    'may',
+    'might',
+    'have',
+    'has',
+    'had',
+    'not',
+    'but',
+    'all',
+    'any',
+    'our',
+    'their',
+    'they',
+    'them',
+    'then',
+    'than',
+    'also',
+    'just',
+    'about',
+    'only',
+    'when',
+    'where',
+    'which',
+    'what',
+    'who',
+    'how',
+    'why',
+    'get',
+    'make',
+    'make',
+    'confirm',
+    'next',
+    'follow',
+    'followup',
+    'update',
+    'please',
+    'meeting',
+    'minutes',
+    'summary',
+    'action',
+    'actions',
+    'decision',
+    'decisions',
+  ]);
+
+  const words = (s.match(/[A-Za-z0-9]{4,}/g) || [])
+    .map((w) => String(w).toLowerCase())
+    .filter((w) => !stop.has(w));
+
+  // keep unique, preserve order
+  const out = [];
+  const seen = new Set();
+  for (const w of words) {
+    if (!seen.has(w)) {
+      out.push(w);
+      seen.add(w);
+    }
+  }
+  return out;
+}
+
+function isGroundedAgainstTranscript(itemText, transcriptLower) {
+  const item = String(itemText || '').trim();
+  if (!item) return false;
+  const keywords = extractGroundingKeywords(item);
+  // If we can't find meaningful keywords, don't aggressively filter.
+  if (!keywords.length) return true;
+  return keywords.some((k) => transcriptLower.includes(k));
+}
+
 /**
  * Transcribe audio file and generate meeting summary
  * NOTE: This version is intentionally STRICT to the current meeting only.
@@ -163,7 +253,11 @@ async function transcribeAndSummarize(audioFilePath, meeting) {
         // domain words are less likely to be mangled.
         const participantNames = safeListParticipantNames(meetingObj.participants);
         const vocabularyHint = [
-          'Business meeting minutes. May include English, Hindi, Gujarati, Hinglish.',
+          // Keep transcription prompt neutral so it doesn't bias decoding toward a
+          // specific domain (e.g. business vs academic lecture/definitions).
+          'Accurate transcription only. Do not paraphrase or correct meaning. Preserve domain terms and abbreviations like MAE.',
+          // Topic hint from meeting title helps preserve academic terms.
+          meetingTitle ? `Meeting topic/title: ${meetingTitle}.` : '',
           participantNames.length
             ? `Participant names (keep exact spellings): ${participantNames.join(', ')}.`
             : '',
@@ -310,13 +404,15 @@ async function transcribeAndSummarize(audioFilePath, meeting) {
             `- The executive summary must cover the full picture of the meeting: why it was held, what was discussed across all topics, key concerns, and overall outcome.\n` +
             `- Coverage is mandatory: include ALL relevant points that materially affect outcomes, responsibilities, risks, timelines, or scope.\n` +
             `- Do not collapse multiple distinct points into a vague sentence; keep distinct points separate and explicit.\n` +
+            `- Avoid generic filler like "align on next steps", "confirm preparations", or "follow up" unless that wording/commitment exists in the transcript.\n` +
             `- Explicitly mention important specifics such as names, topics, projects, events, numbers, dates, and deadlines when they are clearly mentioned.\n` +
             `- CRITICAL: In keyPoints, include who said what only when speaker identity is clear. Format as: "[Speaker Name]: [what they said]". If speaker cannot be identified with confidence, do not guess names.\n` +
             `- In actionItems, each task must be a specific, actionable task tied to what people actually said (no generic or invented tasks). Include the assignee name if mentioned.\n` +
+            `- If there are no explicit action items in the transcript, set actionItems to []. Do not infer.\n` +
             `- For actionItems, set dueDate to ISO format YYYY-MM-DD whenever any deadline is mentioned (e.g. "by 24th March", "March 24", "next Friday"). Use the meeting date context for the year if the year is not stated. If no deadline is mentioned, use null for dueDate.\n` +
-            `- In decisions, include who made or proposed the decision only when identifiable. Format as: "[Speaker Name] decided: [decision]" or just "[decision]" if speaker unknown.\n` +
-            `- In nextSteps, include concrete follow-ups that logically continue from decisions/action items; avoid generic filler.\n` +
-            `- In importantNotes, include risks, blockers, dependencies, unresolved questions, and critical assumptions if discussed.\n` +
+            `- In decisions, include who made or proposed the decision only when identifiable. If there are no explicit decisions, set decisions to []. Do not infer.\n` +
+            `- In nextSteps, include concrete follow-ups that logically continue from explicit next actions in the transcript. If none exist, set nextSteps to []. Do not infer.\n` +
+            `- In importantNotes, include risks, blockers, dependencies, unresolved questions, and critical assumptions if discussed. If none exist, set importantNotes to []. Do not infer.\n` +
             `- Do not hallucinate information that was not discussed.\n` +
             `- Only include decisions or actions that are clearly mentioned.\n` +
             `- If a section has no information, set it to "Not specified".\n` +
@@ -373,6 +469,30 @@ async function transcribeAndSummarize(audioFilePath, meeting) {
     if (!Array.isArray(summaryData.decisions)) summaryData.decisions = [];
     if (!Array.isArray(summaryData.nextSteps)) summaryData.nextSteps = [];
     if (!Array.isArray(summaryData.importantNotes)) summaryData.importantNotes = [];
+
+    // Grounding filter: if the model invents generic items, they often won't share
+    // strong keywords with the actual transcript. This keeps minutes useful.
+    const transcriptLower = String(transcriptText || '').toLowerCase();
+    summaryData.keyPoints = (summaryData.keyPoints || []).filter((kp) =>
+      isGroundedAgainstTranscript(kp, transcriptLower)
+    );
+    summaryData.decisions = (summaryData.decisions || []).filter((d) =>
+      isGroundedAgainstTranscript(d, transcriptLower)
+    );
+    summaryData.nextSteps = (summaryData.nextSteps || []).filter((s) =>
+      isGroundedAgainstTranscript(s, transcriptLower)
+    );
+    summaryData.importantNotes = (summaryData.importantNotes || []).filter((n) =>
+      isGroundedAgainstTranscript(n, transcriptLower)
+    );
+    summaryData.actionItems = (summaryData.actionItems || []).filter((a) => {
+      const task = a && a.task ? a.task : '';
+      const notes = a && a.notes ? a.notes : '';
+      return (
+        isGroundedAgainstTranscript(task, transcriptLower) ||
+        isGroundedAgainstTranscript(notes, transcriptLower)
+      );
+    });
 
     const referenceForDueDates =
       meetingObj && (meetingObj.endTime || meetingObj.scheduledTime || meetingObj.startTime)
