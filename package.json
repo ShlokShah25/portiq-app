@@ -10,7 +10,8 @@
     "admin": "cd admin && npm start",
     "install-all": "npm install && cd client && npm install && cd ../admin && npm install",
     "build": "cd client && npm install && npm run build",
-    "activate-subscription": "node server/scripts/activate-subscription.js"
+    "activate-subscription": "node server/scripts/activate-subscription.js",
+    "create-free-business-user": "node server/scripts/create-free-business-user.js"
   },
   "keywords": [
     "visitor-management",

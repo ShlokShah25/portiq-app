@@ -41,8 +41,8 @@ const authenticateAdmin = async (req, res, next) => {
  */
 const requireSubscription = (req, res, next) => {
   if (!req.admin) return res.status(401).json({ error: 'Unauthorized' });
-  if (req.admin.username === 'admin') return next();
-  if (req.admin.hasActiveSubscription) return next();
+  if (String(req.admin.username || '').toLowerCase() === 'admin') return next();
+  if (req.admin.hasActiveSubscription || req.admin.complimentaryAccess) return next();
   return res.status(403).json({
     error: 'No active subscription. Please purchase a plan from the website to access the dashboard.',
     code: 'NO_SUBSCRIPTION',

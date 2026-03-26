@@ -145,10 +145,17 @@ router.post('/cancel-subscription', async (req, res) => {
     }
     const subId = admin.razorpaySubscriptionId;
     if (!subId || !razorpay) {
-      admin.hasActiveSubscription = false;
       admin.razorpaySubscriptionId = null;
+      if (!admin.complimentaryAccess) {
+        admin.hasActiveSubscription = false;
+      }
       await admin.save();
-      return res.status(200).json({ success: true, message: 'Subscription cancelled.' });
+      return res.status(200).json({
+        success: true,
+        message: admin.complimentaryAccess
+          ? 'No billing subscription on file.'
+          : 'Subscription cancelled.',
+      });
     }
     try {
       await razorpay.subscriptions.cancel(subId);

@@ -47,6 +47,11 @@ const adminSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  /** Full app access without billing (e.g. internal demo / partner). Plan field still applies. */
+  complimentaryAccess: {
+    type: Boolean,
+    default: false
+  },
   // Razorpay subscription id (set on subscription.activated) so we can cancel via API.
   razorpaySubscriptionId: {
     type: String,

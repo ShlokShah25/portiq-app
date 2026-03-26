@@ -136,7 +136,7 @@ const MeetingsScreen = ({ config }) => {
           return;
         }
         const u = String(admin.username || '').toLowerCase();
-        if (u === 'admin' || admin.hasActiveSubscription) {
+        if (u === 'admin' || admin.hasActiveSubscription || admin.complimentaryAccess) {
           setSubscriptionGate('ok');
         } else if (admin.subscriptionPaymentPending) {
           setSubscriptionGate('payment_pending');

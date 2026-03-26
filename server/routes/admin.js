@@ -8,6 +8,7 @@ const jwt = require('jsonwebtoken');
 const { authenticateAdmin, requireSubscription } = require('../middleware/auth');
 const { getMeetingContext } = require('../utils/meetingContext');
 const { getPlanConstraints } = require('../utils/planConstraints');
+const { hasDashboardAccess } = require('../utils/subscriptionGate');
 
 /**
  * Admin login (supports both username/password and password-only for client admin)
@@ -51,10 +52,8 @@ router.post('/login', async (req, res) => {
       }
     }
 
-    // After password is verified: gate dashboard access by subscription (except legacy 'admin').
-    // Checking subscription *after* password avoids the confusing case where a correct new password
-    // still returns 403 and feels like "login/password is broken".
-    if (!admin.hasActiveSubscription && admin.username !== 'admin') {
+    // After password is verified: gate dashboard (paid subscription, complimentary access, or legacy admin).
+    if (!hasDashboardAccess(admin)) {
       return res.status(403).json({
         error:
           'No active subscription. Please purchase a plan from the website to access the dashboard.',
@@ -88,6 +87,8 @@ router.post('/login', async (req, res) => {
         productType: admin.productType || 'workplace',
         plan: admin.plan || 'starter',
         hasActiveSubscription: !!admin.hasActiveSubscription,
+        complimentaryAccess: !!admin.complimentaryAccess,
+        hasDashboardAccess: hasDashboardAccess(admin),
       }
     });
   } catch (error) {
@@ -106,6 +107,7 @@ router.get('/profile', authenticateAdmin, async (req, res) => {
   if (!admin) return res.status(401).json({ error: 'Unauthorized' });
 
   const pc = getPlanConstraints(req.admin);
+  const dash = hasDashboardAccess(req.admin);
 
   res.json({
     admin: {
@@ -117,6 +119,8 @@ router.get('/profile', authenticateAdmin, async (req, res) => {
       productType: req.admin.productType,
       plan: req.admin.plan,
       hasActiveSubscription: !!admin.hasActiveSubscription,
+      complimentaryAccess: !!admin.complimentaryAccess,
+      hasDashboardAccess: dash,
       subscriptionPaymentPending:
         !!admin.razorpaySubscriptionId && !admin.hasActiveSubscription,
       allowsTranslatedSummary: !!pc.allowsTranslatedSummary,

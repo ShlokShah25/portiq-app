@@ -9,7 +9,8 @@ const Profile = () => {
   const [email, setEmail] = useState('');
   const [productLabel, setProductLabel] = useState('Portiq Workplace');
   const [planLabel, setPlanLabel] = useState('Starter');
-  const [subscriptionActive, setSubscriptionActive] = useState(false);
+  const [paidSubscription, setPaidSubscription] = useState(false);
+  const [complimentaryAccess, setComplimentaryAccess] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -45,7 +46,8 @@ const Profile = () => {
         if (plan === 'professional') planText = 'Professional';
         else if (plan === 'business') planText = 'Business';
         setPlanLabel(planText);
-        setSubscriptionActive(!!admin.hasActiveSubscription);
+        setPaidSubscription(!!admin.hasActiveSubscription);
+        setComplimentaryAccess(!!admin.complimentaryAccess);
       } catch (e) {
         // Fallback: best-effort from localStorage if API fails
         const product =
@@ -173,8 +175,16 @@ const Profile = () => {
             </div>
             <div className="profile-row">
               <span className="label">Status</span>
-              <span className={`value status-pill status-${subscriptionActive ? 'active' : 'inactive'}`}>
-                {subscriptionActive ? 'Active' : 'Inactive'}
+              <span
+                className={`value status-pill status-${
+                  complimentaryAccess || paidSubscription ? 'active' : 'inactive'
+                }`}
+              >
+                {complimentaryAccess && !paidSubscription
+                  ? 'Complimentary'
+                  : paidSubscription
+                    ? 'Active'
+                    : 'Inactive'}
               </span>
             </div>
             <button
@@ -188,14 +198,16 @@ const Profile = () => {
             >
               Manage subscription
             </button>
-            <button
-              type="button"
-              className="profile-cancel-sub-btn"
-              onClick={handleCancelSubscription}
-              disabled={cancellingSubscription}
-            >
-              {cancellingSubscription ? 'Cancelling…' : 'Cancel subscription'}
-            </button>
+            {paidSubscription && (
+              <button
+                type="button"
+                className="profile-cancel-sub-btn"
+                onClick={handleCancelSubscription}
+                disabled={cancellingSubscription}
+              >
+                {cancellingSubscription ? 'Cancelling…' : 'Cancel subscription'}
+              </button>
+            )}
             {cancelMessage && <p className="profile-cancel-msg">{cancelMessage}</p>}
             {cancelError && <p className="profile-cancel-err">{cancelError}</p>}
           </div>

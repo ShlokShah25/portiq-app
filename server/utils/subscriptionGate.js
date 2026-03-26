@@ -3,8 +3,16 @@
  * - SUBSCRIPTION_INACTIVE: no plan / cancelled / never subscribed
  * - SUBSCRIPTION_PAYMENT_PENDING: Razorpay subscription exists but not active yet (e.g. payment incomplete)
  */
+function hasDashboardAccess(admin) {
+  if (!admin) return false;
+  if (String(admin.username || '').toLowerCase() === 'admin') return true;
+  if (admin.hasActiveSubscription) return true;
+  if (admin.complimentaryAccess) return true;
+  return false;
+}
+
 function subscriptionDeniedResponse(admin) {
-  if (!admin || admin.username === 'admin' || admin.hasActiveSubscription) {
+  if (!admin || hasDashboardAccess(admin)) {
     return null;
   }
   const paymentPending = !!admin.razorpaySubscriptionId;
@@ -26,4 +34,4 @@ function subscriptionDeniedResponse(admin) {
   };
 }
 
-module.exports = { subscriptionDeniedResponse };
+module.exports = { subscriptionDeniedResponse, hasDashboardAccess };

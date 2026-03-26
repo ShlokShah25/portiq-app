@@ -76,7 +76,10 @@ const AdminLogin = () => {
       setProduct(serverProduct);
 
       window.localStorage.setItem('clientAdminToken', token);
-      window.localStorage.setItem('portiq_has_subscription', serverAdmin.hasActiveSubscription ? 'true' : 'false');
+      const unlocked =
+        serverAdmin.hasDashboardAccess ??
+        (serverAdmin.hasActiveSubscription || serverAdmin.complimentaryAccess);
+      window.localStorage.setItem('portiq_has_subscription', unlocked ? 'true' : 'false');
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       await syncWebsiteSession();
       // If /admin/profile returned NO_SUBSCRIPTION, the axios interceptor clears the token
@@ -85,7 +88,7 @@ const AdminLogin = () => {
         window.location.href = WEBSITE_URL + '/#pricing';
         return;
       }
-      if (serverAdmin.hasActiveSubscription) {
+      if (unlocked) {
         navigate('/dashboard', { replace: true });
       } else {
         window.location.href = WEBSITE_URL + '/#pricing';

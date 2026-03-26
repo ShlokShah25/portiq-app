@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const axios = require('axios');
 const jwt = require('jsonwebtoken');
 const Admin = require('../models/Admin');
+const { hasDashboardAccess } = require('../utils/subscriptionGate');
 const { sendEmail, isEmailConfigured, getDefaultFrom } = require('../utils/emailService');
 
 const router = express.Router();
@@ -223,7 +224,7 @@ router.get('/google/callback', async (req, res) => {
     }
 
     // App Google login: same subscription gate as password (avoid JWT that dies on first /admin/* call).
-    if (!admin.hasActiveSubscription && admin.username !== 'admin') {
+    if (!hasDashboardAccess(admin)) {
       return res.redirect(
         `${marketingBase}?login=no_subscription&email=${encodeURIComponent(
           emailNorm
