@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { setProduct } from '../config/product';
 import './AdminLogin.css';
 
 const WEBSITE_URL = process.env.REACT_APP_WEBSITE_URL || 'https://portiqtechnologies.com';
@@ -71,9 +70,10 @@ const AdminLogin = () => {
         throw new Error('Login failed. Please try again.');
       }
 
-      // Use server productType (Education/Workplace) so signup choice is respected
+      // Use server productType (Education/Workplace) so signup choice is respected.
+      // Do NOT trigger a hard reload during login flow.
       const serverProduct = (serverAdmin.productType || 'workplace').toLowerCase();
-      setProduct(serverProduct);
+      window.localStorage.setItem('portiq_product', serverProduct);
 
       window.localStorage.setItem('clientAdminToken', token);
       const unlocked =
