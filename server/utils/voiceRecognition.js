@@ -105,8 +105,17 @@ async function generateVoiceEmbedding(audioFilePath) {
       }
     }
     
-    // Fallback: Simplified embedding (for development/testing)
-    console.log('⚠️  Using simplified embedding (install pyannote.audio for production)');
+    // Fallback: Simplified embedding (for development/testing only).
+    // Disabled by default because it creates poor-quality vectors and hurts speaker accuracy.
+    const allowFallback = String(process.env.ENABLE_FAKE_VOICE_EMBEDDING || '').toLowerCase() === 'true';
+    if (!allowFallback) {
+      throw new Error(
+        'Voice embedding backend unavailable (pyannote/HF token missing). ' +
+        'Set HF_TOKEN and keep pyannote available for accurate speaker recognition. ' +
+        'Only for local testing, set ENABLE_FAKE_VOICE_EMBEDDING=true.'
+      );
+    }
+    console.log('⚠️  Using simplified embedding fallback (development only)');
     const audioStats = await getAudioStats(processedPath);
     const embedding = createEmbeddingFromStats(audioStats);
     

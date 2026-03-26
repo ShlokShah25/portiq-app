@@ -30,6 +30,13 @@ if (process.env.OPENAI_API_KEY) {
 
 // Email is sent via shared emailService (Resend or SMTP)
 
+function safeListParticipantNames(participants = []) {
+  return (participants || [])
+    .map((p) => (p && (p.name || p.email) ? String(p.name || p.email).trim() : ''))
+    .filter(Boolean)
+    .slice(0, 40);
+}
+
 /**
  * Transcribe audio file and generate meeting summary
  * NOTE: This version is intentionally STRICT to the current meeting only.
@@ -152,12 +159,26 @@ async function transcribeAndSummarize(audioFilePath, meeting) {
         console.log(`   Attempt ${attempt}/${maxRetries}...`);
         
         // Step 1: Transcribe audio (multilingual: English, Hindi, Gujarati, etc.)
-        // Leaving language undefined lets Whisper auto-detect and handle multiple languages.
+        // We keep language auto-detect on purpose, but pass vocabulary hints so names and
+        // domain words are less likely to be mangled.
+        const participantNames = safeListParticipantNames(meetingObj.participants);
+        const vocabularyHint = [
+          'Business meeting minutes. May include English, Hindi, Gujarati, Hinglish.',
+          participantNames.length
+            ? `Participant names (keep exact spellings): ${participantNames.join(', ')}.`
+            : '',
+          'Preserve numbers, deadlines, action items, and proper nouns accurately.',
+        ]
+          .filter(Boolean)
+          .join(' ');
         transcription = await openai.audio.transcriptions.create({
           file: fs.createReadStream(finalAudioPath),
-          model: 'whisper-1',
-          // language: undefined, // auto-detects; supports Hindi, Gujarati, and many others
-          response_format: 'verbose_json'
+          model: process.env.OPENAI_TRANSCRIPTION_MODEL || 'whisper-1',
+          // Keep language undefined for mixed-language meetings; the model auto-detects.
+          prompt: vocabularyHint,
+          temperature: 0,
+          response_format: 'verbose_json',
+          timestamp_granularities: ['segment'],
         });
         
         console.log('✅ Transcription completed successfully');
@@ -183,12 +204,15 @@ async function transcribeAndSummarize(audioFilePath, meeting) {
     }
 
     let transcriptText = transcription.text;
+    const detectedLanguage =
+      (transcription && transcription.language && String(transcription.language).toLowerCase()) || 'unknown';
     
     if (!transcriptText || transcriptText.trim().length === 0) {
       throw new Error('Transcription returned empty text - audio may be silent or corrupted');
     }
     
     console.log(`✅ Transcription text length: ${transcriptText.length} characters`);
+    console.log(`✅ Detected transcription language: ${detectedLanguage}`);
 
     // Step 1.5: Add speaker identification context to transcript if voice profiles exist
     let transcriptWithSpeakers = transcriptText;
@@ -214,7 +238,8 @@ async function transcribeAndSummarize(audioFilePath, meeting) {
             
             transcriptWithSpeakers = `Participants in this meeting: ${participantList}\n\n` +
               `[Note: The following transcript may contain speech from multiple participants. ` +
-              `When identifying who said what, match the speaker to the participant list above based on context, names mentioned, and speech patterns.]\n\n` +
+              `Only attribute statements to a named participant when confidence is high. ` +
+              `If uncertain, mark speaker as unknown instead of guessing.]\n\n` +
               transcriptText;
           }
         }
@@ -249,21 +274,24 @@ async function transcribeAndSummarize(audioFilePath, meeting) {
         {
           role: 'system',
           content:
-            'You are an AI meeting assistant for a professional workplace environment. ' +
-            'The transcript may contain multiple languages including English, Hindi, and Gujarati. ' +
+            'You are an AI meeting assistant for professional, high-fidelity minutes. ' +
+            'The transcript may contain multiple languages including English, Hindi, Gujarati, and Hinglish. ' +
             'Accurately understand all languages present, but provide your output only in professional English. ' +
-            'Be concise but clear, use professional business language, do not invent information, and only include ' +
-            'decisions or actions that are clearly mentioned. Output must follow the requested JSON structure only. ' +
+            'Prioritize completeness over brevity: include every relevant discussion point, decision, risk, and commitment. ' +
+            'Use professional business language, do not invent information, and only include decisions or actions that are clearly mentioned. ' +
+            'Output must follow the requested JSON structure only. ' +
             'CRITICAL: Base your summary ONLY on the current transcript. Do NOT bring in information or topics from any past meetings. ' +
             'The executive summary must capture ALL the major themes of the meeting (projects, planning, issues, risks, feedback, next steps), ' +
             'and highlight the most important concrete points such as names, topics, numbers, and deadlines. ' +
-            'IMPORTANT: When possible, identify and attribute statements to specific participants. Include speaker names in key points, decisions, and action items when you can determine who said what.'
+            'IMPORTANT: Attribute statements to specific participants only when clear evidence exists in the transcript. ' +
+            'If uncertain, avoid guessing names and keep the point unattributed.'
         },
         {
           role: 'user',
           content:
             `Analyze the following SINGLE meeting transcript and generate a structured summary strictly about this meeting only.\n\n` +
             `Meeting title (for reference): ${meetingTitle}\n\n` +
+            `Detected primary transcription language: ${detectedLanguage}\n\n` +
             (durationMinutes
               ? `Approximate meeting duration: ${durationMinutes} minutes.\n\n`
               : '') +
@@ -280,29 +308,33 @@ async function transcribeAndSummarize(audioFilePath, meeting) {
             `- Focus ONLY on what is actually discussed in this transcript.\n` +
             `- Do NOT talk about the AI or summarization itself unless it is explicitly discussed.\n` +
             `- The executive summary must cover the full picture of the meeting: why it was held, what was discussed across all topics, key concerns, and overall outcome.\n` +
+            `- Coverage is mandatory: include ALL relevant points that materially affect outcomes, responsibilities, risks, timelines, or scope.\n` +
+            `- Do not collapse multiple distinct points into a vague sentence; keep distinct points separate and explicit.\n` +
             `- Explicitly mention important specifics such as names, topics, projects, events, numbers, dates, and deadlines when they are clearly mentioned.\n` +
-            `- CRITICAL: In keyPoints, ALWAYS include who said what when you can identify the speaker. Format as: "[Speaker Name]: [what they said]" or "[Speaker Name] mentioned/noted/stated: [key point]". If speaker cannot be identified, just state the point.\n` +
+            `- CRITICAL: In keyPoints, include who said what only when speaker identity is clear. Format as: "[Speaker Name]: [what they said]". If speaker cannot be identified with confidence, do not guess names.\n` +
             `- In actionItems, each task must be a specific, actionable task tied to what people actually said (no generic or invented tasks). Include the assignee name if mentioned.\n` +
             `- For actionItems, set dueDate to ISO format YYYY-MM-DD whenever any deadline is mentioned (e.g. "by 24th March", "March 24", "next Friday"). Use the meeting date context for the year if the year is not stated. If no deadline is mentioned, use null for dueDate.\n` +
-            `- In decisions, include who made or proposed the decision when identifiable. Format as: "[Speaker Name] decided: [decision]" or just "[decision]" if speaker unknown.\n` +
+            `- In decisions, include who made or proposed the decision only when identifiable. Format as: "[Speaker Name] decided: [decision]" or just "[decision]" if speaker unknown.\n` +
+            `- In nextSteps, include concrete follow-ups that logically continue from decisions/action items; avoid generic filler.\n` +
+            `- In importantNotes, include risks, blockers, dependencies, unresolved questions, and critical assumptions if discussed.\n` +
             `- Do not hallucinate information that was not discussed.\n` +
             `- Only include decisions or actions that are clearly mentioned.\n` +
             `- If a section has no information, set it to "Not specified".\n` +
             `- When participant names are mentioned in the transcript, use them to attribute statements. Match names from the participant list provided.\n\n` +
             `Return ONLY a JSON object with the following structure:\n` +
             `{\n` +
-            `  "summary": "3–5 sentence executive summary of the meeting (in English). Include speaker attribution when possible, e.g., '[Name] discussed...' or '[Name] mentioned that...'",\n` +
-            `  "keyPoints": ["[Speaker Name]: major discussion point 1", "[Speaker Name]: major discussion point 2", "point 3 (if speaker unknown)"],\n` +
+            `  "summary": "Detailed executive summary in English (typically 6-12 sentences depending on meeting depth). Must be concrete, non-vague, and cover all major relevant points.",\n` +
+            `  "keyPoints": ["Concrete point 1 with specifics", "Concrete point 2 with specifics"],\n` +
             `  "actionItems": [\n` +
             `    {"task": "task description", "assignee": "person name if mentioned", "dueDate": "YYYY-MM-DD or null", "notes": "extra detail if needed"}\n` +
             `  ],\n` +
-            `  "decisions": ["[Speaker Name] decided: decision1", "decision2 (if speaker unknown)"],\n` +
-            `  "nextSteps": ["next step 1", "next step 2"],\n` +
-            `  "importantNotes": ["risk, concern, or notable observation 1", "item 2"]\n` +
+            `  "decisions": ["Decision 1 (with owner/context when known)", "Decision 2"],\n` +
+            `  "nextSteps": ["Specific follow-up 1", "Specific follow-up 2"],\n` +
+            `  "importantNotes": ["Risk/blocker/assumption/open-question 1", "item 2"]\n` +
             `}`
         }
       ],
-      temperature: 0.3,
+      temperature: 0.15,
       response_format: { type: 'json_object' }
         });
         console.log('✅ Summary generation completed successfully');
