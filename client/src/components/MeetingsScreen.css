@@ -85,7 +85,7 @@
   max-width: 880px;
 }
 
-/* —— See all meetings: PortIQ-style cards —— */
+/* —— View All Meetings: PortIQ-style cards —— */
 .meetings-all-panel {
   margin-bottom: 36px;
 }
@@ -115,6 +115,34 @@
   border: 1px dashed rgba(255, 255, 255, 0.12);
   border-radius: 14px;
   color: #9ca3af;
+}
+
+.meetings-all-empty-block .meetings-all-empty-sub,
+.meetings-list-empty .meetings-list-empty-sub {
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: rgba(156, 163, 175, 0.9);
+}
+
+.meetings-summary-polling-icon {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.meetings-summary-polling-spinner {
+  animation: meetings-spin 0.9s linear infinite;
+}
+
+@keyframes meetings-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .meetings-all-grid {
@@ -268,7 +296,7 @@
   box-shadow: 0 0 0 2px #000, 0 0 0 4px rgba(37, 99, 235, 0.55);
 }
 
-/* Summaries & approval quick access (top of meetings page) */
+/* Pending summaries quick access (top of meetings page) */
 .summaries-quick-card {
   background: #0b0b0b;
   border: 1px solid #1f2937;

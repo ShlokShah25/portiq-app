@@ -388,7 +388,7 @@ const MeetingInProgress = () => {
                   className="meeting-summary-btn meeting-summary-btn--secondary meeting-summary-btn--see-all"
                   onClick={() => navigate('/meetings', { state: { showAllMeetings: true } })}
                 >
-                  See all meetings
+                  View All Meetings
                 </button>
               </div>
               <p className="mip-ai-disclaimer">
@@ -422,7 +422,7 @@ const MeetingInProgress = () => {
                   className="meeting-summary-btn meeting-summary-btn--secondary meeting-summary-btn--see-all"
                   onClick={() => navigate('/meetings', { state: { showAllMeetings: true } })}
                 >
-                  See all meetings
+                  View All Meetings
                 </button>
               </div>
               <p className="mip-ai-disclaimer">

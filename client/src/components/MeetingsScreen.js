@@ -12,6 +12,7 @@ import {
   VOICE_ENROLLMENT_BOOK_PHRASE,
   voiceEnrollmentSentenceForParticipant,
 } from '../utils/voiceEnrollment';
+import { Loader2 } from 'lucide-react';
 import './MeetingSummary.css';
 import './MeetingsScreen.css';
 
@@ -34,6 +35,7 @@ const MeetingsScreen = ({ config }) => {
   const [showAllMeetings, setShowAllMeetings] = useState(false);
 
   const mediaRecorderRef = useRef(null);
+  const recordingFileInputRef = useRef(null);
 
   const [form, setForm] = useState({
     meetingRoom: '',
@@ -189,7 +191,7 @@ const MeetingsScreen = ({ config }) => {
     };
   }, []);
 
-  // Open "All meetings" card gallery when linked from meeting summary (See all meetings)
+  // Open "All meetings" card gallery when linked from meeting summary (View All Meetings)
   useEffect(() => {
     if (!location.state?.showAllMeetings) return;
     setShowAllMeetings(true);
@@ -202,6 +204,36 @@ const MeetingsScreen = ({ config }) => {
       state: Object.keys(next).length ? next : undefined,
     });
   }, [location.state?.showAllMeetings]);
+
+  useEffect(() => {
+    if (!location.state?.focusRecordingUpload || !meetings.length) return;
+
+    const next = { ...(location.state || {}) };
+    delete next.focusRecordingUpload;
+
+    const candidate =
+      meetings.find((m) => m.transcriptionEnabled && m.status === 'In Progress') ||
+      meetings.find((m) => m.transcriptionEnabled && m.status === 'Scheduled') ||
+      meetings.find((m) => m.transcriptionEnabled);
+
+    navigate(location.pathname, {
+      replace: true,
+      state: Object.keys(next).length ? next : undefined,
+    });
+
+    if (!candidate) {
+      setError(
+        'No meeting with transcription is available. Create a meeting first, then upload a recording from its details.'
+      );
+      return;
+    }
+
+    setSelectedMeeting(candidate);
+    setRightTab('recent');
+    setTimeout(() => {
+      recordingFileInputRef.current?.click();
+    }, 400);
+  }, [meetings, location.state?.focusRecordingUpload, location.pathname, navigate]);
 
   // Auto-select meeting: from location state (e.g. "Review & send" from quick card) or first needing approval
   useEffect(() => {
@@ -726,7 +758,7 @@ const MeetingsScreen = ({ config }) => {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
             >
-              {showAllMeetings ? 'Hide all meetings' : 'See all meetings'}
+              {showAllMeetings ? 'Hide meetings' : 'View All Meetings'}
             </button>
             {false && selectedMeeting && (
               <button
@@ -758,7 +790,10 @@ const MeetingsScreen = ({ config }) => {
               </p>
             </div>
             {allMeetingsSorted.length === 0 ? (
-              <p className="info-text meetings-all-empty">No meetings yet.</p>
+              <div className="meetings-all-empty-block">
+                <p className="info-text meetings-all-empty">No meetings yet.</p>
+                <p className="meetings-all-empty-sub">Start a meeting to begin tracking insights.</p>
+              </div>
             ) : (
               <div className="meetings-all-grid">
                 {allMeetingsSorted.map((m) => {
@@ -830,7 +865,7 @@ const MeetingsScreen = ({ config }) => {
           if (needsApproval.length === 0) return null;
           return (
             <div className="summaries-quick-card">
-              <h2 className="summaries-quick-title">Summaries & approval</h2>
+              <h2 className="summaries-quick-title">Pending Summaries</h2>
               <p className="summaries-quick-desc">
                 Quick access to {T.meetingSummary().toLowerCase()}s that are waiting for your approval.
               </p>
@@ -847,7 +882,7 @@ const MeetingsScreen = ({ config }) => {
                           className="summaries-quick-btn summaries-quick-btn--primary summaries-quick-btn--link"
                           onClick={() => navigate(`/meetings/${m._id}/summary`)}
                         >
-                          Click here to review your summary
+                          Review Summary
                         </button>
                       </li>
                     ))}
@@ -1566,6 +1601,7 @@ const MeetingsScreen = ({ config }) => {
                   <div className="form-group">
                     <label style={{ color: 'white', fontSize: '15px', fontWeight: '600', marginBottom: '10px', display: 'block' }}>Or upload existing audio file</label>
                     <input
+                      ref={recordingFileInputRef}
                       type="file"
                       accept="audio/*"
                       onChange={handleAudioUpload}
@@ -1634,7 +1670,9 @@ const MeetingsScreen = ({ config }) => {
                     textAlign: 'center',
                     marginTop: '20px'
                   }}>
-                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
+                    <div className="meetings-summary-polling-icon" aria-hidden>
+                      <Loader2 size={40} strokeWidth={1.5} className="meetings-summary-polling-spinner" />
+                    </div>
                     <h3 style={{ color: 'white', marginBottom: '8px', fontSize: '20px', fontWeight: '600' }}>Please wait while we generate the summary</h3>
                     <p style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '15px' }}>
                       This may take a few minutes. The summary will appear here once ready.
@@ -1671,9 +1709,12 @@ const MeetingsScreen = ({ config }) => {
                   selectedMeeting.transcriptionStatus === 'Completed' &&
                   !editableSummary && selectedMeeting.summary && (
                     <div className="meeting-summary-card meetings-inline-summary">
-                      <div className="meeting-summary-ready-badge" style={{ marginBottom: 16 }}>
+                      <div
+                        className="meeting-summary-ready-badge meeting-summary-ready-badge--sentence"
+                        style={{ marginBottom: 16 }}
+                      >
                         <span className="meeting-summary-ready-badge__dot" aria-hidden="true" />
-                        Summary ready
+                        AI Generated • Ready for review
                       </div>
                       <h3 className="meeting-summary-page-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <svg
@@ -1756,17 +1797,10 @@ const MeetingsScreen = ({ config }) => {
                       {T.meetingSummary()}
                     </h3>
 
-                    <div className="meeting-summary-actions">
+                    <div className="meeting-summary-actions meeting-summary-actions--send-first">
                           <button
                             type="button"
-                            className="meeting-summary-btn meeting-summary-btn--secondary"
-                            onClick={() => setEditingSummary(!editingSummary)}
-                          >
-                            {editingSummary ? 'Cancel Edit' : 'Edit Summary'}
-                          </button>
-                          <button
-                            type="button"
-                            className="meeting-summary-btn meeting-summary-btn--primary"
+                            className="meeting-summary-btn meeting-summary-btn--primary meeting-summary-btn--send"
                             onClick={async () => {
                               try {
                                 const emailToUse = verificationEmail || selectedMeeting.authorizedEditorEmail;
@@ -1811,7 +1845,18 @@ const MeetingsScreen = ({ config }) => {
                               }
                             }}
                           >
-                            {editingSummary ? 'Save & Send' : (isEducation ? 'Approve & Send Lecture Notes' : 'Approve & Send')}
+                            {editingSummary
+                              ? 'Save & Send'
+                              : isEducation
+                                ? 'Send Lecture Notes to Participants'
+                                : 'Send Summary to Participants'}
+                          </button>
+                          <button
+                            type="button"
+                            className="meeting-summary-btn meeting-summary-btn--secondary"
+                            onClick={() => setEditingSummary(!editingSummary)}
+                          >
+                            {editingSummary ? 'Cancel Edit' : 'Edit Summary'}
                           </button>
                         </div>
                         
@@ -2068,7 +2113,10 @@ const MeetingsScreen = ({ config }) => {
                 {rightTab === 'scheduled' && (
                   <>
                     {scheduledMeetings.length === 0 ? (
-                      <p className="info-text">No scheduled meetings.</p>
+                      <div className="meetings-list-empty">
+                        <p className="info-text">No meetings scheduled yet.</p>
+                        <p className="meetings-list-empty-sub">Start a meeting to begin tracking insights.</p>
+                      </div>
                     ) : (
                       scheduledMeetings.map(m => (
                         <div

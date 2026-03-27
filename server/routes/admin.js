@@ -10,6 +10,27 @@ const { getMeetingContext } = require('../utils/meetingContext');
 const { getPlanConstraints } = require('../utils/planConstraints');
 const { hasDashboardAccess } = require('../utils/subscriptionGate');
 
+function meetingFilterForAdmin(admin) {
+  return admin && admin.username !== 'admin' ? { adminId: admin._id } : {};
+}
+
+function actionItemsForMeetingDoc(m) {
+  let items = Array.isArray(m.actionItems) && m.actionItems.length ? m.actionItems : [];
+  if (!items.length && Array.isArray(m.pendingActionItems) && m.pendingActionItems.length) {
+    items = m.pendingActionItems;
+  }
+  return items;
+}
+
+function startOfWeekMonday(d) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  const day = x.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  x.setDate(x.getDate() + diff);
+  return x;
+}
+
 /**
  * Admin login (supports both username/password and password-only for client admin)
  */
@@ -140,7 +161,55 @@ router.get('/participant-book', authenticateAdmin, requireSubscription, async (r
       name: p && p.name != null ? String(p.name).trim() : '',
       email: p && p.email != null ? String(p.email).trim().toLowerCase() : '',
     })).filter((p) => p.name || p.email);
-    res.json({ participants });
+
+    const mFilter = meetingFilterForAdmin(req.admin);
+    const meetings = await Meeting.find(mFilter)
+      .select('participants actionItems pendingActionItems')
+      .lean();
+
+    const statsByEmail = {};
+    participants.forEach((p) => {
+      const em = p.email || '';
+      if (em) statsByEmail[em] = { meetingsAttended: 0, tasksAssigned: 0 };
+    });
+
+    const normEmail = (v) => (v && String(v).trim().toLowerCase()) || '';
+
+    for (const m of meetings) {
+      const emailsInMeeting = new Set();
+      (m.participants || []).forEach((part) => {
+        const em = normEmail(part.email);
+        if (em) emailsInMeeting.add(em);
+      });
+      emailsInMeeting.forEach((em) => {
+        if (statsByEmail[em]) statsByEmail[em].meetingsAttended += 1;
+      });
+
+      const items = actionItemsForMeetingDoc(m);
+      for (const item of items) {
+        const assigneeRaw = item && item.assignee != null ? String(item.assignee).trim() : '';
+        if (!assigneeRaw) continue;
+        const a = assigneeRaw.toLowerCase();
+        for (const p of participants) {
+          const em = normEmail(p.email);
+          if (!em || !statsByEmail[em]) continue;
+          const nm = p.name ? String(p.name).trim().toLowerCase() : '';
+          const local = em.split('@')[0] || '';
+          if (a === em || (nm && a === nm) || (local && a === local)) {
+            statsByEmail[em].tasksAssigned += 1;
+            break;
+          }
+        }
+      }
+    }
+
+    const enriched = participants.map((p) => ({
+      ...p,
+      meetingsAttended: statsByEmail[p.email]?.meetingsAttended || 0,
+      tasksAssigned: statsByEmail[p.email]?.tasksAssigned || 0,
+    }));
+
+    res.json({ participants: enriched });
   } catch (e) {
     console.error('Error fetching participant book:', e);
     res.status(500).json({ error: 'Failed to load participant book' });
@@ -222,6 +291,8 @@ router.get('/stats', authenticateAdmin, requireSubscription, async (req, res) =>
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
+    const dayAfterTomorrow = new Date(tomorrow);
+    dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
 
     const visitorsToday = await Visitor.countDocuments({
       checkInTime: { $gte: today, $lt: tomorrow }
@@ -229,9 +300,7 @@ router.get('/stats', authenticateAdmin, requireSubscription, async (req, res) =>
 
     const visitorsInside = await Visitor.countDocuments({ status: 'Inside' });
 
-    const meetingFilter = (req.admin && req.admin.username !== 'admin')
-      ? { adminId: req.admin._id }
-      : {};
+    const meetingFilter = meetingFilterForAdmin(req.admin);
     const meetingsToday = await Meeting.countDocuments({
       ...meetingFilter,
       startTime: { $gte: today, $lt: tomorrow }
@@ -246,14 +315,92 @@ router.get('/stats', authenticateAdmin, requireSubscription, async (req, res) =>
     });
     const totalMeetings = await Meeting.countDocuments(meetingFilter);
 
+    const weekStart = startOfWeekMonday(today);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 7);
+
+    const meetingsLean = await Meeting.find(meetingFilter)
+      .select(
+        'title status startTime endTime scheduledTime createdAt updatedAt actionItems pendingActionItems'
+      )
+      .lean();
+
+    let meetingsThisWeek = 0;
+    let tasksDueTomorrow = 0;
+    let overdueTasks = 0;
+    let completedThisWeek = 0;
+    let meetingsWithoutActionItems = 0;
+    const upcomingActions = [];
+
+    for (const m of meetingsLean) {
+      const eventTime = m.startTime || m.scheduledTime || m.createdAt;
+      if (eventTime) {
+        const et = new Date(eventTime);
+        if (!Number.isNaN(et.getTime()) && et >= weekStart && et < weekEnd) {
+          meetingsThisWeek += 1;
+        }
+      }
+
+      const items = actionItemsForMeetingDoc(m);
+      if (items.length === 0) meetingsWithoutActionItems += 1;
+
+      const end = m.endTime ? new Date(m.endTime) : null;
+      const updated = m.updatedAt ? new Date(m.updatedAt) : null;
+      const weekContext =
+        (end && !Number.isNaN(end.getTime()) && end >= weekStart && end < weekEnd) ||
+        (m.status === 'Completed' &&
+          updated &&
+          !Number.isNaN(updated.getTime()) &&
+          updated >= weekStart &&
+          updated < weekEnd);
+
+      for (const raw of items) {
+        const status = raw.status || 'not_started';
+        const done = status === 'done';
+        const due = raw.dueDate ? new Date(raw.dueDate) : null;
+
+        if (done && weekContext) {
+          completedThisWeek += 1;
+        }
+
+        if (!done && due && !Number.isNaN(due.getTime())) {
+          if (due < today) overdueTasks += 1;
+          else if (due >= tomorrow && due < dayAfterTomorrow) tasksDueTomorrow += 1;
+        }
+
+        if (!done) {
+          upcomingActions.push({
+            task: raw.task || raw.title || 'Action item',
+            meetingTitle: m.title || 'Untitled',
+            meetingId: m._id.toString(),
+            dueDate: raw.dueDate || null,
+            status,
+          });
+        }
+      }
+    }
+
+    upcomingActions.sort((a, b) => {
+      const ad = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+      const bd = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+      return ad - bd;
+    });
+
     res.json({
       visitorsToday,
       visitorsInside,
       meetingsToday,
+      todayMeetings: meetingsToday,
       meetingsCompleted,
       scheduledMeetings: meetingsScheduled,
       totalVisitors: await Visitor.countDocuments(),
-      totalMeetings
+      totalMeetings,
+      tasksDueTomorrow,
+      overdueTasks,
+      completedThisWeek,
+      meetingsThisWeek,
+      meetingsWithoutActionItems,
+      upcomingActions: upcomingActions.slice(0, 25),
     });
   } catch (error) {
     console.error('Error fetching stats:', error);

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { Calendar, CheckSquare } from 'lucide-react';
 import TopNav from './TopNav';
 import { T } from '../config/terminology';
 import {
@@ -348,7 +349,10 @@ const Participants = () => {
       <div className="participants-wrapper">
         <div className="participants-top-bar">
           <div>
-            <h1 className="participants-title">{T.participantBook()}</h1>
+            <h1 className="participants-title">Team Intelligence</h1>
+            <p className="participants-intel-lead">
+              {T.participantBook()} — execution context for voice, meetings, and assignments.
+            </p>
             {maxInBook != null && (
               <p className="participants-limit-hint">{participants.length} / {maxInBook} participants</p>
             )}
@@ -410,6 +414,9 @@ const Participants = () => {
               Configure a clear voice sample for each participant so the AI can
               attribute speech correctly during the meeting.
             </p>
+            <p className="voice-guide-accuracy-note">
+              This improves speaker identification accuracy in future meetings.
+            </p>
             <ol>
               <li>Click <strong>Configure Voice</strong> on a participant card.</li>
               <li>
@@ -438,12 +445,15 @@ const Participants = () => {
                 <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
                 <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
               </svg>
-              <p>No saved participants</p>
+              <p>No team members saved yet</p>
+              <p className="empty-state-sub">Start a meeting to begin tracking insights.</p>
               <button className="btn btn-primary" onClick={() => setShowAddForm(true)}>
                 Add First Participant
               </button>
             </div>
           ) : (
+            <>
+            <h2 className="participants-section-heading">Team Members</h2>
             <div className="participants-grid">
               {participants.map((p, idx) => {
                 const participantName = p.name || p.email || 'This participant';
@@ -456,6 +466,18 @@ const Participants = () => {
                   <div className="participant-info">
                     <div className="participant-name">{p.name || 'Unnamed'}</div>
                     <div className="participant-email">{p.email || 'No email'}</div>
+                    <div className="participant-intel-stats" aria-label="Meetings and tasks">
+                      <span className="participant-intel-stat">
+                        <Calendar className="participant-intel-icon" strokeWidth={1.5} aria-hidden />
+                        <span className="participant-intel-stat-num">{p.meetingsAttended ?? 0}</span>
+                        <span className="participant-intel-stat-label">meetings</span>
+                      </span>
+                      <span className="participant-intel-stat">
+                        <CheckSquare className="participant-intel-icon" strokeWidth={1.5} aria-hidden />
+                        <span className="participant-intel-stat-num">{p.tasksAssigned ?? 0}</span>
+                        <span className="participant-intel-stat-label">tasks</span>
+                      </span>
+                    </div>
                     {p.email && p.email.trim() && (
                       <div className="participant-voice-row">
                         <span className="participant-voice-status">
@@ -576,6 +598,7 @@ const Participants = () => {
                 </div>
               )})}
             </div>
+            </>
           )}
         </div>
       </div>

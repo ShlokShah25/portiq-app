@@ -5,6 +5,7 @@
   "dependencies": {
     "axios": "^1.6.2",
     "html5-qrcode": "^2.3.8",
+    "lucide-react": "^0.460.0",
     "qrcode.react": "^3.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -18,7 +19,6 @@
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
-  "devDependencies": {},
   "browserslist": {
     "production": [
       ">0.2%",

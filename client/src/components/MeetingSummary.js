@@ -169,6 +169,24 @@ const MeetingSummary = () => {
       <div className="meeting-summary-container">
         <div className="meeting-summary-card">
           <h1 className="meeting-summary-page-title">{meeting.title || 'Untitled meeting'}</h1>
+
+          {!editingSummary && !!hasContent && actionItems.length > 0 && (
+            <MeetingSummaryReadonlyBody
+              meeting={meeting}
+              meetingId={id}
+              summaryText=""
+              keyPoints={[]}
+              actionItems={actionItems}
+              decisions={[]}
+              nextSteps={[]}
+              importantNotes={[]}
+              isEducation={isEducation}
+              onMeetingPatched={setMeeting}
+              showReadyBadge={false}
+              includeSections="actionItemsOnly"
+            />
+          )}
+
           <p className="meeting-summary-subtitle">{T.meetingSummary()}</p>
 
           <div className="meeting-summary-see-all-row">
@@ -179,7 +197,7 @@ const MeetingSummary = () => {
                 navigate('/meetings', { state: { showAllMeetings: true } })
               }
             >
-              See all meetings
+              View All Meetings
             </button>
           </div>
 
@@ -219,21 +237,29 @@ const MeetingSummary = () => {
           )}
 
           {pendingApproval && !!hasContent && (
-            <div className="meeting-summary-actions">
+            <div className="meeting-summary-actions meeting-summary-actions--send-first">
               <button
                 type="button"
-                className="meeting-summary-btn meeting-summary-btn--secondary"
-                onClick={() => (editingSummary ? (setEditingSummary(false), setEditableSummary(null), setActionError('')) : startEditing())}
-              >
-                {editingSummary ? 'Cancel Edit' : 'Edit Summary'}
-              </button>
-              <button
-                type="button"
-                className="meeting-summary-btn meeting-summary-btn--primary"
+                className="meeting-summary-btn meeting-summary-btn--primary meeting-summary-btn--send"
                 disabled={saving}
                 onClick={handleApproveAndSend}
               >
-                {saving ? 'Sending…' : (isEducation ? 'Approve & Send Lecture Notes' : 'Approve & Send')}
+                {saving
+                  ? 'Sending…'
+                  : isEducation
+                    ? 'Send Lecture Notes to Participants'
+                    : 'Send Summary to Participants'}
+              </button>
+              <button
+                type="button"
+                className="meeting-summary-btn meeting-summary-btn--secondary"
+                onClick={() =>
+                  editingSummary
+                    ? (setEditingSummary(false), setEditableSummary(null), setActionError(''))
+                    : startEditing()
+                }
+              >
+                {editingSummary ? 'Cancel Edit' : 'Edit Summary'}
               </button>
             </div>
           )}
@@ -321,18 +347,25 @@ const MeetingSummary = () => {
           )}
 
           {!!hasContent && !editingSummary && (
-            <MeetingSummaryReadonlyBody
-              meeting={meeting}
-              meetingId={id}
-              summaryText={summaryText}
-              keyPoints={keyPoints}
-              actionItems={actionItems}
-              decisions={decisions}
-              nextSteps={nextSteps}
-              importantNotes={importantNotes}
-              isEducation={isEducation}
-              onMeetingPatched={setMeeting}
-            />
+            <div
+              className={
+                actionItems.length > 0 ? 'meeting-summary-secondary-block' : undefined
+              }
+            >
+              <MeetingSummaryReadonlyBody
+                meeting={meeting}
+                meetingId={id}
+                summaryText={summaryText}
+                keyPoints={keyPoints}
+                actionItems={actionItems}
+                decisions={decisions}
+                nextSteps={nextSteps}
+                importantNotes={importantNotes}
+                isEducation={isEducation}
+                onMeetingPatched={setMeeting}
+                includeSections="withoutActionItems"
+              />
+            </div>
           )}
         </div>
       </div>

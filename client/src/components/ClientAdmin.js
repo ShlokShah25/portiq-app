@@ -343,7 +343,7 @@ const ClientAdmin = () => {
                     </td>
                     <td>
                       {meeting.summary ? (
-                        <span className="summary-badge">Available</span>
+                        <span className="summary-badge">Summary Ready</span>
                       ) : (
                         <span className="no-summary">None</span>
                       )}

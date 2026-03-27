@@ -50,6 +50,12 @@
   padding: 32px 36px;
 }
 
+.meeting-summary-secondary-block {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 .meeting-summary-language-row {
   display: flex;
   flex-wrap: wrap;
@@ -109,6 +115,23 @@
   flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 20px;
+}
+
+.meeting-summary-actions--send-first {
+  flex-direction: row;
+  align-items: center;
+}
+
+.meeting-summary-btn--send {
+  min-height: 44px;
+  padding: 12px 22px;
+  font-size: 15px;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.meeting-summary-btn--send:hover:not(:disabled) {
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
 }
 
 .meeting-summary-btn {
@@ -267,6 +290,14 @@
   animation: meeting-summary-pulse-dot 1.5s ease-in-out infinite;
 }
 
+.meeting-summary-ready-badge--sentence {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #a5b4fc;
+}
+
 @keyframes meeting-summary-pulse-dot {
   0%,
   100% {
@@ -302,6 +333,20 @@
   text-transform: uppercase;
   color: var(--text-label, #86868b);
   margin: 0 0 12px;
+}
+
+.meeting-summary-heading--with-icon {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.meeting-summary-heading-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: #71717a;
+  opacity: 0.9;
 }
 
 .meeting-summary-body {
@@ -376,8 +421,156 @@
   border-bottom: none;
 }
 
+.meeting-summary-section--tasks-top {
+  padding-top: 8px;
+}
+
+.meeting-summary-section--after-title {
+  padding-top: 4px;
+  margin-top: 0;
+  border-top: none;
+}
+
+.meeting-summary-section--after-title .meeting-summary-heading {
+  margin-bottom: 14px;
+}
+
 .meeting-summary-section--tasks .meeting-summary-heading {
   margin-bottom: 8px;
+}
+
+.meeting-summary-list--tasks-notion {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.meeting-task-row {
+  list-style: none;
+  margin: 0;
+  padding: 16px 0;
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  box-sizing: border-box;
+}
+
+.meeting-task-row:last-child {
+  border-bottom: none;
+  padding-bottom: 8px;
+}
+
+.meeting-task-row__check {
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+.meeting-task-checkbox-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  margin: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #a1a1aa;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.meeting-task-checkbox-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+  color: #e4e4e7;
+}
+
+.meeting-task-checkbox-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.meeting-task-checkbox-icon {
+  width: 20px;
+  height: 20px;
+  color: #52525b;
+}
+
+.meeting-task-checkbox-icon--on {
+  color: #60a5fa;
+}
+
+.meeting-task-row__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.meeting-task-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #f4f4f5;
+  line-height: 1.4;
+  margin: 0 0 6px;
+  word-break: break-word;
+}
+
+.meeting-task-assignee {
+  font-size: 12px;
+  color: #a1a1aa;
+  line-height: 1.4;
+  margin: 0 0 10px;
+}
+
+.meeting-task-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 2px;
+}
+
+.meeting-task-status-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #71717a;
+}
+
+.meeting-task-status-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: #141414;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #d4d4d8;
+  font-size: 13px;
+  padding: 6px 28px 6px 10px;
+  cursor: pointer;
+  font-family: inherit;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.meeting-task-status-select:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.meeting-task-status-select:focus {
+  outline: none;
+  border-color: rgba(59, 130, 246, 0.45);
+}
+
+.meeting-task-status-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.meeting-action-item-links--task {
+  margin-top: 12px;
+  padding-top: 12px;
 }
 
 .meeting-summary-list--action .meeting-action-item {

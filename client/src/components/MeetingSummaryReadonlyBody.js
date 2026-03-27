@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import {
+  CheckSquare,
+  FileText,
+  ListChecks,
+  CheckCircle,
+  Square,
+} from 'lucide-react';
 import { getEffectiveDueDate } from '../utils/actionItemDueDate';
 import {
   buildGoogleCalendarUrl,
@@ -9,7 +16,7 @@ import {
 import './MeetingSummary.css';
 
 /**
- * Read-only summary layout (matches MeetingSummary page): badge, minutes, action cards, checkmark key points, etc.
+ * Read-only summary layout. Use includeSections to render only action items or everything except.
  */
 export default function MeetingSummaryReadonlyBody({
   meeting,
@@ -23,6 +30,7 @@ export default function MeetingSummaryReadonlyBody({
   isEducation,
   onMeetingPatched,
   showReadyBadge = true,
+  includeSections = 'all',
 }) {
   const [statusSaving, setStatusSaving] = useState({});
 
@@ -30,15 +38,31 @@ export default function MeetingSummaryReadonlyBody({
     (d) => String(d || '').trim().toLowerCase() !== 'not specified'
   );
 
-  const hasContent =
-    (summaryText && String(summaryText).trim()) ||
+  const hasRestContent =
+    !!(summaryText && String(summaryText).trim()) ||
     (keyPoints && keyPoints.length) ||
-    (actionItems && actionItems.length) ||
     decisionsDisplay.length ||
     (nextSteps && nextSteps.length) ||
     (importantNotes && importantNotes.length);
 
-  if (!hasContent) {
+  const hasActionItems = actionItems && actionItems.length > 0;
+
+  const hasContent =
+    hasRestContent || hasActionItems;
+
+  const showAll = includeSections === 'all';
+  const showActionsOnly = includeSections === 'actionItemsOnly';
+  const showRestOnly = includeSections === 'withoutActionItems';
+
+  if (showActionsOnly && !hasActionItems) {
+    return null;
+  }
+
+  if (showRestOnly && !hasRestContent && !showReadyBadge) {
+    return null;
+  }
+
+  if (showAll && !hasContent) {
     return null;
   }
 
@@ -59,91 +83,96 @@ export default function MeetingSummaryReadonlyBody({
     }
   };
 
-  return (
-    <div className="meeting-summary-content">
-      {showReadyBadge && (
-        <div className="meeting-summary-ready-badge" aria-live="polite">
-          <span className="meeting-summary-ready-badge__dot" aria-hidden="true" />
-          AI summary ready
-        </div>
-      )}
+  const renderActionSection = () => {
+    if (!(showAll || showActionsOnly) || !hasActionItems) return null;
 
-      {!!summaryText && String(summaryText).trim() && (
-        <section className="meeting-summary-section meeting-summary-section--minutes">
-          <h2 className="meeting-summary-heading">
-            {isEducation ? 'Summary' : 'Minutes of the meeting'}
-          </h2>
-          <p className="meeting-summary-body">{summaryText}</p>
-        </section>
-      )}
+    return (
+      <section
+        className={`meeting-summary-section meeting-summary-section--tasks meeting-summary-section--tasks-top${showActionsOnly ? ' meeting-summary-section--after-title' : ''}`}
+      >
+        <h2 className="meeting-summary-heading meeting-summary-heading--with-icon">
+          <CheckSquare className="meeting-summary-heading-icon" strokeWidth={1.5} aria-hidden />
+          Action Items
+        </h2>
+        <ul className="meeting-summary-list meeting-summary-list--action meeting-summary-list--tasks-notion">
+          {actionItems.map((item, idx) => {
+            const itemId = item?._id || String(idx);
+            const rawStatus = item?.status || 'not_started';
+            const status =
+              rawStatus === 'in_progress' || rawStatus === 'done' || rawStatus === 'not_started'
+                ? rawStatus
+                : 'not_started';
+            const effectiveDue = getEffectiveDueDate(item, meeting);
 
-      {actionItems && actionItems.length > 0 && (
-        <section className="meeting-summary-section meeting-summary-section--tasks">
-          <h2 className="meeting-summary-heading">Action Items</h2>
-          <ul className="meeting-summary-list meeting-summary-list--action">
-            {actionItems.map((item, idx) => {
-              const itemId = item?._id || String(idx);
-              const rawStatus = item?.status || 'not_started';
-              const status =
-                rawStatus === 'in_progress' || rawStatus === 'done' || rawStatus === 'not_started'
-                  ? rawStatus
-                  : 'not_started';
-              const effectiveDue = getEffectiveDueDate(item, meeting);
+            const title = item?.task || 'Action item';
+            const details = [
+              meeting?.title ? `Meeting: ${meeting.title}` : null,
+              item?.assignee ? `Assignee: ${item.assignee}` : null,
+            ]
+              .filter(Boolean)
+              .join('\n');
 
-              const title = item?.task || 'Action item';
-              const details = [
-                meeting?.title ? `Meeting: ${meeting.title}` : null,
-                item?.assignee ? `Assignee: ${item.assignee}` : null,
-              ]
-                .filter(Boolean)
-                .join('\n');
-
-              const dueIso =
-                effectiveDue && !Number.isNaN(effectiveDue.getTime())
-                  ? effectiveDue.toISOString()
-                  : null;
-
-              const gcalUrl = buildGoogleCalendarUrl({
-                title,
-                details,
-                dueDate: dueIso,
-              });
-
-              const outlookUrl = buildOutlookCalendarUrl({
-                title,
-                details,
-                dueDate: dueIso,
-              });
-
-              const ics = dueIso
-                ? buildIcsContent({
-                    title,
-                    description: details,
-                    dueDate: dueIso,
-                  })
+            const dueIso =
+              effectiveDue && !Number.isNaN(effectiveDue.getTime())
+                ? effectiveDue.toISOString()
                 : null;
 
-              const dueBadge =
-                effectiveDue && !Number.isNaN(effectiveDue.getTime())
-                  ? `DUE ${effectiveDue
-                      .toLocaleDateString('en-US', { weekday: 'short' })
-                      .toUpperCase()}`
-                  : null;
+            const gcalUrl = buildGoogleCalendarUrl({
+              title,
+              details,
+              dueDate: dueIso,
+            });
 
-              const isOverdue =
-                dueBadge &&
-                status !== 'done' &&
-                effectiveDue &&
-                !Number.isNaN(effectiveDue.getTime()) &&
-                effectiveDue.getTime() < Date.now();
+            const outlookUrl = buildOutlookCalendarUrl({
+              title,
+              details,
+              dueDate: dueIso,
+            });
 
-              const overdueBadge = isOverdue ? 'OVERDUE' : null;
+            const ics = dueIso
+              ? buildIcsContent({
+                  title,
+                  description: details,
+                  dueDate: dueIso,
+                })
+              : null;
 
-              const statusGroupName = `action-status-${String(item._id || idx)}`;
-              const statusDisabled = !!statusSaving[itemId] || !item?._id || !meetingId;
+            const dueBadge =
+              effectiveDue && !Number.isNaN(effectiveDue.getTime())
+                ? `DUE ${effectiveDue
+                    .toLocaleDateString('en-US', { weekday: 'short' })
+                    .toUpperCase()}`
+                : null;
 
-              return (
-                <li key={itemId} className="meeting-action-item" data-action-status={status}>
+            const isOverdue =
+              dueBadge &&
+              status !== 'done' &&
+              effectiveDue &&
+              !Number.isNaN(effectiveDue.getTime()) &&
+              effectiveDue.getTime() < Date.now();
+
+            const overdueBadge = isOverdue ? 'OVERDUE' : null;
+
+            const statusDisabled = !!statusSaving[itemId] || !item?._id || !meetingId;
+
+            return (
+              <li key={itemId} className="meeting-task-row" data-action-status={status}>
+                <div className="meeting-task-row__check">
+                  <button
+                    type="button"
+                    className="meeting-task-checkbox-btn"
+                    disabled={statusDisabled}
+                    aria-label={status === 'done' ? 'Mark as not done' : 'Mark as done'}
+                    onClick={() => patchStatus(item, itemId, status === 'done' ? 'not_started' : 'done')}
+                  >
+                    {status === 'done' ? (
+                      <CheckSquare className="meeting-task-checkbox-icon meeting-task-checkbox-icon--on" strokeWidth={1.75} />
+                    ) : (
+                      <Square className="meeting-task-checkbox-icon" strokeWidth={1.75} />
+                    )}
+                  </button>
+                </div>
+                <div className="meeting-task-row__body">
                   {dueBadge || overdueBadge ? (
                     <div className="meeting-action-item-badges">
                       {dueBadge ? (
@@ -157,45 +186,33 @@ export default function MeetingSummaryReadonlyBody({
                     </div>
                   ) : null}
 
-                  <p className="meeting-action-item-text">
-                    <span className="meeting-action-item-task">{item.task}</span>
-                    {item.assignee ? (
-                      <span className="meeting-action-item-assignee"> — {item.assignee}</span>
-                    ) : null}
-                  </p>
+                  <div className="meeting-task-title">{item.task || 'Action item'}</div>
+                  {item.assignee ? (
+                    <div className="meeting-task-assignee">{item.assignee}</div>
+                  ) : null}
 
-                  <fieldset className="meeting-action-status-fieldset">
-                    <legend className="meeting-action-status-legend">Status</legend>
-                    <div className="meeting-action-status-rail" role="presentation">
-                      {[
-                        { value: 'not_started', label: 'Not done', hint: 'Not started' },
-                        { value: 'in_progress', label: 'In progress', hint: 'In progress' },
-                        { value: 'done', label: 'Done', hint: 'Done' },
-                      ].map((opt) => (
-                        <label
-                          key={opt.value}
-                          className="meeting-action-status-option"
-                          title={opt.hint}
-                        >
-                          <span className="meeting-action-status-hit">
-                            <input
-                              type="radio"
-                              name={statusGroupName}
-                              value={opt.value}
-                              checked={status === opt.value}
-                              disabled={statusDisabled}
-                              onChange={() => patchStatus(item, itemId, opt.value)}
-                            />
-                            <span className="meeting-action-status-mark" aria-hidden />
-                          </span>
-                          <span className="meeting-action-status-label">{opt.label}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </fieldset>
+                  <div className="meeting-task-status-row">
+                    <label
+                      className="meeting-task-status-label"
+                      htmlFor={`task-status-${meetingId || 'meeting'}-${idx}`}
+                    >
+                      Status
+                    </label>
+                    <select
+                      id={`task-status-${meetingId || 'meeting'}-${idx}`}
+                      className="meeting-task-status-select"
+                      value={status}
+                      disabled={statusDisabled}
+                      onChange={(e) => patchStatus(item, itemId, e.target.value)}
+                    >
+                      <option value="not_started">Not started</option>
+                      <option value="in_progress">In progress</option>
+                      <option value="done">Done</option>
+                    </select>
+                  </div>
 
                   {(gcalUrl || outlookUrl || ics) && (
-                    <div className="meeting-action-item-links">
+                    <div className="meeting-action-item-links meeting-action-item-links--task">
                       {gcalUrl && (
                         <a
                           className="meeting-action-link meeting-action-link--minimal"
@@ -245,58 +262,104 @@ export default function MeetingSummaryReadonlyBody({
                       )}
                     </div>
                   )}
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+    );
+  };
 
-      {keyPoints && keyPoints.length > 0 && (
-        <section className="meeting-summary-section meeting-summary-section--keypoints">
-          <h2 className="meeting-summary-heading">Key Points</h2>
-          <ul className="meeting-summary-list meeting-summary-list--checks">
-            {keyPoints.map((p, idx) => (
-              <li key={idx}>{p}</li>
-            ))}
-          </ul>
-        </section>
-      )}
+  const renderRest = () => {
+    if (!(showAll || showRestOnly)) return null;
 
-      {decisionsDisplay.length > 0 && (
-        <section className="meeting-summary-section">
-          <h2 className="meeting-summary-heading">Decisions</h2>
-          <ul className="meeting-summary-list">
-            {decisionsDisplay.map((d, idx) => (
-              <li key={idx}>{d}</li>
-            ))}
-          </ul>
-        </section>
-      )}
+    return (
+      <>
+        {showReadyBadge && (
+          <div className="meeting-summary-ready-badge meeting-summary-ready-badge--sentence" aria-live="polite">
+            <span className="meeting-summary-ready-badge__dot" aria-hidden="true" />
+            AI Generated • Ready for review
+          </div>
+        )}
 
-      {nextSteps && nextSteps.length > 0 && (
-        <section className="meeting-summary-section">
-          <h2 className="meeting-summary-heading">Next Steps</h2>
-          <ul className="meeting-summary-list">
-            {nextSteps.map((s, idx) => (
-              <li key={idx}>{s}</li>
-            ))}
-          </ul>
-        </section>
-      )}
+        {!!summaryText && String(summaryText).trim() && (
+          <section className="meeting-summary-section meeting-summary-section--minutes">
+            <h2 className="meeting-summary-heading meeting-summary-heading--with-icon">
+              <FileText className="meeting-summary-heading-icon" strokeWidth={1.5} aria-hidden />
+              {isEducation ? 'Summary' : 'Minutes of the meeting'}
+            </h2>
+            <p className="meeting-summary-body">{summaryText}</p>
+          </section>
+        )}
 
-      {importantNotes && importantNotes.length > 0 && (
-        <section className="meeting-summary-section">
-          <h2 className="meeting-summary-heading">
-            {isEducation ? 'Important Concepts' : 'Important Notes'}
-          </h2>
-          <ul className="meeting-summary-list">
-            {importantNotes.map((n, idx) => (
-              <li key={idx}>{n}</li>
-            ))}
-          </ul>
-        </section>
-      )}
+        {keyPoints && keyPoints.length > 0 && (
+          <section className="meeting-summary-section meeting-summary-section--keypoints">
+            <h2 className="meeting-summary-heading meeting-summary-heading--with-icon">
+              <ListChecks className="meeting-summary-heading-icon" strokeWidth={1.5} aria-hidden />
+              Key Points
+            </h2>
+            <ul className="meeting-summary-list meeting-summary-list--checks">
+              {keyPoints.map((p, idx) => (
+                <li key={idx}>{p}</li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {decisionsDisplay.length > 0 && (
+          <section className="meeting-summary-section">
+            <h2 className="meeting-summary-heading meeting-summary-heading--with-icon">
+              <CheckCircle className="meeting-summary-heading-icon" strokeWidth={1.5} aria-hidden />
+              Decisions
+            </h2>
+            <ul className="meeting-summary-list">
+              {decisionsDisplay.map((d, idx) => (
+                <li key={idx}>{d}</li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {nextSteps && nextSteps.length > 0 && (
+          <section className="meeting-summary-section">
+            <h2 className="meeting-summary-heading">Next Steps</h2>
+            <ul className="meeting-summary-list">
+              {nextSteps.map((s, idx) => (
+                <li key={idx}>{s}</li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {importantNotes && importantNotes.length > 0 && (
+          <section className="meeting-summary-section">
+            <h2 className="meeting-summary-heading">
+              {isEducation ? 'Important Concepts' : 'Important Notes'}
+            </h2>
+            <ul className="meeting-summary-list">
+              {importantNotes.map((n, idx) => (
+                <li key={idx}>{n}</li>
+              ))}
+            </ul>
+          </section>
+        )}
+      </>
+    );
+  };
+
+  if (showActionsOnly) {
+    return <>{renderActionSection()}</>;
+  }
+
+  if (showRestOnly) {
+    return <>{renderRest()}</>;
+  }
+
+  return (
+    <div className="meeting-summary-content">
+      {renderActionSection()}
+      {renderRest()}
     </div>
   );
 }
