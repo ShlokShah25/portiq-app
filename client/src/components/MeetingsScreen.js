@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import TopNav from './TopNav';
@@ -73,9 +73,27 @@ const MeetingsScreen = ({ config }) => {
     });
   };
 
+  const fetchMeetings = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await axios.get('/meetings');
+      setMeetings(res.data?.meetings || []);
+      setError('');
+    } catch (err) {
+      console.error('Error fetching meetings:', err);
+      setError(
+        err.response?.data?.error ||
+          err.message ||
+          'Failed to load meetings'
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchMeetings();
-  }, []);
+  }, [fetchMeetings]);
 
   // Profile: plan limits + subscription gate for creating meetings
   useEffect(() => {
@@ -123,7 +141,7 @@ const MeetingsScreen = ({ config }) => {
       clearInterval(interval);
       window.removeEventListener('focus', handleFocus);
     };
-  }, []);
+  }, [fetchMeetings]);
 
   // Open "All meetings" card gallery when linked from meeting summary (View All Meetings)
   useEffect(() => {
@@ -137,7 +155,7 @@ const MeetingsScreen = ({ config }) => {
       replace: true,
       state: Object.keys(next).length ? next : undefined,
     });
-  }, [location.state?.showAllMeetings]);
+  }, [location.state?.showAllMeetings, fetchMeetings, location.pathname, navigate]);
 
   useEffect(() => {
     if (!location.state?.openStartModal) return;
