@@ -129,11 +129,8 @@ router.post('/', async (req, res) => {
       conferenceProvider,
       conferenceJoinUrl,
       externalMeetingId,
+      agenda,
     } = req.body;
-    
-    if (!meetingRoom || !title || !organizer) {
-      return res.status(400).json({ error: 'Meeting room, title, and organizer are required' });
-    }
 
     const admin = await getAdminFromRequest(req);
     const denied = subscriptionDeniedResponse(admin);
@@ -141,6 +138,28 @@ router.post('/', async (req, res) => {
       return res.status(denied.status).json(denied.json);
     }
     const planInfo = getPlanConstraints(admin);
+
+    const titleTrim = title != null ? String(title).trim() : '';
+    if (!titleTrim) {
+      return res.status(400).json({ error: 'Title is required' });
+    }
+
+    const joinUrlTrim =
+      conferenceJoinUrl != null ? String(conferenceJoinUrl).trim().slice(0, 2000) : '';
+    let roomTrim = meetingRoom != null ? String(meetingRoom).trim() : '';
+    if (!roomTrim) {
+      roomTrim = joinUrlTrim ? 'Online meeting' : 'Live recording';
+    }
+
+    let organizerTrim = organizer != null ? String(organizer).trim() : '';
+    if (!organizerTrim && admin) {
+      organizerTrim = (admin.email && String(admin.email).trim()) || (admin.username && String(admin.username).trim()) || 'Organizer';
+    }
+    if (!organizerTrim) {
+      organizerTrim = 'Organizer';
+    }
+
+    const agendaTrim = agenda != null ? String(agenda).trim().slice(0, 8000) : '';
 
     // Enforce max participants per plan
     if (
@@ -153,22 +172,25 @@ router.post('/', async (req, res) => {
       });
     }
 
+    const prov =
+      conferenceProvider != null ? String(conferenceProvider).trim().slice(0, 32).toLowerCase() : '';
+
     const meeting = new Meeting({
       adminId: admin ? admin._id : null,
-      meetingRoom,
-      title,
-      organizer,
+      meetingRoom: roomTrim,
+      title: titleTrim,
+      organizer: organizerTrim,
+      agenda: agendaTrim,
       participants: participants || [],
       startTime: null, // Set when user clicks "Start recording", not at creation
       scheduledTime: scheduledTime ? new Date(scheduledTime) : null,
       transcriptionEnabled: true,
       authorizedEditorEmail: authorizedEditorEmail || null,
-      conferenceProvider:
-        conferenceProvider != null ? String(conferenceProvider).trim().slice(0, 32) : '',
-      conferenceJoinUrl:
-        conferenceJoinUrl != null ? String(conferenceJoinUrl).trim().slice(0, 2000) : '',
+      conferenceProvider: prov,
+      conferenceJoinUrl: joinUrlTrim,
       externalMeetingId:
         externalMeetingId != null ? String(externalMeetingId).trim().slice(0, 256) : null,
+      conferenceBotStatus: joinUrlTrim ? 'queued' : '',
     });
 
     // Generate verification code for authorized editor if specified
@@ -263,6 +285,9 @@ router.post('/', async (req, res) => {
 
         const meetingDetailsForCalendar = [
           meeting.organizer ? `Organizer: ${meeting.organizer}` : null,
+          meeting.agenda && String(meeting.agenda).trim()
+            ? `Agenda:\n${String(meeting.agenda).trim()}`
+            : null,
           (meeting.participants || []).length
             ? `Participants:\n${(meeting.participants || [])
                 .map((p) => (p?.email ? `${p.name || p.email} (${p.email})` : p?.name || ''))
@@ -355,6 +380,9 @@ router.post('/', async (req, res) => {
             `Title: ${meeting.title}`,
             `Venue: ${meeting.meetingRoom}`,
             `Time: ${whenText}`,
+            ...(meeting.agenda && String(meeting.agenda).trim()
+              ? ['', `Agenda:`, String(meeting.agenda).trim()]
+              : []),
             '',
             'Please arrive a few minutes early to ensure a prompt start.',
             ...textCalendarLines,
@@ -376,6 +404,15 @@ router.post('/', async (req, res) => {
                 <strong>Venue:</strong> ${meeting.meetingRoom}<br/>
                 <strong>Time:</strong> ${whenText}
               </p>
+              ${
+                meeting.agenda && String(meeting.agenda).trim()
+                  ? `<p><strong>Agenda:</strong><br/>${String(meeting.agenda)
+                      .trim()
+                      .replace(/</g, '&lt;')
+                      .replace(/>/g, '&gt;')
+                      .replace(/\n/g, '<br/>')}</p>`
+                  : ''
+              }
               <p>Please arrive a few minutes early so that the discussion can start on time.</p>
               ${scheduleCalendarBlock}
               <br/>
@@ -831,6 +868,42 @@ router.post('/:id/schedule-follow-up', async (req, res) => {
   } catch (error) {
     console.error('Error scheduling follow-up:', error);
     res.status(500).json({ error: 'Failed to schedule follow-up.' });
+  }
+});
+
+/**
+ * Update conference / bot fields (authenticated admin, scoped meeting).
+ */
+router.patch('/:id', async (req, res) => {
+  try {
+    const meeting = await Meeting.findById(req.params.id);
+    if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
+    const admin = await getAdminFromRequest(req);
+    if (!admin) return res.status(401).json({ error: 'Unauthorized' });
+    if (!canAccessMeeting(meeting, admin)) return res.status(404).json({ error: 'Meeting not found' });
+
+    const { conferenceBotStatus, conferenceProvider, conferenceJoinUrl } = req.body || {};
+    const allowedBot = ['', 'queued', 'joining', 'in_meeting', 'ended', 'failed'];
+
+    if (conferenceBotStatus !== undefined) {
+      const v = String(conferenceBotStatus).trim().toLowerCase();
+      if (!allowedBot.includes(v)) {
+        return res.status(400).json({ error: 'Invalid conferenceBotStatus' });
+      }
+      meeting.conferenceBotStatus = v;
+    }
+    if (conferenceProvider !== undefined) {
+      meeting.conferenceProvider = String(conferenceProvider).trim().slice(0, 32).toLowerCase();
+    }
+    if (conferenceJoinUrl !== undefined) {
+      meeting.conferenceJoinUrl = String(conferenceJoinUrl).trim().slice(0, 2000);
+    }
+
+    await meeting.save();
+    res.json({ success: true, meeting });
+  } catch (error) {
+    console.error('Error patching meeting:', error);
+    res.status(500).json({ error: 'Failed to update meeting' });
   }
 });
 

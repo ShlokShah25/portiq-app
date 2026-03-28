@@ -12,9 +12,13 @@ import {
   VOICE_ENROLLMENT_BOOK_PHRASE,
   voiceEnrollmentSentenceForParticipant,
 } from '../utils/voiceEnrollment';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Mic, Video } from 'lucide-react';
+import StartMeetingModal from './StartMeetingModal';
+import MeetingStatusBadge from './MeetingStatusBadge';
+import { isOnlineMeeting } from '../utils/meetingDisplayStatus';
 import './MeetingSummary.css';
 import './MeetingsScreen.css';
+import './MeetingUiBadges.css';
 
 const MARKETING_URL =
   process.env.REACT_APP_MARKETING_URL ||
@@ -73,6 +77,8 @@ const MeetingsScreen = ({ config }) => {
   const [maxParticipantsPerMeeting, setMaxParticipantsPerMeeting] = useState(null); // 10/20/30 by plan, null = no limit
   /** null = loading profile; ok = can create; inactive / payment_pending = blocked */
   const [subscriptionGate, setSubscriptionGate] = useState(null);
+  const [startModalOpen, setStartModalOpen] = useState(false);
+  const [advancedMeetingForm, setAdvancedMeetingForm] = useState(() => !!isEducation);
 
   const syncMeetingAfterActionItemPatch = (m) => {
     setSelectedMeeting(m);
@@ -204,6 +210,17 @@ const MeetingsScreen = ({ config }) => {
       state: Object.keys(next).length ? next : undefined,
     });
   }, [location.state?.showAllMeetings]);
+
+  useEffect(() => {
+    if (!location.state?.openStartModal) return;
+    setStartModalOpen(true);
+    const next = { ...(location.state || {}) };
+    delete next.openStartModal;
+    navigate(location.pathname, {
+      replace: true,
+      state: Object.keys(next).length ? next : undefined,
+    });
+  }, [location.state?.openStartModal, location.pathname, navigate]);
 
   useEffect(() => {
     if (!location.state?.focusRecordingUpload || !meetings.length) return;
@@ -748,6 +765,13 @@ const MeetingsScreen = ({ config }) => {
           <div className="meetings-top-bar-actions">
             <button
               type="button"
+              className="meetings-see-all-btn meetings-start-session-btn"
+              onClick={() => setStartModalOpen(true)}
+            >
+              Start session
+            </button>
+            <button
+              type="button"
               className="meetings-see-all-btn"
               aria-expanded={showAllMeetings}
               onClick={() => {
@@ -791,8 +815,8 @@ const MeetingsScreen = ({ config }) => {
             </div>
             {allMeetingsSorted.length === 0 ? (
               <div className="meetings-all-empty-block">
-                <p className="info-text meetings-all-empty">No meetings yet.</p>
-                <p className="meetings-all-empty-sub">Start a meeting to begin tracking insights.</p>
+                <p className="info-text meetings-all-empty">No meetings yet. Start your first session.</p>
+                <p className="meetings-all-empty-sub">Create a live or online meeting to see it here.</p>
               </div>
             ) : (
               <div className="meetings-all-grid">
@@ -899,6 +923,38 @@ const MeetingsScreen = ({ config }) => {
               <div className="card-header">
                 <h2>{T.newMeeting()}</h2>
               </div>
+              {!isEducation && !advancedMeetingForm && (
+                <div className="meetings-quick-start">
+                  <p className="meetings-quick-start-desc">
+                    Start a live recording or join Zoom or Teams with PortIQ Assistant.
+                  </p>
+                  <div className="meetings-quick-start-actions">
+                    <button
+                      type="button"
+                      className="btn btn-primary meetings-quick-start-primary"
+                      onClick={() => setStartModalOpen(true)}
+                    >
+                      Start session
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => setAdvancedMeetingForm(true)}
+                    >
+                      Advanced setup
+                    </button>
+                  </div>
+                </div>
+              )}
+              {!isEducation && advancedMeetingForm && (
+                <button
+                  type="button"
+                  className="meetings-advanced-collapse"
+                  onClick={() => setAdvancedMeetingForm(false)}
+                >
+                  Back to quick start
+                </button>
+              )}
               {subscriptionGate === 'inactive' && (
                 <div className="meetings-subscription-banner meetings-subscription-banner--inactive" role="alert">
                   <div className="meetings-subscription-banner-text">
@@ -920,6 +976,7 @@ const MeetingsScreen = ({ config }) => {
                   </a>
                 </div>
               )}
+              {(isEducation || advancedMeetingForm) && (
               <form onSubmit={handleCreate} className="meetings-form">
                 {isEducation && (
                   <div className="form-group">
@@ -1507,6 +1564,7 @@ const MeetingsScreen = ({ config }) => {
                   {loading ? 'Creating...' : 'Create Meeting'}
                 </button>
               </form>
+              )}
             </div>
 
             {false && selectedMeeting && (
@@ -2114,11 +2172,14 @@ const MeetingsScreen = ({ config }) => {
                   <>
                     {scheduledMeetings.length === 0 ? (
                       <div className="meetings-list-empty">
-                        <p className="info-text">No meetings scheduled yet.</p>
-                        <p className="meetings-list-empty-sub">Start a meeting to begin tracking insights.</p>
+                        <p className="info-text">No meetings yet. Start your first session.</p>
+                        <p className="meetings-list-empty-sub">Use Start session or Advanced setup.</p>
                       </div>
                     ) : (
-                      scheduledMeetings.map(m => (
+                      scheduledMeetings.map(m => {
+                        const online = isOnlineMeeting(m);
+                        const p = String(m.conferenceProvider || '').toLowerCase();
+                        return (
                         <div
                           key={m._id}
                           className="meeting-item"
@@ -2136,9 +2197,28 @@ const MeetingsScreen = ({ config }) => {
                               }
                             }}
                           >
-                            <div className="meeting-title" style={{ marginBottom: '4px' }}>{m.title}</div>
-                            <div className="meeting-meta">
-                              <span>{m.meetingRoom || 'No location'}</span>
+                            <div className="meeting-title" style={{ marginBottom: '6px' }}>{m.title}</div>
+                            <div className="meetings-list-badges-row">
+                              {online ? (
+                                <span className="meeting-ui-badge meeting-ui-badge--mode">
+                                  <Video className="meeting-ui-badge__icon" size={11} strokeWidth={2} aria-hidden />
+                                  Online Meeting
+                                </span>
+                              ) : (
+                                <span className="meeting-ui-badge meeting-ui-badge--mode">
+                                  <Mic className="meeting-ui-badge__icon" size={11} strokeWidth={2} aria-hidden />
+                                  Live Recording
+                                </span>
+                              )}
+                              {p === 'zoom' && (
+                                <span className="meeting-ui-badge meeting-ui-badge--platform-zoom">Zoom</span>
+                              )}
+                              {p === 'teams' && (
+                                <span className="meeting-ui-badge meeting-ui-badge--platform-teams">Teams</span>
+                              )}
+                              <MeetingStatusBadge meeting={m} />
+                            </div>
+                            <div className="meeting-meta" style={{ marginTop: 8 }}>
                               <span>{m.scheduledTime ? new Date(m.scheduledTime).toLocaleString() : 'No time set'}</span>
                             </div>
                           </div>
@@ -2146,13 +2226,17 @@ const MeetingsScreen = ({ config }) => {
                             type="button"
                             className="btn btn-primary"
                             style={{ padding: '8px 12px', borderRadius: '10px', flexShrink: 0 }}
-                            onClick={() => navigate(`/meetings/${m._id}/room`)}
-                            title="Start meeting"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(online ? `/meetings/${m._id}` : `/meetings/${m._id}/room`);
+                            }}
+                            title={online ? 'Open meeting' : 'Start meeting'}
                           >
-                            Start
+                            {online ? 'Open' : 'Start'}
                           </button>
                         </div>
-                      ))
+                        );
+                      })
                     )}
                   </>
                 )}
@@ -2160,9 +2244,15 @@ const MeetingsScreen = ({ config }) => {
                 {rightTab === 'recent' && (
                   <>
                     {recentMeetings.length === 0 && (
-                      <p className="info-text">No meetings created yet.</p>
+                      <div className="meetings-list-empty">
+                        <p className="info-text">No meetings yet. Start your first session.</p>
+                      </div>
                     )}
-                    {recentMeetings.map(m => (
+                    {recentMeetings.map(m => {
+                      const online = isOnlineMeeting(m);
+                      const p = String(m.conferenceProvider || '').toLowerCase();
+                      const when = m.scheduledTime || m.startTime || m.createdAt;
+                      return (
                       <div
                         key={m._id}
                         className={`meeting-item ${selectedMeeting && selectedMeeting._id === m._id ? 'active' : ''} ${m.summaryStatus === 'Pending Approval' && m.transcriptionStatus === 'Completed' ? 'needs-approval' : ''}`}
@@ -2193,12 +2283,32 @@ const MeetingsScreen = ({ config }) => {
                             </span>
                           )}
                         </div>
-                        <div className="meeting-meta">
-                          <span>{m.meetingRoom || 'No location'}</span>
-                          <span>{m.status}</span>
+                        <div className="meetings-list-badges-row" style={{ marginTop: 6 }}>
+                          {online ? (
+                            <span className="meeting-ui-badge meeting-ui-badge--mode">
+                              <Video className="meeting-ui-badge__icon" size={11} strokeWidth={2} aria-hidden />
+                              Online Meeting
+                            </span>
+                          ) : (
+                            <span className="meeting-ui-badge meeting-ui-badge--mode">
+                              <Mic className="meeting-ui-badge__icon" size={11} strokeWidth={2} aria-hidden />
+                              Live Recording
+                            </span>
+                          )}
+                          {p === 'zoom' && (
+                            <span className="meeting-ui-badge meeting-ui-badge--platform-zoom">Zoom</span>
+                          )}
+                          {p === 'teams' && (
+                            <span className="meeting-ui-badge meeting-ui-badge--platform-teams">Teams</span>
+                          )}
+                          <MeetingStatusBadge meeting={m} />
+                        </div>
+                        <div className="meeting-meta" style={{ marginTop: 8 }}>
+                          <span>{when ? new Date(when).toLocaleString() : '—'}</span>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </>
                 )}
               </div>
@@ -2207,6 +2317,13 @@ const MeetingsScreen = ({ config }) => {
         </div>
         </div>
       </div>
+
+      <StartMeetingModal
+        open={startModalOpen}
+        onClose={() => setStartModalOpen(false)}
+        companyName={companyName}
+        subscriptionGate={subscriptionGate}
+      />
     </div>
   );
 };

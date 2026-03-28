@@ -136,7 +136,9 @@ router.post('/login', async (req, res) => {
  * status is included so the client can show gating without a catch-22.
  */
 router.get('/profile', authenticateAdmin, async (req, res) => {
-  const admin = await Admin.findById(req.admin._id).lean();
+  const admin = await Admin.findById(req.admin._id)
+    .select('+zoomOAuth.refreshToken +teamsOAuth.refreshToken')
+    .lean();
   if (!admin) return res.status(401).json({ error: 'Unauthorized' });
 
   const pc = getPlanConstraints(req.admin);
@@ -159,8 +161,44 @@ router.get('/profile', authenticateAdmin, async (req, res) => {
       allowsTranslatedSummary: !!pc.allowsTranslatedSummary,
       allowsActionItemReminders: !!pc.allowsActionItemReminders,
       allowsConferenceBots: !!pc.allowsConferenceBots,
+      meetingPlatforms: {
+        zoom: !!(
+          (admin.meetingPlatforms && admin.meetingPlatforms.zoom) ||
+          (admin.zoomOAuth && admin.zoomOAuth.refreshToken)
+        ),
+        teams: !!(
+          (admin.meetingPlatforms && admin.meetingPlatforms.teams) ||
+          (admin.teamsOAuth && admin.teamsOAuth.refreshToken)
+        ),
+      },
     }
   });
+});
+
+/**
+ * Mark Zoom and/or Teams as connected for this admin (OAuth callback or user confirmation).
+ */
+router.patch('/meeting-platforms', authenticateAdmin, async (req, res) => {
+  try {
+    const zoom = req.body?.zoom;
+    const teams = req.body?.teams;
+    const update = {};
+    if (typeof zoom === 'boolean') update['meetingPlatforms.zoom'] = zoom;
+    if (typeof teams === 'boolean') update['meetingPlatforms.teams'] = teams;
+    if (Object.keys(update).length === 0) {
+      return res.status(400).json({ error: 'Provide zoom and/or teams as booleans.' });
+    }
+    const admin = await Admin.findByIdAndUpdate(req.admin._id, { $set: update }, { new: true }).lean();
+    res.json({
+      meetingPlatforms: {
+        zoom: !!(admin.meetingPlatforms && admin.meetingPlatforms.zoom),
+        teams: !!(admin.meetingPlatforms && admin.meetingPlatforms.teams),
+      },
+    });
+  } catch (e) {
+    console.error('Error updating meeting platforms:', e);
+    res.status(500).json({ error: 'Failed to update meeting platforms.' });
+  }
 });
 
 /**

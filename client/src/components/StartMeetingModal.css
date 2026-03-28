@@ -1,0 +1,254 @@
+.start-meeting-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.start-meeting-modal {
+  width: 100%;
+  max-width: 440px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  background: #141416;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5);
+}
+
+.start-meeting-modal__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.start-meeting-modal__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #fafafa;
+  letter-spacing: -0.02em;
+}
+
+.start-meeting-modal__close {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #9ca3af;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.start-meeting-modal__close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e5e7eb;
+}
+
+.start-meeting-field {
+  margin-bottom: 16px;
+}
+
+.start-meeting-field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #9ca3af;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.start-meeting-field input,
+.start-meeting-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: #f5f5f7;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.start-meeting-field textarea {
+  min-height: 72px;
+  resize: vertical;
+}
+
+.start-meeting-field input::placeholder,
+.start-meeting-field textarea::placeholder {
+  color: #6b7280;
+}
+
+.start-meeting-section-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #9ca3af;
+  margin: 20px 0 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.start-meeting-option {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  margin-bottom: 8px;
+  text-align: left;
+  width: 100%;
+  color: inherit;
+  font: inherit;
+  box-sizing: border-box;
+}
+
+.start-meeting-option:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.start-meeting-option--active {
+  border-color: rgba(59, 130, 246, 0.45);
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.start-meeting-option input {
+  margin-top: 3px;
+  accent-color: #3b82f6;
+}
+
+.start-meeting-option__body strong {
+  display: block;
+  color: #f5f5f7;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.start-meeting-option__body span {
+  font-size: 13px;
+  color: #9ca3af;
+  line-height: 1.4;
+}
+
+.start-meeting-detected {
+  font-size: 12px;
+  color: #6ee7b7;
+  margin-top: 8px;
+}
+
+.start-meeting-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  font-size: 13px;
+  color: #d1d5db;
+  cursor: pointer;
+}
+
+.start-meeting-checkbox input {
+  accent-color: #3b82f6;
+}
+
+.start-meeting-actions {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.start-meeting-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+}
+
+.start-meeting-btn--primary {
+  background: #3b82f6;
+  color: #fff;
+}
+
+.start-meeting-btn--primary:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.start-meeting-btn--primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.start-meeting-btn--ghost {
+  background: transparent;
+  color: #9ca3af;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.start-meeting-btn--ghost:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #e5e7eb;
+}
+
+.start-meeting-error {
+  font-size: 13px;
+  color: #fca5a5;
+  margin-bottom: 12px;
+}
+
+.start-meeting-status {
+  text-align: center;
+  padding: 20px 8px;
+}
+
+.start-meeting-status__title {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #fafafa;
+}
+
+.start-meeting-status__sub {
+  margin: 0;
+  font-size: 13px;
+  color: #9ca3af;
+  line-height: 1.5;
+}
+
+.start-meeting-classroom select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: #f5f5f7;
+  font-size: 14px;
+}

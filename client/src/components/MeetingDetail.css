@@ -313,3 +313,67 @@
   color: #fca5a5;
   margin-bottom: 12px;
 }
+
+.meeting-detail-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.meeting-detail-agenda {
+  margin: 12px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #d1d5db;
+  white-space: pre-wrap;
+}
+
+.meeting-detail-capture {
+  margin-bottom: 24px;
+  padding: 16px 18px;
+  border-radius: 12px;
+  border: 1px solid #27272a;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.meeting-detail-capture-title {
+  margin: 0 0 14px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.meeting-detail-capture-dl {
+  margin: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.meeting-detail-capture-dl dt {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b7280;
+  margin: 0 0 4px;
+}
+
+.meeting-detail-capture-dl dd {
+  margin: 0;
+  font-size: 14px;
+  color: #e5e7eb;
+}
+
+.meeting-detail-capture-note {
+  margin: 14px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #9ca3af;
+}

@@ -42,6 +42,11 @@ const meetingSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  agenda: {
+    type: String,
+    default: '',
+    trim: true,
+  },
   organizer: {
     type: String,
     required: true,

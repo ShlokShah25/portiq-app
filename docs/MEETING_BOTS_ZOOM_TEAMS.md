@@ -35,7 +35,7 @@ Trying to run Zoom/Teams native media **inside** the same short-lived web dyno i
 ### Zoom
 
 1. **Zoom Marketplace** — Create an app (OAuth or Server-to-Server, depending on whether the bot acts as a user or account-level).
-2. **Redirect URI(s)** — e.g. `https://<your-api>/api/integrations/oauth/zoom/callback` (we can add this route next).
+2. **Redirect URI(s)** — `https://<your-api-host>/api/integrations/oauth/zoom/callback` (must match `ZOOM_OAUTH_REDIRECT_URI` on the server). See `docs/RAILWAY_ENV_INTEGRATIONS.md`.
 3. **Webhook** — Event subscription endpoint: `https://<your-api>/api/integrations/webhooks/zoom`
 4. **Secrets for Railway/hosting**:
    - `ZOOM_CLIENT_ID`

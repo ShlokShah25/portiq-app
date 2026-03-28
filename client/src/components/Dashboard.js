@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import {
   Calendar,
@@ -7,21 +7,71 @@ import {
   CheckCircle2,
   CheckSquare,
   Mic,
-  Upload,
+  Plug,
 } from 'lucide-react';
 import TopNav from './TopNav';
+import StartMeetingModal from './StartMeetingModal';
+import MeetingPlatformsModal from './MeetingPlatformsModal';
 import './Dashboard.css';
+import './DashboardIntegrations.css';
 
 const Dashboard = ({ config }) => {
-  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [startModalOpen, setStartModalOpen] = useState(false);
+  const [connectModalOpen, setConnectModalOpen] = useState(false);
+  const [meetingPlatforms, setMeetingPlatforms] = useState({ zoom: false, teams: false });
+  const [subscriptionGate, setSubscriptionGate] = useState(null);
 
   useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  const loadProfile = useCallback(async () => {
+    try {
+      const res = await axios.get('/admin/profile');
+      const admin = res.data?.admin;
+      const mp = admin?.meetingPlatforms;
+      setMeetingPlatforms({
+        zoom: !!(mp && mp.zoom),
+        teams: !!(mp && mp.teams),
+      });
+      if (!admin) {
+        setSubscriptionGate('ok');
+        return;
+      }
+      const u = String(admin.username || '').toLowerCase();
+      if (u === 'admin' || admin.hasActiveSubscription || admin.complimentaryAccess) {
+        setSubscriptionGate('ok');
+      } else if (admin.subscriptionPaymentPending) {
+        setSubscriptionGate('payment_pending');
+      } else {
+        setSubscriptionGate('inactive');
+      }
+    } catch {
+      setMeetingPlatforms({ zoom: false, teams: false });
+      setSubscriptionGate('ok');
+    }
+  }, []);
+
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
+
+  useEffect(() => {
+    const z = searchParams.get('zoom');
+    const t = searchParams.get('teams');
+    if (!z && !t) return;
+    (async () => {
+      if (z === 'connected' || t === 'connected') {
+        await loadProfile();
+      }
+      setSearchParams({}, { replace: true });
+    })();
+  }, [searchParams, setSearchParams, loadProfile]);
 
   const fetchData = async () => {
     try {
@@ -51,6 +101,7 @@ const Dashboard = ({ config }) => {
   const nOverdue = stats?.overdueTasks ?? 0;
   const nDoneWeek = stats?.completedThisWeek ?? 0;
   const nMeetWeek = stats?.meetingsThisWeek ?? 0;
+  const hasConnectedPlatform = meetingPlatforms.zoom || meetingPlatforms.teams;
 
   return (
     <div className="dashboard-screen">
@@ -64,25 +115,36 @@ const Dashboard = ({ config }) => {
             </p>
           </div>
 
+          {!hasConnectedPlatform && (
+            <div className="dashboard-setup-card">
+              <div className="dashboard-setup-card__text">
+                <p className="dashboard-setup-card__title">
+                  <Plug size={18} strokeWidth={1.75} aria-hidden />
+                  Connect your meeting platforms
+                </p>
+                <p className="dashboard-setup-card__desc">
+                  Connect Zoom or Teams to automatically join your meetings
+                </p>
+              </div>
+              <button
+                type="button"
+                className="dashboard-setup-card__cta"
+                onClick={() => setConnectModalOpen(true)}
+              >
+                Connect Zoom / Teams
+              </button>
+            </div>
+          )}
+
           <div className="dashboard-actions">
             <div className="dashboard-actions-row">
-              <Link
-                to="/meetings"
+              <button
+                type="button"
                 className="dashboard-btn-primary"
-                style={{ textDecoration: 'none' }}
+                onClick={() => setStartModalOpen(true)}
               >
                 <Mic className="dashboard-lucide" strokeWidth={1.5} aria-hidden />
                 Start Meeting
-              </Link>
-              <button
-                type="button"
-                className="dashboard-btn-secondary"
-                onClick={() =>
-                  navigate('/meetings', { state: { focusRecordingUpload: true } })
-                }
-              >
-                <Upload className="dashboard-lucide" strokeWidth={1.5} aria-hidden />
-                Upload Recording
               </button>
             </div>
           </div>
@@ -149,6 +211,25 @@ const Dashboard = ({ config }) => {
           </div>
         </div>
       </div>
+
+      <StartMeetingModal
+        open={startModalOpen}
+        onClose={() => setStartModalOpen(false)}
+        companyName={config?.companyName || 'Your Company'}
+        subscriptionGate={subscriptionGate}
+      />
+      <MeetingPlatformsModal
+        open={connectModalOpen}
+        onClose={() => setConnectModalOpen(false)}
+        onSaved={(mp) => {
+          if (mp) {
+            setMeetingPlatforms({
+              zoom: !!mp.zoom,
+              teams: !!mp.teams,
+            });
+          }
+        }}
+      />
     </div>
   );
 };

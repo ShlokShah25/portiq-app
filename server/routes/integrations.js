@@ -8,8 +8,14 @@ router.get('/status', (req, res) => {
   res.json({
     zoomWebhook: !!process.env.ZOOM_WEBHOOK_SECRET_TOKEN,
     zoomOAuthClient: !!process.env.ZOOM_CLIENT_ID,
-    teamsGraphApp: !!process.env.TEAMS_GRAPH_CLIENT_ID,
-    teamsTenantHint: !!process.env.TEAMS_APP_TENANT_ID,
+    zoomOAuthRedirect: !!process.env.ZOOM_OAUTH_REDIRECT_URI,
+    teamsGraphApp: !!(
+      process.env.TEAMS_GRAPH_CLIENT_ID || process.env.MICROSOFT_CLIENT_ID
+    ),
+    teamsOAuthRedirect: !!process.env.TEAMS_OAUTH_REDIRECT_URI,
+    teamsTenantHint: !!(
+      process.env.TEAMS_APP_TENANT_ID || process.env.MICROSOFT_TENANT_ID
+    ),
     conferenceBotsNote:
       'Joining meetings and capturing audio runs in a separate bot worker; webhooks land here first.',
   });

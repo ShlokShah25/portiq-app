@@ -71,7 +71,30 @@ const adminSchema = new mongoose.Schema({
   savedParticipants: {
     type: [{ name: String, email: String }],
     default: []
-  }
+  },
+  /** Set when user completes Zoom/Teams OAuth (or manual confirm until OAuth ships). */
+  meetingPlatforms: {
+    zoom: { type: Boolean, default: false },
+    teams: { type: Boolean, default: false },
+  },
+  /** Zoom user OAuth tokens (never returned in API JSON). */
+  zoomOAuth: {
+    accessToken: { type: String, default: null, select: false },
+    refreshToken: { type: String, default: null, select: false },
+    expiresAt: { type: Date, default: null },
+    scope: { type: String, default: null },
+    accountId: { type: String, default: null },
+    email: { type: String, default: null },
+  },
+  /** Microsoft Graph delegated tokens for Teams-related features. */
+  teamsOAuth: {
+    accessToken: { type: String, default: null, select: false },
+    refreshToken: { type: String, default: null, select: false },
+    expiresAt: { type: Date, default: null },
+    scope: { type: String, default: null },
+    tenantId: { type: String, default: null },
+    userPrincipalName: { type: String, default: null },
+  },
 });
 
 // Hash password before saving

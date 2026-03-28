@@ -84,6 +84,7 @@ app.use('/api/config', require('./routes/config'));
 app.use('/api/saas', require('./routes/saas'));
 app.use('/api', require('./routes/billing'));
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/integrations', require('./routes/integrationOAuth'));
 app.use('/api/integrations', require('./routes/integrations'));
 app.get('/api/integrations/webhooks/teams-graph', (req, res) =>
   integrationWebhooks.teamsGraphWebhook(req, res)

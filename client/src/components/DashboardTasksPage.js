@@ -148,6 +148,9 @@ export default function DashboardTasksPage() {
 
   const rowAccentClass = (row) => {
     if (internalBucket === 'meetings_week') return 'dashboard-task-row';
+    if (internalBucket === 'completed_week') return 'dashboard-task-row';
+    const st = row.status || 'not_started';
+    if (st === 'done') return 'dashboard-task-row';
     if (!row.dueDate) return 'dashboard-task-row';
     const due = new Date(row.dueDate);
     if (Number.isNaN(due.getTime())) return 'dashboard-task-row';

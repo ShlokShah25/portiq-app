@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { T } from '../config/terminology';
 import TopNav from './TopNav';
@@ -10,6 +10,8 @@ import './MeetingDetail.css';
 const MeetingInProgress = () => {
   const { id: meetingId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const autostartDoneRef = useRef(false);
   const [meetingEnded, setMeetingEnded] = useState(false);
   const [meeting, setMeeting] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -166,6 +168,16 @@ const MeetingInProgress = () => {
       setError('Unable to access microphone. Please check browser permissions.');
     }
   };
+
+  useEffect(() => {
+    if (searchParams.get('autostart') !== '1' || autostartDoneRef.current) return;
+    if (!meeting || meeting.status !== 'Scheduled' || !meeting.transcriptionEnabled) return;
+    autostartDoneRef.current = true;
+    const t = setTimeout(() => {
+      startRecording();
+    }, 500);
+    return () => clearTimeout(t);
+  }, [meeting, searchParams]);
 
   const pauseRecording = () => {
     const recorder = mediaRecorderRef.current;
@@ -614,7 +626,7 @@ const MeetingInProgress = () => {
                 onClick={startRecording}
               >
                 <span className="mip-record-dot" aria-hidden />
-                Start recording
+                Start Recording
               </button>
             )}
             {recording && (

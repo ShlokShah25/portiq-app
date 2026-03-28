@@ -1,0 +1,73 @@
+.meeting-ui-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.3;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.meeting-ui-badge--muted {
+  color: #9ca3af;
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.meeting-ui-badge--joining {
+  color: #93c5fd;
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.28);
+}
+
+.meeting-ui-badge--joined,
+.meeting-ui-badge--live {
+  color: #86efac;
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.25);
+}
+
+.meeting-ui-badge--processing {
+  color: #fcd34d;
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.28);
+}
+
+.meeting-ui-badge--success {
+  color: #6ee7b7;
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.meeting-ui-badge--warn {
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
+.meeting-ui-badge--platform-zoom {
+  color: #7dd3fc;
+  background: rgba(14, 165, 233, 0.12);
+  border-color: rgba(14, 165, 233, 0.25);
+}
+
+.meeting-ui-badge--platform-teams {
+  color: #c4b5fd;
+  background: rgba(99, 102, 241, 0.14);
+  border-color: rgba(129, 140, 248, 0.35);
+}
+
+.meeting-ui-badge--mode {
+  color: #d1d5db;
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.meeting-ui-badge__icon {
+  flex-shrink: 0;
+  opacity: 0.9;
+}

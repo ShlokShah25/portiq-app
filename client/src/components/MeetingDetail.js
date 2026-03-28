@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
+import { Video, Mic, Bot } from 'lucide-react';
 import TopNav from './TopNav';
 import { T } from '../config/terminology';
+import MeetingStatusBadge from './MeetingStatusBadge';
+import { isOnlineMeeting } from '../utils/meetingDisplayStatus';
 import './MeetingDetail.css';
+import './MeetingUiBadges.css';
 
 function toGoogleDateTimeUtc(d) {
   // YYYYMMDDTHHMMSSZ
@@ -219,6 +223,10 @@ const MeetingDetail = () => {
   const isScheduled = meeting.status === 'Scheduled';
   const isInProgress = meeting.status === 'In Progress';
   const isCompleted = meeting.status === 'Completed';
+  const online = isOnlineMeeting(meeting);
+  const prov = String(meeting.conferenceProvider || '').toLowerCase();
+  const platformLabel =
+    prov === 'zoom' ? 'Zoom' : prov === 'teams' ? 'Teams' : online ? 'Online' : null;
   const hasSummary = meeting.transcriptionStatus === 'Completed' && (meeting.summary || meeting.pendingSummary);
   const pendingApproval = meeting.summaryStatus === 'Pending Approval' && hasSummary;
 
@@ -333,14 +341,58 @@ const MeetingDetail = () => {
             </div>
           )}
           <div className="meeting-detail-header">
-            <span className={`meeting-detail-status meeting-detail-status--${(meeting.status || '').toLowerCase().replace(' ', '-')}`}>
-              {meeting.status || 'Scheduled'}
-            </span>
+            <div className="meeting-detail-badge-row">
+              <MeetingStatusBadge meeting={meeting} />
+              {online ? (
+                <span className="meeting-ui-badge meeting-ui-badge--mode">
+                  <Video className="meeting-ui-badge__icon" size={12} strokeWidth={2} aria-hidden />
+                  Online Meeting
+                </span>
+              ) : (
+                <span className="meeting-ui-badge meeting-ui-badge--mode">
+                  <Mic className="meeting-ui-badge__icon" size={12} strokeWidth={2} aria-hidden />
+                  Live Recording
+                </span>
+              )}
+              {prov === 'zoom' && (
+                <span className="meeting-ui-badge meeting-ui-badge--platform-zoom">Zoom</span>
+              )}
+              {prov === 'teams' && (
+                <span className="meeting-ui-badge meeting-ui-badge--platform-teams">Teams</span>
+              )}
+            </div>
             <h1 className="meeting-detail-title">{meeting.title || 'Untitled meeting'}</h1>
             {meeting.meetingRoom && (
               <p className="meeting-detail-room">{meeting.meetingRoom}</p>
             )}
+            {meeting.agenda && String(meeting.agenda).trim() && (
+              <p className="meeting-detail-agenda">{String(meeting.agenda).trim()}</p>
+            )}
           </div>
+
+          {online && (
+            <div className="meeting-detail-capture">
+              <h2 className="meeting-detail-capture-title">
+                <Bot size={16} strokeWidth={1.75} aria-hidden />
+                Meeting Capture
+              </h2>
+              <dl className="meeting-detail-capture-dl">
+                <div>
+                  <dt>Platform</dt>
+                  <dd>{platformLabel || '—'}</dd>
+                </div>
+                <div>
+                  <dt>Status</dt>
+                  <dd>
+                    <MeetingStatusBadge meeting={meeting} />
+                  </dd>
+                </div>
+              </dl>
+              <p className="meeting-detail-capture-note">
+                PortIQ Assistant will automatically join this meeting
+              </p>
+            </div>
+          )}
 
           <div className="meeting-detail-meta">
             <div className="meeting-detail-meta-item">
@@ -360,10 +412,25 @@ const MeetingDetail = () => {
           </div>
 
           <div className="meeting-detail-actions">
-            {isScheduled && (
+            {isScheduled && !online && (
               <button type="button" className="meeting-detail-btn meeting-detail-btn--primary" onClick={handleStartMeeting}>
                 {T.startMeeting()}
               </button>
+            )}
+            {isScheduled && online && meeting.conferenceJoinUrl && (
+              <>
+                <a
+                  href={meeting.conferenceJoinUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="meeting-detail-btn meeting-detail-btn--secondary"
+                >
+                  Open meeting link
+                </a>
+                <p className="meeting-detail-hint">
+                  PortIQ Assistant follows this session when connected.
+                </p>
+              </>
             )}
             {isScheduled && meeting.scheduledTime && (
               <div className="meeting-detail-calendar-actions">

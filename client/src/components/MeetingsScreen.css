@@ -70,6 +70,65 @@
   color: #fff;
 }
 
+.meetings-start-session-btn {
+  background: rgba(59, 130, 246, 0.18);
+  border-color: rgba(59, 130, 246, 0.45);
+  color: #e0e7ff;
+}
+
+.meetings-start-session-btn:hover {
+  background: rgba(59, 130, 246, 0.28);
+  border-color: rgba(59, 130, 246, 0.55);
+  color: #fff;
+}
+
+.meetings-quick-start {
+  padding: 0 4px 20px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.meetings-quick-start-desc {
+  margin: 0 0 14px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #9ca3af;
+}
+
+.meetings-quick-start-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.meetings-quick-start-primary {
+  min-height: 40px;
+}
+
+.meetings-advanced-collapse {
+  display: block;
+  margin: 0 0 16px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #93c5fd;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+}
+
+.meetings-advanced-collapse:hover {
+  text-decoration: underline;
+}
+
+.meetings-list-badges-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
 /* Main Content Area */
 .meetings-content {
   flex: 1;
