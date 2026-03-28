@@ -65,9 +65,9 @@
 
 .dashboard-meetings-cta__head {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 8px 20px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
   margin: 0 0 20px;
   padding-bottom: 18px;
   border-bottom: 1px solid #1f1f1f;
@@ -87,20 +87,11 @@
 .dashboard-meetings-cta__desc {
   margin: 0;
   padding: 0;
-  flex: 1 1 220px;
-  min-width: 0;
+  max-width: 42rem;
   font-size: 14px;
   line-height: 1.5;
   color: var(--text-muted, #9ca3af);
   font-family: var(--font-sans, 'Inter', system-ui, sans-serif);
-}
-
-@media (max-width: 520px) {
-  .dashboard-meetings-cta__head {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
-  }
 }
 
 .dashboard-actions-row {

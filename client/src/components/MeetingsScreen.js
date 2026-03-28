@@ -36,8 +36,6 @@ const MeetingsScreen = ({ config }) => {
   const [polling, setPolling] = useState(false);
   const [recording, setRecording] = useState(false);
   const [rightTab, setRightTab] = useState('scheduled'); // 'scheduled' | 'recent'
-  /** Narrow list: all | live (in-room only; online creation disabled for now) */
-  const [meetingTypeFilter, setMeetingTypeFilter] = useState('all');
   const [showAllMeetings, setShowAllMeetings] = useState(false);
 
   const mediaRecorderRef = useRef(null);
@@ -307,26 +305,6 @@ const MeetingsScreen = ({ config }) => {
       const db = new Date(b.updatedAt || b.createdAt || b.startTime || b.scheduledTime || 0).getTime();
       return db - da;
     });
-
-  const filterMeetingsByType = useCallback(
-    (list) => {
-      if (!list || meetingTypeFilter === 'all') return list;
-      return list.filter((m) => m && !isOnlineMeeting(m));
-    },
-    [meetingTypeFilter]
-  );
-
-  const filteredScheduledMeetings = filterMeetingsByType(scheduledMeetings);
-  const filteredRecentMeetings = filterMeetingsByType(recentMeetings);
-
-  const typeFilterBtnStyle = (active) => ({
-    padding: '6px 10px',
-    borderRadius: '8px',
-    fontSize: '12px',
-    fontWeight: 600,
-    opacity: active ? 1 : 0.75,
-    borderColor: active ? '#2563eb' : undefined,
-  });
 
   const allMeetingsSorted = (meetings || [])
     .filter(Boolean)
@@ -1277,45 +1255,6 @@ const MeetingsScreen = ({ config }) => {
                         </button>
                       </div>
                     </div>
-                    <div
-                      style={{
-                        display: 'flex',
-                        flexWrap: 'wrap',
-                        alignItems: 'center',
-                        gap: '8px',
-                        marginTop: '12px',
-                        paddingTop: '12px',
-                        borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontSize: '12px',
-                          color: 'rgba(148, 163, 184, 0.95)',
-                          marginRight: '4px',
-                        }}
-                      >
-                        Type
-                      </span>
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        style={typeFilterBtnStyle(meetingTypeFilter === 'all')}
-                        aria-pressed={meetingTypeFilter === 'all'}
-                        onClick={() => setMeetingTypeFilter('all')}
-                      >
-                        All
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        style={typeFilterBtnStyle(meetingTypeFilter === 'live')}
-                        aria-pressed={meetingTypeFilter === 'live'}
-                        onClick={() => setMeetingTypeFilter('live')}
-                      >
-                        Live
-                      </button>
-                    </div>
               </div>
               <div className="meetings-list">
                 {rightTab === 'scheduled' && (
@@ -1325,13 +1264,8 @@ const MeetingsScreen = ({ config }) => {
                         <p className="info-text">No meetings yet. Start your first session.</p>
                         <p className="meetings-list-empty-sub">Use Start session to create one.</p>
                       </div>
-                    ) : filteredScheduledMeetings.length === 0 ? (
-                      <div className="meetings-list-empty">
-                        <p className="info-text">No in-person meetings scheduled.</p>
-                        <p className="meetings-list-empty-sub">Try showing all types or create a meeting.</p>
-                      </div>
                     ) : (
-                      filteredScheduledMeetings.map(m => {
+                      scheduledMeetings.map(m => {
                         const online = isOnlineMeeting(m);
                         const p = String(m.conferenceProvider || '').toLowerCase();
                         return (
@@ -1402,13 +1336,7 @@ const MeetingsScreen = ({ config }) => {
                         <p className="info-text">No meetings yet. Start your first session.</p>
                       </div>
                     )}
-                    {recentMeetings.length > 0 && filteredRecentMeetings.length === 0 && (
-                      <div className="meetings-list-empty">
-                        <p className="info-text">No in-person meetings in Recent.</p>
-                        <p className="meetings-list-empty-sub">Try showing all types.</p>
-                      </div>
-                    )}
-                    {filteredRecentMeetings.map(m => {
+                    {recentMeetings.map(m => {
                       const online = isOnlineMeeting(m);
                       const p = String(m.conferenceProvider || '').toLowerCase();
                       const when = m.scheduledTime || m.startTime || m.createdAt;
