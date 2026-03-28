@@ -169,6 +169,8 @@ router.get('/profile', authenticateAdmin, async (req, res) => {
       allowsTranslatedSummary: !!pc.allowsTranslatedSummary,
       allowsActionItemReminders: !!pc.allowsActionItemReminders,
       allowsConferenceBots: !!pc.allowsConferenceBots,
+      maxParticipants: pc.maxParticipants,
+      maxParticipantsInBook: pc.maxParticipantsInBook,
       meetingPlatforms: {
         zoom: !!(
           (admin.meetingPlatforms && admin.meetingPlatforms.zoom) ||

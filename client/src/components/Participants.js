@@ -10,14 +10,6 @@ import {
 } from '../utils/voiceEnrollment';
 import './Participants.css';
 
-// Max participants in the book by subscription plan (workplace and education share until edu tiers exist).
-const MAX_IN_BOOK_BY_PLAN = {
-  starter: 30,
-  professional: 60,
-  business: 100,
-  institutional: 500,
-};
-
 const Participants = () => {
   const [participants, setParticipants] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -63,11 +55,16 @@ const Participants = () => {
       try {
         const res = await axios.get('/admin/profile');
         const plan = (res.data?.admin?.plan || 'starter').toLowerCase();
-        if (MAX_IN_BOOK_BY_PLAN[plan] != null) {
-          setMaxInBook(MAX_IN_BOOK_BY_PLAN[plan]);
-        } else {
-          setMaxInBook(null);
-        }
+        const fallbackBook = {
+          starter: 20,
+          professional: 40,
+          business: 60,
+          institutional: 500,
+        };
+        const cap = res.data?.admin?.maxParticipantsInBook;
+        setMaxInBook(
+          typeof cap === 'number' ? cap : fallbackBook[plan] ?? null
+        );
       } catch (e) {
         setMaxInBook(null);
       }

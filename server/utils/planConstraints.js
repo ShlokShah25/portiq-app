@@ -8,7 +8,7 @@ const PLAN_LIMITS = {
   workplace: {
     starter: {
       maxParticipants: 10,
-      maxParticipantsInBook: 30,
+      maxParticipantsInBook: 20,
       maxDurationMinutes: 60,
       maxConcurrentMeetings: 1,
       /** Email “also send translated summary” (multi-language outbound) */
@@ -19,8 +19,8 @@ const PLAN_LIMITS = {
       allowsConferenceBots: true,
     },
     professional: {
-      maxParticipants: 30,
-      maxParticipantsInBook: 60,
+      maxParticipants: 20,
+      maxParticipantsInBook: 40,
       maxDurationMinutes: 180, // 3 hours
       maxConcurrentMeetings: 1,
       allowsTranslatedSummary: false,
@@ -28,8 +28,8 @@ const PLAN_LIMITS = {
       allowsConferenceBots: true,
     },
     business: {
-      maxParticipants: 60,
-      maxParticipantsInBook: 100,
+      maxParticipants: 30,
+      maxParticipantsInBook: 60,
       maxDurationMinutes: 480, // 8 hours
       maxConcurrentMeetings: 3,
       allowsTranslatedSummary: true,

@@ -116,13 +116,17 @@ const MeetingsScreen = ({ config }) => {
         }
 
         const plan = (admin.plan || 'starter').toLowerCase();
-        const maxByPlan = {
+        const fallbackPerMeeting = {
           starter: 10,
-          professional: 30,
-          business: 60,
+          professional: 20,
+          business: 30,
           institutional: 200,
         };
-        setMaxParticipantsPerMeeting(maxByPlan[plan] ?? null);
+        const cap =
+          typeof admin.maxParticipants === 'number'
+            ? admin.maxParticipants
+            : fallbackPerMeeting[plan] ?? null;
+        setMaxParticipantsPerMeeting(cap);
       } catch (e) {
         setMaxParticipantsPerMeeting(null);
         setSubscriptionGate('ok');
