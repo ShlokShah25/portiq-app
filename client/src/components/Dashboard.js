@@ -10,17 +10,9 @@ import {
 } from 'lucide-react';
 import TopNav from './TopNav';
 import MeetingPlatformsModal from './MeetingPlatformsModal';
-import MeetingCreateForm from './MeetingCreateForm';
 import { T } from '../config/terminology';
-import { PORTIQ_PRICE_ROW } from '../config/productPitch';
 import './Dashboard.css';
 import './DashboardIntegrations.css';
-import './MeetingsScreen.css';
-
-const MARKETING_URL =
-  process.env.REACT_APP_MARKETING_URL ||
-  process.env.REACT_APP_WEBSITE_URL ||
-  'https://www.portiqtechnologies.com';
 
 const Dashboard = ({ config }) => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -28,9 +20,6 @@ const Dashboard = ({ config }) => {
   const [loading, setLoading] = useState(true);
   const [connectModalOpen, setConnectModalOpen] = useState(false);
   const [meetingPlatforms, setMeetingPlatforms] = useState({ zoom: false, teams: false });
-  const [subscriptionGate, setSubscriptionGate] = useState(null);
-  const [maxParticipantsPerMeeting, setMaxParticipantsPerMeeting] = useState(null);
-
   useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, 30000);
@@ -46,26 +35,8 @@ const Dashboard = ({ config }) => {
         zoom: !!(mp && mp.zoom),
         teams: !!(mp && mp.teams),
       });
-      if (!admin) {
-        setSubscriptionGate('ok');
-        setMaxParticipantsPerMeeting(null);
-        return;
-      }
-      const u = String(admin.username || '').toLowerCase();
-      if (u === 'admin' || admin.hasActiveSubscription || admin.complimentaryAccess) {
-        setSubscriptionGate('ok');
-      } else if (admin.subscriptionPaymentPending) {
-        setSubscriptionGate('payment_pending');
-      } else {
-        setSubscriptionGate('inactive');
-      }
-      const plan = (admin.plan || 'starter').toLowerCase();
-      const maxByPlan = { starter: 10, professional: 20, business: 30 };
-      setMaxParticipantsPerMeeting(maxByPlan[plan] ?? null);
     } catch {
       setMeetingPlatforms({ zoom: false, teams: false });
-      setSubscriptionGate('ok');
-      setMaxParticipantsPerMeeting(null);
     }
   }, []);
 
@@ -148,42 +119,24 @@ const Dashboard = ({ config }) => {
             </div>
           )}
 
-          <div className="dashboard-new-meeting" id="dashboard-new-meeting">
-            <div className="card">
-              <div className="card-header">
-                <h2>{T.newMeeting()}</h2>
-              </div>
-              {subscriptionGate === 'inactive' && (
-                <div className="meetings-subscription-banner meetings-subscription-banner--inactive" role="alert">
-                  <div className="meetings-subscription-banner-text">
-                    <p>No active plan—you need one to start a meeting.</p>
-                    <p className="meetings-subscription-banner-prices">{PORTIQ_PRICE_ROW}</p>
-                  </div>
-                  <a className="meetings-subscription-banner-link" href={`${MARKETING_URL}#pricing`}>
-                    See plans
-                  </a>
-                </div>
-              )}
-              {subscriptionGate === 'payment_pending' && (
-                <div className="meetings-subscription-banner meetings-subscription-banner--payment" role="alert">
-                  <div className="meetings-subscription-banner-text">
-                    <p>{'Almost there—finish checkout and you\'re in.'}</p>
-                  </div>
-                  <a className="meetings-subscription-banner-link" href={`${MARKETING_URL}#pricing`}>
-                    Finish payment
-                  </a>
-                </div>
-              )}
-              <div className="meetings-new-meeting-form-wrap">
-                <MeetingCreateForm
-                  inline
-                  active
-                  companyName={config?.companyName || 'Your Company'}
-                  subscriptionGate={subscriptionGate}
-                  maxParticipantsPerMeeting={maxParticipantsPerMeeting}
-                  onMeetingCreated={fetchData}
-                />
-              </div>
+          <div className="dashboard-meetings-cta card" id="dashboard-meetings">
+            <div className="card-header">
+              <h2>{T.meetings()}</h2>
+            </div>
+            <p className="dashboard-meetings-cta__desc">
+              Create and run meetings on the Meetings page—the dashboard stays focused on tasks and snapshots.
+            </p>
+            <div className="dashboard-actions-row">
+              <Link to="/meetings" className="dashboard-btn-primary">
+                Open meetings
+              </Link>
+              <Link
+                to="/meetings"
+                state={{ openStartModal: true }}
+                className="dashboard-btn-secondary"
+              >
+                New meeting
+              </Link>
             </div>
           </div>
 

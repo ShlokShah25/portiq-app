@@ -59,8 +59,24 @@
   font-family: var(--font-sans, "Inter", system-ui, sans-serif);
 }
 
-.dashboard-new-meeting {
+.dashboard-meetings-cta {
   margin-bottom: 32px;
+}
+
+.dashboard-meetings-cta__desc {
+  margin: 0 0 18px;
+  padding: 0 20px 0 24px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-muted, #9ca3af);
+  font-family: var(--font-sans, 'Inter', system-ui, sans-serif);
+}
+
+@media (max-width: 520px) {
+  .dashboard-meetings-cta__desc {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
 }
 
 .dashboard-actions-row {
@@ -130,6 +146,7 @@
   cursor: pointer;
   white-space: nowrap;
   transition: background 150ms ease, border-color 150ms ease;
+  text-decoration: none;
 }
 
 .dashboard-btn-secondary:hover {
