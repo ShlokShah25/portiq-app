@@ -108,6 +108,11 @@
   min-height: 40px;
 }
 
+.meetings-new-meeting-form-wrap {
+  padding: 0 4px 8px;
+  margin-top: 4px;
+}
+
 .meetings-advanced-collapse {
   display: block;
   margin: 0 0 16px;

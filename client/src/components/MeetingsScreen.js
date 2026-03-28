@@ -13,7 +13,7 @@ import {
   voiceEnrollmentSentenceForParticipant,
 } from '../utils/voiceEnrollment';
 import { Loader2, Mic, Video } from 'lucide-react';
-import StartMeetingModal from './StartMeetingModal';
+import MeetingCreateForm from './MeetingCreateForm';
 import MeetingStatusBadge from './MeetingStatusBadge';
 import { isOnlineMeeting } from '../utils/meetingDisplayStatus';
 import './MeetingSummary.css';
@@ -54,7 +54,7 @@ const MeetingsScreen = ({ config }) => {
   const [maxParticipantsPerMeeting, setMaxParticipantsPerMeeting] = useState(null); // 10/20/30 by plan, null = no limit
   /** null = loading profile; ok = can create; inactive / payment_pending = blocked */
   const [subscriptionGate, setSubscriptionGate] = useState(null);
-  const [startModalOpen, setStartModalOpen] = useState(false);
+  const newMeetingFormRef = useRef(null);
 
   const syncMeetingAfterActionItemPatch = (m) => {
     setSelectedMeeting(m);
@@ -159,12 +159,14 @@ const MeetingsScreen = ({ config }) => {
 
   useEffect(() => {
     if (!location.state?.openStartModal) return;
-    setStartModalOpen(true);
     const next = { ...(location.state || {}) };
     delete next.openStartModal;
     navigate(location.pathname, {
       replace: true,
       state: Object.keys(next).length ? next : undefined,
+    });
+    requestAnimationFrame(() => {
+      newMeetingFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   }, [location.state?.openStartModal, location.pathname, navigate]);
 
@@ -439,13 +441,6 @@ const MeetingsScreen = ({ config }) => {
           <div className="meetings-top-bar-actions">
             <button
               type="button"
-              className="meetings-see-all-btn meetings-start-session-btn"
-              onClick={() => setStartModalOpen(true)}
-            >
-              Start session
-            </button>
-            <button
-              type="button"
               className="meetings-see-all-btn"
               aria-expanded={showAllMeetings}
               onClick={() => {
@@ -618,24 +613,15 @@ const MeetingsScreen = ({ config }) => {
                   </a>
                 </div>
               )}
-              <div className="meetings-quick-start">
-                <p className="meetings-quick-start-desc">
-                  Start a live recording or join Zoom or Teams with PortIQ Assistant. All meeting details are required in the next step.
-                </p>
-                <div className="meetings-quick-start-actions">
-                  <button
-                    type="button"
-                    className="btn btn-primary meetings-quick-start-primary"
-                    onClick={() => setStartModalOpen(true)}
-                    disabled={
-                      subscriptionGate === null ||
-                      subscriptionGate === 'inactive' ||
-                      subscriptionGate === 'payment_pending'
-                    }
-                  >
-                    Start session
-                  </button>
-                </div>
+              <div ref={newMeetingFormRef} className="meetings-new-meeting-form-wrap">
+                <MeetingCreateForm
+                  inline
+                  active
+                  companyName={companyName}
+                  subscriptionGate={subscriptionGate}
+                  maxParticipantsPerMeeting={maxParticipantsPerMeeting}
+                  onMeetingCreated={fetchMeetings}
+                />
               </div>
             </div>
 
@@ -1390,13 +1376,6 @@ const MeetingsScreen = ({ config }) => {
         </div>
       </div>
 
-      <StartMeetingModal
-        open={startModalOpen}
-        onClose={() => setStartModalOpen(false)}
-        companyName={companyName}
-        subscriptionGate={subscriptionGate}
-        maxParticipantsPerMeeting={maxParticipantsPerMeeting}
-      />
     </div>
   );
 };
