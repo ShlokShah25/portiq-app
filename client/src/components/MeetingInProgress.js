@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { T } from '../config/terminology';
 import TopNav from './TopNav';
@@ -10,8 +10,6 @@ import './MeetingDetail.css';
 const MeetingInProgress = () => {
   const { id: meetingId } = useParams();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const autostartDoneRef = useRef(false);
   const [meetingEnded, setMeetingEnded] = useState(false);
   const [meeting, setMeeting] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -65,10 +63,9 @@ const MeetingInProgress = () => {
     };
   }, [meeting?.participants]);
 
-  // New route id: reset autostart guard + UI so we never reuse another meeting's state.
+  // New route id: reset UI so we never reuse another meeting's state.
   useEffect(() => {
     if (!meetingId) return;
-    autostartDoneRef.current = false;
     setMeeting(null);
     setLoading(true);
     setError('');
@@ -201,19 +198,6 @@ const MeetingInProgress = () => {
       );
     }
   };
-
-  // Autostart once per room visit: ref is only set when the timer actually fires (Strict Mode safe).
-  useEffect(() => {
-    if (searchParams.get('autostart') !== '1') return;
-    if (autostartDoneRef.current) return;
-    if (!meeting || meeting.status !== 'Scheduled' || !meeting.transcriptionEnabled) return;
-    const t = setTimeout(() => {
-      if (autostartDoneRef.current) return;
-      autostartDoneRef.current = true;
-      startRecording();
-    }, 500);
-    return () => clearTimeout(t);
-  }, [meeting, searchParams]);
 
   const pauseRecording = () => {
     const recorder = mediaRecorderRef.current;
@@ -463,7 +447,11 @@ const MeetingInProgress = () => {
           ) : (
             <>
               <h1 className="meeting-summary-page-title">{meeting.title || 'Untitled meeting'}</h1>
-              <p className="meeting-summary-subtitle">Meeting in progress</p>
+              <p className="meeting-summary-subtitle">
+                {meeting.status === 'Scheduled'
+                  ? 'Live session — use Start recording when you begin'
+                  : 'Meeting in progress'}
+              </p>
               <div className="meeting-summary-see-all-row">
                 <button
                   type="button"
@@ -490,7 +478,9 @@ const MeetingInProgress = () => {
                     ? paused
                       ? 'Recording paused'
                       : 'Recording'
-                    : 'Session active'}
+                    : meeting.status === 'Scheduled'
+                      ? 'Ready to record'
+                      : 'Session active'}
               </div>
 
               {meeting.parentContinuation && (

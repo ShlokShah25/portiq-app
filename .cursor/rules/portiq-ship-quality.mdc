@@ -1,0 +1,14 @@
+---
+description: Ship-quality bar — minimize bugs and regressions
+alwaysApply: true
+---
+
+# Ship quality
+
+- **Scope**: Change only what the task needs; no drive-by refactors or unrelated files.
+- **Verify**: After non-trivial edits, run what exists (`client`: `npm run build`; root: start paths if needed). Do not claim “done” without checking lints on touched files.
+- **API errors**: When the server returns `{ error, details }`, surface **both** in user-visible messages (not only `error`).
+- **Async / I/O**: Every `await` on external I/O must have a failure path (UI state, JSON error, or intentional rethrow with context). No empty `catch` blocks.
+- **Env-dependent features** (voice, Zoom, email): Prefer graceful degradation or clear config errors; document new env vars in existing docs only if the user asked or the feature requires it.
+- **React Strict Mode**: Effects that subscribe or fetch must tolerate double-invoke in dev (cleanup, idempotent setup, or guards).
+- **Assume production**: Avoid “works on my machine” assumptions; match paths, ports (`client` proxy `5001`), and Mongoose/ObjectId handling used elsewhere in the repo.

@@ -1,0 +1,13 @@
+---
+description: React client patterns — fewer UI and state bugs
+globs: client/**/*.js
+alwaysApply: false
+---
+
+# Client (`client/`)
+
+- **State**: Reset or key derived state when route params / meeting IDs change; avoid stale closures in effects (include correct deps or document why not).
+- **Forms & uploads**: Disable submit while in flight; on failure show server message + `details`; clear loading flags in `finally` or both branches.
+- **Lists**: Stable `key` props; avoid using array index for mutable lists when identity matters.
+- **Axios**: Use relative `/api` or configured base URL consistently with `package.json` proxy; handle `err.response?.status` and network errors separately when UX differs.
+- **Match existing UI**: Reuse components, CSS variables, and spacing from neighboring screens before inventing new patterns.

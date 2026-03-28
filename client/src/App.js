@@ -57,6 +57,20 @@ function App() {
   const [showBootup, setShowBootup] = useState(true);
 
   useEffect(() => {
+    const href = `${process.env.PUBLIC_URL || ''}/assets/portiq-icon.png`;
+    ['icon', 'shortcut icon'].forEach(rel => {
+      let el = document.querySelector(`link[rel="${rel}"]`);
+      if (!el) {
+        el = document.createElement('link');
+        el.rel = rel;
+        el.type = 'image/png';
+        document.head.appendChild(el);
+      }
+      el.href = href;
+    });
+  }, []);
+
+  useEffect(() => {
     // For now, use static defaults
     setConfig({
       companyName: process.env.REACT_APP_COMPANY_NAME || 'Your Company',

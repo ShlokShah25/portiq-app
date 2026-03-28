@@ -91,6 +91,8 @@ const MeetingDetail = () => {
   const [endSessionForFollowUp, setEndSessionForFollowUp] = useState(true);
   const [followUpSubmitting, setFollowUpSubmitting] = useState(false);
   const [followUpError, setFollowUpError] = useState('');
+  const [startRoomLoading, setStartRoomLoading] = useState(false);
+  const [startRoomError, setStartRoomError] = useState('');
 
   const fetchMeeting = async () => {
     if (!id) return;
@@ -112,6 +114,10 @@ const MeetingDetail = () => {
     return () => clearInterval(interval);
   }, [id]);
 
+  useEffect(() => {
+    setStartRoomError('');
+  }, [id, meeting?.status]);
+
   const formatDate = (dateString) => {
     if (!dateString) return '—';
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -131,9 +137,21 @@ const MeetingDetail = () => {
     });
   };
 
-  const handleStartMeeting = () => {
-    // Meeting only "starts" when user clicks Start recording in the room
-    navigate(`/meetings/${id}/room`);
+  /** Live flow: mark session in progress, then open the room (user starts mic recording there). */
+  const handleStartMeeting = async () => {
+    if (!id) return;
+    setStartRoomError('');
+    setStartRoomLoading(true);
+    try {
+      await axios.post(`/meetings/${id}/start`);
+      navigate(`/meetings/${id}/room`);
+    } catch (err) {
+      setStartRoomError(
+        err.response?.data?.error || err.message || 'Could not open the live session. Try again.'
+      );
+    } finally {
+      setStartRoomLoading(false);
+    }
   };
 
   const openFollowUpModal = () => {
@@ -412,9 +430,19 @@ const MeetingDetail = () => {
           </div>
 
           <div className="meeting-detail-actions">
+            {startRoomError && (
+              <p className="meeting-detail-hint meeting-detail-hint--error" role="alert">
+                {startRoomError}
+              </p>
+            )}
             {isScheduled && !online && (
-              <button type="button" className="meeting-detail-btn meeting-detail-btn--primary" onClick={handleStartMeeting}>
-                {T.startMeeting()}
+              <button
+                type="button"
+                className="meeting-detail-btn meeting-detail-btn--primary"
+                onClick={handleStartMeeting}
+                disabled={startRoomLoading}
+              >
+                {startRoomLoading ? 'Opening…' : T.startMeeting()}
               </button>
             )}
             {isScheduled && online && meeting.conferenceJoinUrl && (

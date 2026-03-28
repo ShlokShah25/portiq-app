@@ -1,0 +1,13 @@
+---
+description: Express/Mongo server — consistent errors and data safety
+globs: server/**/*.js
+alwaysApply: false
+---
+
+# Server
+
+- **Routes**: Validate inputs (`express-validator` or explicit checks); return JSON with consistent shape (`error`, and `details` when useful for debugging).
+- **Multer / files**: On replace flows, delete or overwrite old files safely; `unlink` in try/catch; avoid comparing paths after overwrite incorrectly.
+- **Auth**: Respect existing JWT/middleware patterns; never skip checks on sensitive routes “for convenience.”
+- **Mongoose**: Validate IDs before queries; handle null documents; avoid leaking raw stack traces in production responses (log server-side, send safe client message).
+- **Side effects**: Email, webhooks, and queues should not leave the DB in an inconsistent state — use the same transaction or ordering patterns as sibling routes.

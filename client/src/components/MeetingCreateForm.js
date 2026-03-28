@@ -7,14 +7,12 @@ import {
   Bot,
   ExternalLink,
   FileText,
-  List,
   Calendar,
   Clock,
   User,
   MapPin,
   Link2,
   Users,
-  CheckCircle2,
   CircleDashed,
   GraduationCap,
   UserCheck,
@@ -58,10 +56,20 @@ function defaultDateTimeLocal() {
   return { date: d, time: tm };
 }
 
+function splitTitleAgenda(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return { title: '', agenda: '' };
+  const nl = s.indexOf('\n');
+  if (nl === -1) return { title: s, agenda: s };
+  const title = s.slice(0, nl).trim();
+  const rest = s.slice(nl + 1).trim();
+  const agenda = rest || title;
+  return { title: title || s, agenda };
+}
+
 function resetAllState(setters) {
   const d = defaultDateTimeLocal();
-  setters.setTitle('');
-  setters.setAgenda('');
+  setters.setTitleAgendaCombined('');
   setters.setScheduledDate(d.date);
   setters.setScheduledTime(d.time);
   setters.setLiveLocation('');
@@ -95,8 +103,7 @@ export default function MeetingCreateForm({
 }) {
   const navigate = useNavigate();
   const defaults = defaultDateTimeLocal();
-  const [title, setTitle] = useState('');
-  const [agenda, setAgenda] = useState('');
+  const [titleAgendaCombined, setTitleAgendaCombined] = useState('');
   const [scheduledDate, setScheduledDate] = useState(defaults.date);
   const [scheduledTime, setScheduledTime] = useState(defaults.time);
   const [organizer, setOrganizer] = useState('');
@@ -133,8 +140,7 @@ export default function MeetingCreateForm({
     setVoiceUploading(false);
     setVoiceProfiles({});
     resetAllState({
-      setTitle,
-      setAgenda,
+      setTitleAgendaCombined,
       setScheduledDate,
       setScheduledTime,
       setLiveLocation,
@@ -288,6 +294,7 @@ export default function MeetingCreateForm({
   };
 
   const validateCommon = () => {
+    const { title, agenda } = splitTitleAgenda(titleAgendaCombined);
     if (!title.trim()) return 'Meeting title is required.';
     if (!agenda.trim()) return 'Agenda is required.';
     if (!scheduledDate || !scheduledTime) return 'Meeting date and time are required.';
@@ -343,7 +350,9 @@ export default function MeetingCreateForm({
     if (onClose) onClose();
   };
 
-  const buildBody = (extra) => ({
+  const buildBody = (extra) => {
+    const { title, agenda } = splitTitleAgenda(titleAgendaCombined);
+    return {
     title: title.trim(),
     agenda: agenda.trim(),
     organizer: organizer.trim(),
@@ -353,7 +362,8 @@ export default function MeetingCreateForm({
     authorizedEditorEmail: authorizedEditorEmail.trim() || undefined,
     transcriptionEnabled: true,
     ...extra,
-  });
+  };
+  };
 
   const submitLive = async () => {
     setError('');
@@ -379,7 +389,7 @@ export default function MeetingCreateForm({
         setError('Meeting was created but the app did not receive a meeting id. Open it from the Scheduled list.');
         return;
       }
-      navigate(`/meetings/${idStr}/room?autostart=1`);
+      navigate(`/meetings/${idStr}`);
       afterCreate();
       if (onClose) onClose();
     } catch (err) {
@@ -480,7 +490,12 @@ export default function MeetingCreateForm({
         setVoiceProfiles((prev) => ({ ...prev, [key]: { hasProfile: true } }));
       }
     } catch (err) {
-      setError(err.response?.data?.error || err.message || 'Voice upload failed.');
+      const d = err.response?.data;
+      setError(
+        [d?.error, d?.details].filter(Boolean).join(' — ') ||
+          err.message ||
+          'Voice upload failed.'
+      );
     } finally {
       setVoiceUploading(false);
       setRecordingEmail(null);
@@ -529,7 +544,7 @@ export default function MeetingCreateForm({
       {!inline && (
         <div className="start-meeting-modal__head">
           <h2 id="start-meeting-title" className="start-meeting-modal__title">
-            Start Meeting
+            {isEducation ? 'Create lecture' : 'Create meeting'}
           </h2>
           <button
             type="button"
@@ -621,33 +636,20 @@ export default function MeetingCreateForm({
             </div>
           )}
 
-          <div className="start-meeting-field meeting-create-title-agenda">
-            <div className="start-meeting-label-with-icon meeting-create-title-agenda__label">
-              <FileText className="start-meeting-label-with-icon__ic" size={16} strokeWidth={1.75} aria-hidden />
-              <span className="meeting-create-title-agenda__slash">/</span>
-              <List className="start-meeting-label-with-icon__ic" size={16} strokeWidth={1.75} aria-hidden />
-              <span>Meeting title / agenda</span>
-            </div>
-            <input
-              id="sm-title"
-              className="meeting-create-title-agenda__title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder={`Title — e.g. Project review (${companyName})`}
+          <div className="start-meeting-field">
+            <FieldLabel htmlFor="sm-title-agenda" icon={FileText}>
+              Meeting title & agenda
+            </FieldLabel>
+            <textarea
+              id="sm-title-agenda"
+              className="meeting-create-title-agenda-single"
+              value={titleAgendaCombined}
+              onChange={(e) => setTitleAgendaCombined(e.target.value)}
+              placeholder={`First line: meeting title (e.g. Project review — ${companyName}).\nFollowing lines: agenda, topics, decisions…`}
               required
+              rows={3}
               autoComplete="off"
               disabled={formDisabled}
-              aria-label="Meeting title"
-            />
-            <textarea
-              id="sm-agenda"
-              className="meeting-create-title-agenda__agenda"
-              value={agenda}
-              onChange={(e) => setAgenda(e.target.value)}
-              placeholder="Agenda — goals, topics, decisions…"
-              required
-              disabled={formDisabled}
-              aria-label="Agenda"
             />
           </div>
 
@@ -830,15 +832,17 @@ export default function MeetingCreateForm({
                                     </span>
                                     <span className="meeting-create-participant-dd__email">{em}</span>
                                   </span>
-                                  <span
-                                    className={
-                                      hasVoice
-                                        ? 'meeting-create-participant-dd__voice meeting-create-participant-dd__voice--ok'
-                                        : 'meeting-create-participant-dd__voice'
-                                    }
-                                  >
-                                    {hasVoice ? 'Voice on' : 'No voice'}
-                                  </span>
+                                  {hasVoice ? (
+                                    <span className="meeting-create-participant-dd__voice-status meeting-create-participant-dd__voice-status--ok">
+                                      <Mic size={12} strokeWidth={2} aria-hidden />
+                                      Configured
+                                    </span>
+                                  ) : (
+                                    <span className="meeting-create-participant-dd__voice-status">
+                                      <CircleDashed size={12} strokeWidth={2} aria-hidden />
+                                      Not configured
+                                    </span>
+                                  )}
                                 </button>
                               );
                             })
@@ -894,11 +898,11 @@ export default function MeetingCreateForm({
                           <span className="meeting-create-voice-row__name">{p.name || em}</span>
                           {hasVoice ? (
                             <span className="meeting-create-voice-row__badge meeting-create-voice-row__badge--ok">
-                              <CheckCircle2 size={14} aria-hidden /> Configured
+                              <Mic size={14} strokeWidth={2} aria-hidden /> Configured
                             </span>
                           ) : (
                             <span className="meeting-create-voice-row__badge">
-                              <CircleDashed size={14} aria-hidden /> Not configured
+                              <CircleDashed size={14} strokeWidth={2} aria-hidden /> Not configured
                             </span>
                           )}
                         </div>
@@ -993,7 +997,7 @@ export default function MeetingCreateForm({
                 onClick={submitLive}
                 disabled={loading || formDisabled}
               >
-                Start Meeting
+                {isEducation ? 'Create lecture' : 'Create meeting'}
               </button>
             ) : (
               <button

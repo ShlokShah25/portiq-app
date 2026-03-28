@@ -320,8 +320,9 @@ const Participants = () => {
       }
     } catch (err) {
       console.error('Error uploading voice sample:', err);
+      const d = err.response?.data;
       const errorMsg =
-        err.response?.data?.error ||
+        [d?.error, d?.details].filter(Boolean).join(' — ') ||
         err.message ||
         'Failed to register voice profile. Please try again.';
       setError(errorMsg);

@@ -1543,20 +1543,24 @@ router.post('/voice/register', voiceUpload.single('audio'), async (req, res) => 
     // Check if profile already exists
     let voiceProfile = await VoiceProfile.findOne({ email: email.toLowerCase() });
     
+    const newSampleRel = `/uploads/voice-samples/${req.file.filename}`;
     if (voiceProfile) {
-      // Update existing profile with new voice sample
+      const previousSampleRel = voiceProfile.voiceSampleFile;
       voiceProfile.voiceVector = voiceVector;
-      voiceProfile.voiceSampleFile = `/uploads/voice-samples/${req.file.filename}`;
+      voiceProfile.voiceSampleFile = newSampleRel;
       voiceProfile.standardSentence = standardSentence || voiceProfile.standardSentence;
-      voiceProfile.name = name; // Update name in case it changed
+      voiceProfile.name = name;
       voiceProfile.lastUsed = new Date();
       voiceProfile.updatedAt = new Date();
-      
-      // Delete old voice sample file if exists
-      if (voiceProfile.voiceSampleFile && voiceProfile.voiceSampleFile !== `/uploads/voice-samples/${req.file.filename}`) {
-        const oldPath = path.join(__dirname, '../..', voiceProfile.voiceSampleFile);
+
+      if (previousSampleRel && previousSampleRel !== newSampleRel) {
+        const oldPath = path.join(__dirname, '../..', previousSampleRel);
         if (fs.existsSync(oldPath)) {
-          fs.unlinkSync(oldPath);
+          try {
+            fs.unlinkSync(oldPath);
+          } catch (unlinkErr) {
+            console.warn('Could not remove old voice sample:', unlinkErr.message);
+          }
         }
       }
     } else {
@@ -1565,7 +1569,7 @@ router.post('/voice/register', voiceUpload.single('audio'), async (req, res) => 
         email: email.toLowerCase(),
         name,
         voiceVector,
-        voiceSampleFile: `/uploads/voice-samples/${req.file.filename}`,
+        voiceSampleFile: newSampleRel,
         standardSentence: standardSentence || `Hello, my name is ${name} and I am ready for the meeting.`
       });
     }
@@ -1584,7 +1588,10 @@ router.post('/voice/register', voiceUpload.single('audio'), async (req, res) => 
     });
   } catch (error) {
     console.error('Error registering voice profile:', error);
-    res.status(500).json({ error: 'Failed to register voice profile' });
+    res.status(500).json({
+      error: 'Failed to register voice profile',
+      details: error.message || String(error),
+    });
   }
 });
 

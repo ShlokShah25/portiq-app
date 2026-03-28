@@ -6,20 +6,26 @@ import {
   AlertTriangle,
   CheckCircle2,
   CheckSquare,
-  Mic,
   Plug,
 } from 'lucide-react';
 import TopNav from './TopNav';
-import StartMeetingModal from './StartMeetingModal';
 import MeetingPlatformsModal from './MeetingPlatformsModal';
+import MeetingCreateForm from './MeetingCreateForm';
+import { T } from '../config/terminology';
+import { PORTIQ_PRICE_ROW } from '../config/productPitch';
 import './Dashboard.css';
 import './DashboardIntegrations.css';
+import './MeetingsScreen.css';
+
+const MARKETING_URL =
+  process.env.REACT_APP_MARKETING_URL ||
+  process.env.REACT_APP_WEBSITE_URL ||
+  'https://www.portiqtechnologies.com';
 
 const Dashboard = ({ config }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [startModalOpen, setStartModalOpen] = useState(false);
   const [connectModalOpen, setConnectModalOpen] = useState(false);
   const [meetingPlatforms, setMeetingPlatforms] = useState({ zoom: false, teams: false });
   const [subscriptionGate, setSubscriptionGate] = useState(null);
@@ -142,16 +148,42 @@ const Dashboard = ({ config }) => {
             </div>
           )}
 
-          <div className="dashboard-actions">
-            <div className="dashboard-actions-row">
-              <button
-                type="button"
-                className="dashboard-btn-primary"
-                onClick={() => setStartModalOpen(true)}
-              >
-                <Mic className="dashboard-lucide" strokeWidth={1.5} aria-hidden />
-                Start Meeting
-              </button>
+          <div className="dashboard-new-meeting" id="dashboard-new-meeting">
+            <div className="card">
+              <div className="card-header">
+                <h2>{T.newMeeting()}</h2>
+              </div>
+              {subscriptionGate === 'inactive' && (
+                <div className="meetings-subscription-banner meetings-subscription-banner--inactive" role="alert">
+                  <div className="meetings-subscription-banner-text">
+                    <p>No active plan—you need one to start a meeting.</p>
+                    <p className="meetings-subscription-banner-prices">{PORTIQ_PRICE_ROW}</p>
+                  </div>
+                  <a className="meetings-subscription-banner-link" href={`${MARKETING_URL}#pricing`}>
+                    See plans
+                  </a>
+                </div>
+              )}
+              {subscriptionGate === 'payment_pending' && (
+                <div className="meetings-subscription-banner meetings-subscription-banner--payment" role="alert">
+                  <div className="meetings-subscription-banner-text">
+                    <p>{'Almost there—finish checkout and you\'re in.'}</p>
+                  </div>
+                  <a className="meetings-subscription-banner-link" href={`${MARKETING_URL}#pricing`}>
+                    Finish payment
+                  </a>
+                </div>
+              )}
+              <div className="meetings-new-meeting-form-wrap">
+                <MeetingCreateForm
+                  inline
+                  active
+                  companyName={config?.companyName || 'Your Company'}
+                  subscriptionGate={subscriptionGate}
+                  maxParticipantsPerMeeting={maxParticipantsPerMeeting}
+                  onMeetingCreated={fetchData}
+                />
+              </div>
             </div>
           </div>
 
@@ -218,13 +250,6 @@ const Dashboard = ({ config }) => {
         </div>
       </div>
 
-      <StartMeetingModal
-        open={startModalOpen}
-        onClose={() => setStartModalOpen(false)}
-        companyName={config?.companyName || 'Your Company'}
-        subscriptionGate={subscriptionGate}
-        maxParticipantsPerMeeting={maxParticipantsPerMeeting}
-      />
       <MeetingPlatformsModal
         open={connectModalOpen}
         onClose={() => setConnectModalOpen(false)}

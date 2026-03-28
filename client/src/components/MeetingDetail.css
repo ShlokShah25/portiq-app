@@ -178,6 +178,11 @@
   margin: 0;
 }
 
+.meeting-detail-hint--error {
+  color: #fca5a5;
+  margin-bottom: 10px;
+}
+
 /* Continuation / follow-up */
 .meeting-detail-continuation {
   background: rgba(37, 99, 235, 0.08);
