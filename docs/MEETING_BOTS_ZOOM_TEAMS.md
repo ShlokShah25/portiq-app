@@ -1,5 +1,7 @@
 # Zoom & Microsoft Teams meeting bots (architecture + what we need from you)
 
+**Zoom: see also `docs/ZOOM_PLATFORM.md`** — webhooks, job queue, worker callback, env vars.
+
 PortIQ today captures audio **in the browser** or via **upload**. Joining a **Zoom or Teams call as a participant bot** is a **separate media pipeline**: it needs OAuth, vendor approvals, and usually a **headless worker** (container) running the vendor SDK—not only this Node API.
 
 **Google Meet** (your plan): handle via a **Chrome extension** that captures tab/audio and posts to PortIQ—document that separately when you build the extension.
@@ -14,7 +16,9 @@ PortIQ today captures audio **in the browser** or via **upload**. Joining a **Zo
   - `POST /api/integrations/webhooks/zoom` — Zoom URL validation + signed events (set `ZOOM_WEBHOOK_SECRET_TOKEN`).
   - `GET|POST /api/integrations/webhooks/teams-graph` — Graph `validationToken` echo + notification stub.
 - **Status**: `GET /api/integrations/status` — which env vars are present (no secrets returned).
-- **Stub**: `server/utils/conferenceBotQueue.js` — replace with Redis/SQS + worker when ready.
+- **Bot queue**: `server/utils/conferenceBotQueue.js` — `POST`s JSON jobs to `CONFERENCE_BOT_WEBHOOK_URL` when set (else no-op).
+- **Zoom webhooks**: `server/utils/zoomWebhookHandlers.js` — maps `meeting.started` / `meeting.ended` to `Meeting` + re-queue.
+- **Worker callback**: `POST /api/integrations/bot/report` — `PORTIQ_WORKER_SECRET`.
 
 ---
 

@@ -19,7 +19,8 @@ const allowedOrigins = [
   'http://localhost:3004',  // local dev client
   'https://portiqtechnologies.com',
   'https://www.portiqtechnologies.com',
-  'https://meetingassistant.portiqtechnologies.com'
+  'https://meetingassistant.portiqtechnologies.com',
+  'https://assistant.portiqtechnologies.com',
 ];
 
 if (process.env.CORS_EXTRA_ORIGINS) {
@@ -86,6 +87,7 @@ app.use('/api', require('./routes/billing'));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/integrations', require('./routes/integrationOAuth'));
 app.use('/api/integrations', require('./routes/integrations'));
+app.use('/api/integrations', require('./routes/integrationBotWorker'));
 app.get('/api/integrations/webhooks/teams-graph', (req, res) =>
   integrationWebhooks.teamsGraphWebhook(req, res)
 );

@@ -278,6 +278,7 @@ meetingSchema.pre('save', function(next) {
 });
 
 meetingSchema.index({ meetingRoom: 1 });
+meetingSchema.index({ conferenceProvider: 1, externalMeetingId: 1 });
 meetingSchema.index({ status: 1 });
 meetingSchema.index({ startTime: -1 });
 meetingSchema.index({ parentMeetingId: 1 });

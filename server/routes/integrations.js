@@ -9,6 +9,11 @@ router.get('/status', (req, res) => {
     zoomWebhook: !!process.env.ZOOM_WEBHOOK_SECRET_TOKEN,
     zoomOAuthClient: !!process.env.ZOOM_CLIENT_ID,
     zoomOAuthRedirect: !!process.env.ZOOM_OAUTH_REDIRECT_URI,
+    conferenceBotWorkerUrl: !!(
+      process.env.CONFERENCE_BOT_WEBHOOK_URL || process.env.ZOOM_BOT_WORKER_URL
+    ),
+    conferenceBotWorkerSecret: !!process.env.CONFERENCE_BOT_WEBHOOK_SECRET,
+    workerCallbackSecret: !!process.env.PORTIQ_WORKER_SECRET,
     teamsGraphApp: !!(
       process.env.TEAMS_GRAPH_CLIENT_ID || process.env.MICROSOFT_CLIENT_ID
     ),

@@ -14,6 +14,8 @@ const {
   buildOutlookCalendarUrlForMeeting,
   buildMeetingIcs,
 } = require('../utils/calendarInviteLinks');
+const { parseZoomMeetingIdFromJoinUrl } = require('../utils/zoomMeetingIds');
+const { enqueueJoinMeeting } = require('../utils/conferenceBotQueue');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -210,6 +212,12 @@ router.post('/', async (req, res) => {
     const prov =
       conferenceProvider != null ? String(conferenceProvider).trim().slice(0, 32).toLowerCase() : '';
 
+    let extMeetingId =
+      externalMeetingId != null ? String(externalMeetingId).trim().slice(0, 256) : null;
+    if (prov === 'zoom' && joinUrlTrim && !extMeetingId) {
+      extMeetingId = parseZoomMeetingIdFromJoinUrl(joinUrlTrim) || null;
+    }
+
     const meeting = new Meeting({
       adminId: admin ? admin._id : null,
       meetingRoom: roomTrim,
@@ -223,8 +231,7 @@ router.post('/', async (req, res) => {
       authorizedEditorEmail: authorizedEditorEmail || null,
       conferenceProvider: prov,
       conferenceJoinUrl: joinUrlTrim,
-      externalMeetingId:
-        externalMeetingId != null ? String(externalMeetingId).trim().slice(0, 256) : null,
+      externalMeetingId: extMeetingId,
       conferenceBotStatus: joinUrlTrim ? 'queued' : '',
     });
 
@@ -473,6 +480,28 @@ router.post('/', async (req, res) => {
       }
       } catch (notifyErr) {
         console.warn('⚠️  Failed to send meeting notification email:', notifyErr.message);
+      }
+    }
+
+    if (
+      prov === 'zoom' &&
+      joinUrlTrim &&
+      process.env.CONFERENCE_BOT_QUEUE_ON_CREATE !== '0'
+    ) {
+      try {
+        await enqueueJoinMeeting({
+          meetingId: meeting._id.toString(),
+          adminId: admin ? admin._id.toString() : null,
+          provider: 'zoom',
+          joinUrl: joinUrlTrim,
+          externalMeetingId: meeting.externalMeetingId || extMeetingId,
+          scheduledTime: meeting.scheduledTime
+            ? meeting.scheduledTime.toISOString()
+            : null,
+          trigger: 'api.meeting.create',
+        });
+      } catch (qErr) {
+        console.warn('[meetings] enqueueJoinMeeting:', qErr.message);
       }
     }
 

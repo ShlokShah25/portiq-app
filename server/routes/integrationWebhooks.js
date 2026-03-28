@@ -21,7 +21,7 @@ function verifyZoomSignature(req, bodyBuffer, secret) {
   }
 }
 
-function zoomWebhook(req, res) {
+async function zoomWebhook(req, res) {
   const secret = process.env.ZOOM_WEBHOOK_SECRET_TOKEN;
   const buf = Buffer.isBuffer(req.body)
     ? req.body
@@ -53,9 +53,14 @@ function zoomWebhook(req, res) {
     return res.status(401).json({ error: 'Invalid signature' });
   }
 
-  // TODO: enqueue conferenceBotQueue.handleZoomEvent(payload) for meeting.started / recording.completed etc.
-  if (process.env.NODE_ENV !== 'production') {
-    console.log('[integrations/zoom] event:', payload.event);
+  const { handleZoomWebhookEvent } = require('../utils/zoomWebhookHandlers');
+  try {
+    const result = await handleZoomWebhookEvent(payload);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[integrations/zoom] event:', payload.event, result);
+    }
+  } catch (e) {
+    console.error('[integrations/zoom] handler error:', e.message);
   }
 
   return res.status(200).json({ received: true });

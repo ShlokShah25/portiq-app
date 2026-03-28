@@ -45,6 +45,17 @@ No trailing slash.
 | `ZOOM_OAUTH_REDIRECT_URI` | Full callback URL (must match Zoom app exactly) |
 | `ZOOM_OAUTH_SCOPES` | Optional. Default: `user:read:user user:read:email` |
 
+### Zoom — conference bot worker (optional until worker is deployed)
+
+See **`docs/ZOOM_PLATFORM.md`** for payloads and Zoom event names.
+
+| Variable | Example / notes |
+|----------|-----------------|
+| `CONFERENCE_BOT_WEBHOOK_URL` or `ZOOM_BOT_WORKER_URL` | Worker `POST` target; receives `conference.join` JSON jobs |
+| `CONFERENCE_BOT_WEBHOOK_SECRET` | Optional HMAC key; API sends `X-PortIQ-Signature` (SHA-256 hex of body) |
+| `CONFERENCE_BOT_QUEUE_ON_CREATE` | Set to `0` to stop enqueue on meeting create (webhook-only) |
+| `PORTIQ_WORKER_SECRET` | Worker calls `POST /api/integrations/bot/report` with header `X-PortIQ-Worker-Secret` |
+
 ### Microsoft — Graph delegated OAuth (Teams path)
 
 | Variable | Example / notes |
@@ -81,5 +92,7 @@ Aliases: `APP_BASE_URL`, `CLIENT_URL`, `PUBLIC_APP_URL`.
 - `GET /api/integrations/oauth/teams/start` — Bearer auth; returns `{ url }`.
 - `GET /api/integrations/oauth/teams/callback` — Microsoft redirects here.
 - `GET /api/integrations/status` — which server env flags are set (no secrets).
+- `POST /api/integrations/webhooks/zoom` — Zoom event subscriptions (raw JSON + signature).
+- `POST /api/integrations/bot/report` — worker status updates (`X-PortIQ-Worker-Secret`).
 
 Tokens are stored on the **Admin** document (`zoomOAuth`, `teamsOAuth`); they are **never** returned from `GET /admin/profile`.
