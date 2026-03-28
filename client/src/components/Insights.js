@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Calendar, CheckSquare, AlertTriangle, ListTodo, Clock, FolderX } from 'lucide-react';
+import { Calendar, CheckSquare, AlertTriangle, ListTodo, FolderX } from 'lucide-react';
 import TopNav from './TopNav';
 import './Insights.css';
 
@@ -41,10 +41,8 @@ function startOfDay(d) {
 const Insights = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
-  const [recentMeetings, setRecentMeetings] = useState([]);
   const [allMeetings, setAllMeetings] = useState([]);
   const [allActionItems, setAllActionItems] = useState([]);
-  const [showAllTasks, setShowAllTasks] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -61,7 +59,6 @@ const Insights = () => {
       setStats(statsRes.data || {});
       const meetings = meetingsRes.data.meetings || [];
       setAllMeetings(meetings);
-      setRecentMeetings(meetings.slice(0, 5));
 
       const extracted = [];
       meetings.forEach((meeting) => {
@@ -284,183 +281,6 @@ const Insights = () => {
               </div>
             </div>
           </div>
-
-          {allActionItems.length > 0 && (
-            <div className="insights-section">
-              <h2 id="insights-tasks-section">
-                <Clock className="insight-heading-icon" strokeWidth={1.5} aria-hidden />
-                {showAllTasks ? 'All tasks' : 'Recent tasks'}
-              </h2>
-              <div className="action-items-list">
-                {showAllTasks ? (
-                  (() => {
-                    const byMeeting = {};
-                    allActionItems.forEach((item) => {
-                      const key = item.meetingId || item.meetingTitle || '—';
-                      if (!byMeeting[key]) {
-                        byMeeting[key] = {
-                          meetingTitle: item.meetingTitle || 'Untitled Meeting',
-                          date: item.date,
-                          items: [],
-                        };
-                      }
-                      byMeeting[key].items.push(item);
-                    });
-
-                    const groups = Object.keys(byMeeting).map((k) => byMeeting[k]);
-                    groups.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
-
-                    return groups.map((g, gi) => (
-                      <div key={gi} className="tasks-meeting-group">
-                        <div className="tasks-meeting-header">
-                          <div className="tasks-meeting-title">{g.meetingTitle}</div>
-                          {g.date ? (
-                            <div className="tasks-meeting-date">
-                              {new Date(g.date).toLocaleDateString()}
-                            </div>
-                          ) : null}
-                        </div>
-
-                        <div className="tasks-meeting-items">
-                          {g.items.map((item, idx) => (
-                            <div
-                              key={item._id || `${item.meetingId}-${idx}`}
-                              className="action-item-card"
-                              onClick={() => navigate(`/meetings/${item.meetingId}`)}
-                              role="button"
-                              tabIndex={0}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                  e.preventDefault();
-                                  navigate(`/meetings/${item.meetingId}`);
-                                }
-                              }}
-                            >
-                              <div className="action-item-content">
-                                <div className="action-item-text">
-                                  {typeof item === 'string'
-                                    ? item
-                                    : item.task || item.title || 'Action item'}
-                                </div>
-                                <div className="action-item-meta">
-                                  {item.assignee ? (
-                                    <span className="action-item-meeting">{item.assignee}</span>
-                                  ) : null}
-                                  {item.dueDate ? (
-                                    <span className="action-item-date">
-                                      Due {new Date(item.dueDate).toLocaleDateString()}
-                                    </span>
-                                  ) : null}
-                                </div>
-                              </div>
-                              <svg
-                                width="16"
-                                height="16"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="1.5"
-                              >
-                                <polyline points="9 18 15 12 9 6"></polyline>
-                              </svg>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ));
-                  })()
-                ) : (
-                  allActionItems.slice(0, 10).map((item, idx) => (
-                    <div
-                      key={item._id || idx}
-                      className="action-item-card"
-                      onClick={() => navigate(`/meetings/${item.meetingId}`)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          navigate(`/meetings/${item.meetingId}`);
-                        }
-                      }}
-                    >
-                      <div className="action-item-content">
-                        <div className="action-item-text">
-                          {typeof item === 'string'
-                            ? item
-                            : item.task || item.title || 'Action item'}
-                        </div>
-                        <div className="action-item-meta">
-                          <span className="action-item-meeting">{item.meetingTitle}</span>
-                          {item.date ? (
-                            <span className="action-item-date">
-                              {new Date(item.date).toLocaleDateString()}
-                            </span>
-                          ) : null}
-                        </div>
-                      </div>
-                      <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                      >
-                        <polyline points="9 18 15 12 9 6"></polyline>
-                      </svg>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              {!showAllTasks ? (
-                <button
-                  type="button"
-                  className="btn btn--ghost"
-                  style={{ marginTop: 18, width: '100%' }}
-                  onClick={() => {
-                    setShowAllTasks(true);
-                    const el = document.getElementById('insights-tasks-section');
-                    if (el) el.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                >
-                  View all tasks
-                </button>
-              ) : null}
-            </div>
-          )}
-
-          {recentMeetings.length > 0 && (
-            <div className="insights-section">
-              <h2>Recent Meetings</h2>
-              <div className="recent-meetings-list">
-                {recentMeetings.map((meeting) => (
-                  <div
-                    key={meeting._id}
-                    className="recent-meeting-card"
-                    onClick={() => navigate('/meetings')}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        navigate('/meetings');
-                      }
-                    }}
-                  >
-                    <div className="recent-meeting-title">
-                      {meeting.title || 'Untitled Meeting'}
-                    </div>
-                    <div className="recent-meeting-meta">
-                      <span>{meeting.meetingRoom || 'No room'}</span>
-                      <span>{new Date(meeting.createdAt).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>

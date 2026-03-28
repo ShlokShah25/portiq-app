@@ -1,7 +1,7 @@
 const DEFAULT_PRODUCT = 'workplace';
 const DEFAULT_PLAN = 'starter';
 
-// Central definition of plan limits, kept in sync with marketing-site pricing copy.
+// Central definition of plan limits (enforced server-side). Marketing highlights features; caps surface in-app.
 // Education accounts use these same caps (keyed by admin.plan) until dedicated
 // education tiers are defined.
 const PLAN_LIMITS = {

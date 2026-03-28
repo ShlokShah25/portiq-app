@@ -120,12 +120,12 @@ const Dashboard = ({ config }) => {
           )}
 
           <div className="dashboard-meetings-cta card" id="dashboard-meetings">
-            <div className="card-header">
-              <h2>{T.meetings()}</h2>
+            <div className="dashboard-meetings-cta__head">
+              <h2 className="dashboard-meetings-cta__title">{T.meetings()}</h2>
+              <p className="dashboard-meetings-cta__desc">
+                Jump straight into creating a meeting, or open your full meetings list.
+              </p>
             </div>
-            <p className="dashboard-meetings-cta__desc">
-              Jump straight into creating a meeting, or open your full meetings list.
-            </p>
             <div className="dashboard-actions-row">
               <Link
                 to="/meetings"
@@ -134,7 +134,11 @@ const Dashboard = ({ config }) => {
               >
                 New meeting
               </Link>
-              <Link to="/meetings" className="dashboard-btn-secondary">
+              <Link
+                to="/meetings"
+                state={{ showAllMeetings: true }}
+                className="dashboard-btn-secondary"
+              >
                 Open meetings
               </Link>
             </div>
