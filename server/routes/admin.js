@@ -644,7 +644,9 @@ router.post('/meetings/:id/retry-transcription', authenticateAdmin, requireSubsc
     const { transcribeAndSummarize, sendMeetingSummary } = require('../utils/meetingTranscription');
 
     // Process transcription asynchronously
-    transcribeAndSummarize(audioFilePath, meeting)
+    transcribeAndSummarize(audioFilePath, meeting, {
+      productType: req.admin?.productType,
+    })
       .then(async (summaryData) => {
         const safeParseDate = (value) => {
           if (!value) return undefined;

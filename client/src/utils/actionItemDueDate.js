@@ -32,6 +32,54 @@ const MONTH_ALIASES = {
 const MONTH_PATTERN =
   '(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
 
+function dateOnlyFromReferenceLocal(ref) {
+  const r =
+    ref instanceof Date && !Number.isNaN(ref.getTime()) ? ref : new Date();
+  return new Date(r.getFullYear(), r.getMonth(), r.getDate(), 12, 0, 0, 0);
+}
+
+function addLocalCalendarDays(ref, days) {
+  const d = dateOnlyFromReferenceLocal(ref);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+function tryParseRelativeDuePhrases(text, ref) {
+  if (!text || typeof text !== 'string') return null;
+  const r =
+    ref instanceof Date && !Number.isNaN(ref.getTime()) ? ref : new Date();
+  const low = text.toLowerCase().replace(/\s+/g, ' ');
+
+  if (
+    /\b(tonight|this evening|today|eod|end of (?:the )?day|by end of day|before midnight)\b/.test(
+      low
+    )
+  ) {
+    return dateOnlyFromReferenceLocal(r);
+  }
+  if (/\b(tomorrow|tmrw|tmr)\b/.test(low)) {
+    return addLocalCalendarDays(r, 1);
+  }
+  if (
+    /\b(aaj raat|aaj sham|aaj shaam|aaj hi|is sham|is shaam|aaj ke din|aaj ke liye)\b/.test(low)
+  ) {
+    return dateOnlyFromReferenceLocal(r);
+  }
+  if (/\baaj\b/.test(low) && /\b(raat|sham|shaam|evening|night)\b/.test(low)) {
+    return dateOnlyFromReferenceLocal(r);
+  }
+  if (/\bkal\b/.test(low) && /\b(subah|morning|sham|shaam|evening)\b/.test(low)) {
+    return addLocalCalendarDays(r, 1);
+  }
+
+  return null;
+}
+
+function dateCalendarKeyLocal(d) {
+  if (!d || Number.isNaN(d.getTime())) return '';
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function normalizeYear(y) {
   if (y == null || y === '') return null;
   let year = parseInt(String(y), 10);
@@ -63,6 +111,9 @@ export function parseDueDateFromText(text, referenceDate) {
       : new Date();
   const s = text.trim();
   if (!s) return null;
+
+  const relative = tryParseRelativeDuePhrases(s, ref);
+  if (relative) return relative;
 
   let re = new RegExp(
     `\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+${MONTH_PATTERN}(?:\\s*,?\\s*(\\d{2,4}))?\\b`,
@@ -184,6 +235,33 @@ function inferDueDateFromContext(item, ref, keyPoints, summary, nextSteps) {
   return null;
 }
 
+function inferRelativeDueFromContextOverride(item, ref, keyPoints, summary, nextSteps) {
+  if (!item || typeof item !== 'object') return null;
+  const assignee = (item.assignee || '').trim().toLowerCase();
+  const taskTokens = tokenizeWords(item.task || '');
+  if (!taskTokens.length) return null;
+
+  const lines = [
+    ...(Array.isArray(keyPoints) ? keyPoints : []).map((l) => String(l)),
+    ...splitSummaryLines(summary),
+    ...(Array.isArray(nextSteps) ? nextSteps : []).map((l) => String(l)),
+  ];
+
+  for (const line of lines) {
+    if (!line || line.length < 4) continue;
+    const rel = tryParseRelativeDuePhrases(line, ref);
+    if (!rel || Number.isNaN(rel.getTime())) continue;
+    const low = line.toLowerCase();
+    if (assignee && assignee.length >= 2 && low.includes(assignee)) {
+      return rel;
+    }
+    if (wordOverlapCount(taskTokens, line) >= 2) {
+      return rel;
+    }
+  }
+  return null;
+}
+
 function meetingReferenceDate(meeting) {
   const raw =
     meeting?.endTime ||
@@ -228,22 +306,43 @@ export function getEffectiveDueDate(item, meeting) {
     return alignDueYearToMeetingReference(d, meeting);
   };
 
-  if (item.dueDate) {
-    const d = new Date(item.dueDate);
-    if (!Number.isNaN(d.getTime())) return align(d);
-  }
   const refRaw = meeting?.endTime || meeting?.scheduledTime || meeting?.startTime;
   const refDate = refRaw ? new Date(refRaw) : new Date();
-
-  const blob = [item.task, item.notes, item.assignee].filter(Boolean).join(' ');
-  let inferred = parseDueDateFromText(blob, refDate);
-  if (inferred) return align(inferred);
 
   const keyPoints =
     meeting?.pendingKeyPoints?.length ? meeting.pendingKeyPoints : meeting?.keyPoints;
   const summary = meeting?.pendingSummary || meeting?.summary;
   const nextSteps =
     meeting?.pendingNextSteps?.length ? meeting.pendingNextSteps : meeting?.nextSteps;
+
+  const blob = [item.task, item.notes, item.assignee].filter(Boolean).join(' ');
+  const relativeInTask = tryParseRelativeDuePhrases(blob, refDate);
+  if (relativeInTask) return align(relativeInTask);
+
+  if (item.dueDate) {
+    const d = new Date(item.dueDate);
+    if (!Number.isNaN(d.getTime())) {
+      const stored = align(d);
+      const relOverride = inferRelativeDueFromContextOverride(
+        item,
+        refDate,
+        keyPoints || [],
+        summary || '',
+        nextSteps || []
+      );
+      if (
+        relOverride &&
+        stored &&
+        dateCalendarKeyLocal(stored) !== dateCalendarKeyLocal(align(relOverride))
+      ) {
+        return align(relOverride);
+      }
+      return stored;
+    }
+  }
+
+  let inferred = parseDueDateFromText(blob, refDate);
+  if (inferred) return align(inferred);
 
   inferred = inferDueDateFromContext(item, refDate, keyPoints || [], summary || '', nextSteps || []);
   if (inferred) return align(inferred);

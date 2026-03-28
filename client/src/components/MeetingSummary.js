@@ -110,7 +110,8 @@ const MeetingSummary = () => {
     decisionsDisplay.length ||
     nextSteps.length ||
     importantNotes.length;
-  const pendingApproval = meeting.summaryStatus === 'Pending Approval';
+  /** Any state before distribution — not only strict "Pending Approval" (legacy rows may omit status). */
+  const canEditAndSend = meeting.summaryStatus !== 'Sent' && hasContent;
 
   const startEditing = () => {
     setEditableSummary({
@@ -216,7 +217,7 @@ const MeetingSummary = () => {
             Please review carefully before sharing or acting on them.
           </p>
 
-          {pendingApproval && !!hasContent && allowsTranslatedSummary && (
+          {canEditAndSend && allowsTranslatedSummary && (
             <div className="meeting-summary-language-row">
               <label className="meeting-summary-language-label">
                 Also send translated summary in:
@@ -247,147 +248,172 @@ const MeetingSummary = () => {
           )}
 
           {editingSummary && editableSummary && (
-            <div className="meeting-summary-edit">
-              <div className="meeting-summary-edit-field">
-                <label>{isEducation ? 'Summary' : 'Minutes of the meeting'}</label>
-                <textarea
-                  value={editableSummary.summary}
-                  onChange={e => setEditableSummary({ ...editableSummary, summary: e.target.value })}
-                  rows={5}
-                  className="meeting-summary-textarea"
-                />
-              </div>
-              <div className="meeting-summary-edit-field">
-                <label>Key Points (one per line)</label>
-                <textarea
-                  value={(editableSummary.keyPoints || []).join('\n')}
-                  onChange={e => setEditableSummary({ ...editableSummary, keyPoints: e.target.value.split('\n').filter(l => l.trim()) })}
-                  rows={5}
-                  className="meeting-summary-textarea"
-                />
-              </div>
-              <div className="meeting-summary-edit-field">
-                <label>Action Items</label>
-                <small className="meeting-summary-edit-hint">
-                  One per line. Format: Task | Assignee | Due date as YYYY-MM-DD (optional)
-                </small>
-                <textarea
-                  value={(editableSummary.actionItems || []).map((item) => {
-                    let dueStr = '';
-                    if (item.dueDate) {
-                      const d = new Date(item.dueDate);
-                      dueStr = !Number.isNaN(d.getTime()) ? d.toISOString().slice(0, 10) : '';
-                    }
-                    return `${item.task || ''} | ${item.assignee || ''} | ${dueStr}`;
-                  }).join('\n')}
-                  onChange={(e) => {
-                    const prev = editableSummary.actionItems || [];
-                    const lines = e.target.value.split('\n').filter((l) => l.trim());
-                    const items = lines.map((line, idx) => {
-                      const parts = line.split('|').map((p) => p.trim());
-                      let dueDate = null;
-                      if (parts[2]) {
-                        const raw = parts[2];
-                        const d = /^\d{4}-\d{2}-\d{2}$/.test(raw)
-                          ? new Date(`${raw}T12:00:00.000Z`)
-                          : new Date(raw);
-                        dueDate = !Number.isNaN(d.getTime()) ? d : null;
+            <>
+              <div className="meeting-summary-edit">
+                <div className="meeting-summary-edit-field">
+                  <label>{isEducation ? 'Summary' : 'Minutes of the meeting'}</label>
+                  <textarea
+                    value={editableSummary.summary}
+                    onChange={e => setEditableSummary({ ...editableSummary, summary: e.target.value })}
+                    rows={5}
+                    className="meeting-summary-textarea"
+                  />
+                </div>
+                <div className="meeting-summary-edit-field">
+                  <label>Key Points (one per line)</label>
+                  <textarea
+                    value={(editableSummary.keyPoints || []).join('\n')}
+                    onChange={e => setEditableSummary({ ...editableSummary, keyPoints: e.target.value.split('\n').filter(l => l.trim()) })}
+                    rows={5}
+                    className="meeting-summary-textarea"
+                  />
+                </div>
+                <div className="meeting-summary-edit-field">
+                  <label>Action Items</label>
+                  <small className="meeting-summary-edit-hint">
+                    One per line. Format: Task | Assignee | Due date as YYYY-MM-DD (optional)
+                  </small>
+                  <textarea
+                    value={(editableSummary.actionItems || []).map((item) => {
+                      let dueStr = '';
+                      if (item.dueDate) {
+                        const d = new Date(item.dueDate);
+                        dueStr = !Number.isNaN(d.getTime()) ? d.toISOString().slice(0, 10) : '';
                       }
-                      const carry = prev[idx];
-                      return {
-                        ...(carry?._id ? { _id: carry._id } : {}),
-                        task: parts[0] || '',
-                        assignee: parts[1] || '',
-                        dueDate,
-                        ...(carry?.status ? { status: carry.status } : {}),
-                      };
-                    });
-                    setEditableSummary({ ...editableSummary, actionItems: items });
-                  }}
-                  rows={6}
-                  className="meeting-summary-textarea"
-                  style={{ fontFamily: 'ui-monospace, monospace' }}
-                />
+                      return `${item.task || ''} | ${item.assignee || ''} | ${dueStr}`;
+                    }).join('\n')}
+                    onChange={(e) => {
+                      const prev = editableSummary.actionItems || [];
+                      const lines = e.target.value.split('\n').filter((l) => l.trim());
+                      const items = lines.map((line, idx) => {
+                        const parts = line.split('|').map((p) => p.trim());
+                        let dueDate = null;
+                        if (parts[2]) {
+                          const raw = parts[2];
+                          const d = /^\d{4}-\d{2}-\d{2}$/.test(raw)
+                            ? new Date(`${raw}T12:00:00.000Z`)
+                            : new Date(raw);
+                          dueDate = !Number.isNaN(d.getTime()) ? d : null;
+                        }
+                        const carry = prev[idx];
+                        return {
+                          ...(carry?._id ? { _id: carry._id } : {}),
+                          task: parts[0] || '',
+                          assignee: parts[1] || '',
+                          dueDate,
+                          ...(carry?.status ? { status: carry.status } : {}),
+                        };
+                      });
+                      setEditableSummary({ ...editableSummary, actionItems: items });
+                    }}
+                    rows={6}
+                    className="meeting-summary-textarea"
+                    style={{ fontFamily: 'ui-monospace, monospace' }}
+                  />
+                </div>
+                <div className="meeting-summary-edit-field">
+                  <label>Decisions (one per line)</label>
+                  <textarea
+                    value={(editableSummary.decisions || []).join('\n')}
+                    onChange={e => setEditableSummary({ ...editableSummary, decisions: e.target.value.split('\n').filter(l => l.trim()) })}
+                    rows={4}
+                    className="meeting-summary-textarea"
+                  />
+                </div>
+                <div className="meeting-summary-edit-field">
+                  <label>Next Steps (one per line)</label>
+                  <textarea
+                    value={(editableSummary.nextSteps || []).join('\n')}
+                    onChange={e => setEditableSummary({ ...editableSummary, nextSteps: e.target.value.split('\n').filter(l => l.trim()) })}
+                    rows={4}
+                    className="meeting-summary-textarea"
+                  />
+                </div>
+                <div className="meeting-summary-edit-field">
+                  <label>{isEducation ? 'Important Concepts (one per line)' : 'Important Notes (one per line)'}</label>
+                  <textarea
+                    value={(editableSummary.importantNotes || []).join('\n')}
+                    onChange={e => setEditableSummary({ ...editableSummary, importantNotes: e.target.value.split('\n').filter(l => l.trim()) })}
+                    rows={4}
+                    className="meeting-summary-textarea"
+                  />
+                </div>
               </div>
-              <div className="meeting-summary-edit-field">
-                <label>Decisions (one per line)</label>
-                <textarea
-                  value={(editableSummary.decisions || []).join('\n')}
-                  onChange={e => setEditableSummary({ ...editableSummary, decisions: e.target.value.split('\n').filter(l => l.trim()) })}
-                  rows={4}
-                  className="meeting-summary-textarea"
-                />
-              </div>
-              <div className="meeting-summary-edit-field">
-                <label>Next Steps (one per line)</label>
-                <textarea
-                  value={(editableSummary.nextSteps || []).join('\n')}
-                  onChange={e => setEditableSummary({ ...editableSummary, nextSteps: e.target.value.split('\n').filter(l => l.trim()) })}
-                  rows={4}
-                  className="meeting-summary-textarea"
-                />
-              </div>
-              <div className="meeting-summary-edit-field">
-                <label>{isEducation ? 'Important Concepts (one per line)' : 'Important Notes (one per line)'}</label>
-                <textarea
-                  value={(editableSummary.importantNotes || []).join('\n')}
-                  onChange={e => setEditableSummary({ ...editableSummary, importantNotes: e.target.value.split('\n').filter(l => l.trim()) })}
-                  rows={4}
-                  className="meeting-summary-textarea"
-                />
-              </div>
-            </div>
+              {canEditAndSend && (
+                <div className="meeting-summary-actions meeting-summary-actions--send-first">
+                  <button
+                    type="button"
+                    className="meeting-summary-btn meeting-summary-btn--primary meeting-summary-btn--send"
+                    disabled={saving}
+                    onClick={handleApproveAndSend}
+                  >
+                    {saving
+                      ? 'Sending…'
+                      : isEducation
+                        ? 'Send Lecture Notes to Participants'
+                        : 'Send Summary to Participants'}
+                  </button>
+                  <button
+                    type="button"
+                    className="meeting-summary-btn meeting-summary-btn--secondary"
+                    onClick={() =>
+                      (setEditingSummary(false), setEditableSummary(null), setActionError(''))
+                    }
+                  >
+                    Cancel Edit
+                  </button>
+                </div>
+              )}
+            </>
           )}
 
-          {pendingApproval && !!hasContent && (
-            <div className="meeting-summary-actions meeting-summary-actions--send-first">
-              <button
-                type="button"
-                className="meeting-summary-btn meeting-summary-btn--primary meeting-summary-btn--send"
-                disabled={saving}
-                onClick={handleApproveAndSend}
-              >
-                {saving
-                  ? 'Sending…'
-                  : isEducation
-                    ? 'Send Lecture Notes to Participants'
-                    : 'Send Summary to Participants'}
-              </button>
-              <button
-                type="button"
-                className="meeting-summary-btn meeting-summary-btn--secondary"
-                onClick={() =>
-                  editingSummary
-                    ? (setEditingSummary(false), setEditableSummary(null), setActionError(''))
-                    : startEditing()
-                }
-              >
-                {editingSummary ? 'Cancel Edit' : 'Edit Summary'}
-              </button>
-            </div>
-          )}
           {actionError && <div className="meeting-summary-action-error">{actionError}</div>}
 
           {!!hasContent && !editingSummary && (
-            <div
-              className={
-                actionItems.length > 0 ? 'meeting-summary-secondary-block' : undefined
-              }
-            >
-              <MeetingSummaryReadonlyBody
-                meeting={meeting}
-                meetingId={id}
-                summaryText={summaryText}
-                keyPoints={keyPoints}
-                actionItems={actionItems}
-                decisions={decisions}
-                nextSteps={nextSteps}
-                importantNotes={importantNotes}
-                isEducation={isEducation}
-                onMeetingPatched={setMeeting}
-                includeSections="withoutActionItems"
-              />
-            </div>
+            <>
+              <div
+                className={
+                  actionItems.length > 0 ? 'meeting-summary-secondary-block' : undefined
+                }
+              >
+                <MeetingSummaryReadonlyBody
+                  meeting={meeting}
+                  meetingId={id}
+                  summaryText={summaryText}
+                  keyPoints={keyPoints}
+                  actionItems={actionItems}
+                  decisions={decisions}
+                  nextSteps={nextSteps}
+                  importantNotes={importantNotes}
+                  isEducation={isEducation}
+                  onMeetingPatched={setMeeting}
+                  includeSections="withoutActionItems"
+                />
+              </div>
+              {canEditAndSend && (
+                <div className="meeting-summary-actions meeting-summary-actions--send-first meeting-summary-actions--after-body">
+                  <button
+                    type="button"
+                    className="meeting-summary-btn meeting-summary-btn--primary meeting-summary-btn--send"
+                    disabled={saving}
+                    onClick={handleApproveAndSend}
+                  >
+                    {saving
+                      ? 'Sending…'
+                      : isEducation
+                        ? 'Send Lecture Notes to Participants'
+                        : 'Send Summary to Participants'}
+                  </button>
+                  <button
+                    type="button"
+                    className="meeting-summary-btn meeting-summary-btn--secondary"
+                    onClick={startEditing}
+                  >
+                    Edit Summary
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

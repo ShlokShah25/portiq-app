@@ -1,6 +1,6 @@
 /**
  * Infer calendar due dates from natural language in action item text when the model omits dueDate.
- * Handles e.g. "24th March", "March 24", "by 24 March 2026", DD/MM/YYYY.
+ * Handles e.g. "tonight", "tomorrow", "24th March", "March 24", DD/MM/YYYY.
  */
 
 const MONTH_ALIASES = {
@@ -32,6 +32,62 @@ const MONTH_ALIASES = {
 
 const MONTH_PATTERN =
   '(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
+
+/** Local calendar day at noon (avoids UTC shift for all-day style due dates). */
+function dateOnlyFromReferenceLocal(ref) {
+  const r =
+    ref instanceof Date && !Number.isNaN(ref.getTime()) ? ref : new Date();
+  return new Date(r.getFullYear(), r.getMonth(), r.getDate(), 12, 0, 0, 0);
+}
+
+function addLocalCalendarDays(ref, days) {
+  const d = dateOnlyFromReferenceLocal(ref);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+/**
+ * Relative deadlines anchored to the meeting reference instant (usually end or scheduled time).
+ */
+function tryParseRelativeDuePhrases(text, ref) {
+  if (!text || typeof text !== 'string') return null;
+  const r =
+    ref instanceof Date && !Number.isNaN(ref.getTime()) ? ref : new Date();
+  const low = text.toLowerCase().replace(/\s+/g, ' ');
+
+  if (
+    /\b(tonight|this evening|today|eod|end of (?:the )?day|by end of day|before midnight)\b/.test(
+      low
+    )
+  ) {
+    return dateOnlyFromReferenceLocal(r);
+  }
+  if (/\b(tomorrow|tmrw|tmr)\b/.test(low)) {
+    return addLocalCalendarDays(r, 1);
+  }
+  // Romanized Hindi / Hinglish often seen in transcripts
+  if (
+    /\b(aaj raat|aaj sham|aaj shaam|aaj hi|is sham|is shaam|aaj ke din|aaj ke liye)\b/.test(low)
+  ) {
+    return dateOnlyFromReferenceLocal(r);
+  }
+  if (/\baaj\b/.test(low) && /\b(raat|sham|shaam|evening|night)\b/.test(low)) {
+    return dateOnlyFromReferenceLocal(r);
+  }
+  if (/\bkal\b/.test(low) && /\b(subah|morning|sham|shaam|evening)\b/.test(low)) {
+    return addLocalCalendarDays(r, 1);
+  }
+
+  return null;
+}
+
+function lineSuggestsDeadlineOrRelative(line) {
+  const low = String(line || '').toLowerCase();
+  if (!low.trim()) return false;
+  return /\b(due|deadline|by|before|no later than|finish|complete|submit|hand in|turn in|tonight|this evening|today|tomorrow|eod|asap|aaj|kal|raat|sham|shaam|is sham|is shaam)\b/.test(
+    low
+  );
+}
 
 function normalizeYear(y, ref) {
   if (y == null || y === '') return null;
@@ -70,6 +126,9 @@ function parseDueDateFromText(text, referenceDate) {
       : new Date();
   const s = text.trim();
   if (!s) return null;
+
+  const relative = tryParseRelativeDuePhrases(s, ref);
+  if (relative) return relative;
 
   // 24th March 2026 / 24 March / 24 march 26
   let re = new RegExp(
@@ -218,6 +277,36 @@ function inferDueDateFromContext(item, ref, keyPoints, summary, nextSteps) {
   return null;
 }
 
+/**
+ * Prefer "tonight / today / tomorrow" from summary/key points over a wrong absolute model dueDate.
+ */
+function inferRelativeDueFromContextOverride(item, ref, keyPoints, summary, nextSteps) {
+  if (!item || typeof item !== 'object') return null;
+  const assignee = (item.assignee || '').trim().toLowerCase();
+  const taskTokens = tokenizeWords(item.task || '');
+  if (!taskTokens.length) return null;
+
+  const lines = [
+    ...(Array.isArray(keyPoints) ? keyPoints : []).map((l) => String(l)),
+    ...splitSummaryLines(summary),
+    ...(Array.isArray(nextSteps) ? nextSteps : []).map((l) => String(l)),
+  ];
+
+  for (const line of lines) {
+    if (!line || line.length < 4) continue;
+    const rel = tryParseRelativeDuePhrases(line, ref);
+    if (!rel || Number.isNaN(rel.getTime())) continue;
+    const low = line.toLowerCase();
+    if (assignee && assignee.length >= 2 && low.includes(assignee)) {
+      return rel;
+    }
+    if (wordOverlapCount(taskTokens, line) >= 2) {
+      return rel;
+    }
+  }
+  return null;
+}
+
 function hasValidDueDate(item) {
   if (!item || item.dueDate == null || item.dueDate === '') return false;
   const d = new Date(item.dueDate);
@@ -278,6 +367,14 @@ function enrichActionItemsWithDueDates(actionItems, referenceDate, context = {})
   const afterTaskAndContext = actionItems.map((item) => {
     if (!item || typeof item !== 'object') return item;
     const copy = { ...item };
+    const blob = [copy.task, copy.notes, copy.assignee].filter(Boolean).join(' ');
+
+    const relativeFromTask = tryParseRelativeDuePhrases(blob, ref);
+    if (relativeFromTask) {
+      copy.dueDate = relativeFromTask;
+      return copy;
+    }
+
     if (copy.dueDate != null && copy.dueDate !== '') {
       const d = new Date(copy.dueDate);
       if (!Number.isNaN(d.getTime())) {
@@ -285,7 +382,7 @@ function enrichActionItemsWithDueDates(actionItems, referenceDate, context = {})
         return copy;
       }
     }
-    const blob = [copy.task, copy.notes, copy.assignee].filter(Boolean).join(' ');
+
     let inferred = parseDueDateFromText(blob, ref);
     if (inferred) {
       copy.dueDate = inferred;
@@ -302,16 +399,47 @@ function enrichActionItemsWithDueDates(actionItems, referenceDate, context = {})
   let result = afterTaskAndContext;
   if (stillMissing.length === 1 && allDatesInContext.length === 1) {
     const onlyDate = allDatesInContext[0];
-    result = afterTaskAndContext.map((item) =>
-      hasValidDueDate(item) ? item : { ...item, dueDate: onlyDate }
-    );
+    const wantKey = dateCalendarKey(onlyDate);
+    const scanLines = [
+      ...(Array.isArray(keyPoints) ? keyPoints : []).map((l) => String(l)),
+      ...String(summary || '')
+        .split(/\n+/)
+        .map((l) => l.trim())
+        .filter(Boolean),
+      ...(Array.isArray(nextSteps) ? nextSteps : []).map((l) => String(l)),
+    ];
+    const safeToAttachSingleton = scanLines.some((line) => {
+      if (!lineSuggestsDeadlineOrRelative(line)) return false;
+      const parsed = parseDueDateFromText(line, ref);
+      return parsed && !Number.isNaN(parsed.getTime()) && dateCalendarKey(parsed) === wantKey;
+    });
+    if (safeToAttachSingleton) {
+      result = afterTaskAndContext.map((item) =>
+        hasValidDueDate(item) ? item : { ...item, dueDate: onlyDate }
+      );
+    }
   }
 
   return result.map((item) => {
-    if (!item || typeof item !== 'object' || !hasValidDueDate(item)) return item;
-    const d = new Date(item.dueDate);
+    if (!item || typeof item !== 'object') return item;
+    let next = { ...item };
+    const relOverride = inferRelativeDueFromContextOverride(
+      next,
+      ref,
+      keyPoints,
+      summary,
+      nextSteps
+    );
+    if (relOverride) {
+      const replace =
+        !hasValidDueDate(next) ||
+        dateCalendarKey(new Date(next.dueDate)) !== dateCalendarKey(relOverride);
+      if (replace) next = { ...next, dueDate: relOverride };
+    }
+    if (!hasValidDueDate(next)) return next;
+    const d = new Date(next.dueDate);
     const aligned = alignDueYearToReference(d, ref);
-    return { ...item, dueDate: aligned };
+    return { ...next, dueDate: aligned };
   });
 }
 

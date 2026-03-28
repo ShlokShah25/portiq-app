@@ -615,7 +615,9 @@ router.post('/:id/end', upload.single('audio'), async (req, res) => {
 
       // Process transcription asynchronously. Use findByIdAndUpdate instead of
       // saving the in-memory document to avoid VersionError on stale docs.
-      transcribeAndSummarize(audioFilePath, meeting)
+      transcribeAndSummarize(audioFilePath, meeting, {
+        productType: admin?.productType,
+      })
         .then(async (summaryData) => {
           const safeActionItems = (summaryData.actionItems || []).map((item) => ({
             task: item.task || '',

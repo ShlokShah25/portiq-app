@@ -855,8 +855,8 @@ const MeetingsScreen = ({ config }) => {
                   </div>
                 )}
 
-                {/* Summary ready - no verification step, just open for review/edit */}
-                {selectedMeeting.summaryStatus === 'Pending Approval' &&
+                {/* Summary ready — show gate whenever not yet sent (status may be missing on older rows) */}
+                {selectedMeeting.summaryStatus !== 'Sent' &&
                   selectedMeeting.transcriptionStatus === 'Completed' &&
                   !editableSummary &&
                   (selectedMeeting.pendingSummary || selectedMeeting.summary) && (
@@ -1217,9 +1217,10 @@ const MeetingsScreen = ({ config }) => {
                   </div>
                 )}
                 
-                {/* Sent / archived summary (same layout as full Meeting Summary page) */}
+                {/* Sent / archived summary — only after distribution (avoid duplicating unsent summary below) */}
                 {selectedMeeting.summary &&
-                  selectedMeeting.summaryStatus !== 'Pending Approval' &&
+                  (selectedMeeting.summaryStatus === 'Sent' ||
+                    selectedMeeting.summaryStatus === 'Approved') &&
                   !(verificationStep === 'edit' && editableSummary) && (
                   <div className="meeting-summary-card meetings-inline-summary">
                     <h3 className="meeting-summary-page-title">
@@ -1350,14 +1351,13 @@ const MeetingsScreen = ({ config }) => {
                         return (
                         <div
                           key={m._id}
-                          className="meeting-item"
-                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}
+                          className="meeting-item meeting-item--with-action"
                         >
                           <div
+                            className="meeting-item-main"
                             onClick={() => navigate(`/meetings/${m._id}`)}
                             role="button"
                             tabIndex={0}
-                            style={{ flex: 1, minWidth: 0 }}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter' || e.key === ' ') {
                                 e.preventDefault();
@@ -1365,7 +1365,7 @@ const MeetingsScreen = ({ config }) => {
                               }
                             }}
                           >
-                            <div className="meeting-title" style={{ marginBottom: '6px' }}>{m.title}</div>
+                            <div className="meeting-title">{m.title}</div>
                             <div className="meetings-list-badges-row">
                               {online ? (
                                 <span className="meeting-ui-badge meeting-ui-badge--mode">
@@ -1386,14 +1386,14 @@ const MeetingsScreen = ({ config }) => {
                               )}
                               <MeetingStatusBadge meeting={m} />
                             </div>
-                            <div className="meeting-meta" style={{ marginTop: 8 }}>
+                            <div className="meeting-meta">
                               <span>{m.scheduledTime ? new Date(m.scheduledTime).toLocaleString() : 'No time set'}</span>
                             </div>
                           </div>
                           <button
                             type="button"
-                            className="btn btn-primary"
-                            style={{ padding: '8px 12px', borderRadius: '10px', flexShrink: 0 }}
+                            className="btn btn-primary meeting-item-action-btn"
+                            style={{ flexShrink: 0 }}
                             onClick={(e) => {
                               e.stopPropagation();
                               navigate(online ? `/meetings/${m._id}` : `/meetings/${m._id}/room`);
@@ -1461,7 +1461,7 @@ const MeetingsScreen = ({ config }) => {
                             </span>
                           )}
                         </div>
-                        <div className="meetings-list-badges-row" style={{ marginTop: 6 }}>
+                        <div className="meetings-list-badges-row">
                           {online ? (
                             <span className="meeting-ui-badge meeting-ui-badge--mode">
                               <Video className="meeting-ui-badge__icon" size={11} strokeWidth={2} aria-hidden />
@@ -1481,7 +1481,7 @@ const MeetingsScreen = ({ config }) => {
                           )}
                           <MeetingStatusBadge meeting={m} />
                         </div>
-                        <div className="meeting-meta" style={{ marginTop: 8 }}>
+                        <div className="meeting-meta">
                           <span>{when ? new Date(when).toLocaleString() : '—'}</span>
                         </div>
                       </div>

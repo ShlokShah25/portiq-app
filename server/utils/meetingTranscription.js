@@ -10,6 +10,7 @@ const {
 } = require('./calendarInviteLinks');
 const { enrichActionItemsWithDueDates } = require('./actionItemDueDate');
 const VoiceProfile = require('../models/VoiceProfile');
+const Admin = require('../models/Admin');
 let ffmpeg = null;
 try {
   ffmpeg = require('fluent-ffmpeg');
@@ -131,8 +132,11 @@ function isGroundedAgainstTranscript(itemText, transcriptLower) {
  * Transcribe audio file and generate meeting summary
  * NOTE: This version is intentionally STRICT to the current meeting only.
  * It does NOT use any past-meeting \"learning\" context so it stays on-point.
+ * @param {string} audioFilePath
+ * @param {object|string} meeting - meeting doc or legacy title string
+ * @param {{ productType?: string }} [options] - e.g. { productType: 'education' } from Admin
  */
-async function transcribeAndSummarize(audioFilePath, meeting) {
+async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
   if (!openai) {
     throw new Error('OpenAI API key not configured');
   }
@@ -146,6 +150,17 @@ async function transcribeAndSummarize(audioFilePath, meeting) {
     ? { _id: null, title: meeting, participants: [] }
     : meeting;
   const meetingTitle = meetingObj.title || 'Meeting';
+
+  let resolvedProductType = String(options.productType || '').toLowerCase();
+  if (!resolvedProductType && meetingObj.adminId) {
+    try {
+      const a = await Admin.findById(meetingObj.adminId).select('productType').lean();
+      if (a && a.productType) resolvedProductType = String(a.productType).toLowerCase();
+    } catch (_) {
+      /* ignore */
+    }
+  }
+  const isEducation = resolvedProductType === 'education';
 
   // Helper function to compress audio file if needed
   const compressAudioIfNeeded = async (inputPath) => {
@@ -354,6 +369,51 @@ async function transcribeAndSummarize(audioFilePath, meeting) {
       }
     }
 
+    const anchorRef =
+      meetingObj && (meetingObj.endTime || meetingObj.scheduledTime || meetingObj.startTime)
+        ? new Date(meetingObj.endTime || meetingObj.scheduledTime || meetingObj.startTime)
+        : new Date();
+    const anchorLocalYmd = anchorRef.toLocaleDateString('en-CA', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    const anchorTomorrow = new Date(anchorRef.getFullYear(), anchorRef.getMonth(), anchorRef.getDate() + 1, 12, 0, 0, 0);
+    const anchorTomorrowYmd = anchorTomorrow.toLocaleDateString('en-CA', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+
+    const systemRole = isEducation
+      ? 'You are an AI assistant producing high-fidelity lecture and discussion notes from a single live session. '
+      : 'You are an AI meeting assistant for professional, high-fidelity minutes. ';
+
+    const systemEducationFocus = isEducation
+      ? 'This output should help someone review before class or an exam: preserve learning goals when stated, definitions and distinctions as spoken, examples walked through, lists or taxonomies the speaker used, formulas or steps if verbalized, caveats and misconceptions addressed, and questions raised by learners. '
+      : '';
+
+    const systemElaborationDepth =
+      'Whenever anyone elaborates on a topic at length—definitions, how vs why, step-by-step reasoning, examples, tradeoffs, or pushback—keep that substance in the summary and key points. Do not replace a long explanation with a single vague line like "discussed X"; the reader should grasp what was actually said. ';
+
+    const summarySchemaHint = isEducation
+      ? '"summary": "Coherent English narrative (typically 10–22+ sentences when the session is substantive). Cover themes and the actual teaching content: how ideas were defined, compared, and illustrated. Scale length with depth of explanation—not a terse skim.",'
+      : '"summary": "Detailed English narrative (typically 8–18+ sentences; longer when segments are deep or technical). Cover themes plus substantive elaborations: how arguments were made, how domain concepts were explained, and examples when given.",';
+
+    const keyPointsSchemaHint = isEducation
+      ? '"keyPoints": ["Concrete, review-friendly bullets; when a concept was explained in depth, use multiple ordered bullets so definitions, sub-types, and examples are not collapsed into one vague line"],'
+      : '"keyPoints": ["Concrete bullets; when a topic was elaborated, split into multiple ordered points so definitions, examples, and distinctions stay explicit"],';
+
+    const userElaborationRules =
+      `- When any speaker goes deep on a topic, the executive summary must reflect what they explained (definitions, contrasts, examples, steps)—not only that the topic came up.\n` +
+      `- Use several key points for one extended explanation if needed; prefer accuracy and completeness over minimizing bullet count.\n` +
+      `- Put nuances, caveats, "gotchas", or clarified misunderstandings in importantNotes when they do not fit a crisp key point.\n`;
+
+    const userEducationRules = isEducation
+      ? `- Education mode: structure bullets like study notes where the transcript supports it (e.g. types of X, steps, criteria).\n` +
+        `- If the instructor named terms, keep those terms and the gist of each definition as stated.\n`
+      : '';
+
     // Step 2: Generate summary using ONLY this meeting's transcript (no external context)
     // Retry logic for summary generation too
     let summaryResponse = null;
@@ -368,15 +428,22 @@ async function transcribeAndSummarize(audioFilePath, meeting) {
         {
           role: 'system',
           content:
-            'You are an AI meeting assistant for professional, high-fidelity minutes. ' +
+            systemRole +
+            systemEducationFocus +
+            systemElaborationDepth +
             'The transcript may contain multiple languages including English, Hindi, Gujarati, and Hinglish. ' +
             'Accurately understand all languages present, but provide your output only in professional English. ' +
             'Prioritize completeness over brevity: include every relevant discussion point, decision, risk, and commitment. ' +
-            'Use professional business language, do not invent information, and only include decisions or actions that are clearly mentioned. ' +
+            (isEducation
+              ? 'Use clear teaching-friendly language; do not invent facts or examples not grounded in the transcript. '
+              : 'Use professional business language, do not invent information, and only include decisions or actions that are clearly mentioned. ') +
             'Output must follow the requested JSON structure only. ' +
             'CRITICAL: Base your summary ONLY on the current transcript. Do NOT bring in information or topics from any past meetings. ' +
-            'The executive summary must capture ALL the major themes of the meeting (projects, planning, issues, risks, feedback, next steps), ' +
-            'and highlight the most important concrete points such as names, topics, numbers, and deadlines. ' +
+            'The executive summary must capture ALL the major themes of the session ' +
+            (isEducation
+              ? '(topics taught, concepts compared, practice discussed, open questions). '
+              : '(projects, planning, issues, risks, feedback, next steps). ') +
+            'Highlight the most important concrete points such as names, topics, numbers, and deadlines. ' +
             'IMPORTANT: Attribute statements to specific participants only when clear evidence exists in the transcript. ' +
             'If uncertain, avoid guessing names and keep the point unattributed.'
         },
@@ -385,6 +452,8 @@ async function transcribeAndSummarize(audioFilePath, meeting) {
           content:
             `Analyze the following SINGLE meeting transcript and generate a structured summary strictly about this meeting only.\n\n` +
             `Meeting title (for reference): ${meetingTitle}\n\n` +
+            `Meeting time anchor (use for relative deadlines; local calendar dates are in the server timezone): ` +
+            `ISO ${anchorRef.toISOString()} · "today/tonight/this evening/EOD" → dueDate ${anchorLocalYmd} · "tomorrow" → ${anchorTomorrowYmd}.\n\n` +
             `Detected primary transcription language: ${detectedLanguage}\n\n` +
             (durationMinutes
               ? `Approximate meeting duration: ${durationMinutes} minutes.\n\n`
@@ -406,10 +475,15 @@ async function transcribeAndSummarize(audioFilePath, meeting) {
             `- Do not collapse multiple distinct points into a vague sentence; keep distinct points separate and explicit.\n` +
             `- Avoid generic filler like "align on next steps", "confirm preparations", or "follow up" unless that wording/commitment exists in the transcript.\n` +
             `- Explicitly mention important specifics such as names, topics, projects, events, numbers, dates, and deadlines when they are clearly mentioned.\n` +
+            userElaborationRules +
+            userEducationRules +
             `- CRITICAL: In keyPoints, include who said what only when speaker identity is clear. Format as: "[Speaker Name]: [what they said]". If speaker cannot be identified with confidence, do not guess names.\n` +
             `- In actionItems, each task must be a specific, actionable task tied to what people actually said (no generic or invented tasks). Include the assignee name if mentioned.\n` +
             `- If there are no explicit action items in the transcript, set actionItems to []. Do not infer.\n` +
-            `- For actionItems, set dueDate to ISO format YYYY-MM-DD whenever any deadline is mentioned (e.g. "by 24th March", "March 24", "next Friday"). Use the meeting date context for the year if the year is not stated. If no deadline is mentioned, use null for dueDate.\n` +
+            `- For actionItems, set dueDate to YYYY-MM-DD only when a calendar deadline is clearly tied to THAT specific task.\n` +
+            `- Map relative language using the meeting anchor above: "tonight", "today", "this evening", "EOD", "by end of day", Romanized Hindi/Hinglish like "aaj raat", "aaj sham/shaam" → ${anchorLocalYmd}. "tomorrow" / "kal" (when meaning next day) → ${anchorTomorrowYmd}.\n` +
+            `- For absolute phrases ("24 March", "March 24th") use the meeting anchor year if the year is unstated. If no deadline is stated for that task ("soon", "ASAP" alone), use null.\n` +
+            `- Never copy unrelated dates from examples, statistics, or other topics into an action item's dueDate.\n` +
             `- In decisions, include who made or proposed the decision only when identifiable. If there are no explicit decisions, set decisions to []. Do not infer.\n` +
             `- In nextSteps, include concrete follow-ups that logically continue from explicit next actions in the transcript. If none exist, set nextSteps to []. Do not infer.\n` +
             `- In importantNotes, include risks, blockers, dependencies, unresolved questions, and critical assumptions if discussed. If none exist, set importantNotes to []. Do not infer.\n` +
@@ -419,8 +493,8 @@ async function transcribeAndSummarize(audioFilePath, meeting) {
             `- When participant names are mentioned in the transcript, use them to attribute statements. Match names from the participant list provided.\n\n` +
             `Return ONLY a JSON object with the following structure:\n` +
             `{\n` +
-            `  "summary": "Detailed executive summary in English (typically 6-12 sentences depending on meeting depth). Must be concrete, non-vague, and cover all major relevant points.",\n` +
-            `  "keyPoints": ["Concrete point 1 with specifics", "Concrete point 2 with specifics"],\n` +
+            `  ${summarySchemaHint}\n` +
+            `  ${keyPointsSchemaHint}\n` +
             `  "actionItems": [\n` +
             `    {"task": "task description", "assignee": "person name if mentioned", "dueDate": "YYYY-MM-DD or null", "notes": "extra detail if needed"}\n` +
             `  ],\n` +
@@ -494,13 +568,9 @@ async function transcribeAndSummarize(audioFilePath, meeting) {
       );
     });
 
-    const referenceForDueDates =
-      meetingObj && (meetingObj.endTime || meetingObj.scheduledTime || meetingObj.startTime)
-        ? new Date(meetingObj.endTime || meetingObj.scheduledTime || meetingObj.startTime)
-        : new Date();
     summaryData.actionItems = enrichActionItemsWithDueDates(
       summaryData.actionItems,
-      referenceForDueDates,
+      anchorRef,
       {
         keyPoints: summaryData.keyPoints,
         summary: summaryData.summary,
