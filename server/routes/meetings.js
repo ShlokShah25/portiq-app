@@ -162,6 +162,8 @@ router.post('/', async (req, res) => {
     }
 
     const agendaTrim = agenda != null ? String(agenda).trim().slice(0, 8000) : '';
+    const editorTrim =
+      authorizedEditorEmail != null ? String(authorizedEditorEmail).trim().slice(0, 320) : '';
 
     if (admin) {
       const st = scheduledTime ? new Date(scheduledTime) : null;
@@ -174,14 +176,12 @@ router.post('/', async (req, res) => {
       if (parts.length === 0) {
         return res.status(400).json({ error: 'At least one participant with an email is required.' });
       }
-      const editorRaw = authorizedEditorEmail != null ? String(authorizedEditorEmail).trim() : '';
-      if (!editorRaw) {
-        return res.status(400).json({ error: 'Authorized editor email is required.' });
-      }
-      const editorLower = editorRaw.toLowerCase();
-      const okEditor = parts.some((p) => String(p.email).trim().toLowerCase() === editorLower);
-      if (!okEditor) {
-        return res.status(400).json({ error: 'Authorized editor must be one of the participants.' });
+      if (editorTrim) {
+        const editorLower = editorTrim.toLowerCase();
+        const okEditor = parts.some((p) => String(p.email).trim().toLowerCase() === editorLower);
+        if (!okEditor) {
+          return res.status(400).json({ error: 'Authorized editor must be one of the participants.' });
+        }
       }
       if (!agendaTrim) {
         return res.status(400).json({ error: 'Agenda is required.' });
@@ -228,7 +228,7 @@ router.post('/', async (req, res) => {
       startTime: null, // Set when user clicks "Start recording", not at creation
       scheduledTime: scheduledTime ? new Date(scheduledTime) : null,
       transcriptionEnabled: true,
-      authorizedEditorEmail: authorizedEditorEmail || null,
+      authorizedEditorEmail: editorTrim || null,
       conferenceProvider: prov,
       conferenceJoinUrl: joinUrlTrim,
       externalMeetingId: extMeetingId,
@@ -236,7 +236,7 @@ router.post('/', async (req, res) => {
     });
 
     // Generate verification code for authorized editor if specified
-    if (authorizedEditorEmail) {
+    if (editorTrim) {
       // Generate 6-digit OTP
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
       // Set expiry to 7 days from now (plenty of time for meeting to happen and be processed)
@@ -247,7 +247,7 @@ router.post('/', async (req, res) => {
     await meeting.save();
 
     // Send separate verification code email to authorized editor (if specified)
-    if (authorizedEditorEmail && meeting.editorVerificationCode) {
+    if (editorTrim && meeting.editorVerificationCode) {
       const transporter = getMailTransporter();
       if (transporter) {
         try {
@@ -256,7 +256,7 @@ router.post('/', async (req, res) => {
           // Send verification code in a separate email
           await transporter.sendMail({
             from: process.env.MAIL_FROM || process.env.MAIL_USER,
-            to: authorizedEditorEmail,
+            to: editorTrim,
             subject: `Verification Code - ${meeting.title} | PortIQ Meeting Assistant`,
             html: `
               <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; color: #111827; line-height: 1.6;">
@@ -301,7 +301,7 @@ router.post('/', async (req, res) => {
               </div>
             `
           });
-          console.log('✅ Verification code sent separately to authorized editor:', authorizedEditorEmail);
+          console.log('✅ Verification code sent separately to authorized editor:', editorTrim);
         } catch (emailErr) {
           console.warn('⚠️  Failed to send verification code email to authorized editor:', emailErr.message);
         }

@@ -125,6 +125,10 @@
 
 .meeting-create-segment button {
   flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   padding: 11px 14px;
   border: none;
   background: transparent;
@@ -472,4 +476,144 @@
 .start-meeting-add-participant {
   margin-top: 4px;
   margin-bottom: 4px;
+}
+
+/* Field labels with Lucide icons */
+.start-meeting-field .start-meeting-label-with-icon {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #9ca3af;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.start-meeting-label-with-icon__ic {
+  flex-shrink: 0;
+  color: #6b7280;
+}
+
+.start-meeting-section-label--row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.start-meeting-section-label__ic {
+  flex-shrink: 0;
+  color: #6b7280;
+}
+
+.meeting-create-participant-multiselect {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: #f5f5f7;
+  font-size: 13px;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+.meeting-create-participant-multiselect:focus {
+  outline: none;
+  border-color: rgba(59, 130, 246, 0.45);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+.meeting-create-participant-multiselect option {
+  padding: 6px 4px;
+}
+
+.meeting-create-participant-multiselect option:checked {
+  background: rgba(59, 130, 246, 0.35);
+  color: #f8fafc;
+}
+
+.meeting-create-voice-block {
+  margin: 16px 0 12px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.meeting-create-voice-block .start-meeting-section-label {
+  margin-top: 0;
+  margin-bottom: 6px;
+}
+
+.meeting-create-voice-row + .meeting-create-voice-row {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.meeting-create-voice-row__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.meeting-create-voice-row__name {
+  font-weight: 600;
+  color: #f5f5f7;
+  font-size: 14px;
+}
+
+.meeting-create-voice-row__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #9ca3af;
+}
+
+.meeting-create-voice-row__badge--ok {
+  color: #6ee7b7;
+}
+
+.meeting-create-voice-row__phrase {
+  font-size: 12px;
+  color: #9ca3af;
+  line-height: 1.45;
+  margin: 8px 0 10px;
+}
+
+.meeting-create-voice-row__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.meeting-create-voice-row__rec {
+  font-size: 12px;
+  color: #fca5a5;
+}
+
+.meeting-create-voice-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.start-meeting-checkbox--with-icon {
+  align-items: flex-start;
+}
+
+.start-meeting-checkbox--with-icon .start-meeting-checkbox__ic {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: #6b7280;
 }

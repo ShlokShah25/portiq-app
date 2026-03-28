@@ -65,6 +65,31 @@ const MeetingInProgress = () => {
     };
   }, [meeting?.participants]);
 
+  // New route id: reset autostart guard + UI so we never reuse another meeting's state.
+  useEffect(() => {
+    if (!meetingId) return;
+    autostartDoneRef.current = false;
+    setMeeting(null);
+    setLoading(true);
+    setError('');
+    setRecording(false);
+    setPaused(false);
+    setMeetingEnded(false);
+    setUploading(false);
+    setElapsedTime(0);
+    const rec = mediaRecorderRef.current;
+    if (rec && rec.state !== 'inactive') {
+      try {
+        rec.stop();
+      } catch (_) {}
+    }
+    mediaRecorderRef.current = null;
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+  }, [meetingId]);
+
   useEffect(() => {
     if (meetingId) {
       fetchMeeting();
@@ -125,20 +150,21 @@ const MeetingInProgress = () => {
     try {
       const res = await axios.get(`/meetings/${meetingId}`);
       setMeeting(res.data.meeting);
+      setError('');
       setLoading(false);
     } catch (err) {
       console.error('Error fetching meeting:', err);
       setError('Failed to load meeting details');
+      setMeeting(null);
       setLoading(false);
     }
   };
 
   const startRecording = async () => {
     try {
-      // Call API to set start time
       await axios.post(`/meetings/${meetingId}/start-recording`);
-      await fetchMeeting(); // Refresh meeting data
-      
+      await fetchMeeting();
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
       const mediaRecorder = new MediaRecorder(stream);
@@ -165,15 +191,25 @@ const MeetingInProgress = () => {
       setError('');
     } catch (err) {
       console.error('Error starting recording:', err);
-      setError('Unable to access microphone. Please check browser permissions.');
+      const st = err.response?.status;
+      setError(
+        typeof st === 'number' && st >= 400
+          ? err.response?.data?.error ||
+              err.message ||
+              'Could not start recording on the server. Try again or open the meeting from Meetings.'
+          : 'Unable to access microphone. Please check browser permissions.'
+      );
     }
   };
 
+  // Autostart once per room visit: ref is only set when the timer actually fires (Strict Mode safe).
   useEffect(() => {
-    if (searchParams.get('autostart') !== '1' || autostartDoneRef.current) return;
+    if (searchParams.get('autostart') !== '1') return;
+    if (autostartDoneRef.current) return;
     if (!meeting || meeting.status !== 'Scheduled' || !meeting.transcriptionEnabled) return;
-    autostartDoneRef.current = true;
     const t = setTimeout(() => {
+      if (autostartDoneRef.current) return;
+      autostartDoneRef.current = true;
       startRecording();
     }, 500);
     return () => clearTimeout(t);
