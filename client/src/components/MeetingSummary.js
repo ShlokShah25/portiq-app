@@ -117,9 +117,11 @@ const MeetingSummary = () => {
       summary: summaryText,
       keyPoints: [...keyPoints],
       actionItems: (actionItems || []).map((item) => ({
+        ...(item._id ? { _id: item._id } : {}),
         task: item.task || '',
         assignee: item.assignee || '',
-        dueDate: item.dueDate || null
+        dueDate: item.dueDate || null,
+        ...(item.status ? { status: item.status } : {}),
       })),
       decisions: [...(decisions || [])],
       nextSteps: [...(nextSteps || [])],
@@ -133,7 +135,7 @@ const MeetingSummary = () => {
     setSaving(true);
     setActionError('');
     try {
-      if (editingSummary && editableSummary) {
+      if (editableSummary) {
         await axios.put(`/meetings/${id}/pending-summary`, {
           summary: editableSummary.summary,
           keyPoints: editableSummary.keyPoints,
@@ -236,35 +238,6 @@ const MeetingSummary = () => {
             </div>
           )}
 
-          {pendingApproval && !!hasContent && (
-            <div className="meeting-summary-actions meeting-summary-actions--send-first">
-              <button
-                type="button"
-                className="meeting-summary-btn meeting-summary-btn--primary meeting-summary-btn--send"
-                disabled={saving}
-                onClick={handleApproveAndSend}
-              >
-                {saving
-                  ? 'Sending…'
-                  : isEducation
-                    ? 'Send Lecture Notes to Participants'
-                    : 'Send Summary to Participants'}
-              </button>
-              <button
-                type="button"
-                className="meeting-summary-btn meeting-summary-btn--secondary"
-                onClick={() =>
-                  editingSummary
-                    ? (setEditingSummary(false), setEditableSummary(null), setActionError(''))
-                    : startEditing()
-                }
-              >
-                {editingSummary ? 'Cancel Edit' : 'Edit Summary'}
-              </button>
-            </div>
-          )}
-          {actionError && <div className="meeting-summary-action-error">{actionError}</div>}
-
           {!hasContent && !editingSummary && (
             <div className="meeting-summary-empty">
               {meeting.transcriptionStatus === 'Processing'
@@ -294,6 +267,49 @@ const MeetingSummary = () => {
                 />
               </div>
               <div className="meeting-summary-edit-field">
+                <label>Action Items</label>
+                <small className="meeting-summary-edit-hint">
+                  One per line. Format: Task | Assignee | Due date as YYYY-MM-DD (optional)
+                </small>
+                <textarea
+                  value={(editableSummary.actionItems || []).map((item) => {
+                    let dueStr = '';
+                    if (item.dueDate) {
+                      const d = new Date(item.dueDate);
+                      dueStr = !Number.isNaN(d.getTime()) ? d.toISOString().slice(0, 10) : '';
+                    }
+                    return `${item.task || ''} | ${item.assignee || ''} | ${dueStr}`;
+                  }).join('\n')}
+                  onChange={(e) => {
+                    const prev = editableSummary.actionItems || [];
+                    const lines = e.target.value.split('\n').filter((l) => l.trim());
+                    const items = lines.map((line, idx) => {
+                      const parts = line.split('|').map((p) => p.trim());
+                      let dueDate = null;
+                      if (parts[2]) {
+                        const raw = parts[2];
+                        const d = /^\d{4}-\d{2}-\d{2}$/.test(raw)
+                          ? new Date(`${raw}T12:00:00.000Z`)
+                          : new Date(raw);
+                        dueDate = !Number.isNaN(d.getTime()) ? d : null;
+                      }
+                      const carry = prev[idx];
+                      return {
+                        ...(carry?._id ? { _id: carry._id } : {}),
+                        task: parts[0] || '',
+                        assignee: parts[1] || '',
+                        dueDate,
+                        ...(carry?.status ? { status: carry.status } : {}),
+                      };
+                    });
+                    setEditableSummary({ ...editableSummary, actionItems: items });
+                  }}
+                  rows={6}
+                  className="meeting-summary-textarea"
+                  style={{ fontFamily: 'ui-monospace, monospace' }}
+                />
+              </div>
+              <div className="meeting-summary-edit-field">
                 <label>Decisions (one per line)</label>
                 <textarea
                   value={(editableSummary.decisions || []).join('\n')}
@@ -320,31 +336,37 @@ const MeetingSummary = () => {
                   className="meeting-summary-textarea"
                 />
               </div>
-              <div className="meeting-summary-edit-field">
-                <label>Action Items</label>
-                <small className="meeting-summary-edit-hint">Format: Task | Assignee | Due Date (optional)</small>
-                <textarea
-                  value={(editableSummary.actionItems || []).map(item =>
-                    `${item.task || ''} | ${item.assignee || ''} | ${item.dueDate ? new Date(item.dueDate).toLocaleDateString() : ''}`
-                  ).join('\n')}
-                  onChange={e => {
-                    const lines = e.target.value.split('\n').filter(l => l.trim());
-                    const items = lines.map(line => {
-                      const parts = line.split('|').map(p => p.trim());
-                      return {
-                        task: parts[0] || '',
-                        assignee: parts[1] || '',
-                        dueDate: parts[2] ? new Date(parts[2]) : null
-                      };
-                    });
-                    setEditableSummary({ ...editableSummary, actionItems: items });
-                  }}
-                  rows={5}
-                  className="meeting-summary-textarea"
-                />
-              </div>
             </div>
           )}
+
+          {pendingApproval && !!hasContent && (
+            <div className="meeting-summary-actions meeting-summary-actions--send-first">
+              <button
+                type="button"
+                className="meeting-summary-btn meeting-summary-btn--primary meeting-summary-btn--send"
+                disabled={saving}
+                onClick={handleApproveAndSend}
+              >
+                {saving
+                  ? 'Sending…'
+                  : isEducation
+                    ? 'Send Lecture Notes to Participants'
+                    : 'Send Summary to Participants'}
+              </button>
+              <button
+                type="button"
+                className="meeting-summary-btn meeting-summary-btn--secondary"
+                onClick={() =>
+                  editingSummary
+                    ? (setEditingSummary(false), setEditableSummary(null), setActionError(''))
+                    : startEditing()
+                }
+              >
+                {editingSummary ? 'Cancel Edit' : 'Edit Summary'}
+              </button>
+            </div>
+          )}
+          {actionError && <div className="meeting-summary-action-error">{actionError}</div>}
 
           {!!hasContent && !editingSummary && (
             <div

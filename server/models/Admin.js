@@ -39,7 +39,7 @@ const adminSchema = new mongoose.Schema({
   },
   plan: {
     type: String,
-    enum: ['starter', 'professional', 'business'],
+    enum: ['starter', 'professional', 'business', 'institutional'],
     default: 'starter'
   },
   // Gate dashboard access: only true after a subscription is active (e.g. Razorpay webhook).

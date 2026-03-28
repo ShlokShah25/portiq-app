@@ -8,7 +8,7 @@ const PLAN_LIMITS = {
   workplace: {
     starter: {
       maxParticipants: 10,
-      maxParticipantsInBook: 20,
+      maxParticipantsInBook: 30,
       maxDurationMinutes: 60,
       maxConcurrentMeetings: 1,
       /** Email “also send translated summary” (multi-language outbound) */
@@ -19,8 +19,8 @@ const PLAN_LIMITS = {
       allowsConferenceBots: true,
     },
     professional: {
-      maxParticipants: 20,
-      maxParticipantsInBook: 40,
+      maxParticipants: 30,
+      maxParticipantsInBook: 60,
       maxDurationMinutes: 180, // 3 hours
       maxConcurrentMeetings: 1,
       allowsTranslatedSummary: false,
@@ -28,10 +28,20 @@ const PLAN_LIMITS = {
       allowsConferenceBots: true,
     },
     business: {
-      maxParticipants: 30,
-      maxParticipantsInBook: 60,
+      maxParticipants: 60,
+      maxParticipantsInBook: 100,
       maxDurationMinutes: 480, // 8 hours
       maxConcurrentMeetings: 3,
+      allowsTranslatedSummary: true,
+      allowsActionItemReminders: true,
+      allowsConferenceBots: true,
+    },
+    /** Campuses & enterprises — set manually / contract (no default Razorpay plan) */
+    institutional: {
+      maxParticipants: 200,
+      maxParticipantsInBook: 500,
+      maxDurationMinutes: 1440, // 24 hours
+      maxConcurrentMeetings: 25,
       allowsTranslatedSummary: true,
       allowsActionItemReminders: true,
       allowsConferenceBots: true,

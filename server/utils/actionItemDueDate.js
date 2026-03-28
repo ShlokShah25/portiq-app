@@ -224,6 +224,36 @@ function hasValidDueDate(item) {
   return !Number.isNaN(d.getTime());
 }
 
+function alignDueYearToReference(due, ref) {
+  if (!due || Number.isNaN(due.getTime()) || !ref || Number.isNaN(ref.getTime())) return due;
+  const refY = ref.getUTCFullYear();
+  if (due.getUTCFullYear() >= refY) return due;
+  const m = due.getUTCMonth();
+  const day = due.getUTCDate();
+  let next = new Date(Date.UTC(refY, m, day, 0, 0, 0, 0));
+  if (next.getUTCMonth() !== m) {
+    next = new Date(Date.UTC(refY, m + 1, 0, 0, 0, 0, 0));
+  }
+  return next;
+}
+
+/**
+ * If due year is before the meeting reference year, keep month/day in that year (fixes stale/LLM years).
+ * @param {Date} due
+ * @param {{ endTime?: any, scheduledTime?: any, startTime?: any, createdAt?: any }} [meetingLike]
+ */
+function alignDueYearToMeetingReference(due, meetingLike) {
+  if (!due || Number.isNaN(due.getTime())) return due;
+  const raw =
+    meetingLike?.endTime ||
+    meetingLike?.scheduledTime ||
+    meetingLike?.startTime ||
+    meetingLike?.createdAt;
+  const ref = raw ? new Date(raw) : new Date();
+  if (Number.isNaN(ref.getTime())) return due;
+  return alignDueYearToReference(due, ref);
+}
+
 /**
  * @param {Array<{task?:string,assignee?:string,dueDate?:any,notes?:string}>} actionItems
  * @param {Date|string|null} referenceDate
@@ -269,14 +299,20 @@ function enrichActionItemsWithDueDates(actionItems, referenceDate, context = {})
   });
 
   const stillMissing = afterTaskAndContext.filter((i) => !hasValidDueDate(i));
+  let result = afterTaskAndContext;
   if (stillMissing.length === 1 && allDatesInContext.length === 1) {
     const onlyDate = allDatesInContext[0];
-    return afterTaskAndContext.map((item) =>
+    result = afterTaskAndContext.map((item) =>
       hasValidDueDate(item) ? item : { ...item, dueDate: onlyDate }
     );
   }
 
-  return afterTaskAndContext;
+  return result.map((item) => {
+    if (!item || typeof item !== 'object' || !hasValidDueDate(item)) return item;
+    const d = new Date(item.dueDate);
+    const aligned = alignDueYearToReference(d, ref);
+    return { ...item, dueDate: aligned };
+  });
 }
 
 module.exports = {
@@ -284,4 +320,5 @@ module.exports = {
   enrichActionItemsWithDueDates,
   inferDueDateFromContext,
   extractAllMentionedDates,
+  alignDueYearToMeetingReference,
 };

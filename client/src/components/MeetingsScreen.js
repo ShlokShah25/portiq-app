@@ -36,6 +36,8 @@ const MeetingsScreen = ({ config }) => {
   const [polling, setPolling] = useState(false);
   const [recording, setRecording] = useState(false);
   const [rightTab, setRightTab] = useState('scheduled'); // 'scheduled' | 'recent'
+  /** Narrow list: all | online (Zoom/Teams/link) | live (in-room recording) */
+  const [meetingTypeFilter, setMeetingTypeFilter] = useState('all');
   const [showAllMeetings, setShowAllMeetings] = useState(false);
 
   const mediaRecorderRef = useRef(null);
@@ -51,7 +53,7 @@ const MeetingsScreen = ({ config }) => {
     { name: '', email: '' }
   ]);
 
-  const [maxParticipantsPerMeeting, setMaxParticipantsPerMeeting] = useState(null); // 10/20/30 by plan, null = no limit
+  const [maxParticipantsPerMeeting, setMaxParticipantsPerMeeting] = useState(null); // by plan from server profile, null = no limit
   /** null = loading profile; ok = can create; inactive / payment_pending = blocked */
   const [subscriptionGate, setSubscriptionGate] = useState(null);
   const newMeetingFormRef = useRef(null);
@@ -116,7 +118,12 @@ const MeetingsScreen = ({ config }) => {
         }
 
         const plan = (admin.plan || 'starter').toLowerCase();
-        const maxByPlan = { starter: 10, professional: 20, business: 30 };
+        const maxByPlan = {
+          starter: 10,
+          professional: 30,
+          business: 60,
+          institutional: 200,
+        };
         setMaxParticipantsPerMeeting(maxByPlan[plan] ?? null);
       } catch (e) {
         setMaxParticipantsPerMeeting(null);
@@ -166,7 +173,14 @@ const MeetingsScreen = ({ config }) => {
       state: Object.keys(next).length ? next : undefined,
     });
     requestAnimationFrame(() => {
-      newMeetingFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const wrap = newMeetingFormRef.current;
+      wrap?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      window.setTimeout(() => {
+        const focusable = wrap?.querySelector(
+          'input:not([type="hidden"]):not([disabled]), textarea:not([disabled]), select:not([disabled])'
+        );
+        focusable?.focus?.();
+      }, 450);
     });
   }, [location.state?.openStartModal, location.pathname, navigate]);
 
@@ -293,6 +307,27 @@ const MeetingsScreen = ({ config }) => {
       const db = new Date(b.updatedAt || b.createdAt || b.startTime || b.scheduledTime || 0).getTime();
       return db - da;
     });
+
+  const filterMeetingsByType = useCallback(
+    (list) => {
+      if (!list || meetingTypeFilter === 'all') return list;
+      if (meetingTypeFilter === 'online') return list.filter((m) => m && isOnlineMeeting(m));
+      return list.filter((m) => m && !isOnlineMeeting(m));
+    },
+    [meetingTypeFilter]
+  );
+
+  const filteredScheduledMeetings = filterMeetingsByType(scheduledMeetings);
+  const filteredRecentMeetings = filterMeetingsByType(recentMeetings);
+
+  const typeFilterBtnStyle = (active) => ({
+    padding: '6px 10px',
+    borderRadius: '8px',
+    fontSize: '12px',
+    fontWeight: 600,
+    opacity: active ? 1 : 0.75,
+    borderColor: active ? '#2563eb' : undefined,
+  });
 
   const allMeetingsSorted = (meetings || [])
     .filter(Boolean)
@@ -823,7 +858,8 @@ const MeetingsScreen = ({ config }) => {
                 {/* Summary ready - no verification step, just open for review/edit */}
                 {selectedMeeting.summaryStatus === 'Pending Approval' &&
                   selectedMeeting.transcriptionStatus === 'Completed' &&
-                  !editableSummary && selectedMeeting.summary && (
+                  !editableSummary &&
+                  (selectedMeeting.pendingSummary || selectedMeeting.summary) && (
                     <div className="meeting-summary-card meetings-inline-summary">
                       <div
                         className="meeting-summary-ready-badge meeting-summary-ready-badge--sentence"
@@ -889,6 +925,7 @@ const MeetingsScreen = ({ config }) => {
                           };
 
                           setEditableSummary(base);
+                          setEditingSummary(true);
                           setVerificationStep('edit');
                           setError('');
                           setAdditionalParticipants([{ name: '', email: '' }]);
@@ -913,69 +950,6 @@ const MeetingsScreen = ({ config }) => {
                       {T.meetingSummary()}
                     </h3>
 
-                    <div className="meeting-summary-actions meeting-summary-actions--send-first">
-                          <button
-                            type="button"
-                            className="meeting-summary-btn meeting-summary-btn--primary meeting-summary-btn--send"
-                            onClick={async () => {
-                              try {
-                                const emailToUse = verificationEmail || selectedMeeting.authorizedEditorEmail;
-                                
-                                // Filter out empty participants
-                                const validAdditionalParticipants = additionalParticipants
-                                  .filter(p => p.email && p.email.trim())
-                                  .map(p => ({
-                                    name: p.name.trim() || '',
-                                    email: p.email.trim(),
-                                    role: 'participant'
-                                  }));
-                                
-                                // Save any edits first
-                                if (editingSummary) {
-                                  await axios.put(`/meetings/${selectedMeeting._id}/pending-summary`, {
-                                    email: emailToUse,
-                                    code: verificationCode,
-                                    summary: editableSummary.summary,
-                                    keyPoints: editableSummary.keyPoints,
-                                    actionItems: editableSummary.actionItems,
-                                    decisions: editableSummary.decisions,
-                                    nextSteps: editableSummary.nextSteps,
-                                    importantNotes: editableSummary.importantNotes
-                                  });
-                                }
-                                
-                                // Approve and send with additional participants
-                                const res = await axios.post(`/meetings/${selectedMeeting._id}/approve-and-send`, {
-                                  email: emailToUse,
-                                  code: verificationCode,
-                                  additionalParticipants: validAdditionalParticipants
-                                });
-                                setSelectedMeeting(res.data.meeting);
-                                setVerificationStep('approved');
-                                setError('');
-                                const msg = res.data.message || (res.data.emailSent ? 'Summary approved and sent to all participants!' : 'Summary approved and saved. Emails could not be sent (check mail configuration).');
-                                alert(msg);
-                                setTimeout(() => navigate('/meetings'), 2000);
-                              } catch (err) {
-                                setError(err.response?.data?.error || 'Failed to save summary');
-                              }
-                            }}
-                          >
-                            {editingSummary
-                              ? 'Save & Send'
-                              : isEducation
-                                ? 'Send Lecture Notes to Participants'
-                                : 'Send Summary to Participants'}
-                          </button>
-                          <button
-                            type="button"
-                            className="meeting-summary-btn meeting-summary-btn--secondary"
-                            onClick={() => setEditingSummary(!editingSummary)}
-                          >
-                            {editingSummary ? 'Cancel Edit' : 'Edit Summary'}
-                          </button>
-                        </div>
-                        
                         {editingSummary ? (
                           <div className="meeting-summary-edit">
                             <div className="meeting-summary-edit-field">
@@ -994,6 +968,50 @@ const MeetingsScreen = ({ config }) => {
                                 onChange={e => setEditableSummary({ ...editableSummary, keyPoints: e.target.value.split('\n').filter(l => l.trim()) })}
                                 rows="6"
                                 className="meeting-summary-textarea"
+                              />
+                            </div>
+                            <div className="meeting-summary-edit-field">
+                              <label>Action Items</label>
+                              <small className="meeting-summary-edit-hint">
+                                One per line. Format: Task | Assignee | Due date as YYYY-MM-DD (optional)
+                              </small>
+                              <textarea
+                                value={(editableSummary.actionItems || []).map((item) => {
+                                  let dueStr = '';
+                                  if (item.dueDate) {
+                                    const d = new Date(item.dueDate);
+                                    dueStr = !Number.isNaN(d.getTime()) ? d.toISOString().slice(0, 10) : '';
+                                  }
+                                  return `${item.task || ''} | ${item.assignee || ''} | ${dueStr}`;
+                                }).join('\n')}
+                                onChange={(e) => {
+                                  const prev = editableSummary.actionItems || [];
+                                  const lines = e.target.value.split('\n').filter((l) => l.trim());
+                                  const items = lines.map((line, idx) => {
+                                    const parts = line.split('|').map((p) => p.trim());
+                                    let dueDate = null;
+                                    if (parts[2]) {
+                                      const raw = parts[2];
+                                      const d = /^\d{4}-\d{2}-\d{2}$/.test(raw)
+                                        ? new Date(`${raw}T12:00:00.000Z`)
+                                        : new Date(raw);
+                                      dueDate = !Number.isNaN(d.getTime()) ? d : null;
+                                    }
+                                    const carry = prev[idx];
+                                    return {
+                                      ...(carry?._id ? { _id: carry._id } : {}),
+                                      task: parts[0] || '',
+                                      assignee: parts[1] || '',
+                                      dueDate,
+                                      ...(carry?.status ? { status: carry.status } : {}),
+                                    };
+                                  });
+                                  setEditableSummary({ ...editableSummary, actionItems: items });
+                                }}
+                                rows="6"
+                                className="meeting-summary-textarea"
+                                style={{ fontFamily: 'ui-monospace, monospace' }}
+                                placeholder="Complete documentation | Jane Doe | 2026-03-30"
                               />
                             </div>
                             <div className="meeting-summary-edit-field">
@@ -1023,33 +1041,6 @@ const MeetingsScreen = ({ config }) => {
                                 onChange={e => setEditableSummary({ ...editableSummary, importantNotes: e.target.value.split('\n').filter(l => l.trim()) })}
                                 rows="4"
                                 className="meeting-summary-textarea"
-                              />
-                            </div>
-                            <div className="meeting-summary-edit-field">
-                              <label>Action Items</label>
-                              <small className="meeting-summary-edit-hint">
-                                Format: Task | Assignee | Due Date (optional)
-                              </small>
-                              <textarea
-                                value={(editableSummary.actionItems || []).map(item => 
-                                  `${item.task || ''} | ${item.assignee || ''} | ${item.dueDate ? new Date(item.dueDate).toLocaleDateString() : ''}`
-                                ).join('\n')}
-                                onChange={e => {
-                                  const lines = e.target.value.split('\n').filter(l => l.trim());
-                                  const items = lines.map(line => {
-                                    const parts = line.split('|').map(p => p.trim());
-                                    return {
-                                      task: parts[0] || '',
-                                      assignee: parts[1] || '',
-                                      dueDate: parts[2] ? new Date(parts[2]) : null
-                                    };
-                                  });
-                                  setEditableSummary({ ...editableSummary, actionItems: items });
-                                }}
-                                rows="6"
-                                className="meeting-summary-textarea"
-                                style={{ fontFamily: 'ui-monospace, monospace' }}
-                                placeholder="Complete project documentation | John Doe | 2024-03-15"
                               />
                             </div>
                           </div>
@@ -1161,6 +1152,68 @@ const MeetingsScreen = ({ config }) => {
                             </div>
                           </div>
                         )}
+
+                    <div className="meeting-summary-actions meeting-summary-actions--send-first">
+                      <button
+                        type="button"
+                        className="meeting-summary-btn meeting-summary-btn--primary meeting-summary-btn--send"
+                        onClick={async () => {
+                          try {
+                            const emailToUse = verificationEmail || selectedMeeting.authorizedEditorEmail;
+
+                            const validAdditionalParticipants = additionalParticipants
+                              .filter((p) => p.email && p.email.trim())
+                              .map((p) => ({
+                                name: p.name.trim() || '',
+                                email: p.email.trim(),
+                                role: 'participant',
+                              }));
+
+                            if (editableSummary) {
+                              await axios.put(`/meetings/${selectedMeeting._id}/pending-summary`, {
+                                email: emailToUse,
+                                code: verificationCode,
+                                summary: editableSummary.summary,
+                                keyPoints: editableSummary.keyPoints,
+                                actionItems: editableSummary.actionItems,
+                                decisions: editableSummary.decisions,
+                                nextSteps: editableSummary.nextSteps,
+                                importantNotes: editableSummary.importantNotes,
+                              });
+                            }
+
+                            const res = await axios.post(`/meetings/${selectedMeeting._id}/approve-and-send`, {
+                              email: emailToUse,
+                              code: verificationCode,
+                              additionalParticipants: validAdditionalParticipants,
+                            });
+                            setSelectedMeeting(res.data.meeting);
+                            setVerificationStep('approved');
+                            setError('');
+                            const msg =
+                              res.data.message ||
+                              (res.data.emailSent
+                                ? 'Summary approved and sent to all participants!'
+                                : 'Summary approved and saved. Emails could not be sent (check mail configuration).');
+                            alert(msg);
+                            setTimeout(() => navigate('/meetings'), 2000);
+                          } catch (err) {
+                            setError(err.response?.data?.error || 'Failed to save summary');
+                          }
+                        }}
+                      >
+                        {isEducation
+                          ? 'Send Lecture Notes to Participants'
+                          : 'Send Summary to Participants'}
+                      </button>
+                      <button
+                        type="button"
+                        className="meeting-summary-btn meeting-summary-btn--secondary"
+                        onClick={() => setEditingSummary(!editingSummary)}
+                      >
+                        {editingSummary ? 'Cancel Edit' : 'Edit Summary'}
+                      </button>
+                    </div>
                   </div>
                 )}
                 
@@ -1224,6 +1277,54 @@ const MeetingsScreen = ({ config }) => {
                         </button>
                       </div>
                     </div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        alignItems: 'center',
+                        gap: '8px',
+                        marginTop: '12px',
+                        paddingTop: '12px',
+                        borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: '12px',
+                          color: 'rgba(148, 163, 184, 0.95)',
+                          marginRight: '4px',
+                        }}
+                      >
+                        Type
+                      </span>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        style={typeFilterBtnStyle(meetingTypeFilter === 'all')}
+                        aria-pressed={meetingTypeFilter === 'all'}
+                        onClick={() => setMeetingTypeFilter('all')}
+                      >
+                        All
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        style={typeFilterBtnStyle(meetingTypeFilter === 'online')}
+                        aria-pressed={meetingTypeFilter === 'online'}
+                        onClick={() => setMeetingTypeFilter('online')}
+                      >
+                        Online
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        style={typeFilterBtnStyle(meetingTypeFilter === 'live')}
+                        aria-pressed={meetingTypeFilter === 'live'}
+                        onClick={() => setMeetingTypeFilter('live')}
+                      >
+                        Live
+                      </button>
+                    </div>
               </div>
               <div className="meetings-list">
                 {rightTab === 'scheduled' && (
@@ -1233,8 +1334,17 @@ const MeetingsScreen = ({ config }) => {
                         <p className="info-text">No meetings yet. Start your first session.</p>
                         <p className="meetings-list-empty-sub">Use Start session to create one.</p>
                       </div>
+                    ) : filteredScheduledMeetings.length === 0 ? (
+                      <div className="meetings-list-empty">
+                        <p className="info-text">
+                          {meetingTypeFilter === 'online'
+                            ? 'No online meetings scheduled.'
+                            : 'No live (in-person) meetings scheduled.'}
+                        </p>
+                        <p className="meetings-list-empty-sub">Try another type filter or create a matching meeting.</p>
+                      </div>
                     ) : (
-                      scheduledMeetings.map(m => {
+                      filteredScheduledMeetings.map(m => {
                         const online = isOnlineMeeting(m);
                         const p = String(m.conferenceProvider || '').toLowerCase();
                         return (
@@ -1260,12 +1370,12 @@ const MeetingsScreen = ({ config }) => {
                               {online ? (
                                 <span className="meeting-ui-badge meeting-ui-badge--mode">
                                   <Video className="meeting-ui-badge__icon" size={11} strokeWidth={2} aria-hidden />
-                                  Online Meeting
+                                  Online
                                 </span>
                               ) : (
                                 <span className="meeting-ui-badge meeting-ui-badge--mode">
                                   <Mic className="meeting-ui-badge__icon" size={11} strokeWidth={2} aria-hidden />
-                                  Live Recording
+                                  Live
                                 </span>
                               )}
                               {p === 'zoom' && (
@@ -1306,7 +1416,17 @@ const MeetingsScreen = ({ config }) => {
                         <p className="info-text">No meetings yet. Start your first session.</p>
                       </div>
                     )}
-                    {recentMeetings.map(m => {
+                    {recentMeetings.length > 0 && filteredRecentMeetings.length === 0 && (
+                      <div className="meetings-list-empty">
+                        <p className="info-text">
+                          {meetingTypeFilter === 'online'
+                            ? 'No online meetings in Recent.'
+                            : 'No live (in-person) meetings in Recent.'}
+                        </p>
+                        <p className="meetings-list-empty-sub">Try another type filter.</p>
+                      </div>
+                    )}
+                    {filteredRecentMeetings.map(m => {
                       const online = isOnlineMeeting(m);
                       const p = String(m.conferenceProvider || '').toLowerCase();
                       const when = m.scheduledTime || m.startTime || m.createdAt;
@@ -1345,12 +1465,12 @@ const MeetingsScreen = ({ config }) => {
                           {online ? (
                             <span className="meeting-ui-badge meeting-ui-badge--mode">
                               <Video className="meeting-ui-badge__icon" size={11} strokeWidth={2} aria-hidden />
-                              Online Meeting
+                              Online
                             </span>
                           ) : (
                             <span className="meeting-ui-badge meeting-ui-badge--mode">
                               <Mic className="meeting-ui-badge__icon" size={11} strokeWidth={2} aria-hidden />
-                              Live Recording
+                              Live
                             </span>
                           )}
                           {p === 'zoom' && (

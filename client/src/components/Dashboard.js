@@ -124,18 +124,18 @@ const Dashboard = ({ config }) => {
               <h2>{T.meetings()}</h2>
             </div>
             <p className="dashboard-meetings-cta__desc">
-              Create and run meetings on the Meetings page—the dashboard stays focused on tasks and snapshots.
+              Jump straight into creating a meeting, or open your full meetings list.
             </p>
             <div className="dashboard-actions-row">
-              <Link to="/meetings" className="dashboard-btn-primary">
-                Open meetings
-              </Link>
               <Link
                 to="/meetings"
                 state={{ openStartModal: true }}
-                className="dashboard-btn-secondary"
+                className="dashboard-btn-primary"
               >
                 New meeting
+              </Link>
+              <Link to="/meetings" className="dashboard-btn-secondary">
+                Open meetings
               </Link>
             </div>
           </div>

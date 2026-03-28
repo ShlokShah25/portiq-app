@@ -3,7 +3,7 @@
  * Plan controls limits (participants, book size, recording duration, etc.).
  *
  * From repo root with MONGODB_URI in .env:
- *   node server/scripts/create-complimentary-user.js <username> <password> [starter|professional|business]
+ *   node server/scripts/create-complimentary-user.js <username> <password> [starter|professional|business|institutional]
  *
  * Default plan: professional
  */
@@ -20,7 +20,7 @@ async function main() {
   const rest = process.argv.slice(2);
   if (rest.length < 2) {
     console.error(
-      'Usage: node server/scripts/create-complimentary-user.js <username> <password> [starter|professional|business]'
+      'Usage: node server/scripts/create-complimentary-user.js <username> <password> [starter|professional|business|institutional]'
     );
     process.exit(1);
   }

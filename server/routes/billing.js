@@ -83,6 +83,13 @@ router.post('/create-subscription', async (req, res) => {
       return res.status(400).json({ error: 'planType is required' });
     }
 
+    if (String(planType).toLowerCase() === 'institutional') {
+      return res.status(400).json({
+        error:
+          'Institutional plans are sold through sales. Email help@portiqtechnologies.com to discuss pricing and limits.',
+      });
+    }
+
     const planId = resolvePlanId(planType, productType);
     if (!planId) {
       return res.status(500).json({

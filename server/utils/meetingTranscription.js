@@ -1,8 +1,8 @@
 const OpenAI = require('openai');
 const fs = require('fs');
 const path = require('path');
-const PDFDocument = require('pdfkit');
 const { sendEmail, isEmailConfigured, getDefaultFrom } = require('./emailService');
+const { buildMeetingSummaryPdfBuffer } = require('./meetingSummaryPdf');
 const {
   buildGoogleCalendarUrlForMeeting,
   buildOutlookCalendarUrlForMeeting,
@@ -646,7 +646,7 @@ async function sendMeetingSummary(meeting, summaryData, options = {}) {
   console.log('📧 Meeting summary ready to send:');
   console.log(`   Meeting: ${meeting.title}`);
   console.log(`   Participants: ${participantEmails.join(', ')}`);
-  console.log(`   Summary: ${summaryData.summary.substring(0, 100)}...`);
+  console.log(`   Summary: ${String(summaryData.summary || '').substring(0, 100)}...`);
 
   if (!isEmailConfigured() || participantEmails.length === 0) {
     console.warn('⚠️  Email not configured (set RESEND_API_KEY or MAIL_*) or no participant emails. Summary will not be emailed.');
@@ -671,138 +671,13 @@ async function sendMeetingSummary(meeting, summaryData, options = {}) {
     'help@portiqtechnologies.com'
   ];
 
-  // Build formal PDF minutes
-  const pdfBuffers = [];
-  const doc = new PDFDocument({ margin: 50 });
-  doc.on('data', chunk => pdfBuffers.push(chunk));
-
-  const companyName = process.env.COMPANY_NAME || 'Your Company';
-  const logoPath = process.env.COMPANY_LOGO_PATH;
-
-  // Header with company name and logo
-  if (logoPath && fs.existsSync(logoPath)) {
-    try {
-      doc.image(logoPath, { fit: [100, 40], align: 'left' });
-    } catch (e) {
-      console.warn('⚠️  Failed to load company logo for PDF:', e.message);
-    }
-    doc.moveDown();
-  }
-
-  doc
-    .fontSize(18)
-    .text(companyName, { align: 'left' })
-    .moveDown(0.5);
-
-  doc
-    .fontSize(16)
-    .text('Minutes of Meeting', { align: 'left' })
-    .moveDown();
-
-  // Meeting details
   const meetingDate = meeting.startTime ? new Date(meeting.startTime) : new Date();
   const dateStamp = meetingDate.toISOString().split('T')[0]; // YYYY-MM-DD
   const safeTitleForFile = (meeting.title || 'Meeting')
     .replace(/[^a-zA-Z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '');
-  doc
-    .fontSize(12)
-    .text(`Title: ${meeting.title}`)
-    .text(`Room: ${meeting.meetingRoom}`)
-    .text(`Organizer: ${meeting.organizer || ''}`)
-    .text(`Date: ${meetingDate.toLocaleString()}`);
 
-  if (durationMinutes) {
-    doc.text(`Duration: ${durationMinutes} minutes`);
-  }
-
-  doc.moveDown();
-
-  // Summary
-  doc
-    .fontSize(13)
-    .text('Summary', { underline: true })
-    .moveDown(0.5)
-    .fontSize(12)
-    .text(summaryData.summary || 'No summary provided.')
-    .moveDown();
-
-  // Key Points
-  if ((summaryData.keyPoints || []).length) {
-    doc
-      .fontSize(13)
-      .text('Key Points', { underline: true })
-      .moveDown(0.5)
-      .fontSize(12);
-    (summaryData.keyPoints || []).forEach(p => {
-      doc.text(`• ${p}`);
-    });
-    doc.moveDown();
-  }
-
-  // Action Items
-  if ((summaryData.actionItems || []).length) {
-    doc
-      .fontSize(13)
-      .text('Action Items', { underline: true })
-      .moveDown(0.5)
-      .fontSize(12);
-    (summaryData.actionItems || []).forEach(a => {
-      const task = a.task || a.toString();
-      const assignee = a.assignee ? `Owner: ${a.assignee}` : '';
-      const due = a.dueDate ? `Deadline: ${a.dueDate}` : '';
-      const notes = a.notes ? `Notes: ${a.notes}` : '';
-      doc.text(`• Task: ${task}`);
-      if (assignee) doc.text(`  ${assignee}`);
-      if (due) doc.text(`  ${due}`);
-      if (notes) doc.text(`  ${notes}`);
-      doc.moveDown(0.3);
-    });
-    doc.moveDown();
-  }
-
-  // Decisions
-  if ((summaryData.decisions || []).length) {
-    doc
-      .fontSize(13)
-      .text('Decisions', { underline: true })
-      .moveDown(0.5)
-      .fontSize(12);
-    (summaryData.decisions || []).forEach(d => {
-      doc.text(`• ${d}`);
-    });
-    doc.moveDown();
-  }
-
-  // Important Notes
-  if ((summaryData.importantNotes || []).length) {
-    doc
-      .fontSize(13)
-      .text('Important Notes', { underline: true })
-      .moveDown(0.5)
-      .fontSize(12);
-    (summaryData.importantNotes || []).forEach(n => {
-      doc.text(`• ${n}`);
-    });
-    doc.moveDown();
-  }
-
-  // Next Steps
-  if ((summaryData.nextSteps || []).length) {
-    doc
-      .fontSize(13)
-      .text('Next Steps', { underline: true })
-      .moveDown(0.5)
-      .fontSize(12);
-    (summaryData.nextSteps || []).forEach(s => {
-      doc.text(`• ${s}`);
-    });
-  }
-
-  doc.end();
-  const pdfBuffer = await new Promise(resolve => {
-    doc.on('end', () => resolve(Buffer.concat(pdfBuffers)));
-  });
+  const pdfBuffer = await buildMeetingSummaryPdfBuffer(meeting, summaryData, durationMinutes);
 
   const logoUrl = process.env.COMPANY_LOGO_URL || 'https://portiqtechnologies.com/logo.png';
 

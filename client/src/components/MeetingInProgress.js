@@ -118,6 +118,7 @@ const MeetingInProgress = () => {
           if (plan === 'starter') setMaxDurationMinutes(60);
           else if (plan === 'professional') setMaxDurationMinutes(180);
           else if (plan === 'business') setMaxDurationMinutes(480);
+          else if (plan === 'institutional') setMaxDurationMinutes(1440);
           else setMaxDurationMinutes(null);
         } else {
           setMaxDurationMinutes(null);

@@ -184,21 +184,60 @@ function inferDueDateFromContext(item, ref, keyPoints, summary, nextSteps) {
   return null;
 }
 
+function meetingReferenceDate(meeting) {
+  const raw =
+    meeting?.endTime ||
+    meeting?.scheduledTime ||
+    meeting?.startTime ||
+    meeting?.createdAt;
+  if (raw) {
+    const d = new Date(raw);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+  return new Date();
+}
+
+function alignDueYearToReference(due, ref) {
+  if (!due || Number.isNaN(due.getTime()) || !ref || Number.isNaN(ref.getTime())) return due;
+  const refY = ref.getUTCFullYear();
+  if (due.getUTCFullYear() >= refY) return due;
+  const m = due.getUTCMonth();
+  const day = due.getUTCDate();
+  let next = new Date(Date.UTC(refY, m, day, 0, 0, 0, 0));
+  if (next.getUTCMonth() !== m) {
+    next = new Date(Date.UTC(refY, m + 1, 0, 0, 0, 0, 0));
+  }
+  return next;
+}
+
+/**
+ * If due year is before the meeting reference year, keep month/day in that year (fixes stale/LLM years).
+ */
+export function alignDueYearToMeetingReference(due, meeting) {
+  const ref = meeting ? meetingReferenceDate(meeting) : new Date();
+  return alignDueYearToReference(due, ref);
+}
+
 /**
  * Prefer stored dueDate; otherwise parse from task/notes; then key points + summary + next steps (same as server).
  */
 export function getEffectiveDueDate(item, meeting) {
   if (!item) return null;
+  const align = (d) => {
+    if (!d || Number.isNaN(d.getTime())) return null;
+    return alignDueYearToMeetingReference(d, meeting);
+  };
+
   if (item.dueDate) {
     const d = new Date(item.dueDate);
-    if (!Number.isNaN(d.getTime())) return d;
+    if (!Number.isNaN(d.getTime())) return align(d);
   }
   const refRaw = meeting?.endTime || meeting?.scheduledTime || meeting?.startTime;
   const refDate = refRaw ? new Date(refRaw) : new Date();
 
   const blob = [item.task, item.notes, item.assignee].filter(Boolean).join(' ');
   let inferred = parseDueDateFromText(blob, refDate);
-  if (inferred) return inferred;
+  if (inferred) return align(inferred);
 
   const keyPoints =
     meeting?.pendingKeyPoints?.length ? meeting.pendingKeyPoints : meeting?.keyPoints;
@@ -207,7 +246,7 @@ export function getEffectiveDueDate(item, meeting) {
     meeting?.pendingNextSteps?.length ? meeting.pendingNextSteps : meeting?.nextSteps;
 
   inferred = inferDueDateFromContext(item, refDate, keyPoints || [], summary || '', nextSteps || []);
-  if (inferred) return inferred;
+  if (inferred) return align(inferred);
 
   // Single-date fallback is applied only on the server when exactly one action item lacks a due date (avoids wrong dates for multiple open items).
 

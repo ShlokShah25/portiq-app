@@ -1,6 +1,7 @@
 /** Chill, simple product copy + INR pricing (shared across shell + meetings). */
 
-export const PORTIQ_PRICE_ROW = 'Starter ₹1,499 · Pro ₹2,999 · Business ₹9,999 / mo';
+export const PORTIQ_PRICE_ROW =
+  'Starter ₹1,499 · Pro ₹2,999 · Business ₹9,999 / mo · Institutional (contact sales)';
 
 /** One-liner for boot / meta — includes tasks, not just transcripts. */
 export const PORTIQ_TAGLINE =

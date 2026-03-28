@@ -11,7 +11,12 @@ import {
 import './Participants.css';
 
 // Max participants in the book by subscription plan (workplace and education share until edu tiers exist).
-const MAX_IN_BOOK_BY_PLAN = { starter: 20, professional: 40, business: 60 };
+const MAX_IN_BOOK_BY_PLAN = {
+  starter: 30,
+  professional: 60,
+  business: 100,
+  institutional: 500,
+};
 
 const Participants = () => {
   const [participants, setParticipants] = useState([]);
@@ -32,6 +37,9 @@ const Participants = () => {
   const analyserRef = React.useRef(null);
   const rafRef = React.useRef(null);
   const streamForMeterRef = React.useRef(null);
+  const noiseEmaRef = React.useRef(0);
+  const noiseLabelTickRef = React.useRef(0);
+  const noiseLabelBufferRef = React.useRef([]);
 
   useEffect(() => {
     loadParticipants();
@@ -184,6 +192,9 @@ const Participants = () => {
           analyserRef.current = analyser;
 
           const data = new Uint8Array(analyser.fftSize);
+          noiseEmaRef.current = 0;
+          noiseLabelTickRef.current = performance.now();
+          noiseLabelBufferRef.current = [];
           const tick = () => {
             if (!analyserRef.current) return;
             analyserRef.current.getByteTimeDomainData(data);
@@ -193,14 +204,25 @@ const Participants = () => {
               sum += v * v;
             }
             const rms = Math.sqrt(sum / data.length); // 0..~1
-            // Smooth a bit by clamping
             const level = Math.min(1, Math.max(0, rms * 2.2));
-            setNoiseLevel(level);
-            let label = '';
-            if (level < 0.12) label = 'Too quiet';
-            else if (level > 0.75) label = 'Too noisy';
-            else label = 'Good';
-            setNoiseLabel(label);
+            // EMA so the bar does not jitter frame-to-frame
+            noiseEmaRef.current = noiseEmaRef.current * 0.82 + level * 0.18;
+            const smooth = noiseEmaRef.current;
+            setNoiseLevel(smooth);
+
+            const buf = noiseLabelBufferRef.current;
+            buf.push(level);
+            if (buf.length > 22) buf.shift();
+
+            const now = performance.now();
+            if (now - noiseLabelTickRef.current >= 220) {
+              noiseLabelTickRef.current = now;
+              const avg = buf.length ? buf.reduce((a, b) => a + b, 0) / buf.length : smooth;
+              let next = 'Good';
+              if (avg < 0.085) next = 'Too quiet';
+              else if (avg > 0.62) next = 'Too noisy';
+              setNoiseLabel(next);
+            }
             rafRef.current = requestAnimationFrame(tick);
           };
           rafRef.current = requestAnimationFrame(tick);
@@ -239,6 +261,8 @@ const Participants = () => {
         audioCtxRef.current = null;
         setNoiseLevel(null);
         setNoiseLabel('');
+        noiseEmaRef.current = 0;
+        noiseLabelBufferRef.current = [];
       };
 
       mediaRecorder.start();
@@ -480,105 +504,87 @@ const Participants = () => {
                       </span>
                     </div>
                     {p.email && p.email.trim() && (
-                      <div className="participant-voice-row">
-                        <span className="participant-voice-status">
-                          {voiceProfiles[p.email]?.hasProfile
-                            ? 'Voice configured'
-                            : 'Voice not configured'}
-                        </span>
-                        <button
-                          type="button"
-                          className="participant-voice-btn"
-                          disabled={uploading && recordingEmail === p.email}
-                          onClick={() => {
-                            if (recordingEmail === p.email) {
-                              stopVoiceRecording();
-                            } else {
-                              startVoiceRecording(p);
-                            }
-                          }}
-                        >
-                          {recordingEmail === p.email ? 'Stop & Save' : (voiceProfiles[p.email]?.hasProfile ? 'Re-record' : 'Configure Voice')}
-                        </button>
-                        {recordingEmail === p.email && (
-                          <div
-                            style={{
-                              display: 'flex',
-                              flexDirection: 'column',
-                              gap: '6px',
-                              marginTop: '8px',
-                              width: '100%',
-                              maxWidth: '340px',
+                      <div className="participant-voice-block">
+                        <div className="participant-voice-row__top">
+                          <span className="participant-voice-status">
+                            {voiceProfiles[p.email]?.hasProfile
+                              ? 'Voice configured'
+                              : 'Voice not configured'}
+                          </span>
+                          <button
+                            type="button"
+                            className="participant-voice-btn"
+                            disabled={uploading && recordingEmail === p.email}
+                            onClick={() => {
+                              if (recordingEmail === p.email) {
+                                stopVoiceRecording();
+                              } else {
+                                startVoiceRecording(p);
+                              }
                             }}
                           >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            {recordingEmail === p.email
+                              ? 'Stop & Save'
+                              : voiceProfiles[p.email]?.hasProfile
+                                ? 'Re-record'
+                                : 'Configure Voice'}
+                          </button>
+                        </div>
+                        {recordingEmail === p.email && (
+                          <>
+                            <div className="participant-voice-meter" aria-live="polite">
                               <div
-                                style={{
-                                  flex: 1,
-                                  height: '8px',
-                                  background: 'rgba(148, 163, 184, 0.18)',
-                                  borderRadius: '999px',
-                                  overflow: 'hidden',
-                                }}
-                                aria-label="Mic level"
+                                className="participant-voice-meter__bar-wrap"
+                                aria-label="Microphone level"
                               >
-                                <div
-                                  style={{
-                                    width:
-                                      noiseLevel == null
-                                        ? '0%'
-                                        : `${Math.round(noiseLevel * 100)}%`,
-                                    height: '100%',
-                                    background:
-                                      noiseLabel === 'Good'
-                                        ? 'rgba(34, 197, 94, 0.9)'
-                                        : noiseLabel === 'Too noisy'
-                                          ? 'rgba(239, 68, 68, 0.9)'
-                                          : 'rgba(245, 158, 11, 0.9)',
-                                    transition: 'width 80ms linear',
-                                  }}
-                                />
+                                <div className="participant-voice-meter__bar">
+                                  <div
+                                    className="participant-voice-meter__bar-fill"
+                                    data-level-state={
+                                      !noiseLabel
+                                        ? 'idle'
+                                        : noiseLabel === 'Good'
+                                          ? 'good'
+                                          : noiseLabel === 'Too noisy'
+                                            ? 'noisy'
+                                            : 'quiet'
+                                    }
+                                    style={{
+                                      width:
+                                        noiseLevel == null
+                                          ? '0%'
+                                          : `${Math.round(Math.min(1, noiseLevel) * 100)}%`,
+                                    }}
+                                  />
+                                </div>
                               </div>
                               <span
-                                style={{
-                                  fontSize: '11px',
-                                  fontWeight: 700,
-                                  letterSpacing: '0.02em',
-                                  color:
-                                    noiseLabel === 'Good'
-                                      ? 'rgba(34, 197, 94, 0.95)'
+                                className="participant-voice-meter__label"
+                                data-level-state={
+                                  !noiseLabel
+                                    ? 'idle'
+                                    : noiseLabel === 'Good'
+                                      ? 'good'
                                       : noiseLabel === 'Too noisy'
-                                        ? 'rgba(239, 68, 68, 0.95)'
-                                        : 'rgba(245, 158, 11, 0.95)',
-                                  minWidth: '78px',
-                                  textAlign: 'right',
-                                }}
+                                        ? 'noisy'
+                                        : 'quiet'
+                                }
                               >
                                 {noiseLabel || 'Listening…'}
                               </span>
                             </div>
-                            <div
-                              style={{
-                                fontSize: '11px',
-                                color: 'rgba(148, 163, 184, 0.9)',
-                              }}
-                            >
+                            <p className="participant-voice-tip">
                               Tip: speak clearly ~15–25cm from the mic in a quiet room.
-                            </div>
-                          </div>
-                        )}
-                        {recordingEmail === p.email && (
-                          <div
-                            className="participant-voice-hint"
-                            style={{
-                              marginTop: '6px',
-                              fontSize: '11px',
-                              color: 'rgba(148, 163, 184, 0.9)',
-                              fontStyle: 'italic',
-                            }}
-                          >
-                            Ask {participantName} to say: “{standardSentence}”
-                          </div>
+                            </p>
+                            <p className="participant-voice-hint">
+                              <span className="participant-voice-hint__lead">
+                                Ask {participantName} to say:
+                              </span>
+                              <span className="participant-voice-hint__quote">
+                                &ldquo;{standardSentence}&rdquo;
+                              </span>
+                            </p>
+                          </>
                         )}
                       </div>
                     )}

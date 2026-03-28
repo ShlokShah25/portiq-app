@@ -92,20 +92,21 @@ const ClientAdmin = () => {
 
   const handleDownloadSummary = async (meeting) => {
     try {
-      const response = await axios.get(`/admin/meetings/${meeting._id}/summary-txt`, {
+      const response = await axios.get(`/admin/meetings/${meeting._id}/summary-pdf`, {
         responseType: 'blob'
       });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
       const link = document.createElement('a');
       link.href = url;
       const safeTitle = meeting.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-      link.setAttribute('download', `meeting-summary-${safeTitle}-${meeting._id.slice(-6)}.txt`);
+      link.setAttribute('download', `meeting-summary-${safeTitle}-${meeting._id.slice(-6)}.pdf`);
       document.body.appendChild(link);
       link.click();
       link.remove();
+      window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error downloading summary:', error);
-      alert('Failed to download edited summary.');
+      alert('Failed to download summary PDF.');
     }
   };
 
@@ -342,7 +343,7 @@ const ClientAdmin = () => {
                       )}
                     </td>
                     <td>
-                      {meeting.summary ? (
+                      {meeting.summary || meeting.pendingSummary ? (
                         <span className="summary-badge">Summary Ready</span>
                       ) : (
                         <span className="no-summary">None</span>
@@ -364,12 +365,12 @@ const ClientAdmin = () => {
                         </button>
                         {openActionMenuId === meeting._id && (
                           <div className="action-menu">
-                            {meeting.summary && (
+                            {(meeting.summary || meeting.pendingSummary) && (
                               <button onClick={() => {
                                 handleDownloadSummary(meeting);
                                 setOpenActionMenuId(null);
                               }}>
-                                Download Summary
+                                Download Summary (PDF)
                               </button>
                             )}
                             {meeting.originalSummary && (

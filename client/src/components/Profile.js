@@ -45,6 +45,7 @@ const Profile = () => {
         let planText = 'Starter';
         if (plan === 'professional') planText = 'Professional';
         else if (plan === 'business') planText = 'Business';
+        else if (plan === 'institutional') planText = 'Institutional';
         setPlanLabel(planText);
         setPaidSubscription(!!admin.hasActiveSubscription);
         setComplimentaryAccess(!!admin.complimentaryAccess);

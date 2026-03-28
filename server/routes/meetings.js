@@ -1230,14 +1230,18 @@ router.put('/:id/pending-summary', async (req, res) => {
         const d = new Date(value);
         return Number.isNaN(d.getTime()) ? undefined : d;
       };
-      meeting.pendingActionItems = (actionItems || []).map((item) => ({
-        task: item.task || '',
-        assignee: item.assignee || '',
-        dueDate: safeParseDate(item.dueDate),
-        status: item.status === 'in_progress' || item.status === 'done' ? item.status : 'not_started',
-        reviewReminderSent: item.reviewReminderSent || false,
-        reviewReminderSentAt: item.reviewReminderSentAt ? safeParseDate(item.reviewReminderSentAt) : null
-      }));
+      meeting.pendingActionItems = (actionItems || []).map((item) => {
+        const row = {
+          task: item.task || '',
+          assignee: item.assignee || '',
+          dueDate: safeParseDate(item.dueDate),
+          status: item.status === 'in_progress' || item.status === 'done' ? item.status : 'not_started',
+          reviewReminderSent: item.reviewReminderSent || false,
+          reviewReminderSentAt: item.reviewReminderSentAt ? safeParseDate(item.reviewReminderSentAt) : null,
+        };
+        if (item._id) row._id = item._id;
+        return row;
+      });
     }
     if (decisions !== undefined) meeting.pendingDecisions = decisions;
     if (nextSteps !== undefined) meeting.pendingNextSteps = nextSteps;
@@ -1380,7 +1384,7 @@ router.post('/:id/approve-and-send', async (req, res) => {
     if (translation && !planInfo.allowsTranslatedSummary) {
       return res.status(403).json({
         error:
-          'Translated summaries are not included on your plan. Upgrade to Business or send in English only.',
+          'Translated summaries are not included on your plan. Upgrade to Business or Institutional, or send in English only.',
       });
     }
 

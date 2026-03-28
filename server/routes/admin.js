@@ -9,6 +9,7 @@ const { authenticateAdmin, requireSubscription } = require('../middleware/auth')
 const { getMeetingContext } = require('../utils/meetingContext');
 const { getPlanConstraints } = require('../utils/planConstraints');
 const { hasDashboardAccess } = require('../utils/subscriptionGate');
+const { alignDueYearToMeetingReference } = require('../utils/actionItemDueDate');
 
 function meetingFilterForAdmin(admin) {
   return admin && admin.username !== 'admin' ? { adminId: admin._id } : {};
@@ -32,7 +33,14 @@ function startOfWeekMonday(d) {
 }
 
 function dashboardTaskRow(raw, m, status) {
-  const due = raw.dueDate != null ? raw.dueDate : null;
+  let due = null;
+  if (raw.dueDate != null && raw.dueDate !== '') {
+    const d = new Date(raw.dueDate);
+    if (!Number.isNaN(d.getTime())) {
+      const aligned = alignDueYearToMeetingReference(d, m);
+      due = !Number.isNaN(aligned.getTime()) ? aligned.toISOString() : d.toISOString();
+    }
+  }
   return {
     task: raw.task || raw.title || 'Action item',
     meetingTitle: m.title || 'Untitled',
@@ -907,6 +915,51 @@ router.get('/meetings/:id/original-summary', authenticateAdmin, requireSubscript
   } catch (error) {
     console.error('Error generating original summary PDF:', error);
     res.status(500).json({ error: 'Failed to generate original summary PDF' });
+  }
+});
+
+/**
+ * Download current meeting minutes as PDF (pending fields while in review, else final summary + action items).
+ */
+router.get('/meetings/:id/summary-pdf', authenticateAdmin, requireSubscription, async (req, res) => {
+  try {
+    const meeting = await Meeting.findById(req.params.id);
+    if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
+    if (!canAccessMeeting(meeting, req.admin)) return res.status(404).json({ error: 'Meeting not found' });
+
+    const {
+      effectiveSummaryDataForExport,
+      buildMeetingSummaryPdfBuffer,
+      durationMinutesFromMeeting,
+    } = require('../utils/meetingSummaryPdf');
+
+    const summaryData = effectiveSummaryDataForExport(meeting);
+    const hasAnything =
+      (summaryData.summary && String(summaryData.summary).trim()) ||
+      (summaryData.keyPoints && summaryData.keyPoints.length) ||
+      (summaryData.actionItems && summaryData.actionItems.length) ||
+      (summaryData.decisions && summaryData.decisions.length) ||
+      (summaryData.nextSteps && summaryData.nextSteps.length) ||
+      (summaryData.importantNotes && summaryData.importantNotes.length);
+
+    if (!hasAnything) {
+      return res.status(404).json({ error: 'No summary content available for this meeting' });
+    }
+
+    const durationMinutes = durationMinutesFromMeeting(meeting);
+    const pdfBuffer = await buildMeetingSummaryPdfBuffer(meeting, summaryData, durationMinutes);
+    const safeTitle = (meeting.title || 'Meeting').replace(/[^a-z0-9]/gi, '_');
+    const stamp = new Date(meeting.endTime || meeting.startTime || Date.now()).toISOString().split('T')[0];
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="Meeting-Summary-${safeTitle}-${stamp}.pdf"`
+    );
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error('Error generating meeting summary PDF:', error);
+    res.status(500).json({ error: 'Failed to generate summary PDF' });
   }
 });
 
