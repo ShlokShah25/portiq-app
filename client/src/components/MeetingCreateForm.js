@@ -4,19 +4,16 @@ import axios from 'axios';
 import {
   X,
   Mic,
-  Bot,
   ExternalLink,
   FileText,
   Calendar,
   Clock,
   User,
   MapPin,
-  Link2,
   Users,
   CircleDashed,
   GraduationCap,
   UserCheck,
-  Video,
   Square,
   Mail,
   BookUser,
@@ -25,7 +22,6 @@ import {
 } from 'lucide-react';
 import { isEducation } from '../config/product';
 import { getClassrooms } from '../utils/classroomsStorage';
-import { detectConferenceProvider, conferenceProviderLabel } from '../utils/detectConferenceLink';
 import {
   VOICE_ENROLLMENT_API_TEMPLATE,
   voiceEnrollmentSentenceForParticipant,
@@ -73,8 +69,6 @@ function resetAllState(setters) {
   setters.setScheduledDate(d.date);
   setters.setScheduledTime(d.time);
   setters.setLiveLocation('');
-  setters.setCaptureMode('live');
-  setters.setMeetingLink('');
   setters.setSelectedClassroomId('');
   setters.setSelectedBookEmails([]);
   setters.setParticipantBook([]);
@@ -82,8 +76,6 @@ function resetAllState(setters) {
   setters.setAuthorizedEditorEmail('');
   setters.setSendNotification(true);
   setters.setError('');
-  setters.setPostSubmit(null);
-  setters.setCreatedMeetingId(null);
   setters.setLoading(false);
   setters.setVoiceRecognitionEnabled(true);
 }
@@ -108,8 +100,6 @@ export default function MeetingCreateForm({
   const [scheduledTime, setScheduledTime] = useState(defaults.time);
   const [organizer, setOrganizer] = useState('');
   const [liveLocation, setLiveLocation] = useState('');
-  const [captureMode, setCaptureMode] = useState('live');
-  const [meetingLink, setMeetingLink] = useState('');
   const [selectedClassroomId, setSelectedClassroomId] = useState('');
   const [selectedBookEmails, setSelectedBookEmails] = useState([]);
   const [participantBook, setParticipantBook] = useState([]);
@@ -118,8 +108,6 @@ export default function MeetingCreateForm({
   const [sendNotification, setSendNotification] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [postSubmit, setPostSubmit] = useState(null);
-  const [createdMeetingId, setCreatedMeetingId] = useState(null);
   const [voiceProfiles, setVoiceProfiles] = useState({});
   const [recordingEmail, setRecordingEmail] = useState(null);
   const [voiceUploading, setVoiceUploading] = useState(false);
@@ -144,8 +132,6 @@ export default function MeetingCreateForm({
       setScheduledDate,
       setScheduledTime,
       setLiveLocation,
-      setCaptureMode,
-      setMeetingLink,
       setSelectedClassroomId,
       setSelectedBookEmails,
       setParticipantBook,
@@ -153,8 +139,6 @@ export default function MeetingCreateForm({
       setAuthorizedEditorEmail,
       setSendNotification,
       setError,
-      setPostSubmit,
-      setCreatedMeetingId,
       setLoading,
       setVoiceRecognitionEnabled,
     });
@@ -262,9 +246,6 @@ export default function MeetingCreateForm({
     });
   }, [participantBook, participantSearchQuery]);
 
-  const detected = detectConferenceProvider(meetingLink);
-  const detectedLabel = detected ? conferenceProviderLabel(detected) : null;
-
   const scheduledIso = () => {
     if (!scheduledDate || !scheduledTime) return null;
     const iso = new Date(`${scheduledDate}T${scheduledTime}`).toISOString();
@@ -325,31 +306,6 @@ export default function MeetingCreateForm({
     onMeetingCreated?.();
   };
 
-  const runOnlineAssistantFlow = async (meetingId) => {
-    const st = scheduledIso();
-    const startMs = st ? new Date(st).getTime() : 0;
-    const soon = Date.now() + 90 * 1000;
-    if (startMs > soon) {
-      setCreatedMeetingId(meetingId);
-      setPostSubmit({ kind: 'scheduled_wait' });
-      afterCreate();
-      return;
-    }
-    try {
-      await axios.patch(`/meetings/${meetingId}`, { conferenceBotStatus: 'joining' });
-    } catch (_) {}
-    setPostSubmit({ kind: 'joining' });
-    await new Promise((r) => setTimeout(r, 1600));
-    try {
-      await axios.patch(`/meetings/${meetingId}`, { conferenceBotStatus: 'in_meeting' });
-    } catch (_) {}
-    setPostSubmit({ kind: 'joined' });
-    await new Promise((r) => setTimeout(r, 900));
-    navigate(`/meetings/${meetingId}`);
-    afterCreate();
-    if (onClose) onClose();
-  };
-
   const buildBody = (extra) => {
     const { title, agenda } = splitTitleAgenda(titleAgendaCombined);
     return {
@@ -392,47 +348,6 @@ export default function MeetingCreateForm({
       navigate(`/meetings/${idStr}`);
       afterCreate();
       if (onClose) onClose();
-    } catch (err) {
-      setError(err.response?.data?.error || err.message || 'Could not create meeting.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const submitOnline = async () => {
-    setError('');
-    if (subscriptionGate === 'inactive' || subscriptionGate === 'payment_pending') {
-      setError('Subscription required to create a meeting.');
-      return;
-    }
-    const v = validateCommon();
-    if (v) {
-      setError(v);
-      return;
-    }
-    const link = meetingLink.trim();
-    if (!link) return setError('Paste a meeting link.');
-    const prov = detectConferenceProvider(link);
-    if (!prov) return setError('Use a Zoom or Teams meeting link.');
-    setLoading(true);
-    try {
-      const res = await axios.post(
-        '/meetings',
-        buildBody({
-          meetingRoom: 'Online meeting',
-          conferenceJoinUrl: link,
-          conferenceProvider: prov,
-        }),
-        { timeout: 30000 }
-      );
-      const raw = res.data?.meeting;
-      const id = raw?._id ?? raw?.id;
-      const idStr = id != null ? String(id) : '';
-      if (!idStr) {
-        setError('Meeting was created but the app did not receive a meeting id. Open it from the Scheduled list.');
-        return;
-      }
-      await runOnlineAssistantFlow(idStr);
     } catch (err) {
       setError(err.response?.data?.error || err.message || 'Could not create meeting.');
     } finally {
@@ -557,63 +472,7 @@ export default function MeetingCreateForm({
         </div>
       )}
 
-      {postSubmit?.kind === 'joining' && (
-        <div className="start-meeting-status">
-          <Bot size={28} strokeWidth={1.5} style={{ margin: '0 auto 12px', color: '#93c5fd' }} />
-          <p className="start-meeting-status__title">Joining…</p>
-        </div>
-      )}
-
-      {postSubmit?.kind === 'joined' && (
-        <div className="start-meeting-status">
-          <p className="start-meeting-status__title">Joined</p>
-        </div>
-      )}
-
-      {postSubmit?.kind === 'scheduled_wait' && (
-        <div className="start-meeting-status">
-          <p className="start-meeting-status__title">Scheduled</p>
-          <p className="start-meeting-status__sub">
-            PortIQ Assistant will join when the meeting starts
-          </p>
-          <div className="start-meeting-actions" style={{ marginTop: 20 }}>
-            <button
-              type="button"
-              className="start-meeting-btn start-meeting-btn--primary"
-              onClick={() => {
-                const mid = createdMeetingId;
-                runReset();
-                if (onClose) onClose();
-                navigate(mid ? `/meetings/${mid}` : '/meetings');
-              }}
-            >
-              Done
-            </button>
-          </div>
-        </div>
-      )}
-
-      {!postSubmit && (
-        <>
-          <div className="meeting-create-segment" role="group" aria-label="Meeting capture type">
-            <button
-              type="button"
-              className={captureMode === 'live' ? 'active' : ''}
-              onClick={() => setCaptureMode('live')}
-            >
-              <Mic size={14} strokeWidth={1.75} aria-hidden />
-              Live
-            </button>
-            <button
-              type="button"
-              className={captureMode === 'online' ? 'active' : ''}
-              onClick={() => setCaptureMode('online')}
-            >
-              <Video size={14} strokeWidth={1.75} aria-hidden />
-              Online
-            </button>
-          </div>
-
+      <>
           {isEducation && (
             <div className="start-meeting-field start-meeting-classroom" style={{ marginTop: 4 }}>
               <FieldLabel htmlFor="sm-classroom" icon={GraduationCap}>
@@ -697,38 +556,19 @@ export default function MeetingCreateForm({
             />
           </div>
 
-          {captureMode === 'live' && (
-            <div className="start-meeting-field">
-              <FieldLabel htmlFor="sm-location" icon={MapPin}>
-                Location
-              </FieldLabel>
-              <input
-                id="sm-location"
-                value={liveLocation}
-                onChange={(e) => setLiveLocation(e.target.value)}
-                placeholder="e.g. Conference Room A"
-                required
-                disabled={formDisabled}
-              />
-            </div>
-          )}
-
-          {captureMode === 'online' && (
-            <div className="start-meeting-field">
-              <FieldLabel htmlFor="sm-link" icon={Link2}>
-                Zoom or Teams meeting link
-              </FieldLabel>
-              <input
-                id="sm-link"
-                value={meetingLink}
-                onChange={(e) => setMeetingLink(e.target.value)}
-                placeholder="Paste meeting link"
-                autoComplete="off"
-                disabled={formDisabled}
-              />
-              {detectedLabel && <p className="start-meeting-detected">Detected: {detectedLabel}</p>}
-            </div>
-          )}
+          <div className="start-meeting-field">
+            <FieldLabel htmlFor="sm-location" icon={MapPin}>
+              Location
+            </FieldLabel>
+            <input
+              id="sm-location"
+              value={liveLocation}
+              onChange={(e) => setLiveLocation(e.target.value)}
+              placeholder="e.g. Conference Room A"
+              required
+              disabled={formDisabled}
+            />
+          </div>
 
           {!isEducation && (
             <>
@@ -990,26 +830,14 @@ export default function MeetingCreateForm({
           {error && <div className="start-meeting-error">{error}</div>}
 
           <div className={`start-meeting-actions${inline ? ' start-meeting-actions--inline' : ''}`}>
-            {captureMode === 'live' ? (
-              <button
-                type="button"
-                className="start-meeting-btn start-meeting-btn--primary"
-                onClick={submitLive}
-                disabled={loading || formDisabled}
-              >
-                {isEducation ? 'Create lecture' : 'Create meeting'}
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="start-meeting-btn start-meeting-btn--primary"
-                onClick={submitOnline}
-                disabled={loading || !detected || formDisabled}
-              >
-                <Bot size={18} strokeWidth={1.75} />
-                Join with PortIQ Assistant
-              </button>
-            )}
+            <button
+              type="button"
+              className="start-meeting-btn start-meeting-btn--primary"
+              onClick={submitLive}
+              disabled={loading || formDisabled}
+            >
+              {isEducation ? 'Create lecture' : 'Create meeting'}
+            </button>
             {!inline && (
               <button
                 type="button"
@@ -1021,8 +849,7 @@ export default function MeetingCreateForm({
               </button>
             )}
           </div>
-        </>
-      )}
+      </>
     </div>
   );
 }

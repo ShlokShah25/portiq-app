@@ -36,7 +36,7 @@ const MeetingsScreen = ({ config }) => {
   const [polling, setPolling] = useState(false);
   const [recording, setRecording] = useState(false);
   const [rightTab, setRightTab] = useState('scheduled'); // 'scheduled' | 'recent'
-  /** Narrow list: all | online (Zoom/Teams/link) | live (in-room recording) */
+  /** Narrow list: all | live (in-room only; online creation disabled for now) */
   const [meetingTypeFilter, setMeetingTypeFilter] = useState('all');
   const [showAllMeetings, setShowAllMeetings] = useState(false);
 
@@ -311,7 +311,6 @@ const MeetingsScreen = ({ config }) => {
   const filterMeetingsByType = useCallback(
     (list) => {
       if (!list || meetingTypeFilter === 'all') return list;
-      if (meetingTypeFilter === 'online') return list.filter((m) => m && isOnlineMeeting(m));
       return list.filter((m) => m && !isOnlineMeeting(m));
     },
     [meetingTypeFilter]
@@ -520,7 +519,7 @@ const MeetingsScreen = ({ config }) => {
             {allMeetingsSorted.length === 0 ? (
               <div className="meetings-all-empty-block">
                 <p className="info-text meetings-all-empty">No meetings yet. Start your first session.</p>
-                <p className="meetings-all-empty-sub">Create a live or online meeting to see it here.</p>
+                <p className="meetings-all-empty-sub">Create a meeting to see it here.</p>
               </div>
             ) : (
               <div className="meetings-all-grid">
@@ -1310,15 +1309,6 @@ const MeetingsScreen = ({ config }) => {
                       <button
                         type="button"
                         className="btn btn-secondary"
-                        style={typeFilterBtnStyle(meetingTypeFilter === 'online')}
-                        aria-pressed={meetingTypeFilter === 'online'}
-                        onClick={() => setMeetingTypeFilter('online')}
-                      >
-                        Online
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
                         style={typeFilterBtnStyle(meetingTypeFilter === 'live')}
                         aria-pressed={meetingTypeFilter === 'live'}
                         onClick={() => setMeetingTypeFilter('live')}
@@ -1337,12 +1327,8 @@ const MeetingsScreen = ({ config }) => {
                       </div>
                     ) : filteredScheduledMeetings.length === 0 ? (
                       <div className="meetings-list-empty">
-                        <p className="info-text">
-                          {meetingTypeFilter === 'online'
-                            ? 'No online meetings scheduled.'
-                            : 'No live (in-person) meetings scheduled.'}
-                        </p>
-                        <p className="meetings-list-empty-sub">Try another type filter or create a matching meeting.</p>
+                        <p className="info-text">No in-person meetings scheduled.</p>
+                        <p className="meetings-list-empty-sub">Try showing all types or create a meeting.</p>
                       </div>
                     ) : (
                       filteredScheduledMeetings.map(m => {
@@ -1418,12 +1404,8 @@ const MeetingsScreen = ({ config }) => {
                     )}
                     {recentMeetings.length > 0 && filteredRecentMeetings.length === 0 && (
                       <div className="meetings-list-empty">
-                        <p className="info-text">
-                          {meetingTypeFilter === 'online'
-                            ? 'No online meetings in Recent.'
-                            : 'No live (in-person) meetings in Recent.'}
-                        </p>
-                        <p className="meetings-list-empty-sub">Try another type filter.</p>
+                        <p className="info-text">No in-person meetings in Recent.</p>
+                        <p className="meetings-list-empty-sub">Try showing all types.</p>
                       </div>
                     )}
                     {filteredRecentMeetings.map(m => {

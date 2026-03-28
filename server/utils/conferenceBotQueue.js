@@ -13,6 +13,22 @@ const crypto = require('crypto');
 const fetch = global.fetch;
 
 /**
+ * Public base URL of this API (no trailing slash). Used so workers can call back without extra env.
+ * Prefer PORTIQ_API_BASE_URL when the SPA lives on a different host than the API.
+ */
+function getPortiqApiBaseUrl() {
+  const raw =
+    process.env.PORTIQ_API_BASE_URL ||
+    process.env.API_PUBLIC_URL ||
+    process.env.APP_PUBLIC_URL ||
+    process.env.APP_BASE_URL ||
+    process.env.PUBLIC_URL ||
+    process.env.BASE_URL ||
+    '';
+  return String(raw).trim().replace(/\/+$/, '');
+}
+
+/**
  * @param {object} job
  * @param {string} job.meetingId
  * @param {string} [job.adminId]
@@ -39,10 +55,18 @@ async function enqueueJoinMeeting(job) {
     return { queued: false, reason: 'worker_url_not_configured' };
   }
 
+  const apiBase = getPortiqApiBaseUrl();
+  const reportUrl = apiBase ? `${apiBase}/api/integrations/bot/report` : undefined;
+  const joinContextUrl =
+    job.provider === 'zoom' && apiBase
+      ? `${apiBase}/api/integrations/worker/zoom/join-context`
+      : undefined;
+
   const body = JSON.stringify({
     v: 1,
     type: 'conference.join',
     ...job,
+    ...(reportUrl ? { reportUrl, joinContextUrl } : {}),
     enqueuedAt: new Date().toISOString(),
   });
 
@@ -75,4 +99,5 @@ async function enqueueJoinMeeting(job) {
 
 module.exports = {
   enqueueJoinMeeting,
+  getPortiqApiBaseUrl,
 };

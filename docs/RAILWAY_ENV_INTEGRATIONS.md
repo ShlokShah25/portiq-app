@@ -55,7 +55,8 @@ See **`docs/ZOOM_PLATFORM.md`** for payloads and Zoom event names.
 | `CONFERENCE_BOT_WEBHOOK_URL` or `ZOOM_BOT_WORKER_URL` | Worker `POST` target; receives `conference.join` JSON jobs |
 | `CONFERENCE_BOT_WEBHOOK_SECRET` | Optional HMAC key; API sends `X-PortIQ-Signature` (SHA-256 hex of body) |
 | `CONFERENCE_BOT_QUEUE_ON_CREATE` | Set to `0` to stop enqueue on meeting create (webhook-only) |
-| `PORTIQ_WORKER_SECRET` | Worker calls `POST /api/integrations/bot/report` with header `X-PortIQ-Worker-Secret` |
+| `PORTIQ_WORKER_SECRET` | Worker calls `POST /api/integrations/bot/report` and `POST .../worker/zoom/join-context` with header `X-PortIQ-Worker-Secret` |
+| `PORTIQ_API_BASE_URL` | Public API origin (no trailing slash); embeds `reportUrl` + `joinContextUrl` in each bot job. Aliases: `API_PUBLIC_URL`, `PUBLIC_URL`, `BASE_URL` |
 
 ### Microsoft — Graph delegated OAuth (Teams path)
 
@@ -95,5 +96,6 @@ Aliases: `APP_BASE_URL`, `CLIENT_URL`, `PUBLIC_APP_URL`.
 - `GET /api/integrations/status` — which server env flags are set (no secrets). Includes `allowManualMeetingPlatforms` when `ALLOW_MANUAL_MEETING_PLATFORMS=true`.
 - `POST /api/integrations/webhooks/zoom` — Zoom event subscriptions (raw JSON + signature).
 - `POST /api/integrations/bot/report` — worker status updates (`X-PortIQ-Worker-Secret`).
+- `POST /api/integrations/worker/zoom/join-context` — worker fetches ZAK + join URLs for a meeting (`X-PortIQ-Worker-Secret`). See `docs/ZOOM_PLATFORM.md`.
 
 Tokens are stored on the **Admin** document (`zoomOAuth`, `teamsOAuth`); they are **never** returned from `GET /admin/profile`.

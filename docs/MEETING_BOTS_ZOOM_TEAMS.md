@@ -16,9 +16,11 @@ PortIQ today captures audio **in the browser** or via **upload**. Joining a **Zo
   - `POST /api/integrations/webhooks/zoom` — Zoom URL validation + signed events (set `ZOOM_WEBHOOK_SECRET_TOKEN`).
   - `GET|POST /api/integrations/webhooks/teams-graph` — Graph `validationToken` echo + notification stub.
 - **Status**: `GET /api/integrations/status` — which env vars are present (no secrets returned).
-- **Bot queue**: `server/utils/conferenceBotQueue.js` — `POST`s JSON jobs to `CONFERENCE_BOT_WEBHOOK_URL` when set (else no-op).
+- **Bot queue**: `server/utils/conferenceBotQueue.js` — `POST`s JSON jobs to `CONFERENCE_BOT_WEBHOOK_URL` when set (else no-op); optional `reportUrl` / `joinContextUrl` when `PORTIQ_API_BASE_URL` (or aliases) is set.
 - **Zoom webhooks**: `server/utils/zoomWebhookHandlers.js` — maps `meeting.started` / `meeting.ended` to `Meeting` + re-queue.
 - **Worker callback**: `POST /api/integrations/bot/report` — `PORTIQ_WORKER_SECRET`.
+- **Worker join context**: `POST /api/integrations/worker/zoom/join-context` — same secret; returns ZAK for Meeting SDK paths (Zoom scopes required).
+- **Reference worker**: `worker/zoom-bot/` — Node mock/stub HTTP receiver; see `worker/README.md`.
 
 ---
 

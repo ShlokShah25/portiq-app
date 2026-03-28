@@ -14,6 +14,14 @@ router.get('/status', (req, res) => {
     ),
     conferenceBotWorkerSecret: !!process.env.CONFERENCE_BOT_WEBHOOK_SECRET,
     workerCallbackSecret: !!process.env.PORTIQ_WORKER_SECRET,
+    portiqApiPublicUrl: !!(
+      process.env.PORTIQ_API_BASE_URL ||
+      process.env.API_PUBLIC_URL ||
+      process.env.APP_PUBLIC_URL ||
+      process.env.APP_BASE_URL ||
+      process.env.PUBLIC_URL ||
+      process.env.BASE_URL
+    ),
     teamsGraphApp: !!(
       process.env.TEAMS_GRAPH_CLIENT_ID || process.env.MICROSOFT_CLIENT_ID
     ),
