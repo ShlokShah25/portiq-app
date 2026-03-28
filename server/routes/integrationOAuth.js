@@ -1,6 +1,6 @@
 /**
  * Zoom + Microsoft (Teams/Graph) OAuth — authorization code flow.
- * Callbacks redirect to APP_PUBLIC_URL (e.g. SPA dashboard) with query flags.
+ * Callbacks redirect to the public app origin (APP_PUBLIC_URL, APP_BASE_URL, etc.).
  */
 
 const express = require('express');
@@ -15,7 +15,11 @@ function jwtSecret() {
 }
 
 function appPublicOrigin() {
-  const u = process.env.APP_PUBLIC_URL || process.env.CLIENT_URL || process.env.PUBLIC_APP_URL;
+  const u =
+    process.env.APP_PUBLIC_URL ||
+    process.env.APP_BASE_URL ||
+    process.env.CLIENT_URL ||
+    process.env.PUBLIC_APP_URL;
   if (u) return String(u).replace(/\/$/, '');
   return 'http://localhost:3002';
 }

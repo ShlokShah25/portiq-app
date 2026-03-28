@@ -17,7 +17,7 @@ After Zoom/Microsoft redirect back, the server sends users to:
 
 `APP_PUBLIC_URL/dashboard?zoom=connected` or `...?teams=connected`
 
-Set **`APP_PUBLIC_URL`** to the origin where your **React app** is served (same host as the dashboard), for example:
+Set **`APP_PUBLIC_URL`** or **`APP_BASE_URL`** to the origin where your **React app** is served (same host as the dashboard), for example:
 
 - `https://your-app.up.railway.app`
 - `https://meetingassistant.portiqtechnologies.com`
@@ -63,7 +63,7 @@ Aliases accepted: `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_T
 |----------|---------|
 | `APP_PUBLIC_URL` | Origin of the SPA for post-OAuth redirect (`/dashboard?...`) |
 
-Aliases: `CLIENT_URL`, `PUBLIC_APP_URL`.
+Aliases: `APP_BASE_URL`, `CLIENT_URL`, `PUBLIC_APP_URL`.
 
 ---
 
