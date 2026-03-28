@@ -36,6 +36,21 @@ function teamsTenant() {
   return process.env.TEAMS_APP_TENANT_ID || process.env.MICROSOFT_TENANT_ID || 'common';
 }
 
+/** Zoom OAuth scope string — must match scopes enabled on the app in Zoom Marketplace (Scopes tab). */
+function zoomOAuthScopeParam() {
+  const raw = process.env.ZOOM_OAUTH_SCOPES;
+  if (raw != null && String(raw).trim()) {
+    return String(raw)
+      .trim()
+      .split(/[\s,]+/)
+      .filter(Boolean)
+      .join(' ');
+  }
+  // General App (Beta) often rejects scopes not toggled in the portal; `user:read:email` alone
+  // frequently causes "Invalid scope" unless explicitly added. Start minimal; `/users/me` still works.
+  return 'user:read:user';
+}
+
 function teamsScopes() {
   return (
     process.env.TEAMS_GRAPH_SCOPES ||
@@ -138,10 +153,7 @@ router.get('/oauth/zoom/start', authenticateAdmin, (req, res) => {
   url.searchParams.set('response_type', 'code');
   url.searchParams.set('client_id', clientId);
   url.searchParams.set('redirect_uri', redirectUri);
-  url.searchParams.set(
-    'scope',
-    process.env.ZOOM_OAUTH_SCOPES || 'user:read:user user:read:email'
-  );
+  url.searchParams.set('scope', zoomOAuthScopeParam());
   url.searchParams.set('state', state);
   return res.json({ url: url.toString() });
 });

@@ -1,12 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { X, Video } from 'lucide-react';
+import { X } from 'lucide-react';
 import './StartMeetingModal.css';
-import './DashboardIntegrations.css';
+import './MeetingPlatformsModal.css';
 
 export default function MeetingPlatformsModal({ open, onClose, onSaved }) {
   const [loading, setLoading] = useState(null);
   const [error, setError] = useState('');
+  const [allowManual, setAllowManual] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setError('');
+    (async () => {
+      try {
+        const { data } = await axios.get('/integrations/status');
+        setAllowManual(!!data?.allowManualMeetingPlatforms);
+      } catch {
+        setAllowManual(false);
+      }
+    })();
+  }, [open]);
 
   if (!open) return null;
 
@@ -70,7 +84,7 @@ export default function MeetingPlatformsModal({ open, onClose, onSaved }) {
       onMouseDown={(e) => e.target === e.currentTarget && !loading && onClose()}
     >
       <div
-        className="start-meeting-modal dashboard-int-modal"
+        className="start-meeting-modal mp-shell"
         role="dialog"
         aria-modal="true"
         aria-labelledby="mp-connect-title"
@@ -78,7 +92,7 @@ export default function MeetingPlatformsModal({ open, onClose, onSaved }) {
       >
         <div className="start-meeting-modal__head">
           <h2 id="mp-connect-title" className="start-meeting-modal__title">
-            Connect Zoom / Teams
+            Meeting platforms
           </h2>
           <button
             type="button"
@@ -89,55 +103,77 @@ export default function MeetingPlatformsModal({ open, onClose, onSaved }) {
             <X size={18} strokeWidth={2} />
           </button>
         </div>
-        <p className="dashboard-int-modal__desc">
-          Sign in with Zoom or Microsoft to link your account. You will return to the dashboard when done.
+
+        <p className="mp-lead">
+          Connect once so PortIQ can work with your Zoom or Microsoft account. You’ll return here after
+          signing in.
         </p>
-        <div className="start-meeting-actions" style={{ marginTop: 8 }}>
+
+        <div className="mp-cards">
           <button
             type="button"
-            className="start-meeting-btn start-meeting-btn--primary"
+            className="mp-connect-card mp-connect-card--zoom"
             onClick={startZoom}
             disabled={!!loading}
           >
-            Connect Zoom
+            <span className="mp-connect-card__badge" aria-hidden>
+              Zm
+            </span>
+            <span className="mp-connect-card__title">Zoom</span>
+            <p className="mp-connect-card__sub">Continue with Zoom</p>
+            {loading === 'zoom' && <span className="mp-connect-card__busy">Redirecting…</span>}
           </button>
+
           <button
             type="button"
-            className="start-meeting-btn start-meeting-btn--primary"
+            className="mp-connect-card mp-connect-card--teams"
             onClick={startTeams}
             disabled={!!loading}
           >
-            <Video size={18} strokeWidth={1.75} aria-hidden />
-            Connect Microsoft Teams
+            <span className="mp-connect-card__badge" aria-hidden>
+              Ms
+            </span>
+            <span className="mp-connect-card__title">Microsoft Teams</span>
+            <p className="mp-connect-card__sub">Continue with Microsoft</p>
+            {loading === 'teams' && <span className="mp-connect-card__busy">Redirecting…</span>}
           </button>
         </div>
-        <p className="dashboard-int-modal__fineprint">
-          If OAuth is not configured on the server yet, use manual flags for demos only.
-        </p>
-        <div className="dashboard-int-modal__manual">
-          <button
-            type="button"
-            className="start-meeting-btn start-meeting-btn--ghost"
-            disabled={!!loading}
-            onClick={() => markManual(true, false)}
-          >
-            Mark Zoom connected (manual)
-          </button>
-          <button
-            type="button"
-            className="start-meeting-btn start-meeting-btn--ghost"
-            disabled={!!loading}
-            onClick={() => markManual(false, true)}
-          >
-            Mark Teams connected (manual)
-          </button>
+
+        <div className="mp-scope-hint" role="note">
+          If Zoom shows <strong>Invalid scope</strong>: open your app in the Zoom Marketplace →{' '}
+          <strong>Scopes</strong> → add <code>user:read:user</code> (same scopes the server requests). Optional:
+          set Railway <code>ZOOM_OAUTH_SCOPES</code> to match exactly what you enabled.
         </div>
-        {error && <div className="start-meeting-error" style={{ marginTop: 12 }}>{error}</div>}
-        <div className="start-meeting-actions" style={{ marginTop: 16 }}>
-          <button type="button" className="start-meeting-btn start-meeting-btn--ghost" onClick={onClose} disabled={!!loading}>
-            Close
-          </button>
-        </div>
+
+        {allowManual && (
+          <div className="mp-manual">
+            <p className="mp-manual__label">Developer demo only</p>
+            <div className="mp-manual__row">
+              <button
+                type="button"
+                className="start-meeting-btn start-meeting-btn--ghost"
+                disabled={!!loading}
+                onClick={() => markManual(true, false)}
+              >
+                Mark Zoom connected
+              </button>
+              <button
+                type="button"
+                className="start-meeting-btn start-meeting-btn--ghost"
+                disabled={!!loading}
+                onClick={() => markManual(false, true)}
+              >
+                Mark Teams connected
+              </button>
+            </div>
+          </div>
+        )}
+
+        {error && <div className="mp-error">{error}</div>}
+
+        <button type="button" className="mp-dismiss" onClick={() => !loading && onClose()} disabled={!!loading}>
+          Not now
+        </button>
       </div>
     </div>
   );

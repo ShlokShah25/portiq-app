@@ -1,0 +1,181 @@
+/* Connect meeting platforms — compact card layout */
+
+.mp-shell {
+  max-width: 420px;
+  padding: 22px 22px 18px;
+}
+
+.mp-lead {
+  margin: 0 0 18px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #9ca3af;
+}
+
+.mp-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 420px) {
+  .mp-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+.mp-connect-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 16px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.12s ease;
+}
+
+.mp-connect-card:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.16);
+  transform: translateY(-1px);
+}
+
+.mp-connect-card:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.mp-connect-card--zoom:hover:not(:disabled) {
+  border-color: rgba(45, 156, 219, 0.45);
+  box-shadow: 0 0 0 1px rgba(45, 156, 219, 0.12);
+}
+
+.mp-connect-card--teams:hover:not(:disabled) {
+  border-color: rgba(98, 100, 167, 0.5);
+  box-shadow: 0 0 0 1px rgba(98, 100, 167, 0.12);
+}
+
+.mp-connect-card__badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.mp-connect-card--zoom .mp-connect-card__badge {
+  background: linear-gradient(145deg, #2d9cdb 0%, #1a7ab8 100%);
+  color: #fff;
+}
+
+.mp-connect-card--teams .mp-connect-card__badge {
+  background: linear-gradient(145deg, #6264a7 0%, #464775 100%);
+  color: #fff;
+}
+
+.mp-connect-card__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #f4f4f5;
+  margin: 4px 0 0;
+}
+
+.mp-connect-card__sub {
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.mp-connect-card__busy {
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #93c5fd;
+}
+
+.mp-manual {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.mp-manual__label {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #6b7280;
+}
+
+.mp-manual__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mp-manual__row button {
+  font-size: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+.mp-dismiss {
+  margin-top: 18px;
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.mp-dismiss:hover:not(:disabled) {
+  color: #9ca3af;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.mp-error {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  font-size: 13px;
+  line-height: 1.45;
+  color: #fecaca;
+}
+
+.mp-scope-hint {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  font-size: 12px;
+  line-height: 1.5;
+  color: #93c5fd;
+}
+
+.mp-scope-hint code {
+  font-size: 11px;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #e5e7eb;
+}

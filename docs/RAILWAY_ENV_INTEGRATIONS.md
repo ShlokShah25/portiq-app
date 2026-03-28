@@ -43,7 +43,8 @@ No trailing slash.
 | `ZOOM_CLIENT_SECRET` | From Zoom Marketplace (keep secret) |
 | `ZOOM_WEBHOOK_SECRET_TOKEN` | Zoom app “Secret Token” for `POST /api/integrations/webhooks/zoom` |
 | `ZOOM_OAUTH_REDIRECT_URI` | Full callback URL (must match Zoom app exactly) |
-| `ZOOM_OAUTH_SCOPES` | Optional. Default: `user:read:user user:read:email` |
+| `ZOOM_OAUTH_SCOPES` | Optional. **Must match** scopes toggled under Zoom app → **Scopes**. Default (if unset): `user:read:user` only — avoids “Invalid scope” when `user:read:email` is not enabled. Use spaces or commas between scopes. |
+| `ALLOW_MANUAL_MEETING_PLATFORMS` | Set to `true` to show “Mark connected” demo buttons in the Connect modal (hidden by default). |
 
 ### Zoom — conference bot worker (optional until worker is deployed)
 
@@ -91,7 +92,7 @@ Aliases: `APP_BASE_URL`, `CLIENT_URL`, `PUBLIC_APP_URL`.
 - `GET /api/integrations/oauth/zoom/callback` — Zoom redirects here (no Bearer).
 - `GET /api/integrations/oauth/teams/start` — Bearer auth; returns `{ url }`.
 - `GET /api/integrations/oauth/teams/callback` — Microsoft redirects here.
-- `GET /api/integrations/status` — which server env flags are set (no secrets).
+- `GET /api/integrations/status` — which server env flags are set (no secrets). Includes `allowManualMeetingPlatforms` when `ALLOW_MANUAL_MEETING_PLATFORMS=true`.
 - `POST /api/integrations/webhooks/zoom` — Zoom event subscriptions (raw JSON + signature).
 - `POST /api/integrations/bot/report` — worker status updates (`X-PortIQ-Worker-Secret`).
 

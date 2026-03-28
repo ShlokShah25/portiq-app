@@ -23,6 +23,7 @@ router.get('/status', (req, res) => {
     ),
     conferenceBotsNote:
       'Joining meetings and capturing audio runs in a separate bot worker; webhooks land here first.',
+    allowManualMeetingPlatforms: process.env.ALLOW_MANUAL_MEETING_PLATFORMS === 'true',
   });
 });
 
