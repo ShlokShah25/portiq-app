@@ -163,6 +163,34 @@
   font-weight: 400;
 }
 
+.dashboard-tasks-back {
+  margin-bottom: 20px;
+}
+
+.dashboard-tasks-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #93c5fd;
+  text-decoration: none;
+}
+
+.dashboard-tasks-back-link:hover {
+  color: #bfdbfe;
+}
+
+.dashboard-tasks-back-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.dashboard-upcoming-empty--page {
+  margin-top: 8px;
+}
+
 .dashboard-upcoming {
   margin-top: 36px;
   padding-top: 8px;
@@ -217,64 +245,112 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 0;
 }
 
-.dashboard-action-row {
+.dashboard-action-list > li + li {
+  margin-top: 10px;
+}
+
+.dashboard-task-row {
   width: 100%;
+  box-sizing: border-box;
   text-align: left;
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
+  justify-content: flex-start;
+  gap: 14px;
   padding: 16px 18px;
-  background: var(--surface-secondary, #1c1c1e);
-  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  margin: 0;
+  background: #1c1c1e;
+  background-color: #1c1c1e;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   cursor: pointer;
-  font: inherit;
-  color: inherit;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-size: 14px;
+  color: #e4e4e7;
+  -webkit-appearance: none;
+  appearance: none;
   transition: border-color 150ms ease, background 150ms ease;
 }
 
-.dashboard-action-row:hover {
-  border-color: rgba(255, 255, 255, 0.14);
-  background: rgba(28, 28, 30, 0.92);
+.dashboard-task-row:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+  background: #222224;
+  background-color: #222224;
 }
 
-.dashboard-action-row--overdue {
-  border-color: rgba(239, 68, 68, 0.35);
+.dashboard-task-row:focus-visible {
+  outline: 2px solid rgba(59, 130, 246, 0.6);
+  outline-offset: 2px;
 }
 
-.dashboard-action-row--due-soon {
-  border-color: rgba(245, 158, 11, 0.35);
+.dashboard-task-row--overdue {
+  border-color: rgba(239, 68, 68, 0.4);
 }
 
-.dashboard-action-main {
+.dashboard-task-row--due-soon {
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+.dashboard-task-row__icon {
+  flex-shrink: 0;
+  padding-top: 2px;
+  color: #71717a;
+}
+
+.dashboard-task-row__lucide {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+.dashboard-task-row__lucide--done {
+  color: #60a5fa;
+}
+
+.dashboard-task-main {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
+  flex: 1;
+}
+
+.dashboard-task-assignee {
+  font-size: 12px;
+  color: #a1a1aa;
+  line-height: 1.35;
+}
+
+.dashboard-task-assignee::before {
+  content: 'Assigned to ';
+  color: #71717a;
+  font-weight: 500;
 }
 
 .dashboard-action-task {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
-  color: var(--text-primary, #f5f5f7);
-  line-height: 1.35;
+  color: #fafafa;
+  line-height: 1.4;
 }
 
 .dashboard-action-meeting {
   font-size: 12px;
-  color: #9ca3af;
+  color: #a1a1aa;
+  line-height: 1.35;
 }
 
 .dashboard-action-meta {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+  justify-content: flex-start;
   gap: 8px;
   flex-shrink: 0;
+  text-align: right;
 }
 
 .dashboard-action-due {
@@ -323,7 +399,38 @@
   cursor: default;
 }
 
-.metric-card:hover {
+.metric-card--tile {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
+}
+
+.metric-card--tile:hover {
+  border-color: rgba(59, 130, 246, 0.35);
+  background: #202022;
+}
+
+.metric-card--tile:active {
+  transform: scale(0.99);
+}
+
+.metric-card--tile:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.metric-tile-hint {
+  display: block;
+  margin-top: 14px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #60a5fa;
+  letter-spacing: 0.02em;
+}
+
+.metric-card:hover:not(.metric-card--tile) {
   border-color: rgba(255, 255, 255, 0.12);
 }
 

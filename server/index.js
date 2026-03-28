@@ -63,6 +63,12 @@ app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), (req
   const billing = require('./routes/billing');
   billing.handleWebhook(req, res);
 });
+const integrationWebhooks = require('./routes/integrationWebhooks');
+app.post(
+  '/api/integrations/webhooks/zoom',
+  express.raw({ type: 'application/json' }),
+  (req, res) => integrationWebhooks.zoomWebhook(req, res)
+);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -78,6 +84,13 @@ app.use('/api/config', require('./routes/config'));
 app.use('/api/saas', require('./routes/saas'));
 app.use('/api', require('./routes/billing'));
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/integrations', require('./routes/integrations'));
+app.get('/api/integrations/webhooks/teams-graph', (req, res) =>
+  integrationWebhooks.teamsGraphWebhook(req, res)
+);
+app.post('/api/integrations/webhooks/teams-graph', (req, res) =>
+  integrationWebhooks.teamsGraphWebhook(req, res)
+);
 
 // Health check
 app.get('/api/health', (req, res) => {

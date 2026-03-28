@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   Calendar,
   AlertTriangle,
   CheckCircle2,
-  BarChart3,
   CheckSquare,
   Mic,
   Upload,
@@ -33,37 +32,6 @@ const Dashboard = ({ config }) => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const upcoming = Array.isArray(stats?.upcomingActions) ? stats.upcomingActions : [];
-
-  const statusClass = (row) => {
-    const st = row.status || 'not_started';
-    if (st === 'done') return 'dashboard-action-status dashboard-action-status--done';
-    if (st === 'in_progress') return 'dashboard-action-status dashboard-action-status--progress';
-    return 'dashboard-action-status dashboard-action-status--pending';
-  };
-
-  const statusLabel = (row) => {
-    const st = row.status || 'not_started';
-    if (st === 'done') return 'Done';
-    if (st === 'in_progress') return 'In progress';
-    return 'Pending';
-  };
-
-  const rowAccent = (row) => {
-    if (!row.dueDate) return '';
-    const due = new Date(row.dueDate);
-    if (Number.isNaN(due.getTime())) return '';
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    if (due < start) return 'dashboard-action-row dashboard-action-row--overdue';
-    const tmr = new Date(start);
-    tmr.setDate(tmr.getDate() + 1);
-    const dayAfter = new Date(tmr);
-    dayAfter.setDate(dayAfter.getDate() + 1);
-    if (due >= tmr && due < dayAfter) return 'dashboard-action-row dashboard-action-row--due-soon';
-    return 'dashboard-action-row';
   };
 
   if (loading) {
@@ -119,8 +87,11 @@ const Dashboard = ({ config }) => {
             </div>
           </div>
 
-          <div className="dashboard-metrics">
-            <div className="metric-card">
+          <div className="dashboard-metrics" aria-label="Task and meeting shortcuts">
+            <Link
+              to="/dashboard/tasks/due-tomorrow"
+              className="metric-card metric-card--tile"
+            >
               <div className="metric-header">
                 <div className="metric-icon">
                   <CheckSquare className="metric-lucide" strokeWidth={1.5} aria-hidden />
@@ -131,9 +102,10 @@ const Dashboard = ({ config }) => {
               <p className="metric-desc">
                 {nDueTom === 1 ? '1 task needs attention' : `${nDueTom} tasks need attention`}
               </p>
-            </div>
+              <span className="metric-tile-hint">View list</span>
+            </Link>
 
-            <div className="metric-card">
+            <Link to="/dashboard/tasks/overdue" className="metric-card metric-card--tile">
               <div className="metric-header">
                 <div className="metric-icon metric-icon--warn">
                   <AlertTriangle className="metric-lucide" strokeWidth={1.5} aria-hidden />
@@ -142,9 +114,13 @@ const Dashboard = ({ config }) => {
               </div>
               <div className="metric-value">{nOverdue}</div>
               <p className="metric-desc">Requires follow-up</p>
-            </div>
+              <span className="metric-tile-hint">View list</span>
+            </Link>
 
-            <div className="metric-card">
+            <Link
+              to="/dashboard/tasks/completed-week"
+              className="metric-card metric-card--tile"
+            >
               <div className="metric-header">
                 <div className="metric-icon metric-icon--ok">
                   <CheckCircle2 className="metric-lucide" strokeWidth={1.5} aria-hidden />
@@ -153,9 +129,13 @@ const Dashboard = ({ config }) => {
               </div>
               <div className="metric-value">{nDoneWeek}</div>
               <p className="metric-desc">Tasks marked done this week</p>
-            </div>
+              <span className="metric-tile-hint">View list</span>
+            </Link>
 
-            <div className="metric-card">
+            <Link
+              to="/dashboard/tasks/meetings-week"
+              className="metric-card metric-card--tile"
+            >
               <div className="metric-header">
                 <div className="metric-icon">
                   <Calendar className="metric-lucide" strokeWidth={1.5} aria-hidden />
@@ -164,54 +144,9 @@ const Dashboard = ({ config }) => {
               </div>
               <div className="metric-value">{nMeetWeek}</div>
               <p className="metric-desc">Scheduled or held sessions</p>
-            </div>
+              <span className="metric-tile-hint">View list</span>
+            </Link>
           </div>
-
-          <section className="dashboard-upcoming" aria-labelledby="dashboard-upcoming-heading">
-            <div className="dashboard-upcoming-head">
-              <BarChart3 className="dashboard-section-icon" strokeWidth={1.5} aria-hidden />
-              <h2 id="dashboard-upcoming-heading" className="dashboard-section-title">
-                Upcoming Actions
-              </h2>
-            </div>
-            {upcoming.length === 0 ? (
-              <div className="dashboard-upcoming-empty">
-                <p>No open tasks with upcoming deadlines.</p>
-                <p className="dashboard-upcoming-empty-sub">
-                  Start a meeting to begin tracking insights.
-                </p>
-              </div>
-            ) : (
-              <ul className="dashboard-action-list">
-                {upcoming.map((row, idx) => (
-                  <li key={`${row.meetingId}-${idx}`}>
-                    <button
-                      type="button"
-                      className={rowAccent(row)}
-                      onClick={() => navigate(`/meetings/${row.meetingId}`)}
-                    >
-                      <div className="dashboard-action-main">
-                        <span className="dashboard-action-task">{row.task}</span>
-                        <span className="dashboard-action-meeting">{row.meetingTitle}</span>
-                      </div>
-                      <div className="dashboard-action-meta">
-                        <span className="dashboard-action-due">
-                          {row.dueDate
-                            ? new Date(row.dueDate).toLocaleDateString(undefined, {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric',
-                              })
-                            : 'No due date'}
-                        </span>
-                        <span className={statusClass(row)}>{statusLabel(row)}</span>
-                      </div>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
         </div>
       </div>
     </div>

@@ -14,6 +14,29 @@ const meetingSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  /** zoom | teams | google_meet | other | '' — join link for online rooms */
+  conferenceProvider: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  conferenceJoinUrl: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  /** Platform meeting id (Zoom numeric id, Teams thread id, etc.) for webhooks */
+  externalMeetingId: {
+    type: String,
+    default: null,
+    trim: true,
+  },
+  /** queued | joining | in_meeting | ended | failed | '' — set by bot worker */
+  conferenceBotStatus: {
+    type: String,
+    default: '',
+    trim: true,
+  },
   title: {
     type: String,
     required: true,

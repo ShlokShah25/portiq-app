@@ -15,6 +15,8 @@ const PLAN_LIMITS = {
       allowsTranslatedSummary: false,
       /** Day-before + overdue action-item reminder emails */
       allowsActionItemReminders: false,
+      /** Zoom/Teams conference hooks + future bot join (same for all plans) */
+      allowsConferenceBots: true,
     },
     professional: {
       maxParticipants: 20,
@@ -23,6 +25,7 @@ const PLAN_LIMITS = {
       maxConcurrentMeetings: 1,
       allowsTranslatedSummary: false,
       allowsActionItemReminders: true,
+      allowsConferenceBots: true,
     },
     business: {
       maxParticipants: 30,
@@ -31,6 +34,7 @@ const PLAN_LIMITS = {
       maxConcurrentMeetings: 3,
       allowsTranslatedSummary: true,
       allowsActionItemReminders: true,
+      allowsConferenceBots: true,
     },
   },
 };

@@ -611,9 +611,15 @@
   white-space: nowrap;
 }
 
+.meeting-action-meta-pill--due {
+  color: #93c5fd;
+  border-color: rgba(51, 65, 85, 0.85);
+}
+
 .meeting-action-meta-pill--overdue {
-  color: #9ca3af;
-  border-color: rgba(156, 163, 175, 0.35);
+  color: #fecaca;
+  background: rgba(127, 29, 29, 0.25);
+  border-color: rgba(248, 113, 113, 0.45);
 }
 
 .meeting-action-item-text {

@@ -117,7 +117,19 @@ function canAccessMeeting(meeting, admin) {
  */
 router.post('/', async (req, res) => {
   try {
-    const { meetingRoom, title, organizer, participants, startTime, scheduledTime, sendNotification, authorizedEditorEmail } = req.body;
+    const {
+      meetingRoom,
+      title,
+      organizer,
+      participants,
+      startTime,
+      scheduledTime,
+      sendNotification,
+      authorizedEditorEmail,
+      conferenceProvider,
+      conferenceJoinUrl,
+      externalMeetingId,
+    } = req.body;
     
     if (!meetingRoom || !title || !organizer) {
       return res.status(400).json({ error: 'Meeting room, title, and organizer are required' });
@@ -150,7 +162,13 @@ router.post('/', async (req, res) => {
       startTime: null, // Set when user clicks "Start recording", not at creation
       scheduledTime: scheduledTime ? new Date(scheduledTime) : null,
       transcriptionEnabled: true,
-      authorizedEditorEmail: authorizedEditorEmail || null
+      authorizedEditorEmail: authorizedEditorEmail || null,
+      conferenceProvider:
+        conferenceProvider != null ? String(conferenceProvider).trim().slice(0, 32) : '',
+      conferenceJoinUrl:
+        conferenceJoinUrl != null ? String(conferenceJoinUrl).trim().slice(0, 2000) : '',
+      externalMeetingId:
+        externalMeetingId != null ? String(externalMeetingId).trim().slice(0, 256) : null,
     });
 
     // Generate verification code for authorized editor if specified

@@ -137,21 +137,27 @@ export default function MeetingSummaryReadonlyBody({
                 })
               : null;
 
-            const dueBadge =
+            const dueLabel =
               effectiveDue && !Number.isNaN(effectiveDue.getTime())
-                ? `DUE ${effectiveDue
-                    .toLocaleDateString('en-US', { weekday: 'short' })
-                    .toUpperCase()}`
+                ? `Due ${effectiveDue.toLocaleDateString(undefined, {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })}`
                 : null;
 
+            const startOfDay = (d) => {
+              const x = new Date(d);
+              x.setHours(0, 0, 0, 0);
+              return x;
+            };
             const isOverdue =
-              dueBadge &&
               status !== 'done' &&
               effectiveDue &&
               !Number.isNaN(effectiveDue.getTime()) &&
-              effectiveDue.getTime() < Date.now();
+              startOfDay(effectiveDue).getTime() < startOfDay(new Date()).getTime();
 
-            const overdueBadge = isOverdue ? 'OVERDUE' : null;
+            const overdueBadge = isOverdue ? 'Overdue' : null;
 
             const statusDisabled = !!statusSaving[itemId] || !item?._id || !meetingId;
 
@@ -173,10 +179,12 @@ export default function MeetingSummaryReadonlyBody({
                   </button>
                 </div>
                 <div className="meeting-task-row__body">
-                  {dueBadge || overdueBadge ? (
+                  {dueLabel || overdueBadge ? (
                     <div className="meeting-action-item-badges">
-                      {dueBadge ? (
-                        <span className="meeting-action-meta-pill">{dueBadge}</span>
+                      {dueLabel ? (
+                        <span className="meeting-action-meta-pill meeting-action-meta-pill--due">
+                          {dueLabel}
+                        </span>
                       ) : null}
                       {overdueBadge ? (
                         <span className="meeting-action-meta-pill meeting-action-meta-pill--overdue">

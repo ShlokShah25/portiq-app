@@ -5,6 +5,7 @@ import './App.css';
 
 // Lazy load components for better performance
 const Dashboard = lazy(() => import('./components/Dashboard'));
+const DashboardTasksPage = lazy(() => import('./components/DashboardTasksPage'));
 const MeetingsScreen = lazy(() => import('./components/MeetingsScreen'));
 const Transcripts = lazy(() => import('./components/Transcripts'));
 const Participants = lazy(() => import('./components/Participants'));
@@ -110,6 +111,14 @@ function App() {
               element={
                 <RequireAuth>
                   <Dashboard config={config} />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/dashboard/tasks/:bucket"
+              element={
+                <RequireAuth>
+                  <DashboardTasksPage />
                 </RequireAuth>
               }
             />

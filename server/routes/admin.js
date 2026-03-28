@@ -31,6 +31,18 @@ function startOfWeekMonday(d) {
   return x;
 }
 
+function dashboardTaskRow(raw, m, status) {
+  const due = raw.dueDate != null ? raw.dueDate : null;
+  return {
+    task: raw.task || raw.title || 'Action item',
+    meetingTitle: m.title || 'Untitled',
+    meetingId: m._id.toString(),
+    dueDate: due,
+    status: status || raw.status || 'not_started',
+    assignee: raw.assignee != null ? String(raw.assignee).trim() : '',
+  };
+}
+
 /**
  * Admin login (supports both username/password and password-only for client admin)
  */
@@ -146,6 +158,7 @@ router.get('/profile', authenticateAdmin, async (req, res) => {
         !!admin.razorpaySubscriptionId && !admin.hasActiveSubscription,
       allowsTranslatedSummary: !!pc.allowsTranslatedSummary,
       allowsActionItemReminders: !!pc.allowsActionItemReminders,
+      allowsConferenceBots: !!pc.allowsConferenceBots,
     }
   });
 });
@@ -331,6 +344,11 @@ router.get('/stats', authenticateAdmin, requireSubscription, async (req, res) =>
     let completedThisWeek = 0;
     let meetingsWithoutActionItems = 0;
     const upcomingActions = [];
+    const taskListDueTomorrow = [];
+    const taskListOverdue = [];
+    const taskListCompletedThisWeek = [];
+    const meetingsWeekList = [];
+    const weekMeetingIds = new Set();
 
     for (const m of meetingsLean) {
       const eventTime = m.startTime || m.scheduledTime || m.createdAt;
@@ -338,6 +356,16 @@ router.get('/stats', authenticateAdmin, requireSubscription, async (req, res) =>
         const et = new Date(eventTime);
         if (!Number.isNaN(et.getTime()) && et >= weekStart && et < weekEnd) {
           meetingsThisWeek += 1;
+          const mid = m._id.toString();
+          if (!weekMeetingIds.has(mid)) {
+            weekMeetingIds.add(mid);
+            meetingsWeekList.push({
+              meetingId: mid,
+              title: m.title || 'Untitled',
+              at: et.toISOString(),
+              status: m.status || 'Scheduled',
+            });
+          }
         }
       }
 
@@ -361,30 +389,48 @@ router.get('/stats', authenticateAdmin, requireSubscription, async (req, res) =>
 
         if (done && weekContext) {
           completedThisWeek += 1;
+          taskListCompletedThisWeek.push(dashboardTaskRow(raw, m, 'done'));
         }
 
         if (!done && due && !Number.isNaN(due.getTime())) {
-          if (due < today) overdueTasks += 1;
-          else if (due >= tomorrow && due < dayAfterTomorrow) tasksDueTomorrow += 1;
+          if (due < today) {
+            overdueTasks += 1;
+            taskListOverdue.push(dashboardTaskRow(raw, m, status));
+          } else if (due >= tomorrow && due < dayAfterTomorrow) {
+            tasksDueTomorrow += 1;
+            taskListDueTomorrow.push(dashboardTaskRow(raw, m, status));
+          }
         }
 
         if (!done) {
+          const row = dashboardTaskRow(raw, m, status);
           upcomingActions.push({
-            task: raw.task || raw.title || 'Action item',
-            meetingTitle: m.title || 'Untitled',
-            meetingId: m._id.toString(),
-            dueDate: raw.dueDate || null,
-            status,
+            task: row.task,
+            meetingTitle: row.meetingTitle,
+            meetingId: row.meetingId,
+            dueDate: row.dueDate,
+            status: row.status,
+            assignee: row.assignee,
           });
         }
       }
     }
 
-    upcomingActions.sort((a, b) => {
+    const dueSort = (a, b) => {
       const ad = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
       const bd = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
       return ad - bd;
-    });
+    };
+
+    upcomingActions.sort(dueSort);
+    taskListDueTomorrow.sort(dueSort);
+    taskListOverdue.sort(dueSort);
+    taskListCompletedThisWeek.sort((a, b) =>
+      (a.meetingTitle || '').localeCompare(b.meetingTitle || '')
+    );
+    meetingsWeekList.sort((a, b) => new Date(a.at) - new Date(b.at));
+
+    const LIST_CAP = 40;
 
     res.json({
       visitorsToday,
@@ -401,6 +447,10 @@ router.get('/stats', authenticateAdmin, requireSubscription, async (req, res) =>
       meetingsThisWeek,
       meetingsWithoutActionItems,
       upcomingActions: upcomingActions.slice(0, 25),
+      taskListDueTomorrow: taskListDueTomorrow.slice(0, LIST_CAP),
+      taskListOverdue: taskListOverdue.slice(0, LIST_CAP),
+      taskListCompletedThisWeek: taskListCompletedThisWeek.slice(0, LIST_CAP),
+      meetingsWeekList: meetingsWeekList.slice(0, LIST_CAP),
     });
   } catch (error) {
     console.error('Error fetching stats:', error);
