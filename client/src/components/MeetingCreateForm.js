@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import {
@@ -22,6 +22,8 @@ import {
   Square,
   Mail,
   BookUser,
+  ChevronDown,
+  Search,
 } from 'lucide-react';
 import { isEducation } from '../config/product';
 import { getClassrooms } from '../utils/classroomsStorage';
@@ -75,6 +77,7 @@ function resetAllState(setters) {
   setters.setPostSubmit(null);
   setters.setCreatedMeetingId(null);
   setters.setLoading(false);
+  setters.setVoiceRecognitionEnabled(true);
 }
 
 /**
@@ -114,6 +117,10 @@ export default function MeetingCreateForm({
   const [recordingEmail, setRecordingEmail] = useState(null);
   const [voiceUploading, setVoiceUploading] = useState(false);
   const voiceRecorderRef = useRef(null);
+  const [voiceRecognitionEnabled, setVoiceRecognitionEnabled] = useState(true);
+  const [participantDropdownOpen, setParticipantDropdownOpen] = useState(false);
+  const [participantSearchQuery, setParticipantSearchQuery] = useState('');
+  const participantDropdownRef = useRef(null);
 
   const runReset = useCallback(() => {
     try {
@@ -143,7 +150,10 @@ export default function MeetingCreateForm({
       setPostSubmit,
       setCreatedMeetingId,
       setLoading,
+      setVoiceRecognitionEnabled,
     });
+    setParticipantDropdownOpen(false);
+    setParticipantSearchQuery('');
   }, []);
 
   useEffect(() => {
@@ -217,6 +227,34 @@ export default function MeetingCreateForm({
       cancelled = true;
     };
   }, [active, participantBook, isEducation]);
+
+  useEffect(() => {
+    if (!participantDropdownOpen) return;
+    const onDoc = (e) => {
+      if (participantDropdownRef.current && !participantDropdownRef.current.contains(e.target)) {
+        setParticipantDropdownOpen(false);
+      }
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') setParticipantDropdownOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [participantDropdownOpen]);
+
+  const filteredParticipantBook = useMemo(() => {
+    const q = participantSearchQuery.trim().toLowerCase();
+    if (!q) return participantBook;
+    return participantBook.filter((p) => {
+      const em = (p.email && String(p.email).toLowerCase()) || '';
+      const nm = (p.name && String(p.name).toLowerCase()) || '';
+      return em.includes(q) || nm.includes(q);
+    });
+  }, [participantBook, participantSearchQuery]);
 
   const detected = detectConferenceProvider(meetingLink);
   const detectedLabel = detected ? conferenceProviderLabel(detected) : null;
@@ -394,20 +432,24 @@ export default function MeetingCreateForm({
 
   const editorOptions = payloadParticipants();
 
-  const onParticipantMultiselectChange = (e) => {
-    let next = Array.from(e.target.selectedOptions, (o) => o.value);
-    if (maxParticipantsPerMeeting != null && next.length > maxParticipantsPerMeeting) {
-      next = next.slice(0, maxParticipantsPerMeeting);
-      setError(`Your plan allows up to ${maxParticipantsPerMeeting} participants per meeting.`);
-    } else {
-      setError((cur) =>
-        /^Your plan allows up to \d+ participants per meeting\.$/.test(String(cur)) ? '' : cur
-      );
-    }
-    setSelectedBookEmails(next);
-    setAuthorizedEditorEmail((cur) => {
-      const c = cur.trim().toLowerCase();
-      return c && next.includes(c) ? cur : '';
+  const toggleBookParticipantEmail = (email) => {
+    const em = String(email).trim().toLowerCase();
+    if (!em) return;
+    setSelectedBookEmails((prev) => {
+      if (prev.includes(em)) {
+        setAuthorizedEditorEmail((cur) => (cur.trim().toLowerCase() === em ? '' : cur));
+        return prev.filter((x) => x !== em);
+      }
+      let next = [...prev, em];
+      if (maxParticipantsPerMeeting != null && next.length > maxParticipantsPerMeeting) {
+        next = next.slice(0, maxParticipantsPerMeeting);
+        setError(`Your plan allows up to ${maxParticipantsPerMeeting} participants per meeting.`);
+      } else {
+        setError((cur) =>
+          /^Your plan allows up to \d+ participants per meeting\.$/.test(String(cur)) ? '' : cur
+        );
+      }
+      return next;
     });
   };
 
@@ -579,32 +621,33 @@ export default function MeetingCreateForm({
             </div>
           )}
 
-          <div className="start-meeting-field">
-            <FieldLabel htmlFor="sm-title" icon={FileText}>
-              Meeting title
-            </FieldLabel>
+          <div className="start-meeting-field meeting-create-title-agenda">
+            <div className="start-meeting-label-with-icon meeting-create-title-agenda__label">
+              <FileText className="start-meeting-label-with-icon__ic" size={16} strokeWidth={1.75} aria-hidden />
+              <span className="meeting-create-title-agenda__slash">/</span>
+              <List className="start-meeting-label-with-icon__ic" size={16} strokeWidth={1.75} aria-hidden />
+              <span>Meeting title / agenda</span>
+            </div>
             <input
               id="sm-title"
+              className="meeting-create-title-agenda__title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder={`Project review — ${companyName}`}
+              placeholder={`Title — e.g. Project review (${companyName})`}
               required
               autoComplete="off"
               disabled={formDisabled}
+              aria-label="Meeting title"
             />
-          </div>
-
-          <div className="start-meeting-field">
-            <FieldLabel htmlFor="sm-agenda" icon={List}>
-              Agenda
-            </FieldLabel>
             <textarea
               id="sm-agenda"
+              className="meeting-create-title-agenda__agenda"
               value={agenda}
               onChange={(e) => setAgenda(e.target.value)}
-              placeholder="Goals, topics, decisions…"
+              placeholder="Agenda — goals, topics, decisions…"
               required
               disabled={formDisabled}
+              aria-label="Agenda"
             />
           </div>
 
@@ -692,8 +735,8 @@ export default function MeetingCreateForm({
                 Participants
               </div>
               <p className="start-meeting-field-hint">
-                Choose from your participant book (hold ⌘ or Ctrl to select multiple). Options show voice enrollment
-                status.
+                Open the dropdown to search and select people from your book. Voice enrollment status is shown per
+                person.
               </p>
               {participantBookError && (
                 <p className="start-meeting-field-hint start-meeting-field-hint--warn">
@@ -713,31 +756,97 @@ export default function MeetingCreateForm({
               )}
               {participantBook.length > 0 && (
                 <div className="start-meeting-field" style={{ marginBottom: 12 }}>
-                  <FieldLabel htmlFor="sm-participants" icon={BookUser}>
+                  <FieldLabel htmlFor="sm-participants-trigger" icon={BookUser}>
                     Participant book
                   </FieldLabel>
-                  <select
-                    id="sm-participants"
-                    multiple
-                    className="meeting-create-participant-multiselect"
-                    value={selectedBookEmails}
-                    onChange={onParticipantMultiselectChange}
-                    disabled={formDisabled}
-                    size={Math.min(10, Math.max(4, participantBook.length))}
-                    aria-describedby="sm-participants-hint"
-                  >
-                    {participantBook.map((p) => {
-                      const em = (p.email && String(p.email).trim().toLowerCase()) || '';
-                      if (!em) return null;
-                      const hasVoice = !!voiceProfiles[em]?.hasProfile;
-                      const label = `${p.name || em.split('@')[0]} — ${em} · ${hasVoice ? 'Voice configured' : 'Voice not configured'}`;
-                      return (
-                        <option key={em} value={em}>
-                          {label}
-                        </option>
-                      );
-                    })}
-                  </select>
+                  <div className="meeting-create-participant-dd" ref={participantDropdownRef}>
+                    <button
+                      id="sm-participants-trigger"
+                      type="button"
+                      className="meeting-create-participant-dd__trigger"
+                      onClick={() => setParticipantDropdownOpen((o) => !o)}
+                      disabled={formDisabled}
+                      aria-expanded={participantDropdownOpen}
+                      aria-haspopup="listbox"
+                    >
+                      <span className="meeting-create-participant-dd__trigger-text">
+                        {selectedBookEmails.length === 0
+                          ? 'Select people…'
+                          : `${selectedBookEmails.length} selected${
+                              maxParticipantsPerMeeting != null
+                                ? ` · max ${maxParticipantsPerMeeting}`
+                                : ''
+                            }`}
+                      </span>
+                      <ChevronDown
+                        size={18}
+                        strokeWidth={2}
+                        className={
+                          participantDropdownOpen
+                            ? 'meeting-create-participant-dd__chev meeting-create-participant-dd__chev--open'
+                            : 'meeting-create-participant-dd__chev'
+                        }
+                        aria-hidden
+                      />
+                    </button>
+                    {participantDropdownOpen && (
+                      <div className="meeting-create-participant-dd__panel" role="listbox" aria-multiselectable>
+                        <div className="meeting-create-participant-dd__search-wrap">
+                          <Search size={16} strokeWidth={2} className="meeting-create-participant-dd__search-icon" aria-hidden />
+                          <input
+                            type="search"
+                            className="meeting-create-participant-dd__search"
+                            value={participantSearchQuery}
+                            onChange={(e) => setParticipantSearchQuery(e.target.value)}
+                            placeholder="Search by name or email…"
+                            autoComplete="off"
+                          />
+                        </div>
+                        <div className="meeting-create-participant-dd__list">
+                          {filteredParticipantBook.length === 0 ? (
+                            <p className="meeting-create-participant-dd__empty">No matches</p>
+                          ) : (
+                            filteredParticipantBook.map((p) => {
+                              const em = (p.email && String(p.email).trim().toLowerCase()) || '';
+                              if (!em) return null;
+                              const checked = selectedBookEmails.includes(em);
+                              const hasVoice = !!voiceProfiles[em]?.hasProfile;
+                              return (
+                                <button
+                                  key={em}
+                                  type="button"
+                                  role="option"
+                                  aria-selected={checked}
+                                  className={`meeting-create-participant-dd__item${checked ? ' meeting-create-participant-dd__item--selected' : ''}`}
+                                  onClick={() => toggleBookParticipantEmail(em)}
+                                >
+                                  <span
+                                    className={`meeting-create-participant-dd__check${checked ? ' meeting-create-participant-dd__check--on' : ''}`}
+                                    aria-hidden
+                                  />
+                                  <span className="meeting-create-participant-dd__item-body">
+                                    <span className="meeting-create-participant-dd__name">
+                                      {p.name || em.split('@')[0]}
+                                    </span>
+                                    <span className="meeting-create-participant-dd__email">{em}</span>
+                                  </span>
+                                  <span
+                                    className={
+                                      hasVoice
+                                        ? 'meeting-create-participant-dd__voice meeting-create-participant-dd__voice--ok'
+                                        : 'meeting-create-participant-dd__voice'
+                                    }
+                                  >
+                                    {hasVoice ? 'Voice on' : 'No voice'}
+                                  </span>
+                                </button>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                   <p id="sm-participants-hint" className="start-meeting-field-hint">
                     Selected: {selectedBookEmails.length}
                     {maxParticipantsPerMeeting != null ? ` / max ${maxParticipantsPerMeeting}` : ''}
@@ -745,6 +854,20 @@ export default function MeetingCreateForm({
                 </div>
               )}
               {selectedBookEmails.length > 0 && participantBook.length > 0 && (
+                <label className="start-meeting-checkbox start-meeting-checkbox--with-icon meeting-create-voice-toggle">
+                  <Mic size={16} strokeWidth={1.75} className="start-meeting-checkbox__ic" aria-hidden />
+                  <input
+                    type="checkbox"
+                    checked={voiceRecognitionEnabled}
+                    onChange={(e) => setVoiceRecognitionEnabled(e.target.checked)}
+                    disabled={formDisabled}
+                  />
+                  <span>
+                    Enable voice recognition (use enrolled samples so transcripts can label speakers more accurately)
+                  </span>
+                </label>
+              )}
+              {voiceRecognitionEnabled && selectedBookEmails.length > 0 && participantBook.length > 0 && (
                 <div className="meeting-create-voice-block">
                   <div className="start-meeting-section-label start-meeting-section-label--row">
                     <Mic size={16} strokeWidth={1.75} className="start-meeting-section-label__ic" aria-hidden />
