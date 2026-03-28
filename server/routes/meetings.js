@@ -161,6 +161,41 @@ router.post('/', async (req, res) => {
 
     const agendaTrim = agenda != null ? String(agenda).trim().slice(0, 8000) : '';
 
+    if (admin) {
+      const st = scheduledTime ? new Date(scheduledTime) : null;
+      if (!st || Number.isNaN(st.getTime())) {
+        return res.status(400).json({ error: 'Meeting date and time are required.' });
+      }
+      const parts = Array.isArray(participants)
+        ? participants.filter((p) => p && p.email && String(p.email).trim())
+        : [];
+      if (parts.length === 0) {
+        return res.status(400).json({ error: 'At least one participant with an email is required.' });
+      }
+      const editorRaw = authorizedEditorEmail != null ? String(authorizedEditorEmail).trim() : '';
+      if (!editorRaw) {
+        return res.status(400).json({ error: 'Authorized editor email is required.' });
+      }
+      const editorLower = editorRaw.toLowerCase();
+      const okEditor = parts.some((p) => String(p.email).trim().toLowerCase() === editorLower);
+      if (!okEditor) {
+        return res.status(400).json({ error: 'Authorized editor must be one of the participants.' });
+      }
+      if (!agendaTrim) {
+        return res.status(400).json({ error: 'Agenda is required.' });
+      }
+      const orgProvided = organizer != null && String(organizer).trim();
+      if (!orgProvided) {
+        return res.status(400).json({ error: 'Organizer is required.' });
+      }
+      if (!joinUrlTrim) {
+        const rawRoom = meetingRoom != null ? String(meetingRoom).trim() : '';
+        if (!rawRoom) {
+          return res.status(400).json({ error: 'Location is required for live meetings.' });
+        }
+      }
+    }
+
     // Enforce max participants per plan
     if (
       planInfo.maxParticipants &&

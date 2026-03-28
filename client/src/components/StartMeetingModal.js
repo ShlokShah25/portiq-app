@@ -1,26 +1,46 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { X, Mic, Video, Bot } from 'lucide-react';
+import { X, Mic, Video, Bot, Plus, Trash2 } from 'lucide-react';
 import { isEducation } from '../config/product';
 import { getClassrooms } from '../utils/classroomsStorage';
 import { detectConferenceProvider, conferenceProviderLabel } from '../utils/detectConferenceLink';
 import './StartMeetingModal.css';
+
+function pad2(n) {
+  return String(n).padStart(2, '0');
+}
+
+function defaultDateTimeLocal() {
+  const t = new Date();
+  t.setMinutes(t.getMinutes() + 30);
+  t.setSeconds(0, 0);
+  const d = `${t.getFullYear()}-${pad2(t.getMonth() + 1)}-${pad2(t.getDate())}`;
+  const tm = `${pad2(t.getHours())}:${pad2(t.getMinutes())}`;
+  return { date: d, time: tm };
+}
 
 export default function StartMeetingModal({
   open,
   onClose,
   companyName = 'Your Company',
   subscriptionGate,
+  maxParticipantsPerMeeting = null,
 }) {
   const navigate = useNavigate();
+  const defaults = defaultDateTimeLocal();
   const [title, setTitle] = useState('');
   const [agenda, setAgenda] = useState('');
+  const [scheduledDate, setScheduledDate] = useState(defaults.date);
+  const [scheduledTime, setScheduledTime] = useState(defaults.time);
+  const [organizer, setOrganizer] = useState('');
+  const [liveLocation, setLiveLocation] = useState('');
   const [captureMode, setCaptureMode] = useState('live');
   const [meetingLink, setMeetingLink] = useState('');
-  const [happeningNow, setHappeningNow] = useState(true);
   const [selectedClassroomId, setSelectedClassroomId] = useState('');
-  const [organizerDefault, setOrganizerDefault] = useState('');
+  const [participants, setParticipants] = useState([{ name: '', email: '' }]);
+  const [authorizedEditorEmail, setAuthorizedEditorEmail] = useState('');
+  const [sendNotification, setSendNotification] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [postSubmit, setPostSubmit] = useState(null);
@@ -33,25 +53,31 @@ export default function StartMeetingModal({
         const res = await axios.get('/admin/profile');
         const a = res.data?.admin;
         const o = (a?.email && String(a.email).trim()) || (a?.username && String(a.username).trim()) || '';
-        setOrganizerDefault(o);
+        setOrganizer(o);
       } catch {
-        setOrganizerDefault('');
+        setOrganizer('');
       }
     })();
   }, [open]);
 
   useEffect(() => {
     if (!open) {
+      const d = defaultDateTimeLocal();
       setTitle('');
       setAgenda('');
+      setScheduledDate(d.date);
+      setScheduledTime(d.time);
+      setLiveLocation('');
       setCaptureMode('live');
       setMeetingLink('');
-      setHappeningNow(true);
+      setSelectedClassroomId('');
+      setParticipants([{ name: '', email: '' }]);
+      setAuthorizedEditorEmail('');
+      setSendNotification(true);
       setError('');
       setPostSubmit(null);
       setCreatedMeetingId(null);
       setLoading(false);
-      setSelectedClassroomId('');
     }
   }, [open]);
 
@@ -60,8 +86,54 @@ export default function StartMeetingModal({
   const detected = detectConferenceProvider(meetingLink);
   const detectedLabel = detected ? conferenceProviderLabel(detected) : null;
 
+  const scheduledIso = () => {
+    if (!scheduledDate || !scheduledTime) return null;
+    const iso = new Date(`${scheduledDate}T${scheduledTime}`).toISOString();
+    return Number.isNaN(new Date(iso).getTime()) ? null : iso;
+  };
+
+  const payloadParticipants = () => {
+    if (isEducation && selectedClassroomId) {
+      const classroom = getClassrooms().find((c) => c.id === selectedClassroomId);
+      return (classroom?.studentEmails || []).map((email) => ({
+        name: email.split('@')[0],
+        email: email.trim(),
+        role: 'participant',
+      }));
+    }
+    return participants
+      .filter((p) => p.email && String(p.email).trim())
+      .map((p) => ({
+        name: (p.name && String(p.name).trim()) || '',
+        email: String(p.email).trim(),
+        role: 'participant',
+      }));
+  };
+
+  const validateCommon = () => {
+    if (!title.trim()) return 'Meeting title is required.';
+    if (!agenda.trim()) return 'Agenda is required.';
+    if (!scheduledDate || !scheduledTime) return 'Meeting date and time are required.';
+    if (!scheduledIso()) return 'Invalid date or time.';
+    if (!organizer.trim()) return 'Organizer is required.';
+    const parts = payloadParticipants();
+    if (parts.length === 0) return 'Add at least one participant with an email.';
+    if (maxParticipantsPerMeeting != null && parts.length > maxParticipantsPerMeeting) {
+      return `Your plan allows up to ${maxParticipantsPerMeeting} participants per meeting.`;
+    }
+    if (!authorizedEditorEmail.trim()) return 'Authorized editor is required.';
+    const editorLower = authorizedEditorEmail.trim().toLowerCase();
+    const emails = parts.map((p) => p.email.toLowerCase());
+    if (!emails.includes(editorLower)) return 'Authorized editor must be one of the participants.';
+    if (isEducation && !selectedClassroomId) return 'Select a classroom.';
+    return '';
+  };
+
   const runOnlineAssistantFlow = async (meetingId) => {
-    if (!happeningNow) {
+    const st = scheduledIso();
+    const startMs = st ? new Date(st).getTime() : 0;
+    const soon = Date.now() + 90 * 1000;
+    if (startMs > soon) {
       setCreatedMeetingId(meetingId);
       setPostSubmit({ kind: 'scheduled_wait' });
       return;
@@ -80,44 +152,35 @@ export default function StartMeetingModal({
     navigate(`/meetings/${meetingId}`);
   };
 
+  const buildBody = (extra) => ({
+    title: title.trim(),
+    agenda: agenda.trim(),
+    organizer: organizer.trim(),
+    scheduledTime: scheduledIso(),
+    participants: payloadParticipants(),
+    sendNotification,
+    authorizedEditorEmail: authorizedEditorEmail.trim(),
+    transcriptionEnabled: true,
+    ...extra,
+  });
+
   const submitLive = async () => {
     setError('');
     if (subscriptionGate === 'inactive' || subscriptionGate === 'payment_pending') {
       setError('Subscription required to create a meeting.');
       return;
     }
-    if (isEducation && !selectedClassroomId) {
-      setError('Select a classroom.');
+    const v = validateCommon();
+    if (v) {
+      setError(v);
       return;
     }
-    if (!title.trim()) {
-      setError('Meeting title is required.');
-      return;
-    }
+    if (!liveLocation.trim()) return setError('Location is required for a live meeting.');
     setLoading(true);
     try {
-      let payloadParticipants = [];
-      if (isEducation && selectedClassroomId) {
-        const classroom = getClassrooms().find((c) => c.id === selectedClassroomId);
-        payloadParticipants = (classroom?.studentEmails || []).map((email) => ({
-          name: email.split('@')[0],
-          email,
-          role: 'participant',
-        }));
-      }
-
-      const res = await axios.post(
-        '/meetings',
-        {
-          title: title.trim(),
-          agenda: agenda.trim() || undefined,
-          organizer: organizerDefault || undefined,
-          meetingRoom: 'Live recording',
-          participants: payloadParticipants,
-          sendNotification: payloadParticipants.length > 0,
-        },
-        { timeout: 30000 }
-      );
+      const res = await axios.post('/meetings', buildBody({ meetingRoom: liveLocation.trim() }), {
+        timeout: 30000,
+      });
       const id = res.data?.meeting?._id;
       onClose();
       navigate(`/meetings/${id}/room?autostart=1`);
@@ -134,40 +197,24 @@ export default function StartMeetingModal({
       setError('Subscription required to create a meeting.');
       return;
     }
-    if (!title.trim()) {
-      setError('Meeting title is required.');
+    const v = validateCommon();
+    if (v) {
+      setError(v);
       return;
     }
     const link = meetingLink.trim();
-    if (!link) {
-      setError('Paste a meeting link.');
-      return;
-    }
+    if (!link) return setError('Paste a meeting link.');
     const prov = detectConferenceProvider(link);
-    if (!prov) {
-      setError('Use a Zoom or Teams meeting link.');
-      return;
-    }
+    if (!prov) return setError('Use a Zoom or Teams meeting link.');
     setLoading(true);
     try {
-      let scheduledTimeValue;
-      if (happeningNow) {
-        scheduledTimeValue = new Date().toISOString();
-      }
-
       const res = await axios.post(
         '/meetings',
-        {
-          title: title.trim(),
-          agenda: agenda.trim() || undefined,
-          organizer: organizerDefault || undefined,
+        buildBody({
           meetingRoom: 'Online meeting',
           conferenceJoinUrl: link,
           conferenceProvider: prov,
-          scheduledTime: scheduledTimeValue,
-          participants: [],
-          sendNotification: false,
-        },
+        }),
         { timeout: 30000 }
       );
       const id = res.data?.meeting?._id;
@@ -179,14 +226,25 @@ export default function StartMeetingModal({
     }
   };
 
+  const editorOptions = payloadParticipants();
+
   const overlayClose = (e) => {
     if (e.target === e.currentTarget && !loading) onClose();
+  };
+
+  const addParticipantRow = () => {
+    if (maxParticipantsPerMeeting != null && participants.length >= maxParticipantsPerMeeting) return;
+    setParticipants((prev) => [...prev, { name: '', email: '' }]);
+  };
+
+  const removeParticipantRow = (idx) => {
+    setParticipants((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== idx)));
   };
 
   return (
     <div className="start-meeting-overlay" role="presentation" onMouseDown={overlayClose}>
       <div
-        className="start-meeting-modal"
+        className="start-meeting-modal start-meeting-modal--wide"
         role="dialog"
         aria-modal="true"
         aria-labelledby="start-meeting-title"
@@ -208,7 +266,7 @@ export default function StartMeetingModal({
 
         {postSubmit?.kind === 'joining' && (
           <div className="start-meeting-status">
-            <Bot className="start-meeting-btn__icon" size={28} strokeWidth={1.5} style={{ margin: '0 auto 12px', color: '#93c5fd' }} />
+            <Bot size={28} strokeWidth={1.5} style={{ margin: '0 auto 12px', color: '#93c5fd' }} />
             <p className="start-meeting-status__title">Joining…</p>
           </div>
         )}
@@ -250,6 +308,7 @@ export default function StartMeetingModal({
                   id="sm-classroom"
                   value={selectedClassroomId}
                   onChange={(e) => setSelectedClassroomId(e.target.value)}
+                  required
                 >
                   <option value="">Select a classroom</option>
                   {getClassrooms().map((c) => (
@@ -274,12 +333,48 @@ export default function StartMeetingModal({
             </div>
 
             <div className="start-meeting-field">
-              <label htmlFor="sm-agenda">Agenda (optional)</label>
+              <label htmlFor="sm-agenda">Agenda</label>
               <textarea
                 id="sm-agenda"
                 value={agenda}
                 onChange={(e) => setAgenda(e.target.value)}
                 placeholder="Goals, topics, decisions…"
+                required
+              />
+            </div>
+
+            <div className="start-meeting-datetime-row">
+              <div className="start-meeting-field">
+                <label htmlFor="sm-date">Date</label>
+                <input
+                  id="sm-date"
+                  type="date"
+                  value={scheduledDate}
+                  onChange={(e) => setScheduledDate(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="start-meeting-field">
+                <label htmlFor="sm-time">Time</label>
+                <input
+                  id="sm-time"
+                  type="time"
+                  value={scheduledTime}
+                  onChange={(e) => setScheduledTime(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="start-meeting-field">
+              <label htmlFor="sm-organizer">Organizer</label>
+              <input
+                id="sm-organizer"
+                value={organizer}
+                onChange={(e) => setOrganizer(e.target.value)}
+                placeholder="Name or email"
+                required
+                autoComplete="off"
               />
             </div>
 
@@ -311,31 +406,113 @@ export default function StartMeetingModal({
               </div>
             </button>
 
+            {captureMode === 'live' && (
+              <div className="start-meeting-field" style={{ marginTop: 16 }}>
+                <label htmlFor="sm-location">Location</label>
+                <input
+                  id="sm-location"
+                  value={liveLocation}
+                  onChange={(e) => setLiveLocation(e.target.value)}
+                  placeholder="e.g. Conference Room A"
+                  required
+                />
+              </div>
+            )}
+
             {captureMode === 'online' && (
+              <div className="start-meeting-field" style={{ marginTop: 16 }}>
+                <label htmlFor="sm-link">Meeting Link</label>
+                <input
+                  id="sm-link"
+                  value={meetingLink}
+                  onChange={(e) => setMeetingLink(e.target.value)}
+                  placeholder="Paste Zoom or Teams meeting link"
+                  autoComplete="off"
+                />
+                {detectedLabel && <p className="start-meeting-detected">Detected: {detectedLabel}</p>}
+              </div>
+            )}
+
+            {!isEducation && (
               <>
-                <div className="start-meeting-field" style={{ marginTop: 16 }}>
-                  <label htmlFor="sm-link">Meeting Link</label>
-                  <input
-                    id="sm-link"
-                    value={meetingLink}
-                    onChange={(e) => setMeetingLink(e.target.value)}
-                    placeholder="Paste Zoom or Teams meeting link"
-                    autoComplete="off"
-                  />
-                  {detectedLabel && (
-                    <p className="start-meeting-detected">Detected: {detectedLabel}</p>
-                  )}
+                <div className="start-meeting-section-label" style={{ marginTop: 16 }}>
+                  Participants
                 </div>
-                <label className="start-meeting-checkbox">
-                  <input
-                    type="checkbox"
-                    checked={happeningNow}
-                    onChange={(e) => setHappeningNow(e.target.checked)}
-                  />
-                  <span>This meeting is happening now</span>
-                </label>
+                {participants.map((p, idx) => (
+                  <div key={idx} className="start-meeting-participant-row">
+                    <input
+                      type="text"
+                      placeholder="Name"
+                      value={p.name}
+                      onChange={(e) => {
+                        const next = [...participants];
+                        next[idx] = { ...next[idx], name: e.target.value };
+                        setParticipants(next);
+                      }}
+                    />
+                    <input
+                      type="email"
+                      placeholder="email@example.com"
+                      value={p.email}
+                      onChange={(e) => {
+                        const next = [...participants];
+                        next[idx] = { ...next[idx], email: e.target.value };
+                        setParticipants(next);
+                      }}
+                    />
+                    {participants.length > 1 && (
+                      <button
+                        type="button"
+                        className="start-meeting-icon-btn"
+                        onClick={() => removeParticipantRow(idx)}
+                        aria-label="Remove participant"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  className="start-meeting-btn start-meeting-btn--ghost start-meeting-add-participant"
+                  onClick={addParticipantRow}
+                  disabled={
+                    maxParticipantsPerMeeting != null &&
+                    participants.length >= maxParticipantsPerMeeting
+                  }
+                >
+                  <Plus size={16} />
+                  Add participant
+                </button>
               </>
             )}
+
+            <div className="start-meeting-field" style={{ marginTop: 16 }}>
+              <label htmlFor="sm-editor">Authorized editor</label>
+              <select
+                id="sm-editor"
+                value={authorizedEditorEmail}
+                onChange={(e) => setAuthorizedEditorEmail(e.target.value)}
+                required
+              >
+                <option value="">Select a participant</option>
+                {editorOptions.map((p) => (
+                  <option key={p.email} value={p.email}>
+                    {(p.name || p.email) + ` (${p.email})`}
+                  </option>
+                ))}
+              </select>
+              <p className="start-meeting-field-hint">Must be one of the participants above.</p>
+            </div>
+
+            <label className="start-meeting-checkbox">
+              <input
+                type="checkbox"
+                checked={sendNotification}
+                onChange={(e) => setSendNotification(e.target.checked)}
+              />
+              <span>Send email notification to participants when the meeting is created</span>
+            </label>
 
             {error && <div className="start-meeting-error">{error}</div>}
 
@@ -361,7 +538,12 @@ export default function StartMeetingModal({
                   Join with PortIQ Assistant
                 </button>
               )}
-              <button type="button" className="start-meeting-btn start-meeting-btn--ghost" onClick={onClose} disabled={loading}>
+              <button
+                type="button"
+                className="start-meeting-btn start-meeting-btn--ghost"
+                onClick={onClose}
+                disabled={loading}
+              >
                 Cancel
               </button>
             </div>

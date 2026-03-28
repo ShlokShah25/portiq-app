@@ -389,7 +389,7 @@ const MeetingDetail = () => {
                 </div>
               </dl>
               <p className="meeting-detail-capture-note">
-                PortIQ Assistant will automatically join this meeting
+                PortIQ will join your meeting once it starts.
               </p>
             </div>
           )}
@@ -428,7 +428,7 @@ const MeetingDetail = () => {
                   Open meeting link
                 </a>
                 <p className="meeting-detail-hint">
-                  PortIQ Assistant follows this session when connected.
+                  PortIQ will join your meeting once it starts—open the link above when you are ready.
                 </p>
               </>
             )}

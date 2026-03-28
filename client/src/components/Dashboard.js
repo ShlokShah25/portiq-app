@@ -23,6 +23,7 @@ const Dashboard = ({ config }) => {
   const [connectModalOpen, setConnectModalOpen] = useState(false);
   const [meetingPlatforms, setMeetingPlatforms] = useState({ zoom: false, teams: false });
   const [subscriptionGate, setSubscriptionGate] = useState(null);
+  const [maxParticipantsPerMeeting, setMaxParticipantsPerMeeting] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -41,6 +42,7 @@ const Dashboard = ({ config }) => {
       });
       if (!admin) {
         setSubscriptionGate('ok');
+        setMaxParticipantsPerMeeting(null);
         return;
       }
       const u = String(admin.username || '').toLowerCase();
@@ -51,9 +53,13 @@ const Dashboard = ({ config }) => {
       } else {
         setSubscriptionGate('inactive');
       }
+      const plan = (admin.plan || 'starter').toLowerCase();
+      const maxByPlan = { starter: 10, professional: 20, business: 30 };
+      setMaxParticipantsPerMeeting(maxByPlan[plan] ?? null);
     } catch {
       setMeetingPlatforms({ zoom: false, teams: false });
       setSubscriptionGate('ok');
+      setMaxParticipantsPerMeeting(null);
     }
   }, []);
 
@@ -217,6 +223,7 @@ const Dashboard = ({ config }) => {
         onClose={() => setStartModalOpen(false)}
         companyName={config?.companyName || 'Your Company'}
         subscriptionGate={subscriptionGate}
+        maxParticipantsPerMeeting={maxParticipantsPerMeeting}
       />
       <MeetingPlatformsModal
         open={connectModalOpen}
