@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-import { X, Mic, Video, Bot, Plus, Trash2 } from 'lucide-react';
+import { X, Mic, Video, Bot, ExternalLink } from 'lucide-react';
 import { isEducation } from '../config/product';
 import { getClassrooms } from '../utils/classroomsStorage';
 import { detectConferenceProvider, conferenceProviderLabel } from '../utils/detectConferenceLink';
@@ -38,7 +38,10 @@ export default function StartMeetingModal({
   const [captureMode, setCaptureMode] = useState('live');
   const [meetingLink, setMeetingLink] = useState('');
   const [selectedClassroomId, setSelectedClassroomId] = useState('');
-  const [participants, setParticipants] = useState([{ name: '', email: '' }]);
+  /** Workplace: emails selected from participant book only */
+  const [selectedBookEmails, setSelectedBookEmails] = useState([]);
+  const [participantBook, setParticipantBook] = useState([]);
+  const [participantBookError, setParticipantBookError] = useState('');
   const [authorizedEditorEmail, setAuthorizedEditorEmail] = useState('');
   const [sendNotification, setSendNotification] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -57,6 +60,21 @@ export default function StartMeetingModal({
       } catch {
         setOrganizer('');
       }
+      if (!isEducation) {
+        setParticipantBookError('');
+        try {
+          const bookRes = await axios.get('/admin/participant-book');
+          const list = bookRes.data?.participants || [];
+          setParticipantBook(Array.isArray(list) ? list : []);
+        } catch (e) {
+          setParticipantBook([]);
+          setParticipantBookError(
+            e.response?.status === 403
+              ? 'Participant book requires an active plan.'
+              : 'Could not load participant book.'
+          );
+        }
+      }
     })();
   }, [open]);
 
@@ -71,7 +89,9 @@ export default function StartMeetingModal({
       setCaptureMode('live');
       setMeetingLink('');
       setSelectedClassroomId('');
-      setParticipants([{ name: '', email: '' }]);
+      setSelectedBookEmails([]);
+      setParticipantBook([]);
+      setParticipantBookError('');
       setAuthorizedEditorEmail('');
       setSendNotification(true);
       setError('');
@@ -101,13 +121,17 @@ export default function StartMeetingModal({
         role: 'participant',
       }));
     }
-    return participants
-      .filter((p) => p.email && String(p.email).trim())
-      .map((p) => ({
-        name: (p.name && String(p.name).trim()) || '',
-        email: String(p.email).trim(),
+    return selectedBookEmails.map((email) => {
+      const em = String(email).trim().toLowerCase();
+      const row = participantBook.find(
+        (p) => p.email && String(p.email).trim().toLowerCase() === em
+      );
+      return {
+        name: (row?.name && String(row.name).trim()) || em.split('@')[0] || '',
+        email: em,
         role: 'participant',
-      }));
+      };
+    });
   };
 
   const validateCommon = () => {
@@ -117,7 +141,11 @@ export default function StartMeetingModal({
     if (!scheduledIso()) return 'Invalid date or time.';
     if (!organizer.trim()) return 'Organizer is required.';
     const parts = payloadParticipants();
-    if (parts.length === 0) return 'Add at least one participant with an email.';
+    if (parts.length === 0) {
+      return isEducation
+        ? 'Add at least one participant with an email.'
+        : 'Select at least one participant from your participant book.';
+    }
     if (maxParticipantsPerMeeting != null && parts.length > maxParticipantsPerMeeting) {
       return `Your plan allows up to ${maxParticipantsPerMeeting} participants per meeting.`;
     }
@@ -228,17 +256,25 @@ export default function StartMeetingModal({
 
   const editorOptions = payloadParticipants();
 
+  const toggleBookParticipant = (email) => {
+    const em = String(email).trim().toLowerCase();
+    if (!em) return;
+    setSelectedBookEmails((prev) => {
+      if (prev.includes(em)) {
+        setAuthorizedEditorEmail((cur) =>
+          cur.trim().toLowerCase() === em ? '' : cur
+        );
+        return prev.filter((x) => x !== em);
+      }
+      if (maxParticipantsPerMeeting != null && prev.length >= maxParticipantsPerMeeting) {
+        return prev;
+      }
+      return [...prev, em];
+    });
+  };
+
   const overlayClose = (e) => {
     if (e.target === e.currentTarget && !loading) onClose();
-  };
-
-  const addParticipantRow = () => {
-    if (maxParticipantsPerMeeting != null && participants.length >= maxParticipantsPerMeeting) return;
-    setParticipants((prev) => [...prev, { name: '', email: '' }]);
-  };
-
-  const removeParticipantRow = (idx) => {
-    setParticipants((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== idx)));
   };
 
   return (
@@ -301,8 +337,38 @@ export default function StartMeetingModal({
 
         {!postSubmit && (
           <>
+            <div className="start-meeting-section-label start-meeting-section-label--first">
+              How would you like to capture this meeting?
+            </div>
+
+            <button
+              type="button"
+              className={`start-meeting-option ${captureMode === 'live' ? 'start-meeting-option--active' : ''}`}
+              onClick={() => setCaptureMode('live')}
+            >
+              <input type="radio" readOnly checked={captureMode === 'live'} tabIndex={-1} aria-hidden />
+              <Mic size={18} strokeWidth={1.75} style={{ flexShrink: 0, color: '#a78bfa', marginTop: 2 }} />
+              <div className="start-meeting-option__body">
+                <strong>Record live meeting</strong>
+                <span>In-person or device recording</span>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              className={`start-meeting-option ${captureMode === 'online' ? 'start-meeting-option--active' : ''}`}
+              onClick={() => setCaptureMode('online')}
+            >
+              <input type="radio" readOnly checked={captureMode === 'online'} tabIndex={-1} aria-hidden />
+              <Video size={18} strokeWidth={1.75} style={{ flexShrink: 0, color: '#38bdf8', marginTop: 2 }} />
+              <div className="start-meeting-option__body">
+                <strong>Online meeting</strong>
+                <span>Add a Zoom or Teams link below</span>
+              </div>
+            </button>
+
             {isEducation && (
-              <div className="start-meeting-field start-meeting-classroom">
+              <div className="start-meeting-field start-meeting-classroom" style={{ marginTop: 16 }}>
                 <label htmlFor="sm-classroom">Classroom</label>
                 <select
                   id="sm-classroom"
@@ -320,7 +386,7 @@ export default function StartMeetingModal({
               </div>
             )}
 
-            <div className="start-meeting-field">
+            <div className="start-meeting-field" style={{ marginTop: 16 }}>
               <label htmlFor="sm-title">Meeting Title</label>
               <input
                 id="sm-title"
@@ -378,36 +444,8 @@ export default function StartMeetingModal({
               />
             </div>
 
-            <div className="start-meeting-section-label">How would you like to capture this meeting?</div>
-
-            <button
-              type="button"
-              className={`start-meeting-option ${captureMode === 'live' ? 'start-meeting-option--active' : ''}`}
-              onClick={() => setCaptureMode('live')}
-            >
-              <input type="radio" readOnly checked={captureMode === 'live'} tabIndex={-1} aria-hidden />
-              <Mic size={18} strokeWidth={1.75} style={{ flexShrink: 0, color: '#a78bfa', marginTop: 2 }} />
-              <div className="start-meeting-option__body">
-                <strong>Record Live Meeting</strong>
-                <span>Record and summarize an in-person or device-based meeting</span>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              className={`start-meeting-option ${captureMode === 'online' ? 'start-meeting-option--active' : ''}`}
-              onClick={() => setCaptureMode('online')}
-            >
-              <input type="radio" readOnly checked={captureMode === 'online'} tabIndex={-1} aria-hidden />
-              <Video size={18} strokeWidth={1.75} style={{ flexShrink: 0, color: '#38bdf8', marginTop: 2 }} />
-              <div className="start-meeting-option__body">
-                <strong>Join Online Meeting</strong>
-                <span>Join a Zoom or Teams meeting using a link</span>
-              </div>
-            </button>
-
             {captureMode === 'live' && (
-              <div className="start-meeting-field" style={{ marginTop: 16 }}>
+              <div className="start-meeting-field">
                 <label htmlFor="sm-location">Location</label>
                 <input
                   id="sm-location"
@@ -420,13 +458,13 @@ export default function StartMeetingModal({
             )}
 
             {captureMode === 'online' && (
-              <div className="start-meeting-field" style={{ marginTop: 16 }}>
-                <label htmlFor="sm-link">Meeting Link</label>
+              <div className="start-meeting-field">
+                <label htmlFor="sm-link">Zoom or Teams meeting link</label>
                 <input
                   id="sm-link"
                   value={meetingLink}
                   onChange={(e) => setMeetingLink(e.target.value)}
-                  placeholder="Paste Zoom or Teams meeting link"
+                  placeholder="Paste meeting link"
                   autoComplete="off"
                 />
                 {detectedLabel && <p className="start-meeting-detected">Detected: {detectedLabel}</p>}
@@ -438,52 +476,59 @@ export default function StartMeetingModal({
                 <div className="start-meeting-section-label" style={{ marginTop: 16 }}>
                   Participants
                 </div>
-                {participants.map((p, idx) => (
-                  <div key={idx} className="start-meeting-participant-row">
-                    <input
-                      type="text"
-                      placeholder="Name"
-                      value={p.name}
-                      onChange={(e) => {
-                        const next = [...participants];
-                        next[idx] = { ...next[idx], name: e.target.value };
-                        setParticipants(next);
-                      }}
-                    />
-                    <input
-                      type="email"
-                      placeholder="email@example.com"
-                      value={p.email}
-                      onChange={(e) => {
-                        const next = [...participants];
-                        next[idx] = { ...next[idx], email: e.target.value };
-                        setParticipants(next);
-                      }}
-                    />
-                    {participants.length > 1 && (
-                      <button
-                        type="button"
-                        className="start-meeting-icon-btn"
-                        onClick={() => removeParticipantRow(idx)}
-                        aria-label="Remove participant"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    )}
+                <p className="start-meeting-field-hint">
+                  Select people from your participant book (no manual entry here).
+                </p>
+                {participantBookError && (
+                  <p className="start-meeting-field-hint start-meeting-field-hint--warn">
+                    {participantBookError}{' '}
+                    <Link to="/participants" className="start-meeting-inline-link" onClick={onClose}>
+                      Participant book
+                    </Link>
+                  </p>
+                )}
+                {!participantBookError && participantBook.length === 0 && (
+                  <p className="start-meeting-field-hint">
+                    Your book is empty.{' '}
+                    <Link to="/participants" className="start-meeting-inline-link" onClick={onClose}>
+                      Add people in Participant book
+                    </Link>
+                  </p>
+                )}
+                {participantBook.length > 0 && (
+                  <div className="start-meeting-book-list">
+                    {participantBook.map((p) => {
+                      const em = (p.email && String(p.email).trim().toLowerCase()) || '';
+                      if (!em) return null;
+                      const checked = selectedBookEmails.includes(em);
+                      return (
+                        <label
+                          key={em}
+                          className={`start-meeting-book-row${checked ? ' start-meeting-book-row--checked' : ''}`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleBookParticipant(em)}
+                          />
+                          <span className="start-meeting-book-row__text">
+                            <span className="start-meeting-book-name">{p.name || em.split('@')[0]}</span>
+                            <span className="start-meeting-book-email">{em}</span>
+                          </span>
+                        </label>
+                      );
+                    })}
                   </div>
-                ))}
-                <button
-                  type="button"
-                  className="start-meeting-btn start-meeting-btn--ghost start-meeting-add-participant"
-                  onClick={addParticipantRow}
-                  disabled={
-                    maxParticipantsPerMeeting != null &&
-                    participants.length >= maxParticipantsPerMeeting
-                  }
-                >
-                  <Plus size={16} />
-                  Add participant
-                </button>
+                )}
+                <Link to="/participants" className="start-meeting-book-manage" onClick={onClose}>
+                  <ExternalLink size={14} aria-hidden />
+                  Manage participant book
+                </Link>
+                {maxParticipantsPerMeeting != null && (
+                  <p className="start-meeting-field-hint">
+                    Up to {maxParticipantsPerMeeting} participants per meeting on your plan.
+                  </p>
+                )}
               </>
             )}
 
@@ -502,7 +547,7 @@ export default function StartMeetingModal({
                   </option>
                 ))}
               </select>
-              <p className="start-meeting-field-hint">Must be one of the participants above.</p>
+              <p className="start-meeting-field-hint">Must be one of the selected participants.</p>
             </div>
 
             <label className="start-meeting-checkbox">

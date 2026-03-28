@@ -108,6 +108,10 @@
   letter-spacing: 0.04em;
 }
 
+.start-meeting-section-label--first {
+  margin-top: 0;
+}
+
 .start-meeting-option {
   display: flex;
   gap: 12px;
@@ -284,6 +288,92 @@
   margin: 6px 0 0;
   font-size: 12px;
   color: #6b7280;
+}
+
+.start-meeting-field-hint--warn {
+  color: #fcd34d;
+}
+
+.start-meeting-inline-link {
+  color: #93c5fd;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.start-meeting-inline-link:hover {
+  color: #bfdbfe;
+}
+
+.start-meeting-book-list {
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  margin-bottom: 10px;
+}
+
+.start-meeting-book-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  margin: 0;
+  font-size: 14px;
+  color: #e5e7eb;
+}
+
+.start-meeting-book-row:last-child {
+  border-bottom: none;
+}
+
+.start-meeting-book-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.start-meeting-book-row--checked {
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.start-meeting-book-row input[type='checkbox'] {
+  margin-top: 3px;
+  flex-shrink: 0;
+  accent-color: #3b82f6;
+}
+
+.start-meeting-book-row__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.start-meeting-book-name {
+  font-weight: 500;
+  color: #f5f5f7;
+}
+
+.start-meeting-book-email {
+  font-size: 12px;
+  color: #9ca3af;
+  word-break: break-all;
+}
+
+.start-meeting-book-manage {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #93c5fd;
+  text-decoration: none;
+  margin-bottom: 4px;
+}
+
+.start-meeting-book-manage:hover {
+  color: #bfdbfe;
+  text-decoration: underline;
 }
 
 .start-meeting-participant-row {
