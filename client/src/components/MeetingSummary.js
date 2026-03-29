@@ -103,13 +103,14 @@ const MeetingSummary = () => {
     (d) => String(d || '').trim().toLowerCase() !== 'not specified'
   );
 
+  // Use explicit length checks — a bare `.length` chain can evaluate to `0`, which React then renders.
   const hasContent =
-    summaryText ||
-    keyPoints.length ||
-    actionItems.length ||
-    decisionsDisplay.length ||
-    nextSteps.length ||
-    importantNotes.length;
+    !!String(summaryText || '').trim() ||
+    keyPoints.length > 0 ||
+    actionItems.length > 0 ||
+    decisionsDisplay.length > 0 ||
+    nextSteps.length > 0 ||
+    importantNotes.length > 0;
   /** Any state before distribution — not only strict "Pending Approval" (legacy rows may omit status). */
   const canEditAndSend = meeting.summaryStatus !== 'Sent' && hasContent;
 
