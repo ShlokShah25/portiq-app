@@ -9,7 +9,8 @@ const ClientAdmin = () => {
   const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedMeeting, setSelectedMeeting] = useState(null);
-  const [expandedParticipants, setExpandedParticipants] = useState({});
+  /** Fixed-position popover so participant list is not clipped by the table scroll area */
+  const [participantsPopover, setParticipantsPopover] = useState(null);
   const [filters, setFilters] = useState({
     status: '',
     meetingRoom: '',
@@ -54,6 +55,26 @@ const ClientAdmin = () => {
       document.removeEventListener('pointerdown', onPointerDown, true);
     };
   }, [openActionMenuId]);
+
+  useEffect(() => {
+    if (!participantsPopover) return undefined;
+    const close = () => setParticipantsPopover(null);
+    const onPointerDown = (e) => {
+      if (e.target.closest?.('.client-admin-participants-popover') || e.target.closest?.('.participants-toggle')) {
+        return;
+      }
+      close();
+    };
+    const attachTimer = window.setTimeout(() => {
+      window.addEventListener('resize', close);
+      document.addEventListener('pointerdown', onPointerDown, true);
+    }, 0);
+    return () => {
+      window.clearTimeout(attachTimer);
+      window.removeEventListener('resize', close);
+      document.removeEventListener('pointerdown', onPointerDown, true);
+    };
+  }, [participantsPopover]);
 
   const fetchMeetings = async () => {
     setLoading(true);
@@ -235,6 +256,10 @@ const ClientAdmin = () => {
     setActionMenuPosition(null);
   };
 
+  const participantsPopoverMeeting = participantsPopover
+    ? meetings.find((m) => String(m._id) === participantsPopover.id)
+    : null;
+
   return (
     <div className="client-admin">
       <div className="client-admin-header">
@@ -326,11 +351,27 @@ const ClientAdmin = () => {
                       {meeting.participants && meeting.participants.length > 0 ? (
                         <div className="participants-cell">
                           <button
+                            type="button"
                             className="participants-toggle"
-                            onClick={() => setExpandedParticipants({
-                              ...expandedParticipants,
-                              [meeting._id]: !expandedParticipants[meeting._id]
-                            })}
+                            aria-expanded={participantsPopover?.id === String(meeting._id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const id = String(meeting._id);
+                              if (participantsPopover?.id === id) {
+                                setParticipantsPopover(null);
+                              } else {
+                                closeActionMenu();
+                                const r = e.currentTarget.getBoundingClientRect();
+                                const minW = Math.max(260, r.width);
+                                const left = Math.min(Math.max(8, r.left), window.innerWidth - minW - 8);
+                                setParticipantsPopover({
+                                  id,
+                                  top: r.bottom + 8,
+                                  left,
+                                  minWidth: minW,
+                                });
+                              }
+                            }}
                           >
                             {meeting.participants.length} participant{meeting.participants.length !== 1 ? 's' : ''}
                             <svg 
@@ -341,7 +382,7 @@ const ClientAdmin = () => {
                               stroke="currentColor" 
                               strokeWidth="2"
                               style={{
-                                transform: expandedParticipants[meeting._id] ? 'rotate(180deg)' : 'rotate(0deg)',
+                                transform: participantsPopover?.id === String(meeting._id) ? 'rotate(180deg)' : 'rotate(0deg)',
                                 transition: 'transform 0.2s',
                                 marginLeft: '6px'
                               }}
@@ -349,17 +390,6 @@ const ClientAdmin = () => {
                               <polyline points="6 9 12 15 18 9"></polyline>
                             </svg>
                           </button>
-                          {expandedParticipants[meeting._id] && (
-                            <div className="participants-dropdown">
-                              {meeting.participants.map((p, idx) => (
-                                <div key={idx} className="participant-item">
-                                  <div className="participant-name">{p.name || 'N/A'}</div>
-                                  <div className="participant-email">{p.email || 'N/A'}</div>
-                                  {p.role && <div className="participant-role">{p.role}</div>}
-                                </div>
-                              ))}
-                            </div>
-                          )}
                         </div>
                       ) : (
                         <span className="no-data">None</span>
@@ -402,6 +432,7 @@ const ClientAdmin = () => {
                               setOpenActionMenuId(null);
                               setActionMenuPosition(null);
                             } else {
+                              setParticipantsPopover(null);
                               const r = e.currentTarget.getBoundingClientRect();
                               setActionMenuPosition({
                                 top: r.bottom + 8,
@@ -426,6 +457,31 @@ const ClientAdmin = () => {
           </div>
         )}
       </div>
+
+      {participantsPopover &&
+        participantsPopoverMeeting &&
+        createPortal(
+          <div
+            className="participants-dropdown client-admin-participants-popover"
+            style={{
+              position: 'fixed',
+              top: participantsPopover.top,
+              left: participantsPopover.left,
+              minWidth: participantsPopover.minWidth,
+              zIndex: 10000,
+              marginTop: 0,
+            }}
+          >
+            {participantsPopoverMeeting.participants.map((p, idx) => (
+              <div key={idx} className="participant-item">
+                <div className="participant-name">{p.name || 'N/A'}</div>
+                <div className="participant-email">{p.email || 'N/A'}</div>
+                {p.role && <div className="participant-role">{p.role}</div>}
+              </div>
+            ))}
+          </div>,
+          document.body
+        )}
 
       {actionMenuMeeting && actionMenuPosition &&
         createPortal(
