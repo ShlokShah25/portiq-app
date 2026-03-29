@@ -4,6 +4,64 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './ClientAdmin.css';
 
+/** Drop null/empty slots so count and popover stay in sync. */
+function getParticipantRows(participants) {
+  if (!Array.isArray(participants)) return [];
+  return participants.filter((p) => p != null && p !== '');
+}
+
+/** Support legacy shapes: plain email string, alternate keys, empty subdocs. */
+function normalizeParticipantForDisplay(p, index) {
+  if (p == null) {
+    return { title: `Participant ${index + 1}`, subtitle: 'No details on file', role: '' };
+  }
+  if (typeof p === 'string') {
+    const s = p.trim();
+    if (!s) return { title: `Participant ${index + 1}`, subtitle: 'No details on file', role: '' };
+    if (s.includes('@')) {
+      return { title: s.split('@')[0] || s, subtitle: s, role: '' };
+    }
+    return { title: s, subtitle: '', role: '' };
+  }
+  if (typeof p !== 'object') {
+    return { title: `Participant ${index + 1}`, subtitle: String(p), role: '' };
+  }
+  const email = (p.email && String(p.email).trim()) || '';
+  const name =
+    (p.name && String(p.name).trim()) ||
+    (p.displayName && String(p.displayName).trim()) ||
+    (p.fullName && String(p.fullName).trim()) ||
+    '';
+  const role = (p.role && String(p.role).trim()) || '';
+  const title =
+    name || (email ? email.split('@')[0] : '') || `Participant ${index + 1}`;
+  let subtitle = '';
+  if (email) subtitle = email;
+  else if (!name) subtitle = 'No email on file';
+  return { title, subtitle, role };
+}
+
+function computeParticipantsPopoverPosition(anchorRect, rowCount) {
+  const gap = 8;
+  const vh = window.innerHeight;
+  const vw = window.innerWidth;
+  const minW = Math.max(260, anchorRect.width);
+  const estItem = 68;
+  const chrome = 32;
+  const estHeight = Math.min(
+    chrome + Math.max(1, rowCount) * estItem,
+    Math.min(400, Math.floor(vh * 0.55))
+  );
+  let top = anchorRect.bottom + gap;
+  if (top + estHeight > vh - gap) {
+    top = anchorRect.top - estHeight - gap;
+  }
+  top = Math.max(gap, Math.min(top, vh - Math.min(estHeight, vh - 2 * gap) - gap));
+  const left = Math.min(Math.max(gap, anchorRect.left), vw - minW - gap);
+  const maxHeight = Math.min(420, vh - 2 * gap);
+  return { top, left, minWidth: minW, maxHeight };
+}
+
 const ClientAdmin = () => {
   const navigate = useNavigate();
   const [meetings, setMeetings] = useState([]);
@@ -333,7 +391,9 @@ const ClientAdmin = () => {
                       </span>
                     </td>
                     <td>
-                      {meeting.participants && meeting.participants.length > 0 ? (
+                      {(() => {
+                        const participantRows = getParticipantRows(meeting.participants);
+                        return participantRows.length > 0 ? (
                         <div className="participants-cell">
                           <button
                             type="button"
@@ -352,18 +412,19 @@ const ClientAdmin = () => {
                               } else {
                                 closeActionMenu();
                                 const r = e.currentTarget.getBoundingClientRect();
-                                const minW = Math.max(260, r.width);
-                                const left = Math.min(Math.max(8, r.left), window.innerWidth - minW - 8);
+                                const pos = computeParticipantsPopoverPosition(
+                                  r,
+                                  participantRows.length
+                                );
                                 setParticipantsPopover({
                                   meeting,
-                                  top: r.bottom + 8,
-                                  left,
-                                  minWidth: minW,
+                                  participantRows,
+                                  ...pos,
                                 });
                               }
                             }}
                           >
-                            {meeting.participants.length} participant{meeting.participants.length !== 1 ? 's' : ''}
+                            {participantRows.length} participant{participantRows.length !== 1 ? 's' : ''}
                             <svg 
                               width="14" 
                               height="14" 
@@ -385,9 +446,10 @@ const ClientAdmin = () => {
                             </svg>
                           </button>
                         </div>
-                      ) : (
+                        ) : (
                         <span className="no-data">None</span>
-                      )}
+                        );
+                      })()}
                     </td>
                     <td>
                       {meeting.authorizedEditorEmail ? (
@@ -461,17 +523,27 @@ const ClientAdmin = () => {
               top: participantsPopover.top,
               left: participantsPopover.left,
               minWidth: participantsPopover.minWidth,
+              maxHeight: participantsPopover.maxHeight,
+              overflowY: 'auto',
               zIndex: 10000,
               marginTop: 0,
             }}
           >
-            {(participantsPopover.meeting?.participants || []).map((p, idx) => (
-              <div key={idx} className="participant-item">
-                <div className="participant-name">{p.name || 'N/A'}</div>
-                <div className="participant-email">{p.email || 'N/A'}</div>
-                {p.role && <div className="participant-role">{p.role}</div>}
-              </div>
-            ))}
+            {(
+              participantsPopover.participantRows ||
+              getParticipantRows(participantsPopover.meeting?.participants)
+            ).map((p, idx) => {
+              const row = normalizeParticipantForDisplay(p, idx);
+              return (
+                <div key={idx} className="participant-item">
+                  <div className="participant-name">{row.title}</div>
+                  {row.subtitle ? (
+                    <div className="participant-email">{row.subtitle}</div>
+                  ) : null}
+                  {row.role ? <div className="participant-role">{row.role}</div> : null}
+                </div>
+              );
+            })}
           </div>,
           document.body
         )}

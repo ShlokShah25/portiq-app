@@ -343,6 +343,13 @@
   animation: slideDown 0.2s ease-out;
 }
 
+/* Portaled popover (fixed to viewport): keep text readable and scroll if needed */
+.participants-dropdown.client-admin-participants-popover {
+  box-sizing: border-box;
+  color: var(--text-primary);
+  max-width: min(360px, calc(100vw - 16px));
+}
+
 .participant-item {
   padding: 10px;
   border-bottom: 1px solid #2A2A2C;
