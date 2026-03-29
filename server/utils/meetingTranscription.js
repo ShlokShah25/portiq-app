@@ -279,10 +279,11 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
           // Keep transcription prompt neutral so it doesn't bias decoding toward a
           // specific domain (e.g. business vs academic lecture/definitions).
           'Accurate transcription only. Do not paraphrase or correct meaning. Preserve domain terms and abbreviations like MAE.',
-          // Topic hint from meeting title helps preserve academic terms.
-          meetingTitle ? `Meeting topic/title: ${meetingTitle}.` : '',
+          // Never inject the calendar title here—short names like "Test" / "Retest" prime the model
+          // to mis-hear unrelated speech (e.g. travel, family) as those words.
+          'Transcribe only what is spoken. Do not infer wording from any meeting name or calendar title.',
           participantNames.length
-            ? `Participant names (keep exact spellings): ${participantNames.join(', ')}.`
+            ? `Participant names (spell as heard; hints only): ${participantNames.join(', ')}.`
             : '',
           'Preserve numbers, deadlines, action items, and proper nouns accurately.',
         ]
@@ -401,21 +402,22 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
       ? 'This output should help someone review before class or an exam: preserve learning goals when stated, definitions and distinctions as spoken, examples walked through, lists or taxonomies the speaker used, formulas or steps if verbalized, caveats and misconceptions addressed, and questions raised by learners. '
       : '';
 
-    const systemElaborationDepth =
-      'Whenever anyone elaborates on a topic at length—definitions, how vs why, step-by-step reasoning, examples, tradeoffs, or pushback—keep that substance in the summary and key points. Do not replace a long explanation with a single vague line like "discussed X"; the reader should grasp what was actually said. ';
+    const systemElaborationDepth = isEducation
+      ? 'When the instructor explains a concept at length, keep the substance in the summary and key points—not a single vague line like "discussed X". '
+      : '';
 
     const summarySchemaHint = isEducation
-      ? '"summary": "Coherent English narrative (typically 10–22+ sentences when the session is substantive). Cover themes and the actual teaching content: how ideas were defined, compared, and illustrated. Scale length with depth of explanation—not a terse skim.",'
-      : '"summary": "Detailed English narrative (typically 8–18+ sentences; longer when segments are deep or technical). Cover themes plus substantive elaborations: how arguments were made, how domain concepts were explained, and examples when given.",';
+      ? '"summary": "Coherent English narrative (typically 8–16 sentences when the session is substantive). Cover what was actually taught: definitions, comparisons, examples. Scale length with the transcript—not with the calendar title.",'
+      : '"summary": "Clear executive summary in English (typically 6–12 sentences; add more only if the transcript is long). Every claim must be grounded in what was spoken—never in the calendar title.",';
 
     const keyPointsSchemaHint = isEducation
-      ? '"keyPoints": ["Concrete, review-friendly bullets; when a concept was explained in depth, use multiple ordered bullets so definitions, sub-types, and examples are not collapsed into one vague line"],'
-      : '"keyPoints": ["Concrete bullets; when a topic was elaborated, split into multiple ordered points so definitions, examples, and distinctions stay explicit"],';
+      ? '"keyPoints": ["Concrete, review-friendly bullets tied to the transcript; split long explanations across multiple bullets when needed"],'
+      : '"keyPoints": ["Concrete point 1 with specifics from the transcript", "Concrete point 2 with specifics"],';
 
-    const userElaborationRules =
-      `- When any speaker goes deep on a topic, the executive summary must reflect what they explained (definitions, contrasts, examples, steps)—not only that the topic came up.\n` +
-      `- Use several key points for one extended explanation if needed; prefer accuracy and completeness over minimizing bullet count.\n` +
-      `- Put nuances, caveats, "gotchas", or clarified misunderstandings in importantNotes when they do not fit a crisp key point.\n`;
+    const userElaborationRules = isEducation
+      ? `- When an explanation was long, split across several key points so definitions and examples stay clear.\n` +
+        `- Put nuances or clarified misunderstandings in importantNotes when they do not fit a crisp key point.\n`
+      : '';
 
     const userEducationRules = isEducation
       ? `- Education mode: structure bullets like study notes where the transcript supports it (e.g. types of X, steps, criteria).\n` +
@@ -447,6 +449,7 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
             (isEducation
               ? 'Use clear teaching-friendly language; do not invent facts or examples not grounded in the transcript. '
               : 'Use professional business language, do not invent information, and only include decisions or actions that are clearly mentioned. ') +
+            'NEVER infer the subject of the meeting from the calendar/booking title—titles are often placeholders (e.g. "Test", "Retest", "Quick call"). Substance must come only from the transcript. ' +
             'Output must follow the requested JSON structure only. ' +
             'CRITICAL: Base your summary ONLY on the current transcript. Do NOT bring in information or topics from any past meetings. ' +
             'The executive summary must capture ALL the major themes of the session ' +
@@ -461,7 +464,7 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
           role: 'user',
           content:
             `Analyze the following SINGLE meeting transcript and generate a structured summary strictly about this meeting only.\n\n` +
-            `Meeting title (for reference): ${meetingTitle}\n\n` +
+            `Calendar / booking title (may be wrong or unrelated—do NOT treat as agenda or topic): ${meetingTitle}\n\n` +
             `Meeting time anchor (use for relative deadlines; local calendar dates are in the server timezone): ` +
             `ISO ${anchorRef.toISOString()} · "today/tonight/this evening/EOD" → dueDate ${anchorLocalYmd} · "tomorrow" → ${anchorTomorrowYmd}.\n\n` +
             `Detected primary transcription language: ${detectedLanguage}\n\n` +
@@ -479,6 +482,7 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
             `Transcript:\n\n${transcriptWithSpeakers}\n\n` +
             `Follow these rules strictly:\n` +
             `- Focus ONLY on what is actually discussed in this transcript.\n` +
+            `- Do NOT invent themes from the calendar title. If the title is generic but the audio is about travel, family, logistics, health, etc., write about what was spoken.\n` +
             `- Do NOT talk about the AI or summarization itself unless it is explicitly discussed.\n` +
             `- The executive summary must cover the full picture of the meeting: why it was held, what was discussed across all topics, key concerns, and overall outcome.\n` +
             `- Coverage is mandatory: include ALL relevant points that materially affect outcomes, responsibilities, risks, timelines, or scope.\n` +
