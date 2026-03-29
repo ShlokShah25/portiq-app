@@ -4,6 +4,18 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './ClientAdmin.css';
 
+/** Stable row id for keys and toggles (handles string/ObjectId-shaped ids from JSON). */
+function stableMeetingRowId(meeting, rowIndex) {
+  const raw = meeting && meeting._id;
+  if (raw == null || raw === '') return `meeting-row-${rowIndex}`;
+  if (typeof raw === 'string') return raw;
+  if (typeof raw === 'object' && typeof raw.toString === 'function') {
+    const s = raw.toString();
+    if (s && s !== '[object Object]') return s;
+  }
+  return `meeting-row-${rowIndex}`;
+}
+
 /** Drop null/empty slots so count and popover stay in sync. */
 function getParticipantRows(participants) {
   if (!Array.isArray(participants)) return [];
@@ -88,7 +100,6 @@ const ClientAdmin = () => {
   const [rescheduleTime, setRescheduleTime] = useState('');
 
   useEffect(() => {
-    // Check authentication
     const token = localStorage.getItem('clientAdminToken');
     if (!token) {
       navigate('/');
@@ -96,26 +107,28 @@ const ClientAdmin = () => {
     }
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     fetchMeetings();
-  }, [filters, navigate]);
+    // Primitives only — avoid re-fetching on every render if `filters` object identity churns.
+  }, [filters.status, filters.meetingRoom, filters.date, navigate]);
 
   useEffect(() => {
     if (!actionMenu) return undefined;
     const close = () => setActionMenu(null);
-    const onDocMouseDown = (e) => {
-      if (e.target.closest?.('.client-admin-action-menu') || e.target.closest?.('.action-menu-btn')) return;
+    /** Bubble-phase click after mount — avoids capture mousedown firing before the ⋮ click handler runs (Safari / touch). */
+    const onDocClick = (e) => {
+      const el = e.target;
+      if (!(el instanceof Element)) return;
+      if (el.closest('.client-admin-action-menu') || el.closest('.action-menu-btn')) return;
       close();
     };
-    /** Defer so the opening click/mousedown cannot close the menu (capture phase + touch). */
     const attachTimer = window.setTimeout(() => {
-      window.addEventListener('resize', close);
-      document.addEventListener('mousedown', onDocMouseDown, true);
-      document.addEventListener('touchstart', onDocMouseDown, true);
-    }, 150);
+      document.addEventListener('click', onDocClick, false);
+    }, 0);
+    const onResize = () => close();
+    window.addEventListener('resize', onResize);
     return () => {
       window.clearTimeout(attachTimer);
-      window.removeEventListener('resize', close);
-      document.removeEventListener('mousedown', onDocMouseDown, true);
-      document.removeEventListener('touchstart', onDocMouseDown, true);
+      document.removeEventListener('click', onDocClick, false);
+      window.removeEventListener('resize', onResize);
     };
   }, [actionMenu]);
 
@@ -369,12 +382,12 @@ const ClientAdmin = () => {
                 </tr>
               </thead>
               <tbody>
-                {meetings.map((meeting) => {
+                {meetings.map((meeting, rowIndex) => {
+                  const rowId = stableMeetingRowId(meeting, rowIndex);
                   const participantRows = getParticipantRows(meeting.participants);
-                  const participantsExpanded =
-                    String(participantsExpandedMeetingId) === String(meeting._id);
+                  const participantsExpanded = participantsExpandedMeetingId === rowId;
                   return (
-                    <Fragment key={meeting._id}>
+                    <Fragment key={rowId}>
                       <tr>
                         <td>{meeting.title}</td>
                         <td>{meeting.meetingRoom || 'N/A'}</td>
@@ -396,7 +409,7 @@ const ClientAdmin = () => {
                                     setParticipantsExpandedMeetingId(null);
                                   } else {
                                     closeActionMenu();
-                                    setParticipantsExpandedMeetingId(String(meeting._id));
+                                    setParticipantsExpandedMeetingId(rowId);
                                   }
                                 }}
                               >
@@ -456,18 +469,17 @@ const ClientAdmin = () => {
                             <button
                               type="button"
                               className="action-menu-btn"
-                              aria-expanded={
-                                !!actionMenu && String(actionMenu.meeting?._id) === String(meeting._id)
-                              }
+                              aria-expanded={!!actionMenu && actionMenu.rowId === rowId}
                               aria-haspopup="menu"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (actionMenu && String(actionMenu.meeting?._id) === String(meeting._id)) {
+                                if (actionMenu && actionMenu.rowId === rowId) {
                                   setActionMenu(null);
                                 } else {
                                   setParticipantsExpandedMeetingId(null);
                                   const r = e.currentTarget.getBoundingClientRect();
                                   setActionMenu({
+                                    rowId,
                                     meeting,
                                     ...computeActionMenuPosition(r, countActionMenuItems(meeting)),
                                   });
@@ -537,7 +549,7 @@ const ClientAdmin = () => {
               right: actionMenu.right,
               maxHeight: actionMenu.maxHeight,
               overflowY: 'auto',
-              zIndex: 10001,
+              zIndex: 50000,
               marginTop: 0,
             }}
           >

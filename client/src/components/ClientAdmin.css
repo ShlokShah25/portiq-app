@@ -166,7 +166,7 @@
 }
 
 .meetings-table tbody tr {
-  transition: all 150ms ease;
+  transition: background-color 150ms ease;
 }
 
 .meetings-table tbody tr:hover {
@@ -189,22 +189,24 @@
 
 .action-menu-container {
   position: relative;
-  z-index: 5;
+  z-index: 30;
 }
 
 .action-menu-btn {
   position: relative;
-  z-index: 6;
+  z-index: 31;
   background: transparent;
   border: none;
   color: var(--text-secondary);
   cursor: pointer;
   padding: 8px;
   border-radius: 8px;
-  transition: all 150ms ease;
+  transition: background-color 150ms ease, color 150ms ease;
   display: flex;
   align-items: center;
   justify-content: center;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .action-menu-btn:hover {
@@ -312,6 +314,7 @@
 /* Participants Dropdown */
 .participants-cell {
   position: relative;
+  z-index: 25;
 }
 
 .participants-toggle {
@@ -322,11 +325,13 @@
   padding: 6px 12px;
   font-size: 13px;
   cursor: pointer;
-  transition: all 150ms ease;
+  transition: background-color 150ms ease, border-color 150ms ease;
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Helvetica Neue", system-ui, sans-serif;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .participants-toggle:hover {
