@@ -192,13 +192,28 @@ const ClientAdmin = () => {
       const link = document.createElement('a');
       link.href = url;
       const safeTitle = meeting.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-      link.setAttribute('download', `audio-${safeTitle}-${meeting._id.slice(-6)}`);
+      const idTail = String(meeting._id || '').slice(-6);
+      link.setAttribute('download', `audio-${safeTitle}-${idTail}`);
       document.body.appendChild(link);
       link.click();
       link.remove();
+      window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error downloading audio:', error);
-      alert('Failed to download audio recording.');
+      let msg = 'Failed to download audio recording.';
+      const data = error.response?.data;
+      if (data instanceof Blob) {
+        try {
+          const text = await data.text();
+          const j = JSON.parse(text);
+          if (j.error) msg = j.error;
+        } catch (_) {
+          /* ignore */
+        }
+      } else if (error.response?.data?.error) {
+        msg = error.response.data.error;
+      }
+      alert(msg);
     }
   };
 
@@ -548,18 +563,26 @@ const ClientAdmin = () => {
                                   Download Audio
                                 </button>
                               )}
-                              {tableExpand.meeting.status === 'Completed' && (
-                                <button
-                                  type="button"
-                                  role="menuitem"
-                                  onClick={() => {
-                                    handleRetryTranscription(tableExpand.meeting);
-                                    closeTableExpand();
-                                  }}
-                                >
-                                  Retry Transcription
-                                </button>
-                              )}
+                              {tableExpand.meeting.status === 'Completed' &&
+                                tableExpand.meeting.audioFile && (
+                                  <button
+                                    type="button"
+                                    role="menuitem"
+                                    onClick={() => {
+                                      handleRetryTranscription(tableExpand.meeting);
+                                      closeTableExpand();
+                                    }}
+                                  >
+                                    Retry Transcription
+                                  </button>
+                                )}
+                              {tableExpand.meeting.status === 'Completed' &&
+                                !tableExpand.meeting.audioFile && (
+                                  <p className="client-admin-action-hint" role="note">
+                                    No recording path on file for this meeting (common after a server
+                                    redeploy). Summary/PDF actions above still work when available.
+                                  </p>
+                                )}
                               {(tableExpand.meeting.status === 'Scheduled' ||
                                 tableExpand.meeting.status === 'In Progress') && (
                                 <button

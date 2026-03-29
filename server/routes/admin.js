@@ -631,13 +631,19 @@ router.post('/meetings/:id/retry-transcription', authenticateAdmin, requireSubsc
     if (!meeting.transcriptionEnabled) {
       return res.status(400).json({ error: 'Transcription is not enabled for this meeting' });
     }
-    if (!meeting.audioFile) {
-      return res.status(400).json({ error: 'No audio file found for this meeting' });
+    if (!meeting.audioFile || !String(meeting.audioFile).trim()) {
+      return res.status(400).json({
+        error:
+          'No recording is stored for this meeting. A summary can still exist from an earlier run; retry needs the original audio path in the database.',
+      });
     }
 
     const audioFilePath = resolveUploadPath(meeting.audioFile);
     if (!audioFilePath || !fs.existsSync(audioFilePath)) {
-      return res.status(404).json({ error: 'Audio file not found on server' });
+      return res.status(404).json({
+        error:
+          'Recording file is missing on this server (often after redeploy or disk reset). Upload a new recording or run a new meeting to transcribe again.',
+      });
     }
 
     // Reset status and retry transcription
@@ -976,8 +982,8 @@ router.get('/meetings/:id/audio', authenticateAdmin, requireSubscription, async 
     const meeting = await Meeting.findById(req.params.id);
     if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
     if (!canAccessMeeting(meeting, req.admin)) return res.status(404).json({ error: 'Meeting not found' });
-    if (!meeting.audioFile) {
-      return res.status(404).json({ error: 'Audio file not available' });
+    if (!meeting.audioFile || !String(meeting.audioFile).trim()) {
+      return res.status(404).json({ error: 'No recording path stored for this meeting.' });
     }
 
     const path = require('path');
@@ -985,7 +991,10 @@ router.get('/meetings/:id/audio', authenticateAdmin, requireSubscription, async 
     const audioFilePath = resolveUploadPath(meeting.audioFile);
 
     if (!audioFilePath || !fs.existsSync(audioFilePath)) {
-      return res.status(404).json({ error: 'Audio file not found on server' });
+      return res.status(404).json({
+        error:
+          'Recording file is not on this server anymore (e.g. ephemeral hosting cleared uploads). The database still references an old path.',
+      });
     }
 
     const fileExtension = path.extname(meeting.audioFile) || '.mp3';

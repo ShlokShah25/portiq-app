@@ -343,6 +343,17 @@
   background: #2a2a2c;
 }
 
+.client-admin-action-hint {
+  margin: 8px 16px 12px;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
 .participant-item {
   padding: 10px;
   border-bottom: 1px solid #2A2A2C;
