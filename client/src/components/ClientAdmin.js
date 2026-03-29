@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './ClientAdmin.css';
@@ -15,6 +16,8 @@ const ClientAdmin = () => {
     date: ''
   });
   const [openActionMenuId, setOpenActionMenuId] = useState(null);
+  /** Fixed position so the menu is not clipped by table scroll containers */
+  const [actionMenuPosition, setActionMenuPosition] = useState(null);
   const [rescheduleMeeting, setRescheduleMeeting] = useState(null);
   const [rescheduleDate, setRescheduleDate] = useState('');
   const [rescheduleTime, setRescheduleTime] = useState('');
@@ -29,6 +32,26 @@ const ClientAdmin = () => {
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     fetchMeetings();
   }, [filters, navigate]);
+
+  useEffect(() => {
+    if (!openActionMenuId) return undefined;
+    const close = () => {
+      setOpenActionMenuId(null);
+      setActionMenuPosition(null);
+    };
+    const onPointerDown = (e) => {
+      if (e.target.closest?.('.client-admin-action-menu') || e.target.closest?.('.action-menu-btn')) return;
+      close();
+    };
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    document.addEventListener('pointerdown', onPointerDown, true);
+    return () => {
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+      document.removeEventListener('pointerdown', onPointerDown, true);
+    };
+  }, [openActionMenuId]);
 
   const fetchMeetings = async () => {
     setLoading(true);
@@ -157,7 +180,12 @@ const ClientAdmin = () => {
       fetchMeetings();
     } catch (error) {
       console.error('Error retrying transcription:', error);
-      alert('Failed to retry transcription.');
+      const msg =
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        error.message ||
+        'Failed to retry transcription.';
+      alert(msg);
     }
   };
 
@@ -194,6 +222,15 @@ const ClientAdmin = () => {
       console.error('Error rescheduling meeting:', error);
       alert('Failed to reschedule meeting.');
     }
+  };
+
+  const actionMenuMeeting = openActionMenuId
+    ? meetings.find((m) => m._id === openActionMenuId)
+    : null;
+
+  const closeActionMenu = () => {
+    setOpenActionMenuId(null);
+    setActionMenuPosition(null);
   };
 
   return (
@@ -352,10 +389,24 @@ const ClientAdmin = () => {
                     <td>
                       <div className="action-menu-container">
                         <button
+                          type="button"
                           className="action-menu-btn"
-                          onClick={() => setOpenActionMenuId(
-                            openActionMenuId === meeting._id ? null : meeting._id
-                          )}
+                          aria-expanded={openActionMenuId === meeting._id}
+                          aria-haspopup="menu"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (openActionMenuId === meeting._id) {
+                              setOpenActionMenuId(null);
+                              setActionMenuPosition(null);
+                            } else {
+                              const r = e.currentTarget.getBoundingClientRect();
+                              setActionMenuPosition({
+                                top: r.bottom + 8,
+                                right: window.innerWidth - r.right,
+                              });
+                              setOpenActionMenuId(meeting._id);
+                            }
+                          }}
                         >
                           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <circle cx="12" cy="12" r="1"/>
@@ -363,50 +414,6 @@ const ClientAdmin = () => {
                             <circle cx="12" cy="19" r="1"/>
                           </svg>
                         </button>
-                        {openActionMenuId === meeting._id && (
-                          <div className="action-menu">
-                            {(meeting.summary || meeting.pendingSummary) && (
-                              <button onClick={() => {
-                                handleDownloadSummary(meeting);
-                                setOpenActionMenuId(null);
-                              }}>
-                                Download Summary (PDF)
-                              </button>
-                            )}
-                            {meeting.originalSummary && (
-                              <button onClick={() => {
-                                handleDownloadOriginal(meeting);
-                                setOpenActionMenuId(null);
-                              }}>
-                                Download Original Summary
-                              </button>
-                            )}
-                            {meeting.audioFile && (
-                              <button onClick={() => {
-                                handleDownloadAudio(meeting);
-                                setOpenActionMenuId(null);
-                              }}>
-                                Download Audio
-                              </button>
-                            )}
-                            {meeting.status === 'Completed' && (
-                              <button onClick={() => {
-                                handleRetryTranscription(meeting);
-                                setOpenActionMenuId(null);
-                              }}>
-                                Retry Transcription
-                              </button>
-                            )}
-                            {(meeting.status === 'Scheduled' || meeting.status === 'In Progress') && (
-                              <button onClick={() => {
-                                handleReschedule(meeting);
-                                setOpenActionMenuId(null);
-                              }}>
-                                Reschedule Meeting
-                              </button>
-                            )}
-                          </div>
-                        )}
                       </div>
                     </td>
                   </tr>
@@ -416,6 +423,83 @@ const ClientAdmin = () => {
           </div>
         )}
       </div>
+
+      {actionMenuMeeting && actionMenuPosition &&
+        createPortal(
+          <div
+            className="action-menu client-admin-action-menu"
+            role="menu"
+            style={{
+              position: 'fixed',
+              top: actionMenuPosition.top,
+              right: actionMenuPosition.right,
+              zIndex: 10001,
+              marginTop: 0,
+            }}
+          >
+            {(actionMenuMeeting.summary || actionMenuMeeting.pendingSummary) && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  handleDownloadSummary(actionMenuMeeting);
+                  closeActionMenu();
+                }}
+              >
+                Download Summary (PDF)
+              </button>
+            )}
+            {actionMenuMeeting.originalSummary && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  handleDownloadOriginal(actionMenuMeeting);
+                  closeActionMenu();
+                }}
+              >
+                Download Original Summary
+              </button>
+            )}
+            {actionMenuMeeting.audioFile && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  handleDownloadAudio(actionMenuMeeting);
+                  closeActionMenu();
+                }}
+              >
+                Download Audio
+              </button>
+            )}
+            {actionMenuMeeting.status === 'Completed' && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  handleRetryTranscription(actionMenuMeeting);
+                  closeActionMenu();
+                }}
+              >
+                Retry Transcription
+              </button>
+            )}
+            {(actionMenuMeeting.status === 'Scheduled' || actionMenuMeeting.status === 'In Progress') && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  handleReschedule(actionMenuMeeting);
+                  closeActionMenu();
+                }}
+              >
+                Reschedule Meeting
+              </button>
+            )}
+          </div>,
+          document.body
+        )}
 
       {/* Reschedule Modal */}
       {rescheduleMeeting && (

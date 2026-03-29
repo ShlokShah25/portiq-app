@@ -10,6 +10,7 @@ const { getMeetingContext } = require('../utils/meetingContext');
 const { getPlanConstraints } = require('../utils/planConstraints');
 const { hasDashboardAccess } = require('../utils/subscriptionGate');
 const { alignDueYearToMeetingReference } = require('../utils/actionItemDueDate');
+const { resolveUploadPath } = require('../utils/resolveUploadPath');
 
 function meetingFilterForAdmin(admin) {
   return admin && admin.username !== 'admin' ? { adminId: admin._id } : {};
@@ -623,19 +624,19 @@ router.put('/meetings/:id', authenticateAdmin, requireSubscription, async (req, 
  */
 router.post('/meetings/:id/retry-transcription', authenticateAdmin, requireSubscription, async (req, res) => {
   try {
+    const fs = require('fs');
     const meeting = await Meeting.findById(req.params.id);
     if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
     if (!canAccessMeeting(meeting, req.admin)) return res.status(404).json({ error: 'Meeting not found' });
+    if (!meeting.transcriptionEnabled) {
+      return res.status(400).json({ error: 'Transcription is not enabled for this meeting' });
+    }
     if (!meeting.audioFile) {
       return res.status(400).json({ error: 'No audio file found for this meeting' });
     }
 
-    // Get full path to audio file
-    const path = require('path');
-    const audioFilePath = path.join(__dirname, '../..', meeting.audioFile);
-    const fs = require('fs');
-    
-    if (!fs.existsSync(audioFilePath)) {
+    const audioFilePath = resolveUploadPath(meeting.audioFile);
+    if (!audioFilePath || !fs.existsSync(audioFilePath)) {
       return res.status(404).json({ error: 'Audio file not found on server' });
     }
 
@@ -981,9 +982,9 @@ router.get('/meetings/:id/audio', authenticateAdmin, requireSubscription, async 
 
     const path = require('path');
     const fs = require('fs');
-    const audioFilePath = path.join(__dirname, '../..', meeting.audioFile);
+    const audioFilePath = resolveUploadPath(meeting.audioFile);
 
-    if (!fs.existsSync(audioFilePath)) {
+    if (!audioFilePath || !fs.existsSync(audioFilePath)) {
       return res.status(404).json({ error: 'Audio file not found on server' });
     }
 

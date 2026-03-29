@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import './Meetings.css';
@@ -15,10 +16,33 @@ const Meetings = () => {
     date: ''
   });
   const [openActionMenuId, setOpenActionMenuId] = useState(null);
+  const [actionMenuPosition, setActionMenuPosition] = useState(null);
 
   useEffect(() => {
     fetchMeetings();
   }, [filters]);
+
+  useEffect(() => {
+    if (!openActionMenuId) return undefined;
+    const close = () => {
+      setOpenActionMenuId(null);
+      setActionMenuPosition(null);
+    };
+    const onPointerDown = (e) => {
+      if (e.target.closest?.('.admin-meetings-action-menu') || e.target.closest?.('.admin-meetings-action-trigger')) {
+        return;
+      }
+      close();
+    };
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    document.addEventListener('pointerdown', onPointerDown, true);
+    return () => {
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+      document.removeEventListener('pointerdown', onPointerDown, true);
+    };
+  }, [openActionMenuId]);
 
   const fetchMeetings = async () => {
     setLoading(true);
@@ -200,6 +224,15 @@ const Meetings = () => {
   const handleCancelEdit = () => {
     setEditingMeeting(null);
     setEditForm({ title: '', meetingRoom: '', organizer: '' });
+  };
+
+  const actionMenuMeeting = openActionMenuId
+    ? meetings.find((m) => m._id === openActionMenuId)
+    : null;
+
+  const closeAdminActionMenu = () => {
+    setOpenActionMenuId(null);
+    setActionMenuPosition(null);
   };
 
   return (
@@ -417,146 +450,29 @@ const Meetings = () => {
                               </label>
                             </td>
                             <td>
-                              <div style={{ position: 'relative', display: 'inline-block' }}>
-                                <button
-                                  className="btn btn-secondary"
-                                  style={{ padding: '4px 8px', fontSize: '16px', lineHeight: '1' }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setOpenActionMenuId(prev => (prev === meeting._id ? null : meeting._id));
-                                  }}
-                                  title="Actions"
-                                >
-                                  ⋮
-                                </button>
-                                {openActionMenuId === meeting._id && (
-                                  <div
-                                    style={{
-                                      position: 'absolute',
-                                      right: 0,
-                                      marginTop: '6px',
-                                      minWidth: '140px',
-                                      background: '#ffffff',
-                                      border: '1px solid #e5e7eb',
-                                      borderRadius: '6px',
-                                      boxShadow: '0 8px 16px rgba(0,0,0,0.08)',
-                                      zIndex: 10
-                                    }}
-                                    onClick={e => e.stopPropagation()}
-                                  >
-                                    <button
-                                      style={{
-                                        width: '100%',
-                                        padding: '8px 12px',
-                                        border: 'none',
-                                        background: 'transparent',
-                                        textAlign: 'left',
-                                        fontSize: '13px',
-                                        cursor: 'pointer'
-                                      }}
-                                      onClick={() => {
-                                        setOpenActionMenuId(null);
-                                        handleEditMeeting(meeting);
-                                      }}
-                                    >
-                                      Edit details
-                                    </button>
-                                    {meeting.summary && (
-                                      <>
-                                        <button
-                                          style={{
-                                            width: '100%',
-                                            padding: '8px 12px',
-                                            border: 'none',
-                                            background: 'transparent',
-                                            textAlign: 'left',
-                                            fontSize: '13px',
-                                            cursor: 'pointer',
-                                            borderTop: '1px solid #f3f4f6'
-                                          }}
-                                          onClick={() => {
-                                            setOpenActionMenuId(null);
-                                            handleDownloadIndividualSummary(meeting);
-                                          }}
-                                        >
-                                          Download summary (final)
-                                        </button>
-                                        {meeting.originalSummary && (
-                                          <button
-                                            style={{
-                                              width: '100%',
-                                              padding: '8px 12px',
-                                              border: 'none',
-                                              background: 'transparent',
-                                              textAlign: 'left',
-                                              fontSize: '13px',
-                                              cursor: 'pointer',
-                                              borderTop: '1px solid #f3f4f6',
-                                              color: '#dc2626'
-                                            }}
-                                            onClick={() => {
-                                              setOpenActionMenuId(null);
-                                              window.open(`/admin/meetings/${meeting._id}/original-summary`, '_blank');
-                                            }}
-                                          >
-                                            Download original summary
-                                          </button>
-                                        )}
-                                      </>
-                                    )}
-                                    {meeting.audioFile && (
-                                      <button
-                                        style={{
-                                          width: '100%',
-                                          padding: '8px 12px',
-                                          border: 'none',
-                                          background: 'transparent',
-                                          textAlign: 'left',
-                                          fontSize: '13px',
-                                          cursor: 'pointer',
-                                          borderTop: '1px solid #f3f4f6',
-                                          color: '#2563eb'
-                                        }}
-                                        onClick={() => {
-                                          setOpenActionMenuId(null);
-                                          window.open(`/admin/meetings/${meeting._id}/audio`, '_blank');
-                                        }}
-                                      >
-                                        Download audio recording
-                                      </button>
-                                    )}
-                                    {meeting.transcriptionStatus === 'Failed' && meeting.audioFile && (
-                                      <button
-                                        style={{
-                                          width: '100%',
-                                          padding: '8px 12px',
-                                          border: 'none',
-                                          background: 'transparent',
-                                          textAlign: 'left',
-                                          fontSize: '13px',
-                                          cursor: 'pointer',
-                                          borderTop: '1px solid #f3f4f6',
-                                          color: '#2563eb'
-                                        }}
-                                        onClick={async () => {
-                                          setOpenActionMenuId(null);
-                                          if (window.confirm('Retry transcription for this meeting?')) {
-                                            try {
-                                              await axios.post(`/admin/meetings/${meeting._id}/retry-transcription`);
-                                              alert('Transcription retry started. Please refresh the page in a few moments.');
-                                              fetchMeetings();
-                                            } catch (error) {
-                                              alert('Error: ' + (error.response?.data?.error || error.message));
-                                            }
-                                          }
-                                        }}
-                                      >
-                                        Retry transcription
-                                      </button>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
+                              <button
+                                type="button"
+                                className="btn btn-secondary admin-meetings-action-trigger"
+                                style={{ padding: '4px 8px', fontSize: '16px', lineHeight: '1' }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (openActionMenuId === meeting._id) {
+                                    setOpenActionMenuId(null);
+                                    setActionMenuPosition(null);
+                                  } else {
+                                    const r = e.currentTarget.getBoundingClientRect();
+                                    setActionMenuPosition({
+                                      top: r.bottom + 6,
+                                      right: window.innerWidth - r.right,
+                                    });
+                                    setOpenActionMenuId(meeting._id);
+                                  }
+                                }}
+                                title="Actions"
+                                aria-expanded={openActionMenuId === meeting._id}
+                              >
+                                ⋮
+                              </button>
                             </td>
                           </>
                         )}
@@ -610,6 +526,144 @@ const Meetings = () => {
           </div>
         )}
       </div>
+
+      {actionMenuMeeting && actionMenuPosition &&
+        createPortal(
+          <div
+            className="admin-meetings-action-menu"
+            role="menu"
+            style={{
+              position: 'fixed',
+              top: actionMenuPosition.top,
+              right: actionMenuPosition.right,
+              zIndex: 10050,
+              minWidth: '200px',
+              background: '#ffffff',
+              border: '1px solid #e5e7eb',
+              borderRadius: '8px',
+              boxShadow: '0 12px 28px rgba(0,0,0,0.12)',
+              padding: '6px 0',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              style={{
+                width: '100%',
+                padding: '10px 14px',
+                border: 'none',
+                background: 'transparent',
+                textAlign: 'left',
+                fontSize: '13px',
+                cursor: 'pointer',
+              }}
+              onClick={() => {
+                closeAdminActionMenu();
+                handleEditMeeting(actionMenuMeeting);
+              }}
+            >
+              Edit details
+            </button>
+            {actionMenuMeeting.summary && (
+              <>
+                <button
+                  type="button"
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    border: 'none',
+                    borderTop: '1px solid #f3f4f6',
+                    background: 'transparent',
+                    textAlign: 'left',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => {
+                    closeAdminActionMenu();
+                    handleDownloadIndividualSummary(actionMenuMeeting);
+                  }}
+                >
+                  Download summary (final)
+                </button>
+                {actionMenuMeeting.originalSummary && (
+                  <button
+                    type="button"
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      border: 'none',
+                      borderTop: '1px solid #f3f4f6',
+                      background: 'transparent',
+                      textAlign: 'left',
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                      color: '#dc2626',
+                    }}
+                    onClick={() => {
+                      closeAdminActionMenu();
+                      window.open(`/admin/meetings/${actionMenuMeeting._id}/original-summary`, '_blank');
+                    }}
+                  >
+                    Download original summary
+                  </button>
+                )}
+              </>
+            )}
+            {actionMenuMeeting.audioFile && (
+              <button
+                type="button"
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  border: 'none',
+                  borderTop: '1px solid #f3f4f6',
+                  background: 'transparent',
+                  textAlign: 'left',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  color: '#2563eb',
+                }}
+                onClick={() => {
+                  closeAdminActionMenu();
+                  window.open(`/admin/meetings/${actionMenuMeeting._id}/audio`, '_blank');
+                }}
+              >
+                Download audio recording
+              </button>
+            )}
+            {actionMenuMeeting.transcriptionStatus === 'Failed' && actionMenuMeeting.audioFile && (
+              <button
+                type="button"
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  border: 'none',
+                  borderTop: '1px solid #f3f4f6',
+                  background: 'transparent',
+                  textAlign: 'left',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  color: '#2563eb',
+                }}
+                onClick={async () => {
+                  closeAdminActionMenu();
+                  if (window.confirm('Retry transcription for this meeting?')) {
+                    try {
+                      await axios.post(`/admin/meetings/${actionMenuMeeting._id}/retry-transcription`);
+                      alert('Transcription retry started. Please refresh the page in a few moments.');
+                      fetchMeetings();
+                    } catch (error) {
+                      alert('Error: ' + (error.response?.data?.error || error.message));
+                    }
+                  }
+                }}
+              >
+                Retry transcription
+              </button>
+            )}
+          </div>,
+          document.body
+        )}
     </div>
   );
 };

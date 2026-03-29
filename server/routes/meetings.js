@@ -4,6 +4,7 @@ const Meeting = require('../models/Meeting');
 const VoiceProfile = require('../models/VoiceProfile');
 const { transcribeAndSummarize, sendMeetingSummary, getMailTransporter } = require('../utils/meetingTranscription');
 const { getPlanConstraints } = require('../utils/planConstraints');
+const { resolveUploadPath } = require('../utils/resolveUploadPath');
 const { subscriptionDeniedResponse } = require('../utils/subscriptionGate');
 const jwt = require('jsonwebtoken');
 const Admin = require('../models/Admin');
@@ -602,9 +603,9 @@ router.post('/:id/end', upload.single('audio'), async (req, res) => {
     };
 
     // Process transcription if audio file exists (either newly uploaded or existing)
-    const audioFilePath = req.file 
-      ? req.file.path 
-      : (meeting.audioFile ? path.join(__dirname, '../..', meeting.audioFile) : null);
+    const audioFilePath = req.file
+      ? req.file.path
+      : (meeting.audioFile ? resolveUploadPath(meeting.audioFile) : null);
 
     if (audioFilePath && fs.existsSync(audioFilePath) && meeting.transcriptionEnabled) {
       // If new file uploaded, update the audioFile path

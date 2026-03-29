@@ -343,10 +343,7 @@ const MeetingsScreen = ({ config }) => {
       };
     }
     if (status === 'In Progress') {
-      return {
-        label: 'Continue meeting',
-        path: `/meetings/${m._id}/room`,
-      };
+      return null;
     }
     if (status === 'Scheduled') {
       return {
@@ -550,14 +547,18 @@ const MeetingsScreen = ({ config }) => {
                             <span className="meeting-card-portiq-value">{participantCount}</span>
                           </div>
                         </div>
-                        <div className="meeting-card-portiq-divider" role="presentation" />
-                        <button
-                          type="button"
-                          className="meeting-card-portiq-cta"
-                          onClick={() => navigate(action.path)}
-                        >
-                          {action.label}
-                        </button>
+                        {action && (
+                          <>
+                            <div className="meeting-card-portiq-divider" role="presentation" />
+                            <button
+                              type="button"
+                              className="meeting-card-portiq-cta"
+                              onClick={() => navigate(action.path)}
+                            >
+                              {action.label}
+                            </button>
+                          </>
+                        )}
                       </div>
                     </article>
                   );
