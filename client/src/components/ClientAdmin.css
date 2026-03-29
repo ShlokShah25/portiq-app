@@ -214,58 +214,6 @@
   color: var(--text-primary);
 }
 
-.action-menu {
-  position: absolute;
-  right: 0;
-  top: 100%;
-  margin-top: 8px;
-  background: var(--surface-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 8px;
-  min-width: 200px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-  z-index: 50;
-  animation: slideDown 0.2s ease-out;
-}
-
-.action-menu button {
-  width: 100%;
-  padding: 10px 14px;
-  background: transparent;
-  border: none;
-  color: var(--text-primary);
-  text-align: left;
-  cursor: pointer;
-  border-radius: 8px;
-  font-size: 14px;
-  transition: all 150ms ease;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Helvetica Neue", system-ui, sans-serif;
-}
-
-.action-menu button:hover {
-  background: #2A2A2C;
-  color: var(--text-primary);
-}
-
-/* Portaled ⋮ menu (fixed to viewport) */
-.action-menu.client-admin-action-menu {
-  box-sizing: border-box;
-  min-width: 220px;
-  max-width: min(320px, calc(100vw - 16px));
-}
-
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 .loading-state,
 .empty-state {
   text-align: center;
@@ -354,6 +302,45 @@
   border-radius: 12px;
   background: var(--surface-secondary);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+.actions-inline-row td {
+  padding: 0 0 12px;
+  border-bottom: 1px solid #2A2A2C;
+  vertical-align: top;
+  background: var(--bg-primary);
+}
+
+.actions-inline-panel {
+  margin: 0 12px 4px;
+  padding: 6px 0;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--surface-secondary);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  max-width: 420px;
+}
+
+.actions-inline-panel button[role='menuitem'] {
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Helvetica Neue", system-ui, sans-serif;
+  touch-action: manipulation;
+}
+
+.actions-inline-panel button[role='menuitem']:not(:last-child) {
+  border-bottom: 1px solid #2A2A2C;
+}
+
+.actions-inline-panel button[role='menuitem']:hover {
+  background: #2a2a2c;
 }
 
 .participant-item {

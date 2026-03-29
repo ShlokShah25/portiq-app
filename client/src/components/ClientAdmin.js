@@ -1,5 +1,4 @@
 import React, { useState, useEffect, Fragment } from 'react';
-import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './ClientAdmin.css';
@@ -53,48 +52,21 @@ function normalizeParticipantForDisplay(p, index) {
   return { title, subtitle, role };
 }
 
-/** Rough count for positioning the ⋮ menu so it can flip above the anchor when needed. */
-function countActionMenuItems(meeting) {
-  if (!meeting) return 2;
-  let n = 2; // View meeting + Open summary (always)
-  if (meeting.status === 'In Progress') n += 1; // Open meeting room
-  if (meeting.summary || meeting.pendingSummary) n += 1;
-  if (meeting.originalSummary) n += 1;
-  if (meeting.audioFile) n += 1;
-  if (meeting.status === 'Completed') n += 1;
-  if (meeting.status === 'Scheduled' || meeting.status === 'In Progress') n += 1;
-  return n;
-}
-
-function computeActionMenuPosition(anchorRect, itemCount) {
-  const gap = 8;
-  const vh = window.innerHeight;
-  const perItem = 48;
-  const chrome = 20;
-  const estHeight = Math.min(chrome + itemCount * perItem, Math.floor(vh * 0.55));
-  let top = anchorRect.bottom + gap;
-  if (top + estHeight > vh - gap) {
-    top = anchorRect.top - estHeight - gap;
-  }
-  top = Math.max(gap, Math.min(top, vh - Math.min(estHeight, vh - 2 * gap) - gap));
-  const right = window.innerWidth - anchorRect.right;
-  return { top, right, maxHeight: Math.min(420, vh - 2 * gap) };
-}
-
 const ClientAdmin = () => {
   const navigate = useNavigate();
   const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedMeeting, setSelectedMeeting] = useState(null);
-  /** Inline expand row under the meeting (avoids broken fixed popovers in scroll/layout contexts). */
-  const [participantsExpandedMeetingId, setParticipantsExpandedMeetingId] = useState(null);
   const [filters, setFilters] = useState({
     status: '',
     meetingRoom: '',
     date: ''
   });
-  /** Full meeting doc + anchor — avoids find() missing rows when _id shapes differ */
-  const [actionMenu, setActionMenu] = useState(null);
+  /**
+   * Single expanded panel under a row — no portals / no document listeners (those broke ⋮ on some browsers).
+   * `meeting` is snapshotted for actions so handlers always have the row that was opened.
+   */
+  const [tableExpand, setTableExpand] = useState(null);
   const [rescheduleMeeting, setRescheduleMeeting] = useState(null);
   const [rescheduleDate, setRescheduleDate] = useState('');
   const [rescheduleTime, setRescheduleTime] = useState('');
@@ -110,31 +82,9 @@ const ClientAdmin = () => {
     // Primitives only — avoid re-fetching on every render if `filters` object identity churns.
   }, [filters.status, filters.meetingRoom, filters.date, navigate]);
 
-  useEffect(() => {
-    if (!actionMenu) return undefined;
-    const close = () => setActionMenu(null);
-    /** Bubble-phase click after mount — avoids capture mousedown firing before the ⋮ click handler runs (Safari / touch). */
-    const onDocClick = (e) => {
-      const el = e.target;
-      if (!(el instanceof Element)) return;
-      if (el.closest('.client-admin-action-menu') || el.closest('.action-menu-btn')) return;
-      close();
-    };
-    const attachTimer = window.setTimeout(() => {
-      document.addEventListener('click', onDocClick, false);
-    }, 0);
-    const onResize = () => close();
-    window.addEventListener('resize', onResize);
-    return () => {
-      window.clearTimeout(attachTimer);
-      document.removeEventListener('click', onDocClick, false);
-      window.removeEventListener('resize', onResize);
-    };
-  }, [actionMenu]);
-
   const fetchMeetings = async () => {
     setLoading(true);
-    setParticipantsExpandedMeetingId(null);
+    setTableExpand(null);
     try {
       const params = {};
       if (filters.status) params.status = filters.status;
@@ -304,7 +254,7 @@ const ClientAdmin = () => {
     }
   };
 
-  const closeActionMenu = () => setActionMenu(null);
+  const closeTableExpand = () => setTableExpand(null);
 
   return (
     <div className="client-admin">
@@ -385,7 +335,10 @@ const ClientAdmin = () => {
                 {meetings.map((meeting, rowIndex) => {
                   const rowId = stableMeetingRowId(meeting, rowIndex);
                   const participantRows = getParticipantRows(meeting.participants);
-                  const participantsExpanded = participantsExpandedMeetingId === rowId;
+                  const participantsExpanded =
+                    tableExpand?.rowId === rowId && tableExpand.kind === 'participants';
+                  const actionsExpanded =
+                    tableExpand?.rowId === rowId && tableExpand.kind === 'actions';
                   return (
                     <Fragment key={rowId}>
                       <tr>
@@ -404,13 +357,10 @@ const ClientAdmin = () => {
                                 className="participants-toggle"
                                 aria-expanded={participantsExpanded}
                                 onClick={(e) => {
+                                  e.preventDefault();
                                   e.stopPropagation();
-                                  if (participantsExpanded) {
-                                    setParticipantsExpandedMeetingId(null);
-                                  } else {
-                                    closeActionMenu();
-                                    setParticipantsExpandedMeetingId(rowId);
-                                  }
+                                  if (participantsExpanded) setTableExpand(null);
+                                  else setTableExpand({ rowId, kind: 'participants' });
                                 }}
                               >
                                 {participantRows.length} participant
@@ -469,21 +419,14 @@ const ClientAdmin = () => {
                             <button
                               type="button"
                               className="action-menu-btn"
-                              aria-expanded={!!actionMenu && actionMenu.rowId === rowId}
-                              aria-haspopup="menu"
+                              aria-expanded={actionsExpanded}
+                              aria-haspopup="true"
+                              aria-controls={`client-admin-actions-${rowId}`}
                               onClick={(e) => {
+                                e.preventDefault();
                                 e.stopPropagation();
-                                if (actionMenu && actionMenu.rowId === rowId) {
-                                  setActionMenu(null);
-                                } else {
-                                  setParticipantsExpandedMeetingId(null);
-                                  const r = e.currentTarget.getBoundingClientRect();
-                                  setActionMenu({
-                                    rowId,
-                                    meeting,
-                                    ...computeActionMenuPosition(r, countActionMenuItems(meeting)),
-                                  });
-                                }
+                                if (actionsExpanded) setTableExpand(null);
+                                else setTableExpand({ rowId, kind: 'actions', meeting });
                               }}
                             >
                               <svg
@@ -528,6 +471,112 @@ const ClientAdmin = () => {
                           </td>
                         </tr>
                       )}
+                      {actionsExpanded && (
+                        <tr className="actions-inline-row">
+                          <td colSpan={9}>
+                            <div
+                              id={`client-admin-actions-${rowId}`}
+                              className="actions-inline-panel"
+                              role="menu"
+                              aria-label={`Actions for ${meeting.title || 'meeting'}`}
+                            >
+                              <button
+                                type="button"
+                                role="menuitem"
+                                onClick={() => {
+                                  navigate(`/meetings/${tableExpand.meeting._id}`);
+                                  closeTableExpand();
+                                }}
+                              >
+                                View meeting
+                              </button>
+                              <button
+                                type="button"
+                                role="menuitem"
+                                onClick={() => {
+                                  navigate(`/meetings/${tableExpand.meeting._id}/summary`);
+                                  closeTableExpand();
+                                }}
+                              >
+                                Open summary page
+                              </button>
+                              {tableExpand.meeting.status === 'In Progress' && (
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  onClick={() => {
+                                    navigate(`/meetings/${tableExpand.meeting._id}/room`);
+                                    closeTableExpand();
+                                  }}
+                                >
+                                  Open meeting room
+                                </button>
+                              )}
+                              {(tableExpand.meeting.summary || tableExpand.meeting.pendingSummary) && (
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  onClick={() => {
+                                    handleDownloadSummary(tableExpand.meeting);
+                                    closeTableExpand();
+                                  }}
+                                >
+                                  Download Summary (PDF)
+                                </button>
+                              )}
+                              {tableExpand.meeting.originalSummary && (
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  onClick={() => {
+                                    handleDownloadOriginal(tableExpand.meeting);
+                                    closeTableExpand();
+                                  }}
+                                >
+                                  Download Original Summary
+                                </button>
+                              )}
+                              {tableExpand.meeting.audioFile && (
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  onClick={() => {
+                                    handleDownloadAudio(tableExpand.meeting);
+                                    closeTableExpand();
+                                  }}
+                                >
+                                  Download Audio
+                                </button>
+                              )}
+                              {tableExpand.meeting.status === 'Completed' && (
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  onClick={() => {
+                                    handleRetryTranscription(tableExpand.meeting);
+                                    closeTableExpand();
+                                  }}
+                                >
+                                  Retry Transcription
+                                </button>
+                              )}
+                              {(tableExpand.meeting.status === 'Scheduled' ||
+                                tableExpand.meeting.status === 'In Progress') && (
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  onClick={() => {
+                                    handleReschedule(tableExpand.meeting);
+                                    closeTableExpand();
+                                  }}
+                                >
+                                  Reschedule Meeting
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
                     </Fragment>
                   );
                 })}
@@ -536,118 +585,6 @@ const ClientAdmin = () => {
           </div>
         )}
       </div>
-
-      {actionMenu &&
-        createPortal(
-          <div
-            className="action-menu client-admin-action-menu"
-            role="menu"
-            onMouseDown={(e) => e.stopPropagation()}
-            style={{
-              position: 'fixed',
-              top: actionMenu.top,
-              right: actionMenu.right,
-              maxHeight: actionMenu.maxHeight,
-              overflowY: 'auto',
-              zIndex: 50000,
-              marginTop: 0,
-            }}
-          >
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                navigate(`/meetings/${actionMenu.meeting._id}`);
-                closeActionMenu();
-              }}
-            >
-              View meeting
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                navigate(`/meetings/${actionMenu.meeting._id}/summary`);
-                closeActionMenu();
-              }}
-            >
-              Open summary page
-            </button>
-            {actionMenu.meeting.status === 'In Progress' && (
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  navigate(`/meetings/${actionMenu.meeting._id}/room`);
-                  closeActionMenu();
-                }}
-              >
-                Open meeting room
-              </button>
-            )}
-            {(actionMenu.meeting.summary || actionMenu.meeting.pendingSummary) && (
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  handleDownloadSummary(actionMenu.meeting);
-                  closeActionMenu();
-                }}
-              >
-                Download Summary (PDF)
-              </button>
-            )}
-            {actionMenu.meeting.originalSummary && (
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  handleDownloadOriginal(actionMenu.meeting);
-                  closeActionMenu();
-                }}
-              >
-                Download Original Summary
-              </button>
-            )}
-            {actionMenu.meeting.audioFile && (
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  handleDownloadAudio(actionMenu.meeting);
-                  closeActionMenu();
-                }}
-              >
-                Download Audio
-              </button>
-            )}
-            {actionMenu.meeting.status === 'Completed' && (
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  handleRetryTranscription(actionMenu.meeting);
-                  closeActionMenu();
-                }}
-              >
-                Retry Transcription
-              </button>
-            )}
-            {(actionMenu.meeting.status === 'Scheduled' || actionMenu.meeting.status === 'In Progress') && (
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  handleReschedule(actionMenu.meeting);
-                  closeActionMenu();
-                }}
-              >
-                Reschedule Meeting
-              </button>
-            )}
-          </div>,
-          document.body
-        )}
 
       {/* Reschedule Modal */}
       {rescheduleMeeting && (
