@@ -189,9 +189,12 @@
 
 .action-menu-container {
   position: relative;
+  z-index: 5;
 }
 
 .action-menu-btn {
+  position: relative;
+  z-index: 6;
   background: transparent;
   border: none;
   color: var(--text-secondary);

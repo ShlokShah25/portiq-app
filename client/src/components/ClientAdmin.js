@@ -16,9 +16,8 @@ const ClientAdmin = () => {
     meetingRoom: '',
     date: ''
   });
-  const [openActionMenuId, setOpenActionMenuId] = useState(null);
-  /** Fixed position so the menu is not clipped by table scroll containers */
-  const [actionMenuPosition, setActionMenuPosition] = useState(null);
+  /** Full meeting doc + anchor — avoids find() missing rows when _id shapes differ */
+  const [actionMenu, setActionMenu] = useState(null);
   const [rescheduleMeeting, setRescheduleMeeting] = useState(null);
   const [rescheduleDate, setRescheduleDate] = useState('');
   const [rescheduleTime, setRescheduleTime] = useState('');
@@ -35,31 +34,28 @@ const ClientAdmin = () => {
   }, [filters, navigate]);
 
   useEffect(() => {
-    if (!openActionMenuId) return undefined;
-    const close = () => {
-      setOpenActionMenuId(null);
-      setActionMenuPosition(null);
-    };
-    const onPointerDown = (e) => {
+    if (!actionMenu) return undefined;
+    const close = () => setActionMenu(null);
+    const onDocMouseDown = (e) => {
       if (e.target.closest?.('.client-admin-action-menu') || e.target.closest?.('.action-menu-btn')) return;
       close();
     };
-    /** Defer outside-click so the opening click / layout does not immediately close the menu. */
+    /** Longer defer so the opening click/mousedown cannot hit this listener (Safari + React batching). */
     const attachTimer = window.setTimeout(() => {
       window.addEventListener('resize', close);
-      document.addEventListener('pointerdown', onPointerDown, true);
-    }, 0);
+      document.addEventListener('mousedown', onDocMouseDown, true);
+    }, 100);
     return () => {
       window.clearTimeout(attachTimer);
       window.removeEventListener('resize', close);
-      document.removeEventListener('pointerdown', onPointerDown, true);
+      document.removeEventListener('mousedown', onDocMouseDown, true);
     };
-  }, [openActionMenuId]);
+  }, [actionMenu]);
 
   useEffect(() => {
     if (!participantsPopover) return undefined;
     const close = () => setParticipantsPopover(null);
-    const onPointerDown = (e) => {
+    const onDocMouseDown = (e) => {
       if (e.target.closest?.('.client-admin-participants-popover') || e.target.closest?.('.participants-toggle')) {
         return;
       }
@@ -67,12 +63,12 @@ const ClientAdmin = () => {
     };
     const attachTimer = window.setTimeout(() => {
       window.addEventListener('resize', close);
-      document.addEventListener('pointerdown', onPointerDown, true);
-    }, 0);
+      document.addEventListener('mousedown', onDocMouseDown, true);
+    }, 100);
     return () => {
       window.clearTimeout(attachTimer);
       window.removeEventListener('resize', close);
-      document.removeEventListener('pointerdown', onPointerDown, true);
+      document.removeEventListener('mousedown', onDocMouseDown, true);
     };
   }, [participantsPopover]);
 
@@ -247,18 +243,7 @@ const ClientAdmin = () => {
     }
   };
 
-  const actionMenuMeeting = openActionMenuId
-    ? meetings.find((m) => String(m._id) === String(openActionMenuId))
-    : null;
-
-  const closeActionMenu = () => {
-    setOpenActionMenuId(null);
-    setActionMenuPosition(null);
-  };
-
-  const participantsPopoverMeeting = participantsPopover
-    ? meetings.find((m) => String(m._id) === participantsPopover.id)
-    : null;
+  const closeActionMenu = () => setActionMenu(null);
 
   return (
     <div className="client-admin">
@@ -353,11 +338,16 @@ const ClientAdmin = () => {
                           <button
                             type="button"
                             className="participants-toggle"
-                            aria-expanded={participantsPopover?.id === String(meeting._id)}
+                            aria-expanded={
+                              !!participantsPopover &&
+                              String(participantsPopover.meeting?._id) === String(meeting._id)
+                            }
                             onClick={(e) => {
                               e.stopPropagation();
-                              const id = String(meeting._id);
-                              if (participantsPopover?.id === id) {
+                              if (
+                                participantsPopover &&
+                                String(participantsPopover.meeting?._id) === String(meeting._id)
+                              ) {
                                 setParticipantsPopover(null);
                               } else {
                                 closeActionMenu();
@@ -365,7 +355,7 @@ const ClientAdmin = () => {
                                 const minW = Math.max(260, r.width);
                                 const left = Math.min(Math.max(8, r.left), window.innerWidth - minW - 8);
                                 setParticipantsPopover({
-                                  id,
+                                  meeting,
                                   top: r.bottom + 8,
                                   left,
                                   minWidth: minW,
@@ -382,7 +372,11 @@ const ClientAdmin = () => {
                               stroke="currentColor" 
                               strokeWidth="2"
                               style={{
-                                transform: participantsPopover?.id === String(meeting._id) ? 'rotate(180deg)' : 'rotate(0deg)',
+                                transform:
+                                  participantsPopover &&
+                                  String(participantsPopover.meeting?._id) === String(meeting._id)
+                                    ? 'rotate(180deg)'
+                                    : 'rotate(0deg)',
                                 transition: 'transform 0.2s',
                                 marginLeft: '6px'
                               }}
@@ -423,22 +417,22 @@ const ClientAdmin = () => {
                         <button
                           type="button"
                           className="action-menu-btn"
-                          aria-expanded={openActionMenuId === String(meeting._id)}
+                          aria-expanded={
+                            !!actionMenu && String(actionMenu.meeting?._id) === String(meeting._id)
+                          }
                           aria-haspopup="menu"
                           onClick={(e) => {
                             e.stopPropagation();
-                            const id = String(meeting._id);
-                            if (openActionMenuId === id) {
-                              setOpenActionMenuId(null);
-                              setActionMenuPosition(null);
+                            if (actionMenu && String(actionMenu.meeting?._id) === String(meeting._id)) {
+                              setActionMenu(null);
                             } else {
                               setParticipantsPopover(null);
                               const r = e.currentTarget.getBoundingClientRect();
-                              setActionMenuPosition({
+                              setActionMenu({
+                                meeting,
                                 top: r.bottom + 8,
                                 right: window.innerWidth - r.right,
                               });
-                              setOpenActionMenuId(id);
                             }
                           }}
                         >
@@ -459,7 +453,6 @@ const ClientAdmin = () => {
       </div>
 
       {participantsPopover &&
-        participantsPopoverMeeting &&
         createPortal(
           <div
             className="participants-dropdown client-admin-participants-popover"
@@ -472,7 +465,7 @@ const ClientAdmin = () => {
               marginTop: 0,
             }}
           >
-            {participantsPopoverMeeting.participants.map((p, idx) => (
+            {(participantsPopover.meeting?.participants || []).map((p, idx) => (
               <div key={idx} className="participant-item">
                 <div className="participant-name">{p.name || 'N/A'}</div>
                 <div className="participant-email">{p.email || 'N/A'}</div>
@@ -483,73 +476,73 @@ const ClientAdmin = () => {
           document.body
         )}
 
-      {actionMenuMeeting && actionMenuPosition &&
+      {actionMenu &&
         createPortal(
           <div
             className="action-menu client-admin-action-menu"
             role="menu"
             style={{
               position: 'fixed',
-              top: actionMenuPosition.top,
-              right: actionMenuPosition.right,
+              top: actionMenu.top,
+              right: actionMenu.right,
               zIndex: 10001,
               marginTop: 0,
             }}
           >
-            {(actionMenuMeeting.summary || actionMenuMeeting.pendingSummary) && (
+            {(actionMenu.meeting.summary || actionMenu.meeting.pendingSummary) && (
               <button
                 type="button"
                 role="menuitem"
                 onClick={() => {
-                  handleDownloadSummary(actionMenuMeeting);
+                  handleDownloadSummary(actionMenu.meeting);
                   closeActionMenu();
                 }}
               >
                 Download Summary (PDF)
               </button>
             )}
-            {actionMenuMeeting.originalSummary && (
+            {actionMenu.meeting.originalSummary && (
               <button
                 type="button"
                 role="menuitem"
                 onClick={() => {
-                  handleDownloadOriginal(actionMenuMeeting);
+                  handleDownloadOriginal(actionMenu.meeting);
                   closeActionMenu();
                 }}
               >
                 Download Original Summary
               </button>
             )}
-            {actionMenuMeeting.audioFile && (
+            {actionMenu.meeting.audioFile && (
               <button
                 type="button"
                 role="menuitem"
                 onClick={() => {
-                  handleDownloadAudio(actionMenuMeeting);
+                  handleDownloadAudio(actionMenu.meeting);
                   closeActionMenu();
                 }}
               >
                 Download Audio
               </button>
             )}
-            {actionMenuMeeting.status === 'Completed' && (
+            {actionMenu.meeting.status === 'Completed' && (
               <button
                 type="button"
                 role="menuitem"
                 onClick={() => {
-                  handleRetryTranscription(actionMenuMeeting);
+                  handleRetryTranscription(actionMenu.meeting);
                   closeActionMenu();
                 }}
               >
                 Retry Transcription
               </button>
             )}
-            {(actionMenuMeeting.status === 'Scheduled' || actionMenuMeeting.status === 'In Progress') && (
+            {(actionMenu.meeting.status === 'Scheduled' || actionMenu.meeting.status === 'In Progress') && (
               <button
                 type="button"
                 role="menuitem"
                 onClick={() => {
-                  handleReschedule(actionMenuMeeting);
+                  handleReschedule(actionMenu.meeting);
                   closeActionMenu();
                 }}
               >
