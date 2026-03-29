@@ -246,6 +246,13 @@
   color: var(--text-primary);
 }
 
+/* Portaled ⋮ menu (fixed to viewport) */
+.action-menu.client-admin-action-menu {
+  box-sizing: border-box;
+  min-width: 220px;
+  max-width: min(320px, calc(100vw - 16px));
+}
+
 @keyframes slideDown {
   from {
     opacity: 0;

@@ -4,6 +4,33 @@ import { Link } from 'react-router-dom';
 import axios from 'axios';
 import './Meetings.css';
 
+function countAdminActionMenuItems(m) {
+  if (!m) return 1;
+  let n = 1; // Edit details
+  if (m.summary || m.pendingSummary) {
+    n += 1;
+    if (m.summary && m.originalSummary) n += 1;
+  }
+  if (m.audioFile) n += 1;
+  if (m.audioFile && (m.transcriptionStatus === 'Failed' || m.status === 'Completed')) n += 1;
+  return n;
+}
+
+function computeAdminActionMenuPosition(anchorRect, itemCount) {
+  const gap = 8;
+  const vh = window.innerHeight;
+  const perItem = 48;
+  const chrome = 16;
+  const estHeight = Math.min(chrome + itemCount * perItem, Math.floor(vh * 0.55));
+  let top = anchorRect.bottom + gap;
+  if (top + estHeight > vh - gap) {
+    top = anchorRect.top - estHeight - gap;
+  }
+  top = Math.max(gap, Math.min(top, vh - Math.min(estHeight, vh - 2 * gap) - gap));
+  const right = window.innerWidth - anchorRect.right;
+  return { top, right, maxHeight: Math.min(420, vh - 2 * gap) };
+}
+
 const Meetings = () => {
   const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -15,19 +42,16 @@ const Meetings = () => {
     meetingRoom: '',
     date: ''
   });
-  const [openActionMenuId, setOpenActionMenuId] = useState(null);
-  const [actionMenuPosition, setActionMenuPosition] = useState(null);
+  /** Snapshot meeting + geometry so the menu never disappears when find() fails on _id shape. */
+  const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
 
   useEffect(() => {
     fetchMeetings();
   }, [filters]);
 
   useEffect(() => {
-    if (!openActionMenuId) return undefined;
-    const close = () => {
-      setOpenActionMenuId(null);
-      setActionMenuPosition(null);
-    };
+    if (!actionMenuAnchor) return undefined;
+    const close = () => setActionMenuAnchor(null);
     const onPointerDown = (e) => {
       if (e.target.closest?.('.admin-meetings-action-menu') || e.target.closest?.('.admin-meetings-action-trigger')) {
         return;
@@ -37,13 +61,13 @@ const Meetings = () => {
     const attachTimer = window.setTimeout(() => {
       window.addEventListener('resize', close);
       document.addEventListener('pointerdown', onPointerDown, true);
-    }, 0);
+    }, 150);
     return () => {
       window.clearTimeout(attachTimer);
       window.removeEventListener('resize', close);
       document.removeEventListener('pointerdown', onPointerDown, true);
     };
-  }, [openActionMenuId]);
+  }, [actionMenuAnchor]);
 
   const fetchMeetings = async () => {
     setLoading(true);
@@ -112,13 +136,15 @@ const Meetings = () => {
   };
 
   const handleDownloadIndividualSummary = (meeting) => {
-    if (!meeting.summary) {
+    const body = meeting.summary || meeting.pendingSummary;
+    if (!body) {
       alert('This meeting has no summary available.');
       return;
     }
-    const content = formatMeetingSummary(meeting, 1);
+    const content = formatMeetingSummary({ ...meeting, summary: body }, 1);
     const safeTitle = meeting.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-    downloadFile(content, `meeting-summary-${safeTitle}-${meeting._id.slice(-6)}.txt`);
+    const idTail = String(meeting._id || '').slice(-6);
+    downloadFile(content, `meeting-summary-${safeTitle}-${idTail}.txt`);
   };
 
   const formatMeetingSummary = (meeting, index) => {
@@ -227,14 +253,7 @@ const Meetings = () => {
     setEditForm({ title: '', meetingRoom: '', organizer: '' });
   };
 
-  const actionMenuMeeting = openActionMenuId
-    ? meetings.find((m) => String(m._id) === String(openActionMenuId))
-    : null;
-
-  const closeAdminActionMenu = () => {
-    setOpenActionMenuId(null);
-    setActionMenuPosition(null);
-  };
+  const closeAdminActionMenu = () => setActionMenuAnchor(null);
 
   return (
     <div className="admin-container">
@@ -458,20 +477,27 @@ const Meetings = () => {
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   const id = String(meeting._id);
-                                  if (openActionMenuId === id) {
-                                    setOpenActionMenuId(null);
-                                    setActionMenuPosition(null);
+                                  if (
+                                    actionMenuAnchor &&
+                                    String(actionMenuAnchor.meeting._id) === id
+                                  ) {
+                                    setActionMenuAnchor(null);
                                   } else {
                                     const r = e.currentTarget.getBoundingClientRect();
-                                    setActionMenuPosition({
-                                      top: r.bottom + 6,
-                                      right: window.innerWidth - r.right,
+                                    setActionMenuAnchor({
+                                      meeting,
+                                      ...computeAdminActionMenuPosition(
+                                        r,
+                                        countAdminActionMenuItems(meeting)
+                                      ),
                                     });
-                                    setOpenActionMenuId(id);
                                   }
                                 }}
                                 title="Actions"
-                                aria-expanded={openActionMenuId === String(meeting._id)}
+                                aria-expanded={
+                                  !!actionMenuAnchor &&
+                                  String(actionMenuAnchor.meeting._id) === String(meeting._id)
+                                }
                               >
                                 ⋮
                               </button>
@@ -529,15 +555,18 @@ const Meetings = () => {
         )}
       </div>
 
-      {actionMenuMeeting && actionMenuPosition &&
+      {actionMenuAnchor &&
         createPortal(
           <div
             className="admin-meetings-action-menu"
             role="menu"
+            onMouseDown={(e) => e.stopPropagation()}
             style={{
               position: 'fixed',
-              top: actionMenuPosition.top,
-              right: actionMenuPosition.right,
+              top: actionMenuAnchor.top,
+              right: actionMenuAnchor.right,
+              maxHeight: actionMenuAnchor.maxHeight,
+              overflowY: 'auto',
               zIndex: 10050,
               minWidth: '200px',
               background: '#ffffff',
@@ -561,12 +590,12 @@ const Meetings = () => {
               }}
               onClick={() => {
                 closeAdminActionMenu();
-                handleEditMeeting(actionMenuMeeting);
+                handleEditMeeting(actionMenuAnchor.meeting);
               }}
             >
               Edit details
             </button>
-            {actionMenuMeeting.summary && (
+            {(actionMenuAnchor.meeting.summary || actionMenuAnchor.meeting.pendingSummary) && (
               <>
                 <button
                   type="button"
@@ -582,12 +611,14 @@ const Meetings = () => {
                   }}
                   onClick={() => {
                     closeAdminActionMenu();
-                    handleDownloadIndividualSummary(actionMenuMeeting);
+                    handleDownloadIndividualSummary(actionMenuAnchor.meeting);
                   }}
                 >
-                  Download summary (final)
+                  {actionMenuAnchor.meeting.summary
+                    ? 'Download summary (final)'
+                    : 'Download summary (pending)'}
                 </button>
-                {actionMenuMeeting.originalSummary && (
+                {actionMenuAnchor.meeting.summary && actionMenuAnchor.meeting.originalSummary && (
                   <button
                     type="button"
                     style={{
@@ -603,7 +634,10 @@ const Meetings = () => {
                     }}
                     onClick={() => {
                       closeAdminActionMenu();
-                      window.open(`/admin/meetings/${actionMenuMeeting._id}/original-summary`, '_blank');
+                      window.open(
+                        `/admin/meetings/${actionMenuAnchor.meeting._id}/original-summary`,
+                        '_blank'
+                      );
                     }}
                   >
                     Download original summary
@@ -611,7 +645,7 @@ const Meetings = () => {
                 )}
               </>
             )}
-            {actionMenuMeeting.audioFile && (
+            {actionMenuAnchor.meeting.audioFile && (
               <button
                 type="button"
                 style={{
@@ -627,42 +661,46 @@ const Meetings = () => {
                 }}
                 onClick={() => {
                   closeAdminActionMenu();
-                  window.open(`/admin/meetings/${actionMenuMeeting._id}/audio`, '_blank');
+                  window.open(`/admin/meetings/${actionMenuAnchor.meeting._id}/audio`, '_blank');
                 }}
               >
                 Download audio recording
               </button>
             )}
-            {actionMenuMeeting.transcriptionStatus === 'Failed' && actionMenuMeeting.audioFile && (
-              <button
-                type="button"
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  border: 'none',
-                  borderTop: '1px solid #f3f4f6',
-                  background: 'transparent',
-                  textAlign: 'left',
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                  color: '#2563eb',
-                }}
-                onClick={async () => {
-                  closeAdminActionMenu();
-                  if (window.confirm('Retry transcription for this meeting?')) {
-                    try {
-                      await axios.post(`/admin/meetings/${actionMenuMeeting._id}/retry-transcription`);
-                      alert('Transcription retry started. Please refresh the page in a few moments.');
-                      fetchMeetings();
-                    } catch (error) {
-                      alert('Error: ' + (error.response?.data?.error || error.message));
+            {actionMenuAnchor.meeting.audioFile &&
+              (actionMenuAnchor.meeting.transcriptionStatus === 'Failed' ||
+                actionMenuAnchor.meeting.status === 'Completed') && (
+                <button
+                  type="button"
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    border: 'none',
+                    borderTop: '1px solid #f3f4f6',
+                    background: 'transparent',
+                    textAlign: 'left',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    color: '#2563eb',
+                  }}
+                  onClick={async () => {
+                    closeAdminActionMenu();
+                    if (window.confirm('Retry transcription for this meeting?')) {
+                      try {
+                        await axios.post(
+                          `/admin/meetings/${actionMenuAnchor.meeting._id}/retry-transcription`
+                        );
+                        alert('Transcription retry started. Please refresh the page in a few moments.');
+                        fetchMeetings();
+                      } catch (error) {
+                        alert('Error: ' + (error.response?.data?.error || error.message));
+                      }
                     }
-                  }
-                }}
-              >
-                Retry transcription
-              </button>
-            )}
+                  }}
+                >
+                  Retry transcription
+                </button>
+              )}
           </div>,
           document.body
         )}

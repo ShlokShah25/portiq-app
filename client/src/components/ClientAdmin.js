@@ -62,6 +62,34 @@ function computeParticipantsPopoverPosition(anchorRect, rowCount) {
   return { top, left, minWidth: minW, maxHeight };
 }
 
+/** Rough count for positioning the ⋮ menu so it can flip above the anchor when needed. */
+function countActionMenuItems(meeting) {
+  if (!meeting) return 2;
+  let n = 2; // View meeting + Open summary (always)
+  if (meeting.status === 'In Progress') n += 1; // Open meeting room
+  if (meeting.summary || meeting.pendingSummary) n += 1;
+  if (meeting.originalSummary) n += 1;
+  if (meeting.audioFile) n += 1;
+  if (meeting.status === 'Completed') n += 1;
+  if (meeting.status === 'Scheduled' || meeting.status === 'In Progress') n += 1;
+  return n;
+}
+
+function computeActionMenuPosition(anchorRect, itemCount) {
+  const gap = 8;
+  const vh = window.innerHeight;
+  const perItem = 48;
+  const chrome = 20;
+  const estHeight = Math.min(chrome + itemCount * perItem, Math.floor(vh * 0.55));
+  let top = anchorRect.bottom + gap;
+  if (top + estHeight > vh - gap) {
+    top = anchorRect.top - estHeight - gap;
+  }
+  top = Math.max(gap, Math.min(top, vh - Math.min(estHeight, vh - 2 * gap) - gap));
+  const right = window.innerWidth - anchorRect.right;
+  return { top, right, maxHeight: Math.min(420, vh - 2 * gap) };
+}
+
 const ClientAdmin = () => {
   const navigate = useNavigate();
   const [meetings, setMeetings] = useState([]);
@@ -98,15 +126,17 @@ const ClientAdmin = () => {
       if (e.target.closest?.('.client-admin-action-menu') || e.target.closest?.('.action-menu-btn')) return;
       close();
     };
-    /** Longer defer so the opening click/mousedown cannot hit this listener (Safari + React batching). */
+    /** Defer so the opening click/mousedown cannot close the menu (capture phase + touch). */
     const attachTimer = window.setTimeout(() => {
       window.addEventListener('resize', close);
       document.addEventListener('mousedown', onDocMouseDown, true);
-    }, 100);
+      document.addEventListener('touchstart', onDocMouseDown, true);
+    }, 150);
     return () => {
       window.clearTimeout(attachTimer);
       window.removeEventListener('resize', close);
       document.removeEventListener('mousedown', onDocMouseDown, true);
+      document.removeEventListener('touchstart', onDocMouseDown, true);
     };
   }, [actionMenu]);
 
@@ -492,8 +522,7 @@ const ClientAdmin = () => {
                               const r = e.currentTarget.getBoundingClientRect();
                               setActionMenu({
                                 meeting,
-                                top: r.bottom + 8,
-                                right: window.innerWidth - r.right,
+                                ...computeActionMenuPosition(r, countActionMenuItems(meeting)),
                               });
                             }
                           }}
@@ -553,14 +582,49 @@ const ClientAdmin = () => {
           <div
             className="action-menu client-admin-action-menu"
             role="menu"
+            onMouseDown={(e) => e.stopPropagation()}
             style={{
               position: 'fixed',
               top: actionMenu.top,
               right: actionMenu.right,
+              maxHeight: actionMenu.maxHeight,
+              overflowY: 'auto',
               zIndex: 10001,
               marginTop: 0,
             }}
           >
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                navigate(`/meetings/${actionMenu.meeting._id}`);
+                closeActionMenu();
+              }}
+            >
+              View meeting
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                navigate(`/meetings/${actionMenu.meeting._id}/summary`);
+                closeActionMenu();
+              }}
+            >
+              Open summary page
+            </button>
+            {actionMenu.meeting.status === 'In Progress' && (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  navigate(`/meetings/${actionMenu.meeting._id}/room`);
+                  closeActionMenu();
+                }}
+              >
+                Open meeting room
+              </button>
+            )}
             {(actionMenu.meeting.summary || actionMenu.meeting.pendingSummary) && (
               <button
                 type="button"
