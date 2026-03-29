@@ -34,11 +34,12 @@ const Meetings = () => {
       }
       close();
     };
-    window.addEventListener('scroll', close, true);
-    window.addEventListener('resize', close);
-    document.addEventListener('pointerdown', onPointerDown, true);
+    const attachTimer = window.setTimeout(() => {
+      window.addEventListener('resize', close);
+      document.addEventListener('pointerdown', onPointerDown, true);
+    }, 0);
     return () => {
-      window.removeEventListener('scroll', close, true);
+      window.clearTimeout(attachTimer);
       window.removeEventListener('resize', close);
       document.removeEventListener('pointerdown', onPointerDown, true);
     };
@@ -227,7 +228,7 @@ const Meetings = () => {
   };
 
   const actionMenuMeeting = openActionMenuId
-    ? meetings.find((m) => m._id === openActionMenuId)
+    ? meetings.find((m) => String(m._id) === String(openActionMenuId))
     : null;
 
   const closeAdminActionMenu = () => {
@@ -456,7 +457,8 @@ const Meetings = () => {
                                 style={{ padding: '4px 8px', fontSize: '16px', lineHeight: '1' }}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  if (openActionMenuId === meeting._id) {
+                                  const id = String(meeting._id);
+                                  if (openActionMenuId === id) {
                                     setOpenActionMenuId(null);
                                     setActionMenuPosition(null);
                                   } else {
@@ -465,11 +467,11 @@ const Meetings = () => {
                                       top: r.bottom + 6,
                                       right: window.innerWidth - r.right,
                                     });
-                                    setOpenActionMenuId(meeting._id);
+                                    setOpenActionMenuId(id);
                                   }
                                 }}
                                 title="Actions"
-                                aria-expanded={openActionMenuId === meeting._id}
+                                aria-expanded={openActionMenuId === String(meeting._id)}
                               >
                                 ⋮
                               </button>

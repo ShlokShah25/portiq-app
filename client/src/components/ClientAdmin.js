@@ -43,11 +43,13 @@ const ClientAdmin = () => {
       if (e.target.closest?.('.client-admin-action-menu') || e.target.closest?.('.action-menu-btn')) return;
       close();
     };
-    window.addEventListener('scroll', close, true);
-    window.addEventListener('resize', close);
-    document.addEventListener('pointerdown', onPointerDown, true);
+    /** Defer outside-click so the opening click / layout does not immediately close the menu. */
+    const attachTimer = window.setTimeout(() => {
+      window.addEventListener('resize', close);
+      document.addEventListener('pointerdown', onPointerDown, true);
+    }, 0);
     return () => {
-      window.removeEventListener('scroll', close, true);
+      window.clearTimeout(attachTimer);
       window.removeEventListener('resize', close);
       document.removeEventListener('pointerdown', onPointerDown, true);
     };
@@ -225,7 +227,7 @@ const ClientAdmin = () => {
   };
 
   const actionMenuMeeting = openActionMenuId
-    ? meetings.find((m) => m._id === openActionMenuId)
+    ? meetings.find((m) => String(m._id) === String(openActionMenuId))
     : null;
 
   const closeActionMenu = () => {
@@ -391,11 +393,12 @@ const ClientAdmin = () => {
                         <button
                           type="button"
                           className="action-menu-btn"
-                          aria-expanded={openActionMenuId === meeting._id}
+                          aria-expanded={openActionMenuId === String(meeting._id)}
                           aria-haspopup="menu"
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (openActionMenuId === meeting._id) {
+                            const id = String(meeting._id);
+                            if (openActionMenuId === id) {
                               setOpenActionMenuId(null);
                               setActionMenuPosition(null);
                             } else {
@@ -404,7 +407,7 @@ const ClientAdmin = () => {
                                 top: r.bottom + 8,
                                 right: window.innerWidth - r.right,
                               });
-                              setOpenActionMenuId(meeting._id);
+                              setOpenActionMenuId(id);
                             }
                           }}
                         >
