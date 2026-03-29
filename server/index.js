@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
+const fs = require('fs');
 
 // Load environment variables
 dotenv.config();
@@ -104,6 +105,28 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Deep ready: Mongo connected, OpenAI key present, uploads dir writable (for meeting audio)
+app.get('/api/health/ready', (req, res) => {
+  const mongoOk = mongoose.connection.readyState === 1;
+  const openaiOk = !!process.env.OPENAI_API_KEY;
+  const uploadsDir = path.join(__dirname, '../uploads/meetings');
+  let uploadsOk = false;
+  try {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+    fs.accessSync(uploadsDir, fs.constants.W_OK);
+    uploadsOk = true;
+  } catch (_) {
+    uploadsOk = false;
+  }
+  const ok = mongoOk && openaiOk && uploadsOk;
+  res.status(ok ? 200 : 503).json({
+    ok,
+    mongo: mongoOk ? 'connected' : 'disconnected',
+    openai: openaiOk ? 'configured' : 'missing_key',
+    uploadsMeetings: uploadsOk ? 'ready' : 'not_writable',
+  });
+});
+
 // Serve React apps (production builds)
 // Admin panel
 app.use('/admin', express.static(path.join(__dirname, '../admin/build')));
@@ -184,6 +207,7 @@ app.listen(PORT, HOST, () => {
   console.log(`📱 Workplace Visitor Management System`);
   console.log(`\n📋 Available endpoints:`);
   console.log(`   - GET  /api/health`);
+  console.log(`   - GET  /api/health/ready`);
   console.log(`   - GET  /api/visitors/categories`);
   console.log(`   - POST /api/visitors/entry`);
   console.log(`   - POST /api/visitors/checkout`);

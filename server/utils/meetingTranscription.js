@@ -29,6 +29,10 @@ if (process.env.OPENAI_API_KEY) {
   console.warn('⚠️  OPENAI_API_KEY not set. Meeting transcription will not work.');
 }
 
+function getSummaryChatModel() {
+  return process.env.OPENAI_SUMMARY_MODEL || 'gpt-4o-mini';
+}
+
 // Email is sent via shared emailService (Resend or SMTP)
 
 function safeListParticipantNames(participants = []) {
@@ -151,16 +155,20 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
     : meeting;
   const meetingTitle = meetingObj.title || 'Meeting';
 
-  let resolvedProductType = String(options.productType || '').toLowerCase();
+  // Prompt style: ONLY productType matters — not plan tier (Starter/Professional/Business).
+  // All workplace tiers share the same meeting-minutes prompt; education accounts get lecture-style prompts.
+  let resolvedProductType = String(options.productType || '').trim().toLowerCase();
   if (!resolvedProductType && meetingObj.adminId) {
     try {
       const a = await Admin.findById(meetingObj.adminId).select('productType').lean();
-      if (a && a.productType) resolvedProductType = String(a.productType).toLowerCase();
+      if (a && a.productType) resolvedProductType = String(a.productType).trim().toLowerCase();
     } catch (_) {
       /* ignore */
     }
   }
   const isEducation = resolvedProductType === 'education';
+
+  const summaryChatModel = getSummaryChatModel();
 
   // Helper function to compress audio file if needed
   const compressAudioIfNeeded = async (inputPath) => {
@@ -421,9 +429,11 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        console.log(`   Generating summary (attempt ${attempt}/${maxRetries})...`);
+        console.log(
+          `   Generating summary (attempt ${attempt}/${maxRetries})… model=${summaryChatModel} mode=${isEducation ? 'education' : 'workplace'}`
+        );
         summaryResponse = await openai.chat.completions.create({
-          model: 'gpt-4o-mini', // or 'gpt-3.5-turbo' for cost savings
+          model: summaryChatModel,
           messages: [
         {
           role: 'system',
@@ -657,7 +667,7 @@ async function translateSummaryForEmail(summaryData, language) {
 
   try {
     const response = await openai.chat.completions.create({
-      model: process.env.OPENAI_SUMMARY_MODEL || 'gpt-4o-mini',
+      model: getSummaryChatModel(),
       messages: [
         {
           role: 'system',
