@@ -334,27 +334,21 @@
   border-color: #3A3A3C;
 }
 
-.participants-dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  margin-top: 8px;
-  background: var(--surface-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 12px;
-  min-width: 250px;
-  max-width: 350px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-  z-index: 20;
-  animation: slideDown 0.2s ease-out;
+/* Expand participant list in-table (replaces fixed popover — stable in scroll layouts). */
+.participants-inline-row td {
+  padding: 0 0 12px;
+  border-bottom: 1px solid #2A2A2C;
+  vertical-align: top;
+  background: var(--bg-primary);
 }
 
-/* Portaled popover (fixed to viewport): keep text readable and scroll if needed */
-.participants-dropdown.client-admin-participants-popover {
-  box-sizing: border-box;
-  color: var(--text-primary);
-  max-width: min(360px, calc(100vw - 16px));
+.participants-inline-panel {
+  margin: 0 12px 4px;
+  padding: 14px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--surface-secondary);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
 }
 
 .participant-item {

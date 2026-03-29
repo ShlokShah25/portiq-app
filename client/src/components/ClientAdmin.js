@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Fragment } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -41,27 +41,6 @@ function normalizeParticipantForDisplay(p, index) {
   return { title, subtitle, role };
 }
 
-function computeParticipantsPopoverPosition(anchorRect, rowCount) {
-  const gap = 8;
-  const vh = window.innerHeight;
-  const vw = window.innerWidth;
-  const minW = Math.max(260, anchorRect.width);
-  const estItem = 68;
-  const chrome = 32;
-  const estHeight = Math.min(
-    chrome + Math.max(1, rowCount) * estItem,
-    Math.min(400, Math.floor(vh * 0.55))
-  );
-  let top = anchorRect.bottom + gap;
-  if (top + estHeight > vh - gap) {
-    top = anchorRect.top - estHeight - gap;
-  }
-  top = Math.max(gap, Math.min(top, vh - Math.min(estHeight, vh - 2 * gap) - gap));
-  const left = Math.min(Math.max(gap, anchorRect.left), vw - minW - gap);
-  const maxHeight = Math.min(420, vh - 2 * gap);
-  return { top, left, minWidth: minW, maxHeight };
-}
-
 /** Rough count for positioning the ⋮ menu so it can flip above the anchor when needed. */
 function countActionMenuItems(meeting) {
   if (!meeting) return 2;
@@ -95,8 +74,8 @@ const ClientAdmin = () => {
   const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedMeeting, setSelectedMeeting] = useState(null);
-  /** Fixed-position popover so participant list is not clipped by the table scroll area */
-  const [participantsPopover, setParticipantsPopover] = useState(null);
+  /** Inline expand row under the meeting (avoids broken fixed popovers in scroll/layout contexts). */
+  const [participantsExpandedMeetingId, setParticipantsExpandedMeetingId] = useState(null);
   const [filters, setFilters] = useState({
     status: '',
     meetingRoom: '',
@@ -140,28 +119,9 @@ const ClientAdmin = () => {
     };
   }, [actionMenu]);
 
-  useEffect(() => {
-    if (!participantsPopover) return undefined;
-    const close = () => setParticipantsPopover(null);
-    const onDocMouseDown = (e) => {
-      if (e.target.closest?.('.client-admin-participants-popover') || e.target.closest?.('.participants-toggle')) {
-        return;
-      }
-      close();
-    };
-    const attachTimer = window.setTimeout(() => {
-      window.addEventListener('resize', close);
-      document.addEventListener('mousedown', onDocMouseDown, true);
-    }, 100);
-    return () => {
-      window.clearTimeout(attachTimer);
-      window.removeEventListener('resize', close);
-      document.removeEventListener('mousedown', onDocMouseDown, true);
-    };
-  }, [participantsPopover]);
-
   const fetchMeetings = async () => {
     setLoading(true);
+    setParticipantsExpandedMeetingId(null);
     try {
       const params = {};
       if (filters.status) params.status = filters.status;
@@ -409,173 +369,161 @@ const ClientAdmin = () => {
                 </tr>
               </thead>
               <tbody>
-                {meetings.map((meeting) => (
-                  <tr key={meeting._id}>
-                    <td>{meeting.title}</td>
-                    <td>{meeting.meetingRoom || 'N/A'}</td>
-                    <td>{meeting.organizer || 'N/A'}</td>
-                    <td>{formatDate(meeting.startTime || meeting.scheduledTime)}</td>
-                    <td>
-                      <span style={getStatusBadge(meeting.status)}>
-                        {meeting.status}
-                      </span>
-                    </td>
-                    <td>
-                      {(() => {
-                        const participantRows = getParticipantRows(meeting.participants);
-                        return participantRows.length > 0 ? (
-                        <div className="participants-cell">
-                          <button
-                            type="button"
-                            className="participants-toggle"
-                            aria-expanded={
-                              !!participantsPopover &&
-                              String(participantsPopover.meeting?._id) === String(meeting._id)
-                            }
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (
-                                participantsPopover &&
-                                String(participantsPopover.meeting?._id) === String(meeting._id)
-                              ) {
-                                setParticipantsPopover(null);
-                              } else {
-                                closeActionMenu();
-                                const r = e.currentTarget.getBoundingClientRect();
-                                const pos = computeParticipantsPopoverPosition(
-                                  r,
-                                  participantRows.length
-                                );
-                                setParticipantsPopover({
-                                  meeting,
-                                  participantRows,
-                                  ...pos,
-                                });
+                {meetings.map((meeting) => {
+                  const participantRows = getParticipantRows(meeting.participants);
+                  const participantsExpanded =
+                    String(participantsExpandedMeetingId) === String(meeting._id);
+                  return (
+                    <Fragment key={meeting._id}>
+                      <tr>
+                        <td>{meeting.title}</td>
+                        <td>{meeting.meetingRoom || 'N/A'}</td>
+                        <td>{meeting.organizer || 'N/A'}</td>
+                        <td>{formatDate(meeting.startTime || meeting.scheduledTime)}</td>
+                        <td>
+                          <span style={getStatusBadge(meeting.status)}>{meeting.status}</span>
+                        </td>
+                        <td>
+                          {participantRows.length > 0 ? (
+                            <div className="participants-cell">
+                              <button
+                                type="button"
+                                className="participants-toggle"
+                                aria-expanded={participantsExpanded}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (participantsExpanded) {
+                                    setParticipantsExpandedMeetingId(null);
+                                  } else {
+                                    closeActionMenu();
+                                    setParticipantsExpandedMeetingId(String(meeting._id));
+                                  }
+                                }}
+                              >
+                                {participantRows.length} participant
+                                {participantRows.length !== 1 ? 's' : ''}
+                                <svg
+                                  width="14"
+                                  height="14"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  style={{
+                                    transform: participantsExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                                    transition: 'transform 0.2s',
+                                    marginLeft: '6px',
+                                  }}
+                                >
+                                  <polyline points="6 9 12 15 18 9" />
+                                </svg>
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="no-data">None</span>
+                          )}
+                        </td>
+                        <td>
+                          {meeting.authorizedEditorEmail ? (
+                            <div className="editor-info">
+                              <div className="editor-email">{meeting.authorizedEditorEmail}</div>
+                              {meeting.summaryStatus && (
+                                <div className="editor-status">
+                                  Status:{' '}
+                                  <span
+                                    className={`status-${meeting.summaryStatus
+                                      .toLowerCase()
+                                      .replace(' ', '-')}`}
+                                  >
+                                    {meeting.summaryStatus}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="no-data">Not set</span>
+                          )}
+                        </td>
+                        <td>
+                          {meeting.summary || meeting.pendingSummary ? (
+                            <span className="summary-badge">Summary Ready</span>
+                          ) : (
+                            <span className="no-summary">None</span>
+                          )}
+                        </td>
+                        <td>
+                          <div className="action-menu-container">
+                            <button
+                              type="button"
+                              className="action-menu-btn"
+                              aria-expanded={
+                                !!actionMenu && String(actionMenu.meeting?._id) === String(meeting._id)
                               }
-                            }}
-                          >
-                            {participantRows.length} participant{participantRows.length !== 1 ? 's' : ''}
-                            <svg 
-                              width="14" 
-                              height="14" 
-                              viewBox="0 0 24 24" 
-                              fill="none" 
-                              stroke="currentColor" 
-                              strokeWidth="2"
-                              style={{
-                                transform:
-                                  participantsPopover &&
-                                  String(participantsPopover.meeting?._id) === String(meeting._id)
-                                    ? 'rotate(180deg)'
-                                    : 'rotate(0deg)',
-                                transition: 'transform 0.2s',
-                                marginLeft: '6px'
+                              aria-haspopup="menu"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (actionMenu && String(actionMenu.meeting?._id) === String(meeting._id)) {
+                                  setActionMenu(null);
+                                } else {
+                                  setParticipantsExpandedMeetingId(null);
+                                  const r = e.currentTarget.getBoundingClientRect();
+                                  setActionMenu({
+                                    meeting,
+                                    ...computeActionMenuPosition(r, countActionMenuItems(meeting)),
+                                  });
+                                }
                               }}
                             >
-                              <polyline points="6 9 12 15 18 9"></polyline>
-                            </svg>
-                          </button>
-                        </div>
-                        ) : (
-                        <span className="no-data">None</span>
-                        );
-                      })()}
-                    </td>
-                    <td>
-                      {meeting.authorizedEditorEmail ? (
-                        <div className="editor-info">
-                          <div className="editor-email">{meeting.authorizedEditorEmail}</div>
-                          {meeting.summaryStatus && (
-                            <div className="editor-status">
-                              Status: <span className={`status-${meeting.summaryStatus.toLowerCase().replace(' ', '-')}`}>
-                                {meeting.summaryStatus}
-                              </span>
+                              <svg
+                                width="20"
+                                height="20"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                              >
+                                <circle cx="12" cy="12" r="1" />
+                                <circle cx="12" cy="5" r="1" />
+                                <circle cx="12" cy="19" r="1" />
+                              </svg>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      {participantRows.length > 0 && participantsExpanded && (
+                        <tr className="participants-inline-row" aria-live="polite">
+                          <td colSpan={9}>
+                            <div
+                              className="participants-inline-panel"
+                              role="region"
+                              aria-label={`Participants for ${meeting.title || 'meeting'}`}
+                            >
+                              {participantRows.map((p, idx) => {
+                                const row = normalizeParticipantForDisplay(p, idx);
+                                return (
+                                  <div key={idx} className="participant-item participant-item--inline">
+                                    <div className="participant-name">{row.title}</div>
+                                    {row.subtitle ? (
+                                      <div className="participant-email">{row.subtitle}</div>
+                                    ) : null}
+                                    {row.role ? (
+                                      <div className="participant-role">{row.role}</div>
+                                    ) : null}
+                                  </div>
+                                );
+                              })}
                             </div>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="no-data">Not set</span>
+                          </td>
+                        </tr>
                       )}
-                    </td>
-                    <td>
-                      {meeting.summary || meeting.pendingSummary ? (
-                        <span className="summary-badge">Summary Ready</span>
-                      ) : (
-                        <span className="no-summary">None</span>
-                      )}
-                    </td>
-                    <td>
-                      <div className="action-menu-container">
-                        <button
-                          type="button"
-                          className="action-menu-btn"
-                          aria-expanded={
-                            !!actionMenu && String(actionMenu.meeting?._id) === String(meeting._id)
-                          }
-                          aria-haspopup="menu"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (actionMenu && String(actionMenu.meeting?._id) === String(meeting._id)) {
-                              setActionMenu(null);
-                            } else {
-                              setParticipantsPopover(null);
-                              const r = e.currentTarget.getBoundingClientRect();
-                              setActionMenu({
-                                meeting,
-                                ...computeActionMenuPosition(r, countActionMenuItems(meeting)),
-                              });
-                            }
-                          }}
-                        >
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <circle cx="12" cy="12" r="1"/>
-                            <circle cx="12" cy="5" r="1"/>
-                            <circle cx="12" cy="19" r="1"/>
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                    </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
       </div>
-
-      {participantsPopover &&
-        createPortal(
-          <div
-            className="participants-dropdown client-admin-participants-popover"
-            style={{
-              position: 'fixed',
-              top: participantsPopover.top,
-              left: participantsPopover.left,
-              minWidth: participantsPopover.minWidth,
-              maxHeight: participantsPopover.maxHeight,
-              overflowY: 'auto',
-              zIndex: 10000,
-              marginTop: 0,
-            }}
-          >
-            {(
-              participantsPopover.participantRows ||
-              getParticipantRows(participantsPopover.meeting?.participants)
-            ).map((p, idx) => {
-              const row = normalizeParticipantForDisplay(p, idx);
-              return (
-                <div key={idx} className="participant-item">
-                  <div className="participant-name">{row.title}</div>
-                  {row.subtitle ? (
-                    <div className="participant-email">{row.subtitle}</div>
-                  ) : null}
-                  {row.role ? <div className="participant-role">{row.role}</div> : null}
-                </div>
-              );
-            })}
-          </div>,
-          document.body
-        )}
 
       {actionMenu &&
         createPortal(
