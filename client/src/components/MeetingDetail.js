@@ -110,9 +110,14 @@ const MeetingDetail = () => {
 
   useEffect(() => {
     fetchMeeting();
-    const interval = setInterval(fetchMeeting, 10000);
-    return () => clearInterval(interval);
   }, [id]);
+
+  useEffect(() => {
+    const ms =
+      meeting?.status === 'Completed' && meeting?.transcriptionStatus === 'Processing' ? 3000 : 10000;
+    const interval = setInterval(fetchMeeting, ms);
+    return () => clearInterval(interval);
+  }, [id, meeting?.status, meeting?.transcriptionStatus]);
 
   useEffect(() => {
     setStartRoomError('');
@@ -546,7 +551,34 @@ const MeetingDetail = () => {
               </button>
             )}
             {isCompleted && meeting.transcriptionEnabled && meeting.transcriptionStatus === 'Processing' && (
-              <p className="meeting-detail-hint">Summary is being generated. Check back in a moment.</p>
+              <div className="meeting-detail-processing-block">
+                <p className="meeting-detail-hint">
+                  Summary is being generated—this page refreshes every few seconds. You can open the summary page
+                  now to watch the same status.
+                </p>
+                <button
+                  type="button"
+                  className="meeting-detail-btn meeting-detail-btn--primary"
+                  onClick={() => navigate(`/meetings/${id}/summary`)}
+                >
+                  Open {T.meetingSummary()} page
+                </button>
+              </div>
+            )}
+            {isCompleted && meeting.transcriptionEnabled && meeting.transcriptionStatus === 'Failed' && (
+              <div className="meeting-detail-processing-block">
+                <p className="meeting-detail-hint meeting-detail-hint--error">
+                  Summary could not be generated. If you have a recording, use <strong>Retry transcription</strong>{' '}
+                  in Meeting Records (admin), then open the summary page again.
+                </p>
+                <button
+                  type="button"
+                  className="meeting-detail-btn meeting-detail-btn--secondary"
+                  onClick={() => navigate(`/meetings/${id}/summary`)}
+                >
+                  Open {T.meetingSummary()} page
+                </button>
+              </div>
             )}
           </div>
         </div>

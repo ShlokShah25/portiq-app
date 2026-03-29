@@ -14,15 +14,23 @@ export function getMeetingDisplayStatus(meeting) {
   const bot = String(meeting.conferenceBotStatus || '').toLowerCase();
   const tStatus = meeting.transcriptionStatus || '';
   const mStatus = meeting.status || '';
-  const hasSummary =
-    !!(meeting.summary || meeting.pendingSummary) &&
-    (tStatus === 'Completed' || meeting.transcriptionStatus === 'Completed');
 
-  if (mStatus === 'Completed' && hasSummary) {
+  const hasSummaryContent = !!(meeting.summary || meeting.pendingSummary);
+  const summaryReady =
+    mStatus === 'Completed' && tStatus === 'Completed' && hasSummaryContent;
+
+  if (summaryReady) {
     return { key: 'summary_ready', label: 'Summary Ready', variant: 'success' };
   }
-  if (tStatus === 'Processing' || tStatus === 'Recording') {
-    return { key: 'processing', label: 'Processing', variant: 'processing' };
+
+  if (tStatus === 'Processing') {
+    return { key: 'processing', label: 'Generating summary', variant: 'processing' };
+  }
+  if (tStatus === 'Recording') {
+    return { key: 'recording', label: 'Recording audio', variant: 'processing' };
+  }
+  if (mStatus === 'Completed' && tStatus === 'Failed') {
+    return { key: 'failed', label: 'Summary failed', variant: 'warn' };
   }
 
   if (online) {
@@ -44,7 +52,7 @@ export function getMeetingDisplayStatus(meeting) {
     return { key: 'joined', label: 'Live', variant: 'live' };
   }
   if (mStatus === 'Completed') {
-    return { key: 'processing', label: 'Processing', variant: 'processing' };
+    return { key: 'completed', label: 'Completed', variant: 'muted' };
   }
 
   return { key: 'scheduled', label: 'Scheduled', variant: 'muted' };
