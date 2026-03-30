@@ -144,9 +144,10 @@ const MeetingSummary = () => {
   /** Any state before distribution — not only strict "Pending Approval" (legacy rows may omit status). */
   const canEditAndSend = meeting.summaryStatus !== 'Sent' && hasContent;
 
+  const hasStoredTranscript = !!(meeting.transcription && String(meeting.transcription).trim());
   const canRetryTranscription =
     meeting.transcriptionEnabled &&
-    !!(meeting.audioFile && String(meeting.audioFile).trim()) &&
+    !!((meeting.audioFile && String(meeting.audioFile).trim()) || hasStoredTranscript) &&
     (meeting.transcriptionStatus === 'Failed' ||
       meeting.transcriptionStatus === 'Not Started' ||
       (meeting.transcriptionStatus === 'Completed' && !hasContent));
@@ -337,7 +338,7 @@ const MeetingSummary = () => {
                             Starting…
                           </>
                         ) : (
-                          'Regenerate summary from recording'
+                          'Regenerate summary'
                         )}
                       </button>
                     </div>

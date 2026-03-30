@@ -631,31 +631,44 @@ router.post('/meetings/:id/retry-transcription', authenticateAdmin, requireSubsc
     if (!meeting.transcriptionEnabled) {
       return res.status(400).json({ error: 'Transcription is not enabled for this meeting' });
     }
-    if (!meeting.audioFile || !String(meeting.audioFile).trim()) {
-      return res.status(400).json({
-        error:
-          'No recording is stored for this meeting. A summary can still exist from an earlier run; retry needs the original audio path in the database.',
-      });
-    }
 
-    const audioFilePath = resolveUploadPath(meeting.audioFile);
-    if (!audioFilePath || !fs.existsSync(audioFilePath)) {
+    const storedTranscript = String(meeting.transcription || '').trim();
+    const audioFilePath =
+      meeting.audioFile && String(meeting.audioFile).trim()
+        ? resolveUploadPath(meeting.audioFile)
+        : null;
+    const audioOnDisk = !!(audioFilePath && fs.existsSync(audioFilePath));
+
+    if (!audioOnDisk && !storedTranscript) {
+      if (!meeting.audioFile || !String(meeting.audioFile).trim()) {
+        return res.status(400).json({
+          error:
+            'No recording is stored for this meeting. A summary can still exist from an earlier run; retry needs the original audio path in the database.',
+        });
+      }
       return res.status(404).json({
         error:
           'Recording file is missing on this server (often after redeploy or disk reset). Upload a new recording or run a new meeting to transcribe again.',
+        details:
+          'There is also no saved transcript in the database for this meeting, so the summary cannot be rebuilt automatically.',
       });
     }
 
-    // Reset status and retry transcription
+    // Reset status and retry transcription (or regenerate summary from stored transcript)
     meeting.transcriptionStatus = 'Processing';
     await meeting.save();
 
-    const { transcribeAndSummarize, sendMeetingSummary } = require('../utils/meetingTranscription');
+    const { transcribeAndSummarize, generateMeetingSummaryFromTranscript } = require('../utils/meetingTranscription');
 
-    // Process transcription asynchronously
-    transcribeAndSummarize(audioFilePath, meeting, {
-      productType: req.admin?.productType,
-    })
+    const retryPromise = audioOnDisk
+      ? transcribeAndSummarize(audioFilePath, meeting, {
+          productType: req.admin?.productType,
+        })
+      : generateMeetingSummaryFromTranscript(storedTranscript, meeting, {
+          productType: req.admin?.productType,
+        });
+
+    retryPromise
       .then(async (summaryData) => {
         const safeParseDate = (value) => {
           if (!value) return undefined;
@@ -721,10 +734,12 @@ router.post('/meetings/:id/retry-transcription', authenticateAdmin, requireSubsc
         meeting.save();
       });
 
-    res.json({ 
-      success: true, 
-      message: 'Transcription retry started',
-      meeting 
+    res.json({
+      success: true,
+      message: audioOnDisk
+        ? 'Transcription retry started'
+        : 'Summary regeneration started from the transcript saved in the database (recording file is unavailable).',
+      meeting,
     });
   } catch (error) {
     console.error('Error retrying transcription:', error);

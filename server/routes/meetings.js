@@ -2,7 +2,12 @@ const express = require('express');
 const router = express.Router();
 const Meeting = require('../models/Meeting');
 const VoiceProfile = require('../models/VoiceProfile');
-const { transcribeAndSummarize, sendMeetingSummary, getMailTransporter } = require('../utils/meetingTranscription');
+const {
+  transcribeAndSummarize,
+  generateMeetingSummaryFromTranscript,
+  sendMeetingSummary,
+  getMailTransporter,
+} = require('../utils/meetingTranscription');
 const { getPlanConstraints } = require('../utils/planConstraints');
 const { resolveUploadPath } = require('../utils/resolveUploadPath');
 const { subscriptionDeniedResponse } = require('../utils/subscriptionGate');
@@ -836,7 +841,9 @@ router.post('/:id/retry-transcription', async (req, res) => {
     const fresh = await Meeting.findById(meeting._id);
     res.json({
       success: true,
-      message: 'Transcription retry started',
+      message: audioOnDisk
+        ? 'Transcription retry started'
+        : 'Summary regeneration started from the transcript saved in the database (recording file is unavailable).',
       meeting: fresh,
     });
   } catch (error) {
