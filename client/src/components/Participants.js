@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { Calendar, CheckSquare } from 'lucide-react';
 import TopNav from './TopNav';
@@ -82,6 +82,13 @@ export function ParticipantBookPanel({ embedded = false }) {
       fetchVoiceProfiles(emails);
     }
   }, [participants]);
+
+  const voiceReadyCount = useMemo(() => {
+    return participants.filter((p) => {
+      const em = p.email && String(p.email).trim();
+      return em && voiceProfiles[em]?.hasProfile;
+    }).length;
+  }, [participants, voiceProfiles]);
 
   const loadParticipants = async () => {
     try {
@@ -365,92 +372,88 @@ export function ParticipantBookPanel({ embedded = false }) {
         {!embedded && <TopNav />}
         <div className={wrapperClass}>
           <div className="participants-content">
-            <div className="loading">Loading...</div>
+            <div className={`participant-book participant-book--loading ${embedded ? 'participant-book--embedded' : ''}`}>
+              <div className="participant-book-skeleton" aria-busy="true" aria-label="Loading participant book">
+                <div className="participant-book-skeleton__hero" />
+                <div className="participant-book-skeleton__grid">
+                  <div className="participant-book-skeleton__card" />
+                  <div className="participant-book-skeleton__card" />
+                  <div className="participant-book-skeleton__card" />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
+  const addButton = (
+    <button
+      type="button"
+      className="participant-book-hero__add btn btn-primary"
+      onClick={() => setShowAddForm(!showAddForm)}
+    >
+      {!showAddForm && (
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          aria-hidden="true"
+        >
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+      )}
+      {showAddForm ? 'Cancel' : 'Add person'}
+    </button>
+  );
+
   return (
     <div className={rootClass}>
       {!embedded && <TopNav />}
       <div className={wrapperClass}>
-        <div
-          className={
-            embedded ? 'participants-top-bar participants-top-bar--embedded' : 'participants-top-bar'
-          }
-        >
-          {embedded ? (
-            <>
-              <div className="participants-top-bar-embedded-left">
-                {maxInBook != null && (
-                  <p className="participants-limit-hint">
-                    {participants.length} / {maxInBook} participants
-                  </p>
-                )}
-              </div>
-              <button
-                className="btn btn-primary"
-                onClick={() => setShowAddForm(!showAddForm)}
-                type="button"
-              >
-                {!showAddForm && (
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    aria-hidden="true"
-                  >
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                  </svg>
-                )}
-                {showAddForm ? 'Cancel' : 'Add Participant'}
-              </button>
-            </>
-          ) : (
-            <>
-              <div>
-                <h1 className="participants-title">Team Intelligence</h1>
-                <p className="participants-intel-lead">
-                  {T.participantBook()} — execution context for voice, meetings, and assignments.
-                </p>
-                {maxInBook != null && (
-                  <p className="participants-limit-hint">
-                    {participants.length} / {maxInBook} participants
-                  </p>
-                )}
-              </div>
-              <button
-                className="btn btn-primary"
-                onClick={() => setShowAddForm(!showAddForm)}
-                type="button"
-              >
-                {!showAddForm && (
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    aria-hidden="true"
-                  >
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                  </svg>
-                )}
-                {showAddForm ? 'Cancel' : 'Add Participant'}
-              </button>
-            </>
-          )}
-        </div>
-
         <div className="participants-content">
+          <div className={`participant-book ${embedded ? 'participant-book--embedded' : ''}`}>
+            <header
+              className={`participant-book-hero ${embedded ? 'participant-book-hero--compact' : ''}`}
+            >
+              <div className="participant-book-hero__mesh" aria-hidden />
+              <div className="participant-book-hero__row">
+                <div className="participant-book-hero__copy">
+                  <p className="participant-book-hero__eyebrow">Workspace roster</p>
+                  <h1 className="participant-book-hero__title">{T.participantBook()}</h1>
+                  <p className="participant-book-hero__lead">
+                    People you meet with often — saved for invites, recaps, and voice matching in the room.
+                  </p>
+                  <div className="participant-book-hero__stats" aria-label="Roster summary">
+                    <div className="participant-book-stat">
+                      <span className="participant-book-stat__value">{participants.length}</span>
+                      <span className="participant-book-stat__label">Saved</span>
+                    </div>
+                    <div className="participant-book-stat">
+                      <span className="participant-book-stat__value">{voiceReadyCount}</span>
+                      <span className="participant-book-stat__label">Voice ready</span>
+                    </div>
+                    {maxInBook != null ? (
+                      <div className="participant-book-stat participant-book-stat--cap">
+                        <span className="participant-book-stat__value">
+                          {participants.length}
+                          <span className="participant-book-stat__sep">/</span>
+                          {maxInBook}
+                        </span>
+                        <span className="participant-book-stat__label">Plan cap</span>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="participant-book-hero__cta">{addButton}</div>
+              </div>
+            </header>
+
           {showAddForm && (
             <div className="add-participant-form">
               <h2>Add New to {T.participantBook()}</h2>
@@ -485,53 +488,52 @@ export function ParticipantBookPanel({ embedded = false }) {
             </div>
           )}
 
-          {/* Voice configuration guide */}
-          <div className="voice-guide-card">
-            <h2>Voice configuration guide</h2>
-            <p>
-              Configure a clear voice sample for each participant so the AI can
-              attribute speech correctly during the meeting.
-            </p>
-            <p className="voice-guide-accuracy-note">
-              This improves speaker identification accuracy in future meetings.
-            </p>
-            <ol>
-              <li>Click <strong>Configure Voice</strong> on a participant card.</li>
-              <li>
-                Ask them to clearly say: <em>“{VOICE_ENROLLMENT_BOOK_PHRASE}”</em>
-              </li>
-              <li>Wait for the upload to finish. The status will change to “Voice configured”.</li>
-            </ol>
-            <p
-              style={{
-                marginTop: '8px',
-                fontSize: '12px',
-                color: 'rgba(148, 163, 184, 0.95)',
-                fontStyle: 'italic',
-              }}
-            >
-              Voice recognition is AI-assisted and may not be 100% accurate at all times.
-              Please review meeting summaries and speaker attributions before sharing.
-            </p>
-          </div>
+          <details className="voice-guide-disclosure">
+            <summary className="voice-guide-disclosure__summary">Voice enrollment · how it works</summary>
+            <div className="voice-guide-disclosure__inner">
+              <p className="voice-guide-disclosure__lead">
+                A short voice sample helps the AI attribute speech to the right person during meetings.
+              </p>
+              <ol className="voice-guide-disclosure__list">
+                <li>
+                  On each person&apos;s card, choose <strong>Configure Voice</strong>.
+                </li>
+                <li>
+                  They say clearly: <em>&ldquo;{VOICE_ENROLLMENT_BOOK_PHRASE}&rdquo;</em>
+                </li>
+                <li>When upload finishes, the card shows &ldquo;Voice configured&rdquo;.</li>
+              </ol>
+              <p className="voice-guide-disclosure__fineprint">
+                Voice recognition is AI-assisted and may not be 100% accurate. Review summaries before
+                sharing.
+              </p>
+            </div>
+          </details>
 
           {participants.length === 0 ? (
-            <div className="empty-state">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                <circle cx="9" cy="7" r="4"></circle>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-              </svg>
-              <p>No team members saved yet</p>
-              <p className="empty-state-sub">Start a meeting to begin tracking insights.</p>
-              <button className="btn btn-primary" onClick={() => setShowAddForm(true)}>
-                Add First Participant
-              </button>
+            <div className="participant-book-empty">
+              <div className="participant-book-empty__glow" aria-hidden />
+              <div className="participant-book-empty__content">
+                <span className="participant-book-empty__icon" aria-hidden>
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+                  </svg>
+                </span>
+                <h2 className="participant-book-empty__title">Start your roster</h2>
+                <p className="participant-book-empty__desc">
+                  Add the people you meet with so invites and voice matching feel instant — nothing here
+                  yet.
+                </p>
+                <button type="button" className="btn btn-primary" onClick={() => setShowAddForm(true)}>
+                  Add first person
+                </button>
+              </div>
             </div>
           ) : (
             <>
-            <h2 className="participants-section-heading">Team Members</h2>
+            <h2 className="participants-section-heading">On this roster</h2>
             <div className="participants-grid">
               {participants.map((p, idx) => {
                 const participantName = p.name || p.email || 'This participant';
@@ -660,9 +662,9 @@ export function ParticipantBookPanel({ embedded = false }) {
             </div>
             </>
           )}
+          </div>
         </div>
       </div>
-
     </div>
   );
 }

@@ -156,8 +156,22 @@
 }
 
 .settings-workspace-embed {
-  margin-top: 8px;
+  margin-top: 12px;
   min-width: 0;
+  padding: 0;
+  border-radius: 18px;
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-soft-sm, 0 2px 12px rgba(0, 0, 0, 0.08));
+  overflow: hidden;
+}
+
+.settings-workspace-embed .participants-content {
+  padding: 20px 20px 28px;
+}
+
+.settings-workspace-embed .participant-book-hero {
+  margin: 0;
 }
 
 @keyframes settings-panel-in {

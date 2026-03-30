@@ -163,12 +163,25 @@ const Dashboard = () => {
       <TopNav />
       <div className="dashboard-wrapper">
         <div className="dashboard-content">
-          <div className="dashboard-header ux-dashboard-stagger" style={{ animationDelay: '0ms' }}>
-            <h1 className="dashboard-title">Dashboard</h1>
-            <p className="dashboard-subtitle">
-              Meeting execution and task intelligence across your workspace
-            </p>
-          </div>
+          <header
+            className="dashboard-hero-slab ux-dashboard-stagger"
+            style={{ animationDelay: '0ms' }}
+            aria-label="Dashboard overview"
+          >
+            <div className="dashboard-hero-slab__grid" aria-hidden />
+            <div className="dashboard-hero-slab__inner">
+              <div className="dashboard-hero-slab__copy">
+                <p className="dashboard-hero-slab__eyebrow">Command center</p>
+                <h1 className="dashboard-title dashboard-hero-slab__title">Dashboard</h1>
+                <p className="dashboard-subtitle dashboard-hero-slab__subtitle">
+                  Meeting execution and task intelligence across your workspace
+                </p>
+              </div>
+              <div className="dashboard-hero-slab__orb" aria-hidden>
+                <span className="dashboard-hero-slab__orb-ring" />
+              </div>
+            </div>
+          </header>
 
           <div
             className="dashboard-start-meeting card ux-dashboard-stagger"

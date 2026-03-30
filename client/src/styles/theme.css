@@ -60,6 +60,29 @@
   --card-hover-lift: translateY(-2px);
   --shadow-card-hover: 0 8px 32px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(59, 130, 246, 0.1);
 
+  /* Dashboard / cards — dark */
+  --shadow-soft-sm: 0 4px 24px rgba(0, 0, 0, 0.22);
+  --shadow-soft-lg: 0 12px 40px rgba(0, 0, 0, 0.38);
+  --dash-card-bg: linear-gradient(165deg, rgba(32, 32, 36, 0.98) 0%, rgba(24, 24, 28, 0.95) 100%);
+  --dash-chip-bg: linear-gradient(155deg, rgba(34, 34, 38, 0.95) 0%, rgba(26, 26, 30, 0.92) 100%);
+  --dash-chip-hover-bg: linear-gradient(155deg, rgba(36, 38, 48, 0.98) 0%, rgba(28, 30, 38, 0.95) 100%);
+  --dash-row-bg: #1c1c1e;
+  --dash-row-hover-bg: #222224;
+  --dash-metric-tile-hover: #202022;
+  --dash-subtle-hover: rgba(255, 255, 255, 0.04);
+  --dash-link-row-hover: rgba(255, 255, 255, 0.055);
+  --dash-chip-icon-bg: rgba(255, 255, 255, 0.06);
+  --dash-row-border: rgba(255, 255, 255, 0.1);
+  --dash-row-border-hover: rgba(255, 255, 255, 0.16);
+  --dash-divider-list: rgba(255, 255, 255, 0.06);
+  --scrollbar-thumb: #2a2a2a;
+  --scrollbar-thumb-hover: #3f3f46;
+  --nav-surface: linear-gradient(180deg, rgba(10, 10, 14, 0.88) 0%, rgba(0, 0, 0, 0.78) 100%);
+  --nav-hover-bg: rgba(255, 255, 255, 0.06);
+  --nav-active-bg: rgba(255, 255, 255, 0.08);
+  --nav-logout-bg: rgba(28, 28, 30, 0.85);
+  --nav-shadow: 0 10px 40px rgba(0, 0, 0, 0.45), 0 1px 0 rgba(59, 130, 246, 0.06);
+
   /* Legacy aliases used across older CSS */
   --accent-color: var(--accent-blue);
   --info-color: var(--accent-blue);
@@ -86,6 +109,7 @@
   --text-label: #6b7280;
 
   --accent-blue: #2563eb;
+  --accent-hover: #1d4ed8;
   --accent-blue-dim: rgba(37, 99, 235, 0.12);
   --badge-bg: rgba(37, 99, 235, 0.12);
   --badge-border: rgba(37, 99, 235, 0.2);
@@ -102,6 +126,29 @@
 
   --shadow-card-hover: 0 10px 40px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(37, 99, 235, 0.08);
   --gradient-page-ambient: var(--page-ambient-gradient);
+
+  /* Dashboard — light (solid surfaces, soft shadows) */
+  --shadow-soft-sm: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-soft-lg: 0 12px 40px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(15, 23, 42, 0.04);
+  --dash-card-bg: var(--surface-card);
+  --dash-chip-bg: var(--surface-card);
+  --dash-chip-hover-bg: var(--bg-elevated);
+  --dash-row-bg: var(--surface-card);
+  --dash-row-hover-bg: var(--surface-secondary);
+  --dash-metric-tile-hover: var(--bg-elevated);
+  --dash-subtle-hover: rgba(15, 23, 42, 0.04);
+  --dash-link-row-hover: rgba(15, 23, 42, 0.04);
+  --dash-chip-icon-bg: rgba(15, 23, 42, 0.06);
+  --dash-row-border: var(--border-color);
+  --dash-row-border-hover: var(--border-strong);
+  --dash-divider-list: var(--divider);
+  --scrollbar-thumb: #d1d5db;
+  --scrollbar-thumb-hover: #9ca3af;
+  --nav-surface: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(249, 250, 251, 0.96) 100%);
+  --nav-hover-bg: rgba(15, 23, 42, 0.06);
+  --nav-active-bg: rgba(37, 99, 235, 0.1);
+  --nav-logout-bg: var(--surface-card);
+  --nav-shadow: 0 1px 0 rgba(15, 23, 42, 0.06), 0 4px 24px rgba(15, 23, 42, 0.04);
 }
 
 body {
