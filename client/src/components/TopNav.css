@@ -8,10 +8,11 @@
   left: 0;
   right: 0;
   height: 64px;
-  background: rgba(0, 0, 0, 0.72);
+  background: linear-gradient(180deg, rgba(10, 10, 14, 0.88) 0%, rgba(0, 0, 0, 0.78) 100%);
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
-  border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45), 0 1px 0 rgba(59, 130, 246, 0.06);
   z-index: 1000;
   display: flex;
   align-items: center;

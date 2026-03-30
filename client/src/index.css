@@ -1,3 +1,15 @@
+:root {
+  --radius-soft: 14px;
+  --radius-card: 16px;
+  --shadow-soft-lg: 0 12px 40px rgba(0, 0, 0, 0.38);
+  --shadow-soft-sm: 0 4px 24px rgba(0, 0, 0, 0.22);
+  --shadow-glow-blue: 0 4px 28px rgba(59, 130, 246, 0.32), 0 0 0 1px rgba(59, 130, 246, 0.14);
+  --gradient-accent: linear-gradient(135deg, #3b82f6 0%, #2563eb 48%, #1d4ed8 100%);
+  --gradient-page-ambient: radial-gradient(ellipse 85% 55% at 50% -18%, rgba(59, 130, 246, 0.11), transparent 52%),
+    radial-gradient(ellipse 50% 45% at 100% 30%, rgba(99, 102, 241, 0.06), transparent 48%),
+    radial-gradient(ellipse 45% 35% at 0% 75%, rgba(14, 165, 233, 0.05), transparent 42%);
+}
+
 * {
   margin: 0;
   padding: 0;

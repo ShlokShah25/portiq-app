@@ -280,21 +280,29 @@
   width: 100%;
   min-height: 44px;
   padding: 0 16px;
-  border-radius: 10px;
+  border-radius: var(--radius-soft, 14px);
   font-size: 14px;
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
   border: none;
+  transition: transform 0.22s ease, box-shadow 0.22s ease, filter 0.2s ease, opacity 0.2s ease;
 }
 
 .start-meeting-btn--primary {
-  background: #3b82f6;
+  background: var(--gradient-accent);
   color: #fff;
+  box-shadow: var(--shadow-glow-blue);
 }
 
 .start-meeting-btn--primary:hover:not(:disabled) {
-  filter: brightness(1.06);
+  filter: brightness(1.05);
+  transform: scale(1.02);
+  box-shadow: 0 6px 32px rgba(59, 130, 246, 0.4), 0 0 0 1px rgba(96, 165, 250, 0.18);
+}
+
+.start-meeting-btn--primary:active:not(:disabled) {
+  transform: scale(0.99);
 }
 
 .start-meeting-btn--primary:disabled {

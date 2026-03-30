@@ -81,13 +81,35 @@
   gap: 10px;
 }
 
+.meeting-summary-btn--primary.mip-btn-start-recording {
+  box-shadow: 0 4px 32px rgba(59, 130, 246, 0.38), 0 0 24px rgba(248, 113, 113, 0.12);
+}
+
+.meeting-summary-btn--primary.mip-btn-start-recording:hover:not(:disabled) {
+  box-shadow: 0 6px 40px rgba(59, 130, 246, 0.45), 0 0 32px rgba(248, 113, 113, 0.16);
+}
+
 .mip-record-dot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
   background: #fecaca;
-  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.35);
-  animation: pulse 1.5s ease-in-out infinite;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.35), 0 0 14px rgba(239, 68, 68, 0.45);
+  animation: mip-record-dot-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes mip-record-dot-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.35), 0 0 14px rgba(239, 68, 68, 0.4);
+  }
+  50% {
+    opacity: 0.92;
+    transform: scale(1.1);
+    box-shadow: 0 0 0 5px rgba(239, 68, 68, 0.22), 0 0 22px rgba(239, 68, 68, 0.55);
+  }
 }
 
 .mip-btn-stop-upload {
@@ -125,11 +147,19 @@
   background: #dc2626;
   border-color: #dc2626;
   color: #fff;
+  border-radius: var(--radius-soft, 14px);
+  box-shadow: 0 4px 18px rgba(220, 38, 38, 0.25);
+  transition: transform 0.22s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.22s ease;
 }
 
 .mip-btn-end-meeting:hover:not(:disabled) {
   background: #b91c1c;
   border-color: #b91c1c;
+  transform: scale(1.02);
+}
+
+.mip-btn-end-meeting:active:not(:disabled) {
+  transform: scale(0.99);
 }
 
 .meeting-status-badge {
@@ -600,5 +630,16 @@
   .meeting-details-grid,
   .mip-details-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mip-record-dot {
+    animation: none;
+  }
+
+  .meeting-summary-btn--primary.mip-btn-start-recording:hover:not(:disabled),
+  .mip-btn-end-meeting:hover:not(:disabled) {
+    transform: none;
   }
 }
