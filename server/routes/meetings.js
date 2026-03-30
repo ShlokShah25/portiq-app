@@ -735,6 +735,117 @@ router.post('/:id/end', upload.single('audio'), async (req, res) => {
 });
 
 /**
+ * Retry transcription (same behavior as POST /admin/meetings/:id/retry-transcription).
+ * Exposed on the main meetings API so the meeting summary page can recover after failures
+ * without opening the separate admin console.
+ */
+router.post('/:id/retry-transcription', async (req, res) => {
+  try {
+    const meeting = await Meeting.findById(req.params.id);
+    if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
+
+    const admin = await getAdminFromRequest(req);
+    if (!admin) {
+      return res.status(401).json({ error: 'Sign in to retry transcription.' });
+    }
+    if (!canAccessMeeting(meeting, admin)) {
+      return res.status(404).json({ error: 'Meeting not found' });
+    }
+    const denied = subscriptionDeniedResponse(admin);
+    if (denied) {
+      return res.status(denied.status).json(denied.json);
+    }
+
+    if (!meeting.transcriptionEnabled) {
+      return res.status(400).json({ error: 'Transcription is not enabled for this meeting' });
+    }
+    if (!meeting.audioFile || !String(meeting.audioFile).trim()) {
+      return res.status(400).json({
+        error:
+          'No recording is stored for this meeting. A summary can still exist from an earlier run; retry needs the original audio path in the database.',
+      });
+    }
+
+    const audioFilePath = resolveUploadPath(meeting.audioFile);
+    if (!audioFilePath || !fs.existsSync(audioFilePath)) {
+      return res.status(404).json({
+        error:
+          'Recording file is missing on this server (often after redeploy or disk reset). Upload a new recording or run a new meeting to transcribe again.',
+      });
+    }
+
+    const safeParseDate = (value) => {
+      if (!value) return undefined;
+      const d = new Date(value);
+      return Number.isNaN(d.getTime()) ? undefined : d;
+    };
+
+    await Meeting.findByIdAndUpdate(meeting._id, {
+      $set: { transcriptionStatus: 'Processing' },
+    });
+
+    transcribeAndSummarize(audioFilePath, meeting, {
+      productType: admin?.productType,
+    })
+      .then(async (summaryData) => {
+        const safeActionItems = (summaryData.actionItems || []).map((item) => ({
+          task: item.task || '',
+          assignee: item.assignee || '',
+          dueDate: safeParseDate(item.dueDate),
+          status: 'not_started',
+          reviewReminderSent: false,
+          reviewReminderSentAt: null,
+        }));
+
+        const update = {
+          transcription: summaryData.transcription,
+          summary: summaryData.summary,
+          keyPoints: summaryData.keyPoints,
+          actionItems: safeActionItems,
+          decisions: summaryData.decisions || [],
+          nextSteps: summaryData.nextSteps || [],
+          importantNotes: summaryData.importantNotes || [],
+          originalSummary: summaryData.summary,
+          originalKeyPoints: summaryData.keyPoints || [],
+          originalActionItems: safeActionItems,
+          originalDecisions: summaryData.decisions || [],
+          originalNextSteps: summaryData.nextSteps || [],
+          originalImportantNotes: summaryData.importantNotes || [],
+          pendingSummary: summaryData.summary,
+          pendingKeyPoints: summaryData.keyPoints || [],
+          pendingActionItems: safeActionItems,
+          pendingDecisions: summaryData.decisions || [],
+          pendingNextSteps: summaryData.nextSteps || [],
+          pendingImportantNotes: summaryData.importantNotes || [],
+          transcriptionStatus: 'Completed',
+          summaryStatus: 'Pending Approval',
+        };
+
+        await Meeting.findByIdAndUpdate(meeting._id, { $set: update }, { new: true });
+        console.log('✅ Transcription retry completed. Summary pending approval from authorized editor.');
+      })
+      .catch((error) => {
+        console.error('Transcription retry error:', error);
+        Meeting.findByIdAndUpdate(meeting._id, { $set: { transcriptionStatus: 'Failed' } }).catch(
+          (e) => {
+            console.error('Failed to mark transcription as failed:', e);
+          }
+        );
+      });
+
+    const fresh = await Meeting.findById(meeting._id);
+    res.json({
+      success: true,
+      message: 'Transcription retry started',
+      meeting: fresh,
+    });
+  } catch (error) {
+    console.error('Error retrying transcription:', error);
+    res.status(500).json({ error: 'Failed to retry transcription' });
+  }
+});
+
+/**
  * Schedule a follow-up meeting: save "what we covered", optionally end the current session,
  * create a new scheduled meeting linked as continuation, optionally email participants.
  */

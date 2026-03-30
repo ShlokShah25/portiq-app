@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
@@ -44,10 +44,22 @@ const Meetings = () => {
   });
   /** Snapshot meeting + geometry so the menu never disappears when find() fails on _id shape. */
   const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
+  const [transcriptionNotice, setTranscriptionNotice] = useState('');
+  const transcriptionPollRef = useRef(null);
 
   useEffect(() => {
     fetchMeetings();
   }, [filters]);
+
+  useEffect(
+    () => () => {
+      if (transcriptionPollRef.current) {
+        clearInterval(transcriptionPollRef.current);
+        transcriptionPollRef.current = null;
+      }
+    },
+    []
+  );
 
   useEffect(() => {
     if (!actionMenuAnchor) return undefined;
@@ -69,8 +81,9 @@ const Meetings = () => {
     };
   }, [actionMenuAnchor]);
 
-  const fetchMeetings = async () => {
-    setLoading(true);
+  const fetchMeetings = async (opts = {}) => {
+    const silent = opts.silent === true;
+    if (!silent) setLoading(true);
     try {
       const params = {};
       if (filters.status) params.status = filters.status;
@@ -82,7 +95,7 @@ const Meetings = () => {
     } catch (error) {
       console.error('Error fetching meetings:', error);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -286,6 +299,23 @@ const Meetings = () => {
             </button>
           </div>
         </div>
+
+        {transcriptionNotice && (
+          <div
+            style={{
+              marginBottom: '16px',
+              padding: '12px 16px',
+              borderRadius: '8px',
+              background: '#eff6ff',
+              border: '1px solid #bfdbfe',
+              color: '#1e40af',
+              fontSize: '14px',
+            }}
+            role="status"
+          >
+            {transcriptionNotice}
+          </div>
+        )}
 
         <div className="card">
           <h2>Filters</h2>
@@ -690,10 +720,31 @@ const Meetings = () => {
                         await axios.post(
                           `/admin/meetings/${actionMenuAnchor.meeting._id}/retry-transcription`
                         );
-                        alert('Transcription retry started. Please refresh the page in a few moments.');
-                        fetchMeetings();
+                        setTranscriptionNotice(
+                          'Transcription is running. The list refreshes every few seconds—no manual refresh needed.'
+                        );
+                        fetchMeetings({ silent: true });
+                        if (transcriptionPollRef.current) {
+                          clearInterval(transcriptionPollRef.current);
+                          transcriptionPollRef.current = null;
+                        }
+                        transcriptionPollRef.current = window.setInterval(() => {
+                          fetchMeetings({ silent: true });
+                        }, 4000);
+                        window.setTimeout(() => {
+                          if (transcriptionPollRef.current) {
+                            clearInterval(transcriptionPollRef.current);
+                            transcriptionPollRef.current = null;
+                          }
+                          setTranscriptionNotice('');
+                        }, 180000);
                       } catch (error) {
-                        alert('Error: ' + (error.response?.data?.error || error.message));
+                        const d = error.response?.data;
+                        alert(
+                          [d?.error, d?.details].filter(Boolean).join(' ') ||
+                            error.message ||
+                            'Retry failed.'
+                        );
                       }
                     }
                   }}

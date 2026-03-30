@@ -313,8 +313,25 @@
   font-size: 15px;
   text-align: center;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 12px;
+}
+
+.meeting-summary-empty-message {
+  margin: 0;
+  max-width: 42rem;
+  line-height: 1.55;
+}
+
+.meeting-summary-retry-row {
+  margin-top: 4px;
+}
+
+.meeting-summary-retry-error {
+  margin-top: 0;
+  max-width: 42rem;
 }
 
 .meeting-summary-content {

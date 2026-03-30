@@ -42,6 +42,29 @@ function safeListParticipantNames(participants = []) {
     .slice(0, 40);
 }
 
+/** Only real-looking emails — avoids junk like "unknown" breaking VoiceProfile lookups. */
+function isValidEmailForLookup(email) {
+  if (!email || typeof email !== 'string') return false;
+  const t = email.trim();
+  return /\S+@\S+\.\S+/.test(t);
+}
+
+/**
+ * Participant lines for summary prompts — does not fail on unnamed guests; avoids repeating "Unknown".
+ */
+function formatParticipantLinesForSummaryPrompt(participants) {
+  const arr = Array.isArray(participants) ? participants : [];
+  return arr
+    .map((p, i) => {
+      const name = p && p.name ? String(p.name).trim() : '';
+      const email = p && p.email ? String(p.email).trim() : '';
+      const local = email && email.includes('@') ? email.split('@')[0] : '';
+      const label = name || local || `Participant ${i + 1}`;
+      return `- ${label}${email ? ` (${email})` : ''}`;
+    })
+    .join('\n');
+}
+
 function extractGroundingKeywords(text) {
   const s = String(text || '');
   const stop = new Set([
@@ -338,8 +361,8 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
       try {
         // Get voice profiles for all participants
         const participantEmails = meetingObj.participants
-          .filter(p => p.email)
-          .map(p => p.email.toLowerCase());
+          .filter((p) => p && isValidEmailForLookup(p.email))
+          .map((p) => p.email.trim().toLowerCase());
         
         if (participantEmails.length > 0) {
           const voiceProfiles = await VoiceProfile.find({
@@ -351,7 +374,13 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
             
             // Add participant context to transcript for better speaker attribution
             const participantList = meetingObj.participants
-              .map(p => `${p.name || p.email} (${p.email})`)
+              .map((p, i) => {
+                const name = p && p.name ? String(p.name).trim() : '';
+                const email = p && p.email ? String(p.email).trim() : '';
+                if (!name && !email) return `Participant ${i + 1} (no email on file)`;
+                if (email) return `${name || email.split('@')[0]} (${email})`;
+                return name;
+              })
               .join(', ');
             
             transcriptWithSpeakers = `Participants in this meeting: ${participantList}\n\n` +
@@ -473,11 +502,9 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
               : '') +
             // Add participant names to help Whisper recognize them
             (meetingObj.participants && meetingObj.participants.length > 0
-              ? `IMPORTANT: The following people are participants in this meeting. When you see their names mentioned in the transcript, use the EXACT spelling provided here:\n` +
-                meetingObj.participants
-                  .map(p => `- ${p.name || p.email || 'Unknown'}`)
-                  .join('\n') +
-                `\n\nPlease ensure all participant names in the summary, action items, and decisions match the exact spelling above.\n\n`
+              ? `IMPORTANT: The following people are expected participants (some may be unnamed or guests). When names appear in the transcript, prefer the spellings below when they match:\n` +
+                formatParticipantLinesForSummaryPrompt(meetingObj.participants) +
+                `\n\nEnsure names in the summary and action items match the transcript; do not invent people who did not speak.\n\n`
               : '') +
             `Transcript:\n\n${transcriptWithSpeakers}\n\n` +
             `Follow these rules strictly:\n` +

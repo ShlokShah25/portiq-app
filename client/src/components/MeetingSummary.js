@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import TopNav from './TopNav';
@@ -19,24 +19,47 @@ const MeetingSummary = () => {
   const [saving, setSaving] = useState(false);
   const [translationLanguage, setTranslationLanguage] = useState('');
   const [allowsTranslatedSummary, setAllowsTranslatedSummary] = useState(false);
+  const [retryBusy, setRetryBusy] = useState(false);
+  const [retryError, setRetryError] = useState('');
 
-  const fetchMeeting = async () => {
-    if (!id) return;
-    try {
-      const res = await axios.get(`/meetings/${id}`);
-      setMeeting(res.data.meeting);
-      setError('');
-    } catch (err) {
-      setError(err.response?.data?.error || 'Meeting not found');
-      setMeeting(null);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const fetchMeeting = useCallback(
+    async (opts = {}) => {
+      const silent = opts.silent === true;
+      if (!id) return;
+      if (!silent) setLoading(true);
+      try {
+        const res = await axios.get(`/meetings/${id}`);
+        setMeeting(res.data.meeting);
+        setError('');
+      } catch (err) {
+        const d = err.response?.data;
+        setError(
+          [d?.error, d?.details].filter(Boolean).join(' ') || 'Meeting not found'
+        );
+        setMeeting(null);
+      } finally {
+        if (!silent) setLoading(false);
+      }
+    },
+    [id]
+  );
 
   useEffect(() => {
+    if (!id) return;
+    setLoading(true);
     fetchMeeting();
-  }, [id]);
+  }, [id, fetchMeeting]);
+
+  /** While the server is transcribing, poll so the summary appears without a manual refresh. */
+  useEffect(() => {
+    if (!id) return;
+    if (meeting?.transcriptionStatus !== 'Processing') return;
+
+    const t = setInterval(() => {
+      fetchMeeting({ silent: true });
+    }, 4000);
+    return () => clearInterval(t);
+  }, [meeting?.transcriptionStatus, id, fetchMeeting]);
 
   useEffect(() => {
     let cancelled = false;
@@ -121,6 +144,29 @@ const MeetingSummary = () => {
   /** Any state before distribution — not only strict "Pending Approval" (legacy rows may omit status). */
   const canEditAndSend = meeting.summaryStatus !== 'Sent' && hasContent;
 
+  const canRetryTranscription =
+    meeting.transcriptionEnabled &&
+    !!(meeting.audioFile && String(meeting.audioFile).trim()) &&
+    (meeting.transcriptionStatus === 'Failed' ||
+      meeting.transcriptionStatus === 'Not Started' ||
+      (meeting.transcriptionStatus === 'Completed' && !hasContent));
+
+  const handleRetryTranscription = async () => {
+    setRetryBusy(true);
+    setRetryError('');
+    try {
+      await axios.post(`/meetings/${id}/retry-transcription`);
+      await fetchMeeting({ silent: true });
+    } catch (err) {
+      const d = err.response?.data;
+      setRetryError(
+        [d?.error, d?.details].filter(Boolean).join(' ') || 'Failed to retry transcription.'
+      );
+    } finally {
+      setRetryBusy(false);
+    }
+  };
+
   const startEditing = () => {
     setEditableSummary({
       summary: summaryText,
@@ -168,7 +214,10 @@ const MeetingSummary = () => {
       alert(msg);
       navigate('/meetings');
     } catch (err) {
-      setActionError(err.response?.data?.error || 'Failed to save or send summary.');
+      const d = err.response?.data;
+      setActionError(
+        [d?.error, d?.details].filter(Boolean).join(' ') || 'Failed to save or send summary.'
+      );
     } finally {
       setSaving(false);
     }
@@ -260,7 +309,40 @@ const MeetingSummary = () => {
                   </span>
                 </p>
               ) : (
-                'No summary available yet.'
+                <>
+                  <p className="meeting-summary-empty-message">
+                    {meeting.transcriptionStatus === 'Failed'
+                      ? 'Transcription or summarization did not finish successfully. If a recording is still on file, you can try again.'
+                      : meeting.status === 'Completed' &&
+                          meeting.transcriptionStatus === 'Not Started'
+                        ? 'No recording was processed for this session, so no AI summary was generated. If you ended the meeting without uploading or saving audio, that is expected.'
+                        : 'No summary available yet.'}
+                  </p>
+                  {retryError && (
+                    <div className="meeting-summary-action-error meeting-summary-retry-error">
+                      {retryError}
+                    </div>
+                  )}
+                  {canRetryTranscription && (
+                    <div className="meeting-summary-retry-row">
+                      <button
+                        type="button"
+                        className="meeting-summary-btn meeting-summary-btn--primary"
+                        disabled={retryBusy}
+                        onClick={handleRetryTranscription}
+                      >
+                        {retryBusy ? (
+                          <>
+                            <span className="meeting-summary-btn-spinner" aria-hidden />
+                            Starting…
+                          </>
+                        ) : (
+                          'Regenerate summary from recording'
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}

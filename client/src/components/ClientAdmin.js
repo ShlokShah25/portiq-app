@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Fragment } from 'react';
+import React, { useState, useEffect, useRef, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './ClientAdmin.css';
@@ -70,6 +70,8 @@ const ClientAdmin = () => {
   const [rescheduleMeeting, setRescheduleMeeting] = useState(null);
   const [rescheduleDate, setRescheduleDate] = useState('');
   const [rescheduleTime, setRescheduleTime] = useState('');
+  const [transcriptionNotice, setTranscriptionNotice] = useState('');
+  const transcriptionPollRef = useRef(null);
 
   useEffect(() => {
     const token = localStorage.getItem('clientAdminToken');
@@ -82,9 +84,22 @@ const ClientAdmin = () => {
     // Primitives only — avoid re-fetching on every render if `filters` object identity churns.
   }, [filters.status, filters.meetingRoom, filters.date, navigate]);
 
-  const fetchMeetings = async () => {
-    setLoading(true);
-    setTableExpand(null);
+  useEffect(
+    () => () => {
+      if (transcriptionPollRef.current) {
+        clearInterval(transcriptionPollRef.current);
+        transcriptionPollRef.current = null;
+      }
+    },
+    []
+  );
+
+  const fetchMeetings = async (opts = {}) => {
+    const silent = opts.silent === true;
+    if (!silent) {
+      setLoading(true);
+      setTableExpand(null);
+    }
     try {
       const params = {};
       if (filters.status) params.status = filters.status;
@@ -99,7 +114,7 @@ const ClientAdmin = () => {
         handleLogout();
       }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -221,12 +236,29 @@ const ClientAdmin = () => {
     if (!confirm('Retry transcription for this meeting?')) return;
     try {
       await axios.post(`/admin/meetings/${meeting._id}/retry-transcription`);
-      alert('Transcription retry initiated. Please refresh to see updates.');
-      fetchMeetings();
+      setTranscriptionNotice(
+        'Transcription is running. This list refreshes every few seconds—you can stay on this page.'
+      );
+      fetchMeetings({ silent: true });
+      if (transcriptionPollRef.current) {
+        clearInterval(transcriptionPollRef.current);
+        transcriptionPollRef.current = null;
+      }
+      transcriptionPollRef.current = window.setInterval(() => {
+        fetchMeetings({ silent: true });
+      }, 4000);
+      window.setTimeout(() => {
+        if (transcriptionPollRef.current) {
+          clearInterval(transcriptionPollRef.current);
+          transcriptionPollRef.current = null;
+        }
+        setTranscriptionNotice('');
+      }, 180000);
     } catch (error) {
       console.error('Error retrying transcription:', error);
+      const d = error.response?.data;
       const msg =
-        error.response?.data?.error ||
+        [d?.error, d?.details].filter(Boolean).join(' ') ||
         error.response?.data?.message ||
         error.message ||
         'Failed to retry transcription.';
@@ -293,6 +325,12 @@ const ClientAdmin = () => {
           </div>
         </div>
       </div>
+
+      {transcriptionNotice && (
+        <div className="client-admin-transcription-notice" role="status">
+          {transcriptionNotice}
+        </div>
+      )}
 
       <div className="client-admin-content">
         {/* Filters */}
