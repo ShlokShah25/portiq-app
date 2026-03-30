@@ -170,11 +170,7 @@ const Profile = () => {
           <div className="profile-section">
             <h2>Workspace</h2>
             <p className="profile-workspace-links">
-              <Link to="/settings#settings-participant-book">Participant book in Settings</Link>
-              <span className="profile-workspace-sep" aria-hidden>
-                ·
-              </span>
-              <Link to="/participants">Open participant book</Link>
+              <Link to="/settings">Workspace settings</Link>
             </p>
           </div>
 
