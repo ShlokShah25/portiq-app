@@ -55,7 +55,7 @@ const Dashboard = ({ config }) => {
       <TopNav />
       <div className="dashboard-wrapper">
         <div className="dashboard-content">
-          <div className="dashboard-header">
+          <div className="dashboard-header ux-dashboard-stagger" style={{ animationDelay: '0ms' }}>
             <h1 className="dashboard-title">Dashboard</h1>
             <p className="dashboard-subtitle">
               Meeting execution and task intelligence across your workspace
@@ -87,7 +87,11 @@ const Dashboard = ({ config }) => {
             </div>
           </div>
 
-          <div className="dashboard-metrics" aria-label="Task and meeting shortcuts">
+          <div
+            className="dashboard-metrics ux-dashboard-stagger"
+            aria-label="Task and meeting shortcuts"
+            style={{ animationDelay: '110ms' }}
+          >
             <Link
               to="/dashboard/tasks/due-tomorrow"
               className="metric-card metric-card--tile"

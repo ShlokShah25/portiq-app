@@ -19,6 +19,8 @@ import {
   BookUser,
   ChevronDown,
   Search,
+  Play,
+  CalendarPlus,
 } from 'lucide-react';
 import { isEducation } from '../config/product';
 import { getClassrooms } from '../utils/classroomsStorage';
@@ -78,6 +80,8 @@ function resetAllState(setters) {
   setters.setError('');
   setters.setLoading(false);
   setters.setVoiceRecognitionEnabled(true);
+  if (setters.setOptionalDetailsOpen) setters.setOptionalDetailsOpen(false);
+  if (setters.setCreateFlowStep) setters.setCreateFlowStep(isEducation ? 'schedule' : 'choose');
 }
 
 /**
@@ -116,6 +120,9 @@ export default function MeetingCreateForm({
   const [participantDropdownOpen, setParticipantDropdownOpen] = useState(false);
   const [participantSearchQuery, setParticipantSearchQuery] = useState('');
   const participantDropdownRef = useRef(null);
+  const [createFlowStep, setCreateFlowStep] = useState(() => (isEducation ? 'schedule' : 'choose'));
+  const [optionalDetailsOpen, setOptionalDetailsOpen] = useState(false);
+  const [adminHostEmail, setAdminHostEmail] = useState('');
 
   const runReset = useCallback(() => {
     try {
@@ -141,6 +148,8 @@ export default function MeetingCreateForm({
       setError,
       setLoading,
       setVoiceRecognitionEnabled,
+      setOptionalDetailsOpen,
+      setCreateFlowStep,
     });
     setParticipantDropdownOpen(false);
     setParticipantSearchQuery('');
@@ -160,8 +169,10 @@ export default function MeetingCreateForm({
         const a = res.data?.admin;
         const o = (a?.email && String(a.email).trim()) || (a?.username && String(a.username).trim()) || '';
         setOrganizer(o);
+        setAdminHostEmail(a?.email && String(a.email).trim() ? String(a.email).trim() : '');
       } catch {
         setOrganizer('');
+        setAdminHostEmail('');
       }
       if (!isEducation) {
         setParticipantBookError('');
@@ -275,9 +286,6 @@ export default function MeetingCreateForm({
   };
 
   const validateCommon = () => {
-    const { title, agenda } = splitTitleAgenda(titleAgendaCombined);
-    if (!title.trim()) return 'Meeting title is required.';
-    if (!agenda.trim()) return 'Agenda is required.';
     if (!scheduledDate || !scheduledTime) return 'Meeting date and time are required.';
     if (!scheduledIso()) return 'Invalid date or time.';
     if (!organizer.trim()) return 'Organizer is required.';
@@ -308,17 +316,89 @@ export default function MeetingCreateForm({
 
   const buildBody = (extra) => {
     const { title, agenda } = splitTitleAgenda(titleAgendaCombined);
+    const fallback = `Session · ${scheduledDate} ${scheduledTime}`;
+    const effTitle = (title.trim() || fallback).slice(0, 500);
+    const effAgenda = (agenda.trim() || title.trim() || fallback).slice(0, 8000);
+    const room = liveLocation.trim() || 'Live recording';
     return {
-    title: title.trim(),
-    agenda: agenda.trim(),
-    organizer: organizer.trim(),
-    scheduledTime: scheduledIso(),
-    participants: payloadParticipants(),
-    sendNotification,
-    authorizedEditorEmail: authorizedEditorEmail.trim() || undefined,
-    transcriptionEnabled: true,
-    ...extra,
+      title: effTitle,
+      agenda: effAgenda,
+      organizer: organizer.trim(),
+      scheduledTime: scheduledIso(),
+      participants: payloadParticipants(),
+      sendNotification,
+      authorizedEditorEmail: authorizedEditorEmail.trim() || undefined,
+      transcriptionEnabled: true,
+      meetingRoom: room,
+      ...extra,
+    };
   };
+
+  const instantParticipantsList = () => {
+    const fromBook = payloadParticipants();
+    if (fromBook.length > 0) return fromBook;
+    const em =
+      (adminHostEmail && String(adminHostEmail).trim().toLowerCase()) ||
+      (() => {
+        const o = organizer.trim();
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(o) ? o.toLowerCase() : '';
+      })();
+    if (!em) return [];
+    const name =
+      (organizer.trim() && organizer.trim().split('@')[0]) ||
+      (em.includes('@') ? em.split('@')[0] : 'Host') ||
+      'Host';
+    return [{ name, email: em, role: 'participant' }];
+  };
+
+  const submitInstant = async () => {
+    setError('');
+    if (subscriptionGate === 'inactive' || subscriptionGate === 'payment_pending') {
+      setError('Subscription required to create a meeting.');
+      return;
+    }
+    const parts = instantParticipantsList();
+    if (parts.length === 0) {
+      setError(
+        'Add a work email on your account, use your organizer email, or select participants to start instantly.'
+      );
+      return;
+    }
+    if (maxParticipantsPerMeeting != null && parts.length > maxParticipantsPerMeeting) {
+      setError(`Your plan allows up to ${maxParticipantsPerMeeting} participants per meeting.`);
+      return;
+    }
+    const orgTrim = organizer.trim() || 'Organizer';
+    const label = new Date().toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' });
+    const body = {
+      title: `Instant session · ${label}`.slice(0, 500),
+      agenda: 'Quick capture session',
+      organizer: orgTrim,
+      scheduledTime: new Date().toISOString(),
+      participants: parts,
+      sendNotification: false,
+      transcriptionEnabled: true,
+      meetingRoom: 'Live recording',
+    };
+    setLoading(true);
+    try {
+      const res = await axios.post('/meetings', body, { timeout: 30000 });
+      const raw = res.data?.meeting;
+      const id = raw?._id ?? raw?.id;
+      const idStr = id != null ? String(id) : '';
+      if (!idStr) {
+        setError('Meeting was created but the app did not receive a meeting id. Open it from the Scheduled list.');
+        return;
+      }
+      await axios.post(`/meetings/${idStr}/start`, {}, { timeout: 15000 });
+      navigate(`/meetings/${idStr}/room`, { state: { autoStartRecording: true } });
+      afterCreate();
+      if (onClose) onClose();
+    } catch (err) {
+      setError(err.response?.data?.error || err.message || 'Could not start instant session.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const submitLive = async () => {
@@ -332,10 +412,9 @@ export default function MeetingCreateForm({
       setError(v);
       return;
     }
-    if (!liveLocation.trim()) return setError('Location is required for a live meeting.');
     setLoading(true);
     try {
-      const res = await axios.post('/meetings', buildBody({ meetingRoom: liveLocation.trim() }), {
+      const res = await axios.post('/meetings', buildBody(), {
         timeout: 30000,
       });
       const raw = res.data?.meeting;
@@ -473,102 +552,102 @@ export default function MeetingCreateForm({
       )}
 
       <>
-          {isEducation && (
-            <div className="start-meeting-field start-meeting-classroom" style={{ marginTop: 4 }}>
-              <FieldLabel htmlFor="sm-classroom" icon={GraduationCap}>
-                Classroom
-              </FieldLabel>
-              <select
-                id="sm-classroom"
-                value={selectedClassroomId}
-                onChange={(e) => setSelectedClassroomId(e.target.value)}
-                required
-                disabled={formDisabled}
+          {!isEducation && createFlowStep === 'choose' ? (
+            <div className="start-meeting-flow-choice">
+              <p className="start-meeting-flow-choice__hint">Pick how you want to begin.</p>
+              <button
+                type="button"
+                className="start-meeting-btn start-meeting-btn--primary"
+                onClick={submitInstant}
+                disabled={loading || formDisabled}
               >
-                <option value="">Select a classroom</option>
-                {getClassrooms().map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.className}
-                  </option>
-                ))}
-              </select>
+                {loading ? (
+                  <>
+                    <span className="start-meeting-btn-spinner" aria-hidden />
+                    Starting…
+                  </>
+                ) : (
+                  <>
+                    <Play size={18} strokeWidth={2} aria-hidden />
+                    Start Instant Session
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                className="start-meeting-btn start-meeting-btn--ghost"
+                onClick={() => {
+                  setError('');
+                  setCreateFlowStep('schedule');
+                }}
+                disabled={loading || formDisabled}
+              >
+                <CalendarPlus size={18} strokeWidth={2} aria-hidden />
+                Schedule Meeting
+              </button>
+              {error ? <div className="start-meeting-error">{error}</div> : null}
             </div>
-          )}
+          ) : (
+            <>
+              {!inline && !isEducation && (
+                <button
+                  type="button"
+                  className="start-meeting-back-to-choice"
+                  onClick={() => !loading && setCreateFlowStep('choose')}
+                  disabled={loading}
+                >
+                  ← Back
+                </button>
+              )}
+              {inline && !isEducation && (
+                <button
+                  type="button"
+                  className="start-meeting-back-to-choice start-meeting-back-to-choice--inline"
+                  onClick={() => !loading && setCreateFlowStep('choose')}
+                  disabled={loading}
+                >
+                  ← Back to start options
+                </button>
+              )}
 
-          <div className="start-meeting-field">
-            <FieldLabel htmlFor="sm-title-agenda" icon={FileText}>
-              Meeting title & agenda
-            </FieldLabel>
-            <textarea
-              id="sm-title-agenda"
-              className="meeting-create-title-agenda-single"
-              value={titleAgendaCombined}
-              onChange={(e) => setTitleAgendaCombined(e.target.value)}
-              placeholder={`First line: meeting title (e.g. Project review — ${companyName}).\nFollowing lines: agenda, topics, decisions…`}
-              required
-              rows={3}
-              autoComplete="off"
-              disabled={formDisabled}
-            />
-          </div>
+              <div className="meeting-create-primary-block">
+                <div className="start-meeting-field" style={{ marginTop: isEducation ? 4 : 0 }}>
+                  <FieldLabel htmlFor="sm-title-agenda" icon={FileText}>
+                    {isEducation ? 'Lecture title & notes' : 'Meeting title & agenda'}
+                  </FieldLabel>
+                  <textarea
+                    id="sm-title-agenda"
+                    className="meeting-create-title-agenda-single"
+                    value={titleAgendaCombined}
+                    onChange={(e) => setTitleAgendaCombined(e.target.value)}
+                    placeholder={`First line: title (e.g. Project review — ${companyName}).\nFollowing lines: agenda, topics, decisions…`}
+                    rows={3}
+                    autoComplete="off"
+                    disabled={formDisabled}
+                  />
+                </div>
 
-          <div className="start-meeting-datetime-row">
-            <div className="start-meeting-field">
-              <FieldLabel htmlFor="sm-date" icon={Calendar}>
-                Date
-              </FieldLabel>
-              <input
-                id="sm-date"
-                type="date"
-                value={scheduledDate}
-                onChange={(e) => setScheduledDate(e.target.value)}
-                required
-                disabled={formDisabled}
-              />
-            </div>
-            <div className="start-meeting-field">
-              <FieldLabel htmlFor="sm-time" icon={Clock}>
-                Time
-              </FieldLabel>
-              <input
-                id="sm-time"
-                type="time"
-                value={scheduledTime}
-                onChange={(e) => setScheduledTime(e.target.value)}
-                required
-                disabled={formDisabled}
-              />
-            </div>
-          </div>
-
-          <div className="start-meeting-field">
-            <FieldLabel htmlFor="sm-organizer" icon={User}>
-              Organizer
-            </FieldLabel>
-            <input
-              id="sm-organizer"
-              value={organizer}
-              onChange={(e) => setOrganizer(e.target.value)}
-              placeholder="Name or email"
-              required
-              autoComplete="off"
-              disabled={formDisabled}
-            />
-          </div>
-
-          <div className="start-meeting-field">
-            <FieldLabel htmlFor="sm-location" icon={MapPin}>
-              Location
-            </FieldLabel>
-            <input
-              id="sm-location"
-              value={liveLocation}
-              onChange={(e) => setLiveLocation(e.target.value)}
-              placeholder="e.g. Conference Room A"
-              required
-              disabled={formDisabled}
-            />
-          </div>
+                {isEducation && (
+                  <div className="start-meeting-field start-meeting-classroom">
+                    <FieldLabel htmlFor="sm-classroom" icon={GraduationCap}>
+                      Classroom
+                    </FieldLabel>
+                    <select
+                      id="sm-classroom"
+                      value={selectedClassroomId}
+                      onChange={(e) => setSelectedClassroomId(e.target.value)}
+                      required
+                      disabled={formDisabled}
+                    >
+                      <option value="">Select a classroom</option>
+                      {getClassrooms().map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.className}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
           {!isEducation && (
             <>
@@ -711,76 +790,6 @@ export default function MeetingCreateForm({
                   </span>
                 </label>
               )}
-              {voiceRecognitionEnabled && selectedBookEmails.length > 0 && participantBook.length > 0 && (
-                <div className="meeting-create-voice-block">
-                  <div className="start-meeting-section-label start-meeting-section-label--row">
-                    <Mic size={16} strokeWidth={1.75} className="start-meeting-section-label__ic" aria-hidden />
-                    Voice samples
-                  </div>
-                  <p className="start-meeting-field-hint">
-                    Record the standard phrase for each selected participant (same as Participant book). This helps
-                    speaker recognition in transcripts.
-                  </p>
-                  {selectedBookEmails.map((em) => {
-                    const p = participantBook.find(
-                      (x) => x.email && String(x.email).trim().toLowerCase() === em
-                    );
-                    if (!p) return null;
-                    const hasVoice = !!voiceProfiles[em]?.hasProfile;
-                    const rec = recordingEmail === em;
-                    const participantPayload = {
-                      name: (p.name && String(p.name).trim()) || em.split('@')[0] || '',
-                      email: em,
-                    };
-                    return (
-                      <div key={em} className="meeting-create-voice-row">
-                        <div className="meeting-create-voice-row__head">
-                          <span className="meeting-create-voice-row__name">{p.name || em}</span>
-                          {hasVoice ? (
-                            <span className="meeting-create-voice-row__badge meeting-create-voice-row__badge--ok">
-                              <Mic size={14} strokeWidth={2} aria-hidden /> Configured
-                            </span>
-                          ) : (
-                            <span className="meeting-create-voice-row__badge">
-                              <CircleDashed size={14} strokeWidth={2} aria-hidden /> Not configured
-                            </span>
-                          )}
-                        </div>
-                        <p className="meeting-create-voice-row__phrase">
-                          {voiceEnrollmentSentenceForParticipant(participantPayload.name)}
-                        </p>
-                        <div className="meeting-create-voice-row__actions">
-                          {!rec ? (
-                            <button
-                              type="button"
-                              className="start-meeting-btn start-meeting-btn--ghost meeting-create-voice-btn"
-                              disabled={formDisabled || voiceUploading}
-                              onClick={() => startVoiceRecording(participantPayload)}
-                            >
-                              <Mic size={16} aria-hidden />
-                              {hasVoice ? 'Re-record voice' : 'Configure voice'}
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              className="start-meeting-btn start-meeting-btn--primary meeting-create-voice-btn"
-                              onClick={stopVoiceRecording}
-                              disabled={voiceUploading}
-                            >
-                              <Square size={14} aria-hidden />
-                              Stop & upload
-                            </button>
-                          )}
-                          {rec && <span className="meeting-create-voice-row__rec">Recording…</span>}
-                          {voiceUploading && recordingEmail === em && (
-                            <span className="meeting-create-voice-row__rec">Uploading…</span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
               <Link to="/participants" className="start-meeting-book-manage" onClick={linkClose}>
                 <ExternalLink size={14} aria-hidden />
                 Manage participant book
@@ -793,62 +802,226 @@ export default function MeetingCreateForm({
             </>
           )}
 
-          <div className="start-meeting-field" style={{ marginTop: 12 }}>
-            <FieldLabel htmlFor="sm-editor" icon={UserCheck}>
-              Authorized editor (optional)
-            </FieldLabel>
-            <select
-              id="sm-editor"
-              value={authorizedEditorEmail}
-              onChange={(e) => setAuthorizedEditorEmail(e.target.value)}
-              disabled={formDisabled}
-            >
-              <option value="">No authorized editor</option>
-              {editorOptions.map((p) => (
-                <option key={p.email} value={p.email}>
-                  {(p.name || p.email) + ` (${p.email})`}
-                </option>
-              ))}
-            </select>
-            <p className="start-meeting-field-hint">
-              Leave blank or pick someone from the participant list. If you pick someone, they must be a selected
-              participant.
-            </p>
-          </div>
+                {error && <div className="start-meeting-error">{error}</div>}
 
-          <label className="start-meeting-checkbox start-meeting-checkbox--with-icon">
-            <Mail size={16} strokeWidth={1.75} className="start-meeting-checkbox__ic" aria-hidden />
-            <input
-              type="checkbox"
-              checked={sendNotification}
-              onChange={(e) => setSendNotification(e.target.checked)}
-              disabled={formDisabled}
-            />
-            <span>Send email notification to participants when the meeting is created</span>
-          </label>
+                <div className={`start-meeting-actions meeting-create-primary-actions${inline ? ' start-meeting-actions--inline' : ''}`}>
+                  <button
+                    type="button"
+                    className="start-meeting-btn start-meeting-btn--primary"
+                    onClick={submitLive}
+                    disabled={loading || formDisabled}
+                  >
+                    {loading ? (
+                      <>
+                        <span className="start-meeting-btn-spinner" aria-hidden />
+                        Creating…
+                      </>
+                    ) : isEducation ? (
+                      'Create lecture'
+                    ) : (
+                      'Start Meeting'
+                    )}
+                  </button>
+                  {!inline && (
+                    <button
+                      type="button"
+                      className="start-meeting-btn start-meeting-btn--ghost"
+                      onClick={onClose}
+                      disabled={loading}
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              </div>
 
-          {error && <div className="start-meeting-error">{error}</div>}
+              <div className="meeting-create-optional-block">
+                <button
+                  type="button"
+                  className="meeting-create-optional-toggle"
+                  onClick={() => setOptionalDetailsOpen((o) => !o)}
+                  aria-expanded={optionalDetailsOpen}
+                  aria-controls="meeting-create-details-region"
+                >
+                  {optionalDetailsOpen ? '− Hide optional details' : '+ Add details (optional)'}
+                </button>
+                <div
+                  id="meeting-create-details-region"
+                  className={`meeting-create-details-collapse${optionalDetailsOpen ? ' meeting-create-details-collapse--open' : ''}`}
+                  aria-hidden={!optionalDetailsOpen}
+                >
+                  <div className="meeting-create-details-collapse__inner">
+                    <div className="meeting-create-optional-panel">
+                      {!isEducation &&
+                        voiceRecognitionEnabled &&
+                        selectedBookEmails.length > 0 &&
+                        participantBook.length > 0 && (
+                          <div className="meeting-create-voice-block">
+                            <div className="start-meeting-section-label start-meeting-section-label--row">
+                              <Mic size={16} strokeWidth={1.75} className="start-meeting-section-label__ic" aria-hidden />
+                              Voice samples
+                            </div>
+                            <p className="start-meeting-field-hint">
+                              Record the standard phrase for each selected participant (same as Participant book). This
+                              helps speaker recognition in transcripts.
+                            </p>
+                            {selectedBookEmails.map((em) => {
+                              const p = participantBook.find(
+                                (x) => x.email && String(x.email).trim().toLowerCase() === em
+                              );
+                              if (!p) return null;
+                              const hasVoice = !!voiceProfiles[em]?.hasProfile;
+                              const rec = recordingEmail === em;
+                              const participantPayload = {
+                                name: (p.name && String(p.name).trim()) || em.split('@')[0] || '',
+                                email: em,
+                              };
+                              return (
+                                <div key={em} className="meeting-create-voice-row">
+                                  <div className="meeting-create-voice-row__head">
+                                    <span className="meeting-create-voice-row__name">{p.name || em}</span>
+                                    {hasVoice ? (
+                                      <span className="meeting-create-voice-row__badge meeting-create-voice-row__badge--ok">
+                                        <Mic size={14} strokeWidth={2} aria-hidden /> Configured
+                                      </span>
+                                    ) : (
+                                      <span className="meeting-create-voice-row__badge">
+                                        <CircleDashed size={14} strokeWidth={2} aria-hidden /> Not configured
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="meeting-create-voice-row__phrase">
+                                    {voiceEnrollmentSentenceForParticipant(participantPayload.name)}
+                                  </p>
+                                  <div className="meeting-create-voice-row__actions">
+                                    {!rec ? (
+                                      <button
+                                        type="button"
+                                        className="start-meeting-btn start-meeting-btn--ghost meeting-create-voice-btn"
+                                        disabled={formDisabled || voiceUploading}
+                                        onClick={() => startVoiceRecording(participantPayload)}
+                                      >
+                                        <Mic size={16} aria-hidden />
+                                        {hasVoice ? 'Re-record voice' : 'Configure voice'}
+                                      </button>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        className="start-meeting-btn start-meeting-btn--primary meeting-create-voice-btn"
+                                        onClick={stopVoiceRecording}
+                                        disabled={voiceUploading}
+                                      >
+                                        <Square size={14} aria-hidden />
+                                        Stop & upload
+                                      </button>
+                                    )}
+                                    {rec && <span className="meeting-create-voice-row__rec">Recording…</span>}
+                                    {voiceUploading && recordingEmail === em && (
+                                      <span className="meeting-create-voice-row__rec">Uploading…</span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
 
-          <div className={`start-meeting-actions${inline ? ' start-meeting-actions--inline' : ''}`}>
-            <button
-              type="button"
-              className="start-meeting-btn start-meeting-btn--primary"
-              onClick={submitLive}
-              disabled={loading || formDisabled}
-            >
-              {isEducation ? 'Create lecture' : 'Create meeting'}
-            </button>
-            {!inline && (
-              <button
-                type="button"
-                className="start-meeting-btn start-meeting-btn--ghost"
-                onClick={onClose}
-                disabled={loading}
-              >
-                Cancel
-              </button>
-            )}
-          </div>
+                      <div className="start-meeting-datetime-row">
+                        <div className="start-meeting-field">
+                          <FieldLabel htmlFor="sm-date" icon={Calendar}>
+                            Date
+                          </FieldLabel>
+                          <input
+                            id="sm-date"
+                            type="date"
+                            value={scheduledDate}
+                            onChange={(e) => setScheduledDate(e.target.value)}
+                            required
+                            disabled={formDisabled}
+                          />
+                        </div>
+                        <div className="start-meeting-field">
+                          <FieldLabel htmlFor="sm-time" icon={Clock}>
+                            Time
+                          </FieldLabel>
+                          <input
+                            id="sm-time"
+                            type="time"
+                            value={scheduledTime}
+                            onChange={(e) => setScheduledTime(e.target.value)}
+                            required
+                            disabled={formDisabled}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="start-meeting-field">
+                        <FieldLabel htmlFor="sm-organizer" icon={User}>
+                          Organizer
+                        </FieldLabel>
+                        <input
+                          id="sm-organizer"
+                          value={organizer}
+                          onChange={(e) => setOrganizer(e.target.value)}
+                          placeholder="Name or email"
+                          required
+                          autoComplete="off"
+                          disabled={formDisabled}
+                        />
+                      </div>
+
+                      <div className="start-meeting-field">
+                        <FieldLabel htmlFor="sm-location" icon={MapPin}>
+                          Location
+                        </FieldLabel>
+                        <input
+                          id="sm-location"
+                          value={liveLocation}
+                          onChange={(e) => setLiveLocation(e.target.value)}
+                          placeholder="e.g. Conference Room A (optional — defaults to live recording)"
+                          disabled={formDisabled}
+                        />
+                      </div>
+
+                      <div className="start-meeting-field" style={{ marginTop: 4 }}>
+                        <FieldLabel htmlFor="sm-editor" icon={UserCheck}>
+                          Authorized editor (optional)
+                        </FieldLabel>
+                        <select
+                          id="sm-editor"
+                          value={authorizedEditorEmail}
+                          onChange={(e) => setAuthorizedEditorEmail(e.target.value)}
+                          disabled={formDisabled}
+                        >
+                          <option value="">No authorized editor</option>
+                          {editorOptions.map((p) => (
+                            <option key={p.email} value={p.email}>
+                              {(p.name || p.email) + ` (${p.email})`}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="start-meeting-field-hint">
+                          Leave blank or pick someone from the participant list. If you pick someone, they must be a
+                          selected participant.
+                        </p>
+                      </div>
+
+                      <label className="start-meeting-checkbox start-meeting-checkbox--with-icon">
+                        <Mail size={16} strokeWidth={1.75} className="start-meeting-checkbox__ic" aria-hidden />
+                        <input
+                          type="checkbox"
+                          checked={sendNotification}
+                          onChange={(e) => setSendNotification(e.target.checked)}
+                          disabled={formDisabled}
+                        />
+                        <span>Send email notification to participants when the meeting is created</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
       </>
     </div>
   );

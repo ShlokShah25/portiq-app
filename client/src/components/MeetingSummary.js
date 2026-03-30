@@ -60,7 +60,14 @@ const MeetingSummary = () => {
         <TopNav />
         <div className="meeting-summary-loading">
           <div className="loading-spinner" />
-          <p>Loading summary...</p>
+          <p className="meeting-summary-thinking" role="status">
+            Understanding your conversation
+            <span className="meeting-summary-thinking-dots" aria-hidden>
+              <span className="meeting-summary-thinking-dot" />
+              <span className="meeting-summary-thinking-dot" />
+              <span className="meeting-summary-thinking-dot" />
+            </span>
+          </p>
         </div>
       </div>
     );
@@ -170,7 +177,7 @@ const MeetingSummary = () => {
   return (
     <div className="meeting-summary-screen">
       <TopNav />
-      <div className="meeting-summary-container">
+      <div className="meeting-summary-container ux-screen-enter">
         <div className="meeting-summary-card">
           <h1 className="meeting-summary-page-title">{meeting.title || 'Untitled meeting'}</h1>
 
@@ -188,6 +195,7 @@ const MeetingSummary = () => {
               onMeetingPatched={setMeeting}
               showReadyBadge={false}
               includeSections="actionItemsOnly"
+              staggerSections
             />
           )}
 
@@ -242,9 +250,18 @@ const MeetingSummary = () => {
 
           {!hasContent && !editingSummary && (
             <div className="meeting-summary-empty">
-              {meeting.transcriptionStatus === 'Processing'
-                ? 'Summary is being generated. Check back in a moment.'
-                : 'No summary available yet.'}
+              {meeting.transcriptionStatus === 'Processing' ? (
+                <p className="meeting-summary-thinking meeting-summary-thinking--muted" role="status">
+                  Understanding your conversation
+                  <span className="meeting-summary-thinking-dots" aria-hidden>
+                    <span className="meeting-summary-thinking-dot" />
+                    <span className="meeting-summary-thinking-dot" />
+                    <span className="meeting-summary-thinking-dot" />
+                  </span>
+                </p>
+              ) : (
+                'No summary available yet.'
+              )}
             </div>
           )}
 
@@ -348,11 +365,16 @@ const MeetingSummary = () => {
                     disabled={saving}
                     onClick={handleApproveAndSend}
                   >
-                    {saving
-                      ? 'Sending…'
-                      : isEducation
-                        ? 'Send Lecture Notes to Participants'
-                        : 'Send Summary to Participants'}
+                    {saving ? (
+                      <>
+                        <span className="meeting-summary-btn-spinner" aria-hidden />
+                        Sending…
+                      </>
+                    ) : isEducation ? (
+                      'Send Lecture Notes to Participants'
+                    ) : (
+                      'Send Summary to Participants'
+                    )}
                   </button>
                   <button
                     type="button"
@@ -389,6 +411,7 @@ const MeetingSummary = () => {
                   isEducation={isEducation}
                   onMeetingPatched={setMeeting}
                   includeSections="withoutActionItems"
+                  staggerSections
                 />
               </div>
               {canEditAndSend && (
@@ -399,11 +422,16 @@ const MeetingSummary = () => {
                     disabled={saving}
                     onClick={handleApproveAndSend}
                   >
-                    {saving
-                      ? 'Sending…'
-                      : isEducation
-                        ? 'Send Lecture Notes to Participants'
-                        : 'Send Summary to Participants'}
+                    {saving ? (
+                      <>
+                        <span className="meeting-summary-btn-spinner" aria-hidden />
+                        Sending…
+                      </>
+                    ) : isEducation ? (
+                      'Send Lecture Notes to Participants'
+                    ) : (
+                      'Send Summary to Participants'
+                    )}
                   </button>
                   <button
                     type="button"

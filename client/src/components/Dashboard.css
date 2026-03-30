@@ -436,12 +436,13 @@
   text-decoration: none;
   color: inherit;
   cursor: pointer;
-  transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
+  transition: border-color 150ms ease, background 150ms ease, transform 0.2s ease;
 }
 
 .metric-card--tile:hover {
   border-color: rgba(59, 130, 246, 0.35);
   background: #202022;
+  transform: scale(1.02);
 }
 
 .metric-card--tile:active {
@@ -530,6 +531,19 @@
 
 .dashboard-content::-webkit-scrollbar-thumb:hover {
   background: #2a2a2a;
+}
+
+.ux-dashboard-stagger {
+  opacity: 0;
+  transform: translateY(8px);
+  animation: ux-dashboard-stagger-in 0.28s ease-out forwards;
+}
+
+@keyframes ux-dashboard-stagger-in {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Responsive */

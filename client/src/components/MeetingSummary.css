@@ -129,6 +129,10 @@
 }
 
 .meeting-summary-btn--send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   min-height: 44px;
   padding: 12px 22px;
   font-size: 15px;
@@ -791,5 +795,98 @@
   color: #a1a1a6;
   font-weight: 500;
   letter-spacing: -0.01em;
+}
+
+.ux-screen-enter {
+  opacity: 0;
+  transform: translateY(8px);
+  animation: ux-screen-enter-anim 0.28s ease-out forwards;
+}
+
+@keyframes ux-screen-enter-anim {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.meeting-summary-thinking {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: #d1d5db;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+}
+
+.meeting-summary-thinking--muted {
+  color: #9ca3af;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.meeting-summary-thinking-dots {
+  display: inline-flex;
+  gap: 3px;
+  margin-left: 2px;
+}
+
+.meeting-summary-thinking-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.35;
+  animation: meeting-summary-dot-pulse 1.05s ease-in-out infinite;
+}
+
+.meeting-summary-thinking-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.meeting-summary-thinking-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes meeting-summary-dot-pulse {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+
+.meeting-summary-section--ux-reveal {
+  opacity: 0;
+  transform: translateY(6px);
+  animation: ux-summary-reveal 0.34s ease-out forwards;
+}
+
+@keyframes ux-summary-reveal {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.meeting-summary-btn-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: meeting-summary-btn-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes meeting-summary-btn-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 

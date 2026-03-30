@@ -31,6 +31,7 @@ export default function MeetingSummaryReadonlyBody({
   onMeetingPatched,
   showReadyBadge = true,
   includeSections = 'all',
+  staggerSections = false,
 }) {
   const [statusSaving, setStatusSaving] = useState({});
 
@@ -88,7 +89,8 @@ export default function MeetingSummaryReadonlyBody({
 
     return (
       <section
-        className={`meeting-summary-section meeting-summary-section--tasks meeting-summary-section--tasks-top${showActionsOnly ? ' meeting-summary-section--after-title' : ''}`}
+        className={`meeting-summary-section meeting-summary-section--tasks meeting-summary-section--tasks-top${showActionsOnly ? ' meeting-summary-section--after-title' : ''}${staggerSections ? ' meeting-summary-section--ux-reveal' : ''}`}
+        style={staggerSections ? { animationDelay: '0ms' } : undefined}
       >
         <h2 className="meeting-summary-heading meeting-summary-heading--with-icon">
           <CheckSquare className="meeting-summary-heading-icon" strokeWidth={1.5} aria-hidden />
@@ -285,14 +287,21 @@ export default function MeetingSummaryReadonlyBody({
     return (
       <>
         {showReadyBadge && (
-          <div className="meeting-summary-ready-badge meeting-summary-ready-badge--sentence" aria-live="polite">
+          <div
+            className={`meeting-summary-ready-badge meeting-summary-ready-badge--sentence${staggerSections ? ' meeting-summary-section--ux-reveal' : ''}`}
+            aria-live="polite"
+            style={staggerSections ? { animationDelay: '40ms' } : undefined}
+          >
             <span className="meeting-summary-ready-badge__dot" aria-hidden="true" />
             AI Generated • Ready for review
           </div>
         )}
 
         {!!summaryText && String(summaryText).trim() && (
-          <section className="meeting-summary-section meeting-summary-section--minutes">
+          <section
+            className={`meeting-summary-section meeting-summary-section--minutes${staggerSections ? ' meeting-summary-section--ux-reveal' : ''}`}
+            style={staggerSections ? { animationDelay: showReadyBadge ? '80ms' : '40ms' } : undefined}
+          >
             <h2 className="meeting-summary-heading meeting-summary-heading--with-icon">
               <FileText className="meeting-summary-heading-icon" strokeWidth={1.5} aria-hidden />
               {isEducation ? 'Summary' : 'Minutes of the meeting'}
@@ -302,7 +311,10 @@ export default function MeetingSummaryReadonlyBody({
         )}
 
         {keyPoints && keyPoints.length > 0 && (
-          <section className="meeting-summary-section meeting-summary-section--keypoints">
+          <section
+            className={`meeting-summary-section meeting-summary-section--keypoints${staggerSections ? ' meeting-summary-section--ux-reveal' : ''}`}
+            style={staggerSections ? { animationDelay: '120ms' } : undefined}
+          >
             <h2 className="meeting-summary-heading meeting-summary-heading--with-icon">
               <ListChecks className="meeting-summary-heading-icon" strokeWidth={1.5} aria-hidden />
               Key Points
@@ -316,7 +328,10 @@ export default function MeetingSummaryReadonlyBody({
         )}
 
         {decisionsDisplay.length > 0 && (
-          <section className="meeting-summary-section">
+          <section
+            className={`meeting-summary-section${staggerSections ? ' meeting-summary-section--ux-reveal' : ''}`}
+            style={staggerSections ? { animationDelay: '160ms' } : undefined}
+          >
             <h2 className="meeting-summary-heading meeting-summary-heading--with-icon">
               <CheckCircle className="meeting-summary-heading-icon" strokeWidth={1.5} aria-hidden />
               Decisions
@@ -330,7 +345,10 @@ export default function MeetingSummaryReadonlyBody({
         )}
 
         {nextSteps && nextSteps.length > 0 && (
-          <section className="meeting-summary-section">
+          <section
+            className={`meeting-summary-section${staggerSections ? ' meeting-summary-section--ux-reveal' : ''}`}
+            style={staggerSections ? { animationDelay: '200ms' } : undefined}
+          >
             <h2 className="meeting-summary-heading">Next Steps</h2>
             <ul className="meeting-summary-list">
               {nextSteps.map((s, idx) => (
@@ -341,7 +359,10 @@ export default function MeetingSummaryReadonlyBody({
         )}
 
         {importantNotes && importantNotes.length > 0 && (
-          <section className="meeting-summary-section">
+          <section
+            className={`meeting-summary-section${staggerSections ? ' meeting-summary-section--ux-reveal' : ''}`}
+            style={staggerSections ? { animationDelay: '240ms' } : undefined}
+          >
             <h2 className="meeting-summary-heading">
               {isEducation ? 'Important Concepts' : 'Important Notes'}
             </h2>

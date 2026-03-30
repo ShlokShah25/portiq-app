@@ -314,7 +314,7 @@ const MeetingDetail = () => {
   return (
     <div className="meeting-detail-screen">
       <TopNav />
-      <div className="meeting-detail-container">
+      <div className="meeting-detail-container ux-screen-enter">
         <div className="meeting-detail-card">
           {parentCont && (
             <div className="meeting-detail-continuation">
@@ -443,11 +443,18 @@ const MeetingDetail = () => {
             {isScheduled && !online && (
               <button
                 type="button"
-                className="meeting-detail-btn meeting-detail-btn--primary"
+                className="meeting-detail-btn meeting-detail-btn--primary meeting-detail-btn--with-spinner"
                 onClick={handleStartMeeting}
                 disabled={startRoomLoading}
               >
-                {startRoomLoading ? 'Opening…' : T.startMeeting()}
+                {startRoomLoading ? (
+                  <>
+                    <span className="meeting-detail-btn-spinner" aria-hidden />
+                    Opening…
+                  </>
+                ) : (
+                  T.startMeeting()
+                )}
               </button>
             )}
             {isScheduled && online && meeting.conferenceJoinUrl && (

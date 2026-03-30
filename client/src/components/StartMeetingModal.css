@@ -9,6 +9,14 @@
   justify-content: center;
   padding: 24px;
   box-sizing: border-box;
+  opacity: 0;
+  animation: start-meeting-overlay-in 0.26s ease-out forwards;
+}
+
+@keyframes start-meeting-overlay-in {
+  to {
+    opacity: 1;
+  }
 }
 
 .start-meeting-modal--wide {
@@ -25,6 +33,16 @@
   border-radius: 16px;
   padding: 24px;
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transform: scale(0.95);
+  animation: start-meeting-modal-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes start-meeting-modal-in {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .start-meeting-modal__head {
@@ -87,6 +105,13 @@
   color: #f5f5f7;
   font-size: 14px;
   font-family: inherit;
+  transition: box-shadow 0.2s ease;
+}
+
+.start-meeting-field input:focus,
+.start-meeting-field textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.22), 0 0 0 6px rgba(255, 255, 255, 0.04);
 }
 
 .start-meeting-field textarea {
@@ -344,6 +369,12 @@
   background: rgba(255, 255, 255, 0.05);
   color: #f5f5f7;
   font-size: 14px;
+  transition: box-shadow 0.2s ease;
+}
+
+.start-meeting-field select:focus {
+  outline: none;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.22), 0 0 0 6px rgba(255, 255, 255, 0.04);
 }
 
 .start-meeting-field-hint {
@@ -793,4 +824,139 @@
   flex-shrink: 0;
   margin-top: 2px;
   color: #6b7280;
+}
+
+.start-meeting-flow-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.start-meeting-flow-choice__hint {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: #9ca3af;
+  line-height: 1.45;
+}
+
+.start-meeting-back-to-choice {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 0 14px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #93c5fd;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.start-meeting-back-to-choice:hover:not(:disabled) {
+  color: #bfdbfe;
+}
+
+.start-meeting-back-to-choice:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.start-meeting-back-to-choice--inline {
+  margin-bottom: 16px;
+}
+
+.meeting-create-primary-block {
+  margin-top: 0;
+}
+
+.meeting-create-primary-actions {
+  margin-top: 6px;
+}
+
+.meeting-create-optional-block {
+  margin-top: 18px;
+}
+
+.meeting-create-details-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s ease-out, opacity 0.28s ease-out;
+  opacity: 0.65;
+}
+
+.meeting-create-details-collapse--open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.meeting-create-details-collapse__inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.meeting-create-details-collapse--open .meeting-create-details-collapse__inner {
+  overflow: visible;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .meeting-create-details-collapse {
+    transition: none;
+  }
+}
+
+.meeting-create-optional-toggle {
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: #d1d5db;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  margin-top: 2px;
+}
+
+.meeting-create-optional-toggle:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.meeting-create-optional-panel {
+  margin-top: 12px;
+  padding-top: 4px;
+  opacity: 0.92;
+}
+
+.meeting-create-optional-panel .start-meeting-field label,
+.meeting-create-optional-panel .start-meeting-label-with-icon {
+  opacity: 0.92;
+}
+
+.start-meeting-btn-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: rgba(255, 255, 255, 0.95);
+  border-radius: 50%;
+  animation: start-meeting-btn-spin 0.65s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes start-meeting-btn-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.start-meeting-btn--primary .start-meeting-btn-spinner {
+  border-color: rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
 }

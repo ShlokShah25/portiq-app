@@ -391,3 +391,39 @@
   line-height: 1.45;
   color: #9ca3af;
 }
+
+.meeting-detail-container.ux-screen-enter {
+  opacity: 0;
+  transform: translateY(8px);
+  animation: meeting-detail-ux-enter 0.28s ease-out forwards;
+}
+
+@keyframes meeting-detail-ux-enter {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.meeting-detail-btn--with-spinner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.meeting-detail-btn-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: meeting-detail-btn-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes meeting-detail-btn-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { T } from '../config/terminology';
 import TopNav from './TopNav';
@@ -10,6 +10,9 @@ import './MeetingDetail.css';
 const MeetingInProgress = () => {
   const { id: meetingId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const autoStartRecordingRef = useRef(false);
+  const startRecordingRef = useRef(null);
   const [meetingEnded, setMeetingEnded] = useState(false);
   const [meeting, setMeeting] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -66,6 +69,7 @@ const MeetingInProgress = () => {
   // New route id: reset UI so we never reuse another meeting's state.
   useEffect(() => {
     if (!meetingId) return;
+    autoStartRecordingRef.current = false;
     setMeeting(null);
     setLoading(true);
     setError('');
@@ -199,6 +203,20 @@ const MeetingInProgress = () => {
       );
     }
   };
+
+  startRecordingRef.current = startRecording;
+
+  useEffect(() => {
+    if (loading || !meeting || !meetingId) return;
+    const wantAuto = location.state && location.state.autoStartRecording === true;
+    if (!wantAuto || autoStartRecordingRef.current) return;
+    if (!meeting.transcriptionEnabled) return;
+    autoStartRecordingRef.current = true;
+    navigate('.', { replace: true, state: {} });
+    queueMicrotask(() => {
+      startRecordingRef.current?.();
+    });
+  }, [loading, meeting, meetingId, location.state, navigate]);
 
   const pauseRecording = () => {
     const recorder = mediaRecorderRef.current;
@@ -406,7 +424,7 @@ const MeetingInProgress = () => {
     <div className="meeting-summary-screen meeting-in-progress">
       <TopNav />
       <div className="meeting-summary-container">
-        <div className="meeting-summary-card mip-card">
+        <div className={`meeting-summary-card mip-card${meeting && !loading ? ' ux-screen-enter' : ''}`}>
           {meetingEnded ? (
             <>
               <div className="meeting-summary-ready-badge mip-ready-badge mip-ready-badge--neutral">
