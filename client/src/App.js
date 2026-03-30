@@ -18,8 +18,6 @@ const ClientAdmin = lazy(() => import('./components/ClientAdmin'));
 const BootupScreen = lazy(() => import('./components/BootupScreen'));
 const AdminLogin = lazy(() => import('./components/AdminLogin'));
 const ResetPassword = lazy(() => import('./components/ResetPassword'));
-const Profile = lazy(() => import('./components/Profile'));
-
 // Set base URL for API.
 // - In local dev: use explicit REACT_APP_API_URL or localhost:5001
 // - In production (Railway): use same-origin `/api` so CORS is not needed.
@@ -212,7 +210,7 @@ function App() {
               path="/profile"
               element={
                 <RequireAuth>
-                  <Profile />
+                  <Navigate to="/settings" replace />
                 </RequireAuth>
               }
             />
