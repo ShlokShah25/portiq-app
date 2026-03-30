@@ -152,18 +152,20 @@
 }
 
 .settings-panel {
-  animation: settings-panel-in 0.28s ease-out;
+  opacity: 1;
+  animation: settings-panel-in 0.28s ease-out forwards;
 }
 
 .settings-workspace-embed {
   margin-top: 12px;
   min-width: 0;
+  min-height: 240px;
   padding: 0;
   border-radius: 18px;
   background: var(--surface-secondary);
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow-soft-sm, 0 2px 12px rgba(0, 0, 0, 0.08));
-  overflow: hidden;
+  overflow: auto;
 }
 
 .settings-workspace-embed .participants-content {
