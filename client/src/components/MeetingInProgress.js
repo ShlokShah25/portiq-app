@@ -13,6 +13,14 @@ let globalActiveMeetingId = null;
 let globalMediaRecorder = null;
 let globalStream = null;
 
+/** Set when End Meeting must await POST /end with audio (avoid double /end). */
+let pendingEndUpload = null;
+
+function isGlobalRecordingActive() {
+  const rec = globalMediaRecorder;
+  return !!(rec && rec.state !== 'inactive');
+}
+
 const MeetingInProgress = () => {
   const { id: meetingId } = useParams();
   const navigate = useNavigate();
@@ -42,6 +50,18 @@ const MeetingInProgress = () => {
     return () => {
       isMountedRef.current = false;
     };
+  }, []);
+
+  // Warn only on tab close / refresh while a recorder is active (SPA navigation stays allowed).
+  useEffect(() => {
+    const onBeforeUnload = (e) => {
+      if (isGlobalRecordingActive()) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, []);
 
   useEffect(() => {
@@ -296,8 +316,16 @@ const MeetingInProgress = () => {
         setMeeting(res.data.meeting);
         setUploading(false);
       }
+      if (pendingEndUpload) {
+        pendingEndUpload.resolve(res);
+        pendingEndUpload = null;
+      }
     } catch (err) {
       console.error('Error uploading audio:', err);
+      if (pendingEndUpload) {
+        pendingEndUpload.reject(err);
+        pendingEndUpload = null;
+      }
       if (isMountedRef.current) {
         setError('Failed to upload audio');
         setUploading(false);
@@ -305,18 +333,46 @@ const MeetingInProgress = () => {
     }
   };
 
+  const stopRecordingAndWaitForUpload = () =>
+    new Promise((resolve, reject) => {
+      const rec = globalMediaRecorder;
+      if (!rec || rec.state === 'inactive') {
+        resolve(null);
+        return;
+      }
+      pendingEndUpload = { resolve, reject };
+      try {
+        rec.stop();
+        if (isMountedRef.current) {
+          setRecording(false);
+          setPaused(false);
+        }
+      } catch (e) {
+        pendingEndUpload = null;
+        reject(e);
+      }
+    });
+
   const handleEndMeeting = async () => {
     if (!meeting) return;
     try {
-      // Stop recording if active
-      if (recording) {
-        stopRecording();
+      if (isGlobalRecordingActive()) {
+        await stopRecordingAndWaitForUpload();
+      } else {
+        const res = await axios.post(`/meetings/${meeting._id}/end`);
+        if (isMountedRef.current && res.data?.meeting) {
+          setMeeting(res.data.meeting);
+        }
       }
-      await axios.post(`/meetings/${meeting._id}/end`);
-      setMeetingEnded(true);
+      if (isMountedRef.current) setMeetingEnded(true);
     } catch (err) {
       console.error('Error ending meeting:', err);
-      setError('Failed to end meeting');
+      if (isMountedRef.current) {
+        const d = err.response?.data;
+        setError(
+          [d?.error, d?.details].filter(Boolean).join(' — ') || 'Failed to end meeting'
+        );
+      }
     }
   };
 
@@ -385,7 +441,7 @@ const MeetingInProgress = () => {
       setFollowUpError('Add a short recap of what you covered.');
       return;
     }
-    if (recording) {
+    if (isGlobalRecordingActive()) {
       setFollowUpError('Stop recording first (Stop & Upload), or use End Meeting — then schedule follow-up from the meeting details page.');
       return;
     }
@@ -463,6 +519,8 @@ const MeetingInProgress = () => {
     );
   }
 
+  const recordingLive = recording || isGlobalRecordingActive();
+
   return (
     <div className="meeting-summary-screen meeting-in-progress">
       <TopNav />
@@ -530,13 +588,13 @@ const MeetingInProgress = () => {
 
               <div
                 className={`meeting-summary-ready-badge mip-ready-badge${
-                  recording && !paused ? ' mip-ready-badge--live' : ''
+                  recordingLive && !paused ? ' mip-ready-badge--live' : ''
                 }`}
               >
                 <span className="meeting-summary-ready-badge__dot" />
                 {uploading
                   ? 'Uploading audio'
-                  : recording
+                  : recordingLive
                     ? paused
                       ? 'Recording paused'
                       : 'Recording'
@@ -707,7 +765,7 @@ const MeetingInProgress = () => {
           <div className="meeting-summary-section mip-recording-section">
             <h2 className="meeting-summary-heading">Recording</h2>
             <div className="recording-controls mip-recording-controls">
-            {!recording && !uploading && (
+            {!recordingLive && !uploading && (
               <button
                 type="button"
                 className="meeting-summary-btn meeting-summary-btn--primary mip-btn-start-recording"
@@ -717,7 +775,7 @@ const MeetingInProgress = () => {
                 Start Recording
               </button>
             )}
-            {recording && (
+            {recordingLive && (
               <>
                 {!paused ? (
                   <button
@@ -763,8 +821,8 @@ const MeetingInProgress = () => {
             type="button"
             className="meeting-summary-btn meeting-summary-btn--secondary"
             onClick={openFollowUpFromRoom}
-            disabled={uploading || followUpSubmitting || recording}
-            title={recording ? 'Stop recording first' : undefined}
+            disabled={uploading || followUpSubmitting || recordingLive}
+            title={recordingLive ? 'Stop recording first' : undefined}
           >
             Schedule follow-up &amp; close
           </button>
