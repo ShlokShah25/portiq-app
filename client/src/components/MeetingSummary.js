@@ -144,7 +144,12 @@ const MeetingSummary = () => {
   /** Any state before distribution — not only strict "Pending Approval" (legacy rows may omit status). */
   const canEditAndSend = meeting.summaryStatus !== 'Sent' && hasContent;
 
-  const hasStoredTranscript = !!(meeting.transcription && String(meeting.transcription).trim());
+  const transcriptForFallback = String(meeting.transcription || '').trim();
+  const hasStoredTranscript = !!transcriptForFallback;
+  const showTranscriptFallback =
+    !hasContent &&
+    hasStoredTranscript &&
+    meeting.transcriptionStatus !== 'Processing';
   const canRetryTranscription =
     meeting.transcriptionEnabled &&
     !!((meeting.audioFile && String(meeting.audioFile).trim()) || hasStoredTranscript) &&
@@ -312,13 +317,30 @@ const MeetingSummary = () => {
               ) : (
                 <>
                   <p className="meeting-summary-empty-message">
-                    {meeting.transcriptionStatus === 'Failed'
-                      ? 'Transcription or summarization did not finish successfully. If a recording is still on file, you can try again.'
-                      : meeting.status === 'Completed' &&
-                          meeting.transcriptionStatus === 'Not Started'
-                        ? 'No recording was processed for this session, so no AI summary was generated. If you ended the meeting without uploading or saving audio, that is expected.'
-                        : 'No summary available yet.'}
+                    {showTranscriptFallback
+                      ? meeting.transcriptionStatus === 'Failed'
+                        ? 'Summarization did not finish successfully, but a transcript may have been saved. Review it below or try Regenerate summary.'
+                        : meeting.transcriptionStatus === 'Completed' &&
+                            meeting.status === 'Completed'
+                          ? 'No structured AI summary is on file yet, but the meeting transcript was saved. Open it below or use Regenerate summary.'
+                          : 'No structured AI summary yet. Your saved transcript is below.'
+                      : meeting.transcriptionStatus === 'Failed'
+                        ? 'Transcription or summarization did not finish successfully. If a recording is still on file, you can try again.'
+                        : meeting.status === 'Completed' &&
+                            meeting.transcriptionStatus === 'Not Started'
+                          ? 'No recording was processed for this session, so no AI summary was generated. If you ended the meeting without uploading or saving audio, that is expected.'
+                          : 'No summary available yet.'}
                   </p>
+                  {showTranscriptFallback && (
+                    <details className="meeting-summary-transcript-fallback">
+                      <summary className="meeting-summary-transcript-fallback-summary">
+                        View saved transcript
+                      </summary>
+                      <div className="meeting-summary-transcript-fallback-body">
+                        {transcriptForFallback}
+                      </div>
+                    </details>
+                  )}
                   {retryError && (
                     <div className="meeting-summary-action-error meeting-summary-retry-error">
                       {retryError}
