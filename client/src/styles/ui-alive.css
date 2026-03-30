@@ -32,6 +32,13 @@
     opacity: 1 !important;
     transform: none !important;
   }
+
+  /* Skeleton shimmer: keep visible when global motion is reduced to ~0ms */
+  .participant-book-skeleton__hero,
+  .participant-book-skeleton__card {
+    animation-duration: 1.2s !important;
+    animation-iteration-count: infinite !important;
+  }
 }
 
 /* Keyboard focus — clear ring without changing click appearance */
