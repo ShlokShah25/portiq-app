@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useLocation, useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { useTheme } from '../contexts/ThemeContext';
 import TopNav from './TopNav';
@@ -359,11 +359,9 @@ const Settings = () => {
                     <h3 className="settings-panel-row__title">{L('settings.workspaceTitle')}</h3>
                     <p className="settings-panel-row__desc">{L('settings.workspaceDesc')}</p>
                   </div>
-                  <div className="settings-panel-row__control">
-                    <Link to="/participants" className="settings-link-out">
-                      {L('settings.openParticipantBook')}
-                    </Link>
-                  </div>
+                </div>
+                <div className="settings-workspace-embed">
+                  <ParticipantBookPanel embedded />
                 </div>
               </div>
             )}

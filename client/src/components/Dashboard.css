@@ -6,9 +6,10 @@
   width: 100vw;
   height: 100vh;
   background-color: var(--bg-primary, #000000);
-  background-image: var(--gradient-page-ambient);
+  background-image: var(--page-ambient-gradient, var(--gradient-page-ambient));
   background-repeat: no-repeat;
   background-size: 100% 100%;
+  background-attachment: fixed;
   display: flex;
   flex-direction: column;
   position: fixed;

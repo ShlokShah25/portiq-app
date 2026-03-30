@@ -3,7 +3,11 @@
 .participants-screen {
   width: 100vw;
   height: 100vh;
-  background: var(--bg-primary);
+  background-color: var(--bg-primary);
+  background-image: var(--page-ambient-gradient);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
   display: flex;
   position: fixed;
   top: 0;
@@ -12,6 +16,43 @@
   bottom: 0;
   overflow: hidden;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Helvetica Neue", system-ui, sans-serif;
+}
+
+/* Inline embed (e.g. Settings → Workspace) — no full-viewport shell */
+.participants-screen--embedded {
+  position: relative;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+  background: transparent;
+  background-image: none;
+  flex-direction: column;
+}
+
+.participants-wrapper--embedded {
+  margin-top: 0;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+}
+
+.participants-top-bar--embedded {
+  padding: 10px 0 12px;
+  background: transparent;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.participants-top-bar-embedded-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.participants-screen--embedded .participants-content {
+  padding: 16px 0 8px;
+  overflow: visible;
+  flex: 0 1 auto;
 }
 
 .participants-wrapper {

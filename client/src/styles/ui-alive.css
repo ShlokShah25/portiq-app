@@ -1,0 +1,50 @@
+/**
+ * Global UI “aliveness”: motion discipline, focus rings, reduced-motion.
+ * Palette stays in theme.css — only interaction and accessibility here.
+ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Keep indeterminate loaders visible (status feedback) */
+  .loading-spinner,
+  .app-loading .loading-spinner,
+  .meeting-summary-loading .loading-spinner,
+  .meeting-detail-loading .loading-spinner {
+    animation-duration: 0.85s !important;
+    animation-iteration-count: infinite !important;
+    animation-timing-function: linear !important;
+  }
+}
+
+/* Keyboard focus — clear ring without changing click appearance */
+button:focus-visible,
+a:focus-visible,
+[role='button']:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent-blue, #3b82f6);
+  outline-offset: 2px;
+}
+
+button:focus:not(:focus-visible),
+a:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Full-screen shells: same ambient wash as body (when not using opaque overlay) */
+.portiq-screen-ambient {
+  background-color: var(--bg-primary);
+  background-image: var(--page-ambient-gradient);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}

@@ -3,7 +3,11 @@
 .settings-screen {
   width: 100vw;
   height: 100vh;
-  background: var(--bg-primary);
+  background-color: var(--bg-primary);
+  background-image: var(--page-ambient-gradient);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
   display: flex;
   flex-direction: column;
   position: fixed;
@@ -149,6 +153,11 @@
 
 .settings-panel {
   animation: settings-panel-in 0.28s ease-out;
+}
+
+.settings-workspace-embed {
+  margin-top: 8px;
+  min-width: 0;
 }
 
 @keyframes settings-panel-in {

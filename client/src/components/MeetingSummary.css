@@ -1,9 +1,10 @@
 .meeting-summary-screen {
   min-height: 100vh;
   background-color: var(--bg-primary, #000000);
-  background-image: var(--gradient-page-ambient);
+  background-image: var(--page-ambient-gradient, var(--gradient-page-ambient));
   background-repeat: no-repeat;
   background-size: 100% 100%;
+  background-attachment: fixed;
   color: var(--text-primary, #f5f5f7);
   padding-top: 64px; /* clear fixed navbar so back button is visible */
 }
@@ -14,17 +15,50 @@
   align-items: center;
   justify-content: center;
   min-height: 60vh;
-  gap: 16px;
+  gap: 20px;
   color: #9ca3af;
+  position: relative;
+}
+
+.meeting-summary-loading::before {
+  content: '';
+  position: absolute;
+  width: min(320px, 80vw);
+  height: min(320px, 80vw);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(59, 130, 246, 0.12) 0%,
+    rgba(99, 102, 241, 0.05) 40%,
+    transparent 70%
+  );
+  animation: meeting-summary-loading-breathe 3.2s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes meeting-summary-loading-breathe {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .meeting-summary-loading .loading-spinner {
+  position: relative;
+  z-index: 1;
   width: 40px;
   height: 40px;
   border: 3px solid #1f2937;
   border-top-color: #3b82f6;
   border-radius: 50%;
   animation: meeting-summary-spin 0.8s linear infinite;
+  box-shadow: 0 0 24px rgba(59, 130, 246, 0.25);
 }
 
 @keyframes meeting-summary-spin {
@@ -273,10 +307,14 @@
 }
 
 .meeting-summary-empty {
-  padding: 32px 0;
+  padding: 48px 24px;
+  min-height: 140px;
   color: #9ca3af;
   font-size: 15px;
   text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .meeting-summary-content {
@@ -877,6 +915,19 @@
   display: inline-flex;
   align-items: baseline;
   gap: 2px;
+  position: relative;
+  z-index: 1;
+  animation: meeting-summary-thinking-pulse 2.8s ease-in-out infinite;
+}
+
+@keyframes meeting-summary-thinking-pulse {
+  0%,
+  100% {
+    opacity: 0.88;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 .meeting-summary-thinking--muted {

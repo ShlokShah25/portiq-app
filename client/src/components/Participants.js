@@ -10,7 +10,7 @@ import {
 } from '../utils/voiceEnrollment';
 import './Participants.css';
 
-const Participants = () => {
+export function ParticipantBookPanel({ embedded = false }) {
   const [participants, setParticipants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -352,11 +352,18 @@ const Participants = () => {
     }
   };
 
+  const rootClass = embedded
+    ? 'participants-screen participants-screen--embedded'
+    : 'participants-screen';
+  const wrapperClass = embedded
+    ? 'participants-wrapper participants-wrapper--embedded'
+    : 'participants-wrapper';
+
   if (loading) {
     return (
-      <div className="participants-screen">
-        <TopNav />
-        <div className="participants-wrapper">
+      <div className={rootClass}>
+        {!embedded && <TopNav />}
+        <div className={wrapperClass}>
           <div className="participants-content">
             <div className="loading">Loading...</div>
           </div>
@@ -366,34 +373,83 @@ const Participants = () => {
   }
 
   return (
-    <div className="participants-screen">
-      <TopNav />
-      <div className="participants-wrapper">
-        <div className="participants-top-bar">
-          <div>
-            <h1 className="participants-title">Team Intelligence</h1>
-            <p className="participants-intel-lead">
-              {T.participantBook()} — execution context for voice, meetings, and assignments.
-            </p>
-            {maxInBook != null && (
-              <p className="participants-limit-hint">{participants.length} / {maxInBook} participants</p>
-            )}
-          </div>
-          <button 
-            className="btn btn-primary"
-            onClick={() => setShowAddForm(!showAddForm)}
-            type="button"
-          >
-            {!showAddForm && (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-            )}
-            {showAddForm ? 'Cancel' : 'Add Participant'}
-          </button>
+    <div className={rootClass}>
+      {!embedded && <TopNav />}
+      <div className={wrapperClass}>
+        <div
+          className={
+            embedded ? 'participants-top-bar participants-top-bar--embedded' : 'participants-top-bar'
+          }
+        >
+          {embedded ? (
+            <>
+              <div className="participants-top-bar-embedded-left">
+                {maxInBook != null && (
+                  <p className="participants-limit-hint">
+                    {participants.length} / {maxInBook} participants
+                  </p>
+                )}
+              </div>
+              <button
+                className="btn btn-primary"
+                onClick={() => setShowAddForm(!showAddForm)}
+                type="button"
+              >
+                {!showAddForm && (
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    aria-hidden="true"
+                  >
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                )}
+                {showAddForm ? 'Cancel' : 'Add Participant'}
+              </button>
+            </>
+          ) : (
+            <>
+              <div>
+                <h1 className="participants-title">Team Intelligence</h1>
+                <p className="participants-intel-lead">
+                  {T.participantBook()} — execution context for voice, meetings, and assignments.
+                </p>
+                {maxInBook != null && (
+                  <p className="participants-limit-hint">
+                    {participants.length} / {maxInBook} participants
+                  </p>
+                )}
+              </div>
+              <button
+                className="btn btn-primary"
+                onClick={() => setShowAddForm(!showAddForm)}
+                type="button"
+              >
+                {!showAddForm && (
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    aria-hidden="true"
+                  >
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                )}
+                {showAddForm ? 'Cancel' : 'Add Participant'}
+              </button>
+            </>
+          )}
         </div>
-        
+
         <div className="participants-content">
           {showAddForm && (
             <div className="add-participant-form">
@@ -609,6 +665,8 @@ const Participants = () => {
 
     </div>
   );
-};
+}
 
-export default Participants;
+export default function Participants() {
+  return <ParticipantBookPanel embedded={false} />;
+}

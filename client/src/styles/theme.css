@@ -43,10 +43,29 @@
   --skeleton: #1e293b;
   --skeleton-shine: #334155;
 
+  /* Ambient page wash (subtle blue/indigo glow — pairs with solid bg) */
+  --page-ambient-gradient:
+    radial-gradient(ellipse 88% 58% at 50% -20%, rgba(59, 130, 246, 0.13), transparent 54%),
+    radial-gradient(ellipse 52% 42% at 100% 28%, rgba(99, 102, 241, 0.07), transparent 50%),
+    radial-gradient(ellipse 48% 38% at 0% 78%, rgba(14, 165, 233, 0.06), transparent 46%);
+
+  /* Motion (respect prefers-reduced-motion in ui-alive.css) */
+  --ease-out: cubic-bezier(0.33, 1, 0.68, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 0.15s;
+  --dur-base: 0.22s;
+  --dur-slow: 0.38s;
+
+  /* Interactive depth */
+  --card-hover-lift: translateY(-2px);
+  --shadow-card-hover: 0 8px 32px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(59, 130, 246, 0.1);
+
   /* Legacy aliases used across older CSS */
   --accent-color: var(--accent-blue);
   --info-color: var(--accent-blue);
   --highlight-color: var(--accent-purple);
+  /* Matches index.css / MeetingSummary / Dashboard */
+  --gradient-page-ambient: var(--page-ambient-gradient);
 }
 
 /* Theme Variables - Light Mode */
@@ -75,10 +94,22 @@
 
   --skeleton: #e5e7eb;
   --skeleton-shine: #f3f4f6;
+
+  --page-ambient-gradient:
+    radial-gradient(ellipse 90% 55% at 50% -18%, rgba(37, 99, 235, 0.09), transparent 55%),
+    radial-gradient(ellipse 45% 35% at 100% 25%, rgba(99, 102, 241, 0.05), transparent 48%),
+    radial-gradient(ellipse 50% 40% at 0% 80%, rgba(14, 165, 233, 0.04), transparent 46%);
+
+  --shadow-card-hover: 0 10px 40px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(37, 99, 235, 0.08);
+  --gradient-page-ambient: var(--page-ambient-gradient);
 }
 
 body {
   background-color: var(--bg-primary);
+  background-image: var(--page-ambient-gradient);
+  background-attachment: fixed;
+  background-size: cover;
+  background-repeat: no-repeat;
   color: var(--text-primary);
   font-family: var(--font-sans);
 }

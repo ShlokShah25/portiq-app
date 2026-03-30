@@ -3,7 +3,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg-primary, #000000);
+  background-color: var(--bg-primary, #000000);
+  background-image: var(--page-ambient-gradient);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
 }
 
 .admin-login-card {
@@ -15,6 +19,15 @@
   border: 1px solid rgba(31, 41, 55, 0.9);
   box-shadow: 0 16px 36px rgba(15, 23, 42, 0.9);
   color: #e5e7eb;
+  transition:
+    box-shadow var(--dur-base, 0.22s) var(--ease-out, ease),
+    transform var(--dur-base, 0.22s) var(--ease-out, ease),
+    border-color var(--dur-base, 0.22s) ease;
+}
+
+.admin-login-card:hover {
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.95), 0 0 0 1px rgba(59, 130, 246, 0.12);
+  transform: translateY(-2px);
 }
 
 .admin-login-header {

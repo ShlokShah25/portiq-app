@@ -5,7 +5,11 @@
 .meetings-screen {
   width: 100vw;
   height: 100vh;
-  background: var(--bg-primary, #000000);
+  background-color: var(--bg-primary, #000000);
+  background-image: var(--page-ambient-gradient);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
   display: flex;
   flex-direction: column;
   position: fixed;
@@ -227,6 +231,23 @@
     rgba(18, 18, 20, 0.98) 100%
   );
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  transition:
+    border-color var(--dur-base, 0.22s) ease,
+    box-shadow var(--dur-base, 0.22s) ease,
+    transform var(--dur-fast, 0.15s) var(--ease-out, ease);
+}
+
+.meeting-card-portiq:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 8px 28px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(59, 130, 246, 0.14);
+  transform: translateY(-1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .meeting-card-portiq:hover {
+    transform: none;
+  }
 }
 
 .meeting-card-portiq-body {
