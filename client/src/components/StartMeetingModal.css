@@ -744,6 +744,61 @@
   margin: 12px 0 4px;
 }
 
+.meeting-create-voice-optional {
+  margin: 12px 0 8px;
+}
+
+.meeting-create-voice-optional__toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: #e5e7eb;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.meeting-create-voice-optional__toggle:hover:not(:disabled) {
+  transform: scale(1.02);
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.meeting-create-voice-optional__toggle:active:not(:disabled) {
+  transform: scale(0.99);
+}
+
+.meeting-create-voice-optional__toggle:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.meeting-create-voice-optional__toggle--open .meeting-create-voice-optional__chev {
+  transform: rotate(180deg);
+}
+
+.meeting-create-voice-optional__chev {
+  margin-left: auto;
+  transition: transform 0.2s ease;
+  color: #9ca3af;
+}
+
+.meeting-create-voice-optional__hint {
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.meeting-create-voice-block--primary {
+  margin-top: 10px;
+}
+
 .meeting-create-voice-block {
   margin: 16px 0 12px;
   padding: 14px;

@@ -7,6 +7,12 @@ import './MeetingSummary.css';
 import './MeetingInProgress.css';
 import './MeetingDetail.css';
 
+// Keep the MediaRecorder + mic stream alive even if the user navigates away from this route.
+// Without this, some browsers will stop recording when the owning React component unmounts.
+let globalActiveMeetingId = null;
+let globalMediaRecorder = null;
+let globalStream = null;
+
 const MeetingInProgress = () => {
   const { id: meetingId } = useParams();
   const navigate = useNavigate();
@@ -29,6 +35,14 @@ const MeetingInProgress = () => {
   const [voiceProfiles, setVoiceProfiles] = useState({});
   const mediaRecorderRef = React.useRef(null);
   const streamRef = React.useRef(null);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     const emails = (meeting?.participants || [])
@@ -74,16 +88,22 @@ const MeetingInProgress = () => {
     setMeetingEnded(false);
     setUploading(false);
     setElapsedTime(0);
-    const rec = mediaRecorderRef.current;
-    if (rec && rec.state !== 'inactive') {
-      try {
-        rec.stop();
-      } catch (_) {}
-    }
-    mediaRecorderRef.current = null;
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
+
+    // If the user switches to a different meeting while a global recorder is active,
+    // stop it so we don't cross-contaminate audio between meetings.
+    if (globalActiveMeetingId && globalActiveMeetingId !== String(meetingId)) {
+      const rec = globalMediaRecorder;
+      if (rec && rec.state !== 'inactive') {
+        try {
+          rec.stop();
+        } catch (_) {}
+      }
+      if (globalStream) {
+        globalStream.getTracks().forEach((t) => t.stop());
+      }
+      globalMediaRecorder = null;
+      globalStream = null;
+      globalActiveMeetingId = null;
     }
   }, [meetingId]);
 
@@ -92,6 +112,18 @@ const MeetingInProgress = () => {
       fetchMeeting();
       const interval = setInterval(fetchMeeting, 5000); // Poll every 5 seconds
       return () => clearInterval(interval);
+    }
+  }, [meetingId]);
+
+  // When returning to this route, re-bind local refs/state to any already-active global recorder.
+  useEffect(() => {
+    if (!meetingId) return;
+    const activeForThisMeeting = globalActiveMeetingId === String(meetingId);
+    if (activeForThisMeeting && globalMediaRecorder && globalStream) {
+      mediaRecorderRef.current = globalMediaRecorder;
+      streamRef.current = globalStream;
+      setRecording(globalMediaRecorder.state === 'recording');
+      setPaused(globalMediaRecorder.state === 'paused');
     }
   }, [meetingId]);
 
@@ -163,9 +195,25 @@ const MeetingInProgress = () => {
       await axios.post(`/meetings/${meetingId}/start-recording`);
       await fetchMeeting();
 
+      // Ensure we don't start a duplicate recorder for the same meeting.
+      if (
+        globalActiveMeetingId === String(meetingId) &&
+        globalMediaRecorder &&
+        globalMediaRecorder.state !== 'inactive'
+      ) {
+        if (isMountedRef.current) {
+          setRecording(globalMediaRecorder.state === 'recording');
+          setPaused(globalMediaRecorder.state === 'paused');
+        }
+        return;
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      globalStream = stream;
       streamRef.current = stream;
       const mediaRecorder = new MediaRecorder(stream);
+      globalMediaRecorder = mediaRecorder;
+      globalActiveMeetingId = String(meetingId);
       const chunks = [];
 
       mediaRecorder.ondataavailable = (event) => {
@@ -176,71 +224,84 @@ const MeetingInProgress = () => {
 
       mediaRecorder.onstop = async () => {
         const blob = new Blob(chunks, { type: 'audio/webm' });
-        if (streamRef.current) {
-          streamRef.current.getTracks().forEach(t => t.stop());
+        if (globalStream) {
+          globalStream.getTracks().forEach((t) => t.stop());
+          globalStream = null;
+          globalMediaRecorder = null;
+          globalActiveMeetingId = null;
         }
-        await uploadAudio(blob);
+        await uploadAudio(blob, String(meetingId));
       };
 
       mediaRecorderRef.current = mediaRecorder;
       mediaRecorder.start();
-      setRecording(true);
-      setPaused(false);
-      setError('');
+      if (isMountedRef.current) {
+        setRecording(true);
+        setPaused(false);
+        setError('');
+      }
     } catch (err) {
       console.error('Error starting recording:', err);
       const st = err.response?.status;
-      setError(
-        typeof st === 'number' && st >= 400
-          ? err.response?.data?.error ||
-              err.message ||
-              'Could not start recording on the server. Try again or open the meeting from Meetings.'
-          : 'Unable to access microphone. Please check browser permissions.'
-      );
+      if (isMountedRef.current) {
+        setError(
+          typeof st === 'number' && st >= 400
+            ? err.response?.data?.error ||
+                err.message ||
+                'Could not start recording on the server. Try again or open the meeting from Meetings.'
+            : 'Unable to access microphone. Please check browser permissions.'
+        );
+      }
     }
   };
 
   const pauseRecording = () => {
-    const recorder = mediaRecorderRef.current;
+    const recorder = globalMediaRecorder || mediaRecorderRef.current;
     if (recorder && recorder.state === 'recording') {
       recorder.pause();
-      setPaused(true);
+      if (isMountedRef.current) setPaused(true);
     }
   };
 
   const resumeRecording = () => {
-    const recorder = mediaRecorderRef.current;
+    const recorder = globalMediaRecorder || mediaRecorderRef.current;
     if (recorder && recorder.state === 'paused') {
       recorder.resume();
-      setPaused(false);
+      if (isMountedRef.current) setPaused(false);
     }
   };
 
   const stopRecording = () => {
-    const recorder = mediaRecorderRef.current;
+    const recorder = globalMediaRecorder || mediaRecorderRef.current;
     if (recorder && recorder.state !== 'inactive') {
       recorder.stop();
-      setRecording(false);
-      setPaused(false);
+      if (isMountedRef.current) {
+        setRecording(false);
+        setPaused(false);
+      }
     }
   };
 
-  const uploadAudio = async (blob) => {
-    if (!meeting) return;
-    setUploading(true);
+  const uploadAudio = async (blob, uploadMeetingId) => {
+    if (!uploadMeetingId) return;
+    if (isMountedRef.current) setUploading(true);
     try {
       const fileToSend = new File([blob], 'meeting-audio.webm', { type: 'audio/webm' });
       const data = new FormData();
       data.append('audio', fileToSend);
-      const res = await axios.post(`/meetings/${meeting._id}/end`, data, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+      const res = await axios.post(`/meetings/${uploadMeetingId}/end`, data, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
-      setMeeting(res.data.meeting);
-      setUploading(false);
+      if (isMountedRef.current) {
+        setMeeting(res.data.meeting);
+        setUploading(false);
+      }
     } catch (err) {
       console.error('Error uploading audio:', err);
-      setError('Failed to upload audio');
-      setUploading(false);
+      if (isMountedRef.current) {
+        setError('Failed to upload audio');
+        setUploading(false);
+      }
     }
   };
 

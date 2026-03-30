@@ -77,7 +77,7 @@ function resetAllState(setters) {
   setters.setSendNotification(true);
   setters.setError('');
   setters.setLoading(false);
-  setters.setVoiceRecognitionEnabled(true);
+  setters.setVoiceRecognitionEnabled(false);
   if (setters.setOptionalDetailsOpen) setters.setOptionalDetailsOpen(false);
 }
 
@@ -113,7 +113,7 @@ export default function MeetingCreateForm({
   const [recordingEmail, setRecordingEmail] = useState(null);
   const [voiceUploading, setVoiceUploading] = useState(false);
   const voiceRecorderRef = useRef(null);
-  const [voiceRecognitionEnabled, setVoiceRecognitionEnabled] = useState(true);
+  const [voiceRecognitionEnabled, setVoiceRecognitionEnabled] = useState(false);
   const [participantDropdownOpen, setParticipantDropdownOpen] = useState(false);
   const [participantSearchQuery, setParticipantSearchQuery] = useState('');
   const participantDropdownRef = useRef(null);
@@ -238,6 +238,12 @@ export default function MeetingCreateForm({
       document.removeEventListener('keydown', onKey);
     };
   }, [participantDropdownOpen]);
+
+  useEffect(() => {
+    if (selectedBookEmails.length === 0) {
+      setVoiceRecognitionEnabled(false);
+    }
+  }, [selectedBookEmails.length]);
 
   const filteredParticipantBook = useMemo(() => {
     const q = participantSearchQuery.trim().toLowerCase();
@@ -523,8 +529,8 @@ export default function MeetingCreateForm({
                 Participants
               </div>
               <p className="start-meeting-field-hint">
-                Open the dropdown to search and select people from your book. Voice enrollment status is shown per
-                person.
+                Search and select people from your book — name and email are used for the meeting. Voice is optional and
+                can be set later.
               </p>
               {participantBookError && (
                 <p className="start-meeting-field-hint start-meeting-field-hint--warn">
@@ -644,18 +650,90 @@ export default function MeetingCreateForm({
                 </div>
               )}
               {selectedBookEmails.length > 0 && participantBook.length > 0 && (
-                <label className="start-meeting-checkbox start-meeting-checkbox--with-icon meeting-create-voice-toggle">
-                  <Mic size={16} strokeWidth={1.75} className="start-meeting-checkbox__ic" aria-hidden />
-                  <input
-                    type="checkbox"
-                    checked={voiceRecognitionEnabled}
-                    onChange={(e) => setVoiceRecognitionEnabled(e.target.checked)}
+                <div className="meeting-create-voice-optional">
+                  <button
+                    type="button"
+                    className={`meeting-create-voice-optional__toggle${voiceRecognitionEnabled ? ' meeting-create-voice-optional__toggle--open' : ''}`}
+                    onClick={() => setVoiceRecognitionEnabled((v) => !v)}
+                    aria-expanded={voiceRecognitionEnabled}
                     disabled={formDisabled}
-                  />
-                  <span>
-                    Enable voice recognition (use enrolled samples so transcripts can label speakers more accurately)
-                  </span>
-                </label>
+                  >
+                    <Mic size={16} strokeWidth={1.75} aria-hidden />
+                    <span>Configure voice (optional)</span>
+                    <ChevronDown
+                      size={18}
+                      strokeWidth={2}
+                      className="meeting-create-voice-optional__chev"
+                      aria-hidden
+                    />
+                  </button>
+                  {voiceRecognitionEnabled && (
+                    <div className="meeting-create-voice-block meeting-create-voice-block--primary">
+                      <p className="start-meeting-field-hint meeting-create-voice-optional__hint">
+                        Record a short sample so transcripts can label speakers more accurately. Skip this and enroll
+                        later from Participant book if you prefer.
+                      </p>
+                      {selectedBookEmails.map((em) => {
+                        const p = participantBook.find(
+                          (x) => x.email && String(x.email).trim().toLowerCase() === em
+                        );
+                        if (!p) return null;
+                        const hasVoice = !!voiceProfiles[em]?.hasProfile;
+                        const rec = recordingEmail === em;
+                        const participantPayload = {
+                          name: (p.name && String(p.name).trim()) || em.split('@')[0] || '',
+                          email: em,
+                        };
+                        return (
+                          <div key={em} className="meeting-create-voice-row">
+                            <div className="meeting-create-voice-row__head">
+                              <span className="meeting-create-voice-row__name">{p.name || em}</span>
+                              {hasVoice ? (
+                                <span className="meeting-create-voice-row__badge meeting-create-voice-row__badge--ok">
+                                  <Mic size={14} strokeWidth={2} aria-hidden /> Configured
+                                </span>
+                              ) : (
+                                <span className="meeting-create-voice-row__badge">
+                                  <CircleDashed size={14} strokeWidth={2} aria-hidden /> Not configured
+                                </span>
+                              )}
+                            </div>
+                            <p className="meeting-create-voice-row__phrase">
+                              {voiceEnrollmentSentenceForParticipant(participantPayload.name)}
+                            </p>
+                            <div className="meeting-create-voice-row__actions">
+                              {!rec ? (
+                                <button
+                                  type="button"
+                                  className="start-meeting-btn start-meeting-btn--ghost meeting-create-voice-btn"
+                                  disabled={formDisabled || voiceUploading}
+                                  onClick={() => startVoiceRecording(participantPayload)}
+                                >
+                                  <Mic size={16} aria-hidden />
+                                  {hasVoice ? 'Re-record voice' : 'Record sample'}
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="start-meeting-btn start-meeting-btn--primary meeting-create-voice-btn"
+                                  onClick={stopVoiceRecording}
+                                  disabled={voiceUploading}
+                                >
+                                  <Square size={14} aria-hidden />
+                                  Stop & upload
+                                </button>
+                              )}
+                              {rec && <span className="meeting-create-voice-row__rec">Recording…</span>}
+                              {voiceUploading && recordingEmail === em && (
+                                <span className="meeting-create-voice-row__rec">Uploading…</span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               )}
               <Link to="/participants" className="start-meeting-book-manage" onClick={linkClose}>
                 <ExternalLink size={14} aria-hidden />
@@ -719,80 +797,6 @@ export default function MeetingCreateForm({
                 >
                   <div className="meeting-create-details-collapse__inner">
                     <div className="meeting-create-optional-panel">
-                      {!isEducation &&
-                        voiceRecognitionEnabled &&
-                        selectedBookEmails.length > 0 &&
-                        participantBook.length > 0 && (
-                          <div className="meeting-create-voice-block">
-                            <div className="start-meeting-section-label start-meeting-section-label--row">
-                              <Mic size={16} strokeWidth={1.75} className="start-meeting-section-label__ic" aria-hidden />
-                              Voice samples
-                            </div>
-                            <p className="start-meeting-field-hint">
-                              Record the standard phrase for each selected participant (same as Participant book). This
-                              helps speaker recognition in transcripts.
-                            </p>
-                            {selectedBookEmails.map((em) => {
-                              const p = participantBook.find(
-                                (x) => x.email && String(x.email).trim().toLowerCase() === em
-                              );
-                              if (!p) return null;
-                              const hasVoice = !!voiceProfiles[em]?.hasProfile;
-                              const rec = recordingEmail === em;
-                              const participantPayload = {
-                                name: (p.name && String(p.name).trim()) || em.split('@')[0] || '',
-                                email: em,
-                              };
-                              return (
-                                <div key={em} className="meeting-create-voice-row">
-                                  <div className="meeting-create-voice-row__head">
-                                    <span className="meeting-create-voice-row__name">{p.name || em}</span>
-                                    {hasVoice ? (
-                                      <span className="meeting-create-voice-row__badge meeting-create-voice-row__badge--ok">
-                                        <Mic size={14} strokeWidth={2} aria-hidden /> Configured
-                                      </span>
-                                    ) : (
-                                      <span className="meeting-create-voice-row__badge">
-                                        <CircleDashed size={14} strokeWidth={2} aria-hidden /> Not configured
-                                      </span>
-                                    )}
-                                  </div>
-                                  <p className="meeting-create-voice-row__phrase">
-                                    {voiceEnrollmentSentenceForParticipant(participantPayload.name)}
-                                  </p>
-                                  <div className="meeting-create-voice-row__actions">
-                                    {!rec ? (
-                                      <button
-                                        type="button"
-                                        className="start-meeting-btn start-meeting-btn--ghost meeting-create-voice-btn"
-                                        disabled={formDisabled || voiceUploading}
-                                        onClick={() => startVoiceRecording(participantPayload)}
-                                      >
-                                        <Mic size={16} aria-hidden />
-                                        {hasVoice ? 'Re-record voice' : 'Configure voice'}
-                                      </button>
-                                    ) : (
-                                      <button
-                                        type="button"
-                                        className="start-meeting-btn start-meeting-btn--primary meeting-create-voice-btn"
-                                        onClick={stopVoiceRecording}
-                                        disabled={voiceUploading}
-                                      >
-                                        <Square size={14} aria-hidden />
-                                        Stop & upload
-                                      </button>
-                                    )}
-                                    {rec && <span className="meeting-create-voice-row__rec">Recording…</span>}
-                                    {voiceUploading && recordingEmail === em && (
-                                      <span className="meeting-create-voice-row__rec">Uploading…</span>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-
                       <div className="start-meeting-datetime-row">
                         <div className="start-meeting-field">
                           <FieldLabel htmlFor="sm-date" icon={Calendar}>

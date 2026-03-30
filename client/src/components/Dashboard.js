@@ -7,6 +7,7 @@ import {
   CheckSquare,
   FileText,
   ChevronRight,
+  Lightbulb,
 } from 'lucide-react';
 import TopNav from './TopNav';
 import { T } from '../config/terminology';
@@ -46,16 +47,47 @@ function formatDue(d) {
   return x.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+function formatStartTime(d) {
+  if (!d) return 'Live';
+  const x = new Date(d);
+  if (Number.isNaN(x.getTime())) return 'Live';
+  return x.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+}
+
 function statusLabel(s) {
   if (s === 'done') return 'Done';
   if (s === 'in_progress') return 'In progress';
   return 'Not started';
 }
 
+const DASHBOARD_TIPS = [
+  'Tip: Add participants directly while creating a meeting.',
+  'Tip: Use optional details to adjust date, time, and location before you start.',
+  'Tip: Approve pending summaries so participants receive recaps on time.',
+  'Tip: Action items from meetings surface here — check due dates regularly.',
+];
+
+function pickDashboardTipIndex() {
+  try {
+    const k = 'portiq_dashboard_tip_idx';
+    const raw = sessionStorage.getItem(k);
+    if (raw != null) {
+      const n = parseInt(raw, 10);
+      if (!Number.isNaN(n)) return n % DASHBOARD_TIPS.length;
+    }
+    const idx = Math.floor(Math.random() * DASHBOARD_TIPS.length);
+    sessionStorage.setItem(k, String(idx));
+    return idx;
+  } catch {
+    return 0;
+  }
+}
+
 const Dashboard = () => {
   const [stats, setStats] = useState(null);
   const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [tipIndex] = useState(() => pickDashboardTipIndex());
 
   useEffect(() => {
     fetchData();
@@ -88,6 +120,16 @@ const Dashboard = () => {
           m.transcriptionStatus === 'Completed'
       )
       .slice(0, 7);
+  }, [meetings]);
+
+  const inProgressMeetings = useMemo(() => {
+    return meetings
+      .filter((m) => {
+        const statusOk = m.status === 'In Progress';
+        const recordingOk = m.transcriptionStatus === 'Recording';
+        return statusOk || recordingOk;
+      })
+      .slice(0, 3);
   }, [meetings]);
 
   if (loading) {
@@ -153,6 +195,57 @@ const Dashboard = () => {
           </div>
 
           <div
+            className="dashboard-tip-strip ux-dashboard-tip-fade"
+            role="status"
+            aria-live="polite"
+          >
+            <Lightbulb className="dashboard-tip-strip__ic" strokeWidth={1.5} aria-hidden />
+            <span>{DASHBOARD_TIPS[tipIndex]}</span>
+          </div>
+
+          <section
+            className="dashboard-section card ux-dashboard-stagger dashboard-section--reveal"
+            style={{ animationDelay: '115ms' }}
+            aria-labelledby="dash-in-progress"
+          >
+            <div className="dashboard-section__head">
+              <h2 id="dash-in-progress" className="dashboard-section__title">
+                In progress
+              </h2>
+              <Link to="/meetings" state={{ showAllMeetings: true }} className="dashboard-section__link">
+                View all
+              </Link>
+            </div>
+            {inProgressMeetings.length === 0 ? (
+              <p className="dashboard-section__empty">No live sessions right now.</p>
+            ) : (
+              <ul className="dashboard-task-list">
+                {inProgressMeetings.map((m, idx) => {
+                  const id = m._id != null ? String(m._id) : '';
+                  return (
+                    <li
+                      key={id || idx}
+                      className="dashboard-task-row ux-dashboard-list-item"
+                      style={{ animationDelay: `${Math.min(idx, 2) * 45}ms` }}
+                    >
+                      <Link to={`/meetings/${id}/room`} className="dashboard-task-row__link">
+                        <span className="dashboard-task-row__task">{m.title || 'Untitled meeting'}</span>
+                        <span className="dashboard-task-row__meta">
+                          <span className="dashboard-task-row__pill">Live</span>
+                          <span className="dashboard-task-row__due">
+                            {m.transcriptionStatus === 'Recording' ? 'Recording' : 'In progress'}
+                          </span>
+                        </span>
+                        <span className="dashboard-task-row__meeting">{formatStartTime(m.startTime)}</span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+
+          <div
             className="dashboard-compact-stats ux-dashboard-stagger"
             style={{ animationDelay: '90ms' }}
             aria-label="Meeting and task summary"
@@ -214,7 +307,9 @@ const Dashboard = () => {
               </Link>
             </div>
             {recentTasks.length === 0 ? (
-              <p className="dashboard-section__empty">No open action items right now.</p>
+              <p className="dashboard-section__empty">
+                Action items will appear here after meetings
+              </p>
             ) : (
               <ul className="dashboard-task-list">
                 {recentTasks.map((row, idx) => (
@@ -262,7 +357,7 @@ const Dashboard = () => {
                   return (
                     <li
                       key={id || idx}
-                      className="dashboard-pending-row ux-dashboard-list-item"
+                      className="dashboard-pending-row dashboard-pending-row--card ux-dashboard-list-item"
                       style={{ animationDelay: `${Math.min(idx, 6) * 35}ms` }}
                     >
                       <Link to={`/meetings/${id}/summary`} className="dashboard-pending-row__link">
