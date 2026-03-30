@@ -119,11 +119,14 @@ app.get('/api/health/ready', (req, res) => {
     uploadsOk = false;
   }
   const ok = mongoOk && openaiOk && uploadsOk;
+  const mirrorDir = process.env.MEETING_AUDIO_MIRROR_DIR;
   res.status(ok ? 200 : 503).json({
     ok,
     mongo: mongoOk ? 'connected' : 'disconnected',
     openai: openaiOk ? 'configured' : 'missing_key',
     uploadsMeetings: uploadsOk ? 'ready' : 'not_writable',
+    meetingAudioMirrorDir: mirrorDir ? 'configured' : 'not_set',
+    transcriptCheckpoint: 'enabled',
   });
 });
 
@@ -173,6 +176,18 @@ mongoose.connect(mongoUri, mongoOptions)
   const Config = require('./models/Config');
   await Config.getConfig();
   console.log('✅ Configuration initialized');
+
+  if (
+    process.env.NODE_ENV === 'production' &&
+    !process.env.MEETING_AUDIO_MIRROR_DIR &&
+    (process.env.RAILWAY_ENVIRONMENT || process.env.RENDER || process.env.FLY_APP_NAME)
+  ) {
+    console.warn(
+      '[portiq] Production on ephemeral disk: set MEETING_AUDIO_MIRROR_DIR to a persistent volume path, ' +
+        'or mount ./uploads to a volume. Raw transcripts are now checkpointed to MongoDB after Whisper; ' +
+        'audio files still need durable storage for re-transcription.'
+    );
+  }
 
   // Start background cron jobs (e.g., action-item review reminders)
   try {

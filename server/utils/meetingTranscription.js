@@ -9,8 +9,30 @@ const {
   buildMeetingIcs,
 } = require('./calendarInviteLinks');
 const { enrichActionItemsWithDueDates } = require('./actionItemDueDate');
+const { mirrorMeetingAudioToPersistentDir } = require('./meetingAudioMirror');
 const VoiceProfile = require('../models/VoiceProfile');
 const Admin = require('../models/Admin');
+const Meeting = require('../models/Meeting');
+
+/**
+ * Save Whisper output to MongoDB before summarization so GPT failures or deploys never wipe recoverable text.
+ */
+async function checkpointTranscriptionToDb(meetingId, transcriptText) {
+  if (!meetingId) return;
+  const t = String(transcriptText || '').trim();
+  if (!t) return;
+  try {
+    await Meeting.findByIdAndUpdate(meetingId, {
+      $set: {
+        transcription: t,
+        transcriptionStatus: 'Processing',
+      },
+    });
+    console.log(`💾 Transcript checkpoint saved to database (${t.length} chars) for meeting ${meetingId}`);
+  } catch (err) {
+    console.warn('⚠️ Transcript checkpoint failed (non-fatal):', err.message);
+  }
+}
 let ffmpeg = null;
 try {
   ffmpeg = require('fluent-ffmpeg');
@@ -591,7 +613,9 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
     if (stats.size === 0) {
       throw new Error('Audio file is empty (0 bytes)');
     }
-    
+
+    mirrorMeetingAudioToPersistentDir(audioFilePath);
+
     // Compress if needed
     let finalAudioPath = audioFilePath;
     if (stats.size > 25 * 1024 * 1024) {
@@ -671,6 +695,8 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
     
     console.log(`✅ Transcription text length: ${transcriptText.length} characters`);
     console.log(`✅ Detected transcription language: ${detectedLanguage}`);
+
+    await checkpointTranscriptionToDb(meetingObj._id, transcriptText);
 
     const summaryResult = await generateMeetingSummaryFromTranscript(transcriptText, meetingObj, {
       ...options,

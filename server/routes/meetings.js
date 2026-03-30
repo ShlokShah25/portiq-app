@@ -715,7 +715,7 @@ router.post('/:id/end', upload.single('audio'), async (req, res) => {
         })
         .catch((error) => {
           console.error('Transcription processing error:', error);
-          // Mark transcription as failed without relying on potentially stale doc
+          // Mark summarization as failed. Raw transcript may already be checkpointed in MongoDB after Whisper.
           Meeting.findByIdAndUpdate(
             meeting._id,
             { $set: { transcriptionStatus: 'Failed' } }
