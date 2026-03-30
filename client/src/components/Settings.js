@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import TopNav from './TopNav';
 import './Settings.css';
@@ -50,6 +51,21 @@ const Settings = () => {
                   <span>Dark</span>
                 </button>
               </div>
+            </div>
+          </div>
+
+          <div className="settings-section" id="settings-participant-book">
+            <h2>Workspace</h2>
+            <div className="settings-item">
+              <div className="settings-item-header">
+                <div className="settings-item-label">Participant book</div>
+                <div className="settings-item-description">
+                  Manage saved people for meeting invitations and voice enrollment.
+                </div>
+              </div>
+              <Link to="/participants" className="settings-link-out">
+                Open participant book
+              </Link>
             </div>
           </div>
 

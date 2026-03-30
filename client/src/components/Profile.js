@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import TopNav from './TopNav';
 import axios from 'axios';
 import './Profile.css';
@@ -164,6 +165,17 @@ const Profile = () => {
                 <span className="value">{email}</span>
               </div>
             )}
+          </div>
+
+          <div className="profile-section">
+            <h2>Workspace</h2>
+            <p className="profile-workspace-links">
+              <Link to="/settings#settings-participant-book">Participant book in Settings</Link>
+              <span className="profile-workspace-sep" aria-hidden>
+                ·
+              </span>
+              <Link to="/participants">Open participant book</Link>
+            </p>
           </div>
 
           <div className="profile-section">

@@ -19,8 +19,6 @@ import {
   BookUser,
   ChevronDown,
   Search,
-  Play,
-  CalendarPlus,
 } from 'lucide-react';
 import { isEducation } from '../config/product';
 import { getClassrooms } from '../utils/classroomsStorage';
@@ -81,7 +79,6 @@ function resetAllState(setters) {
   setters.setLoading(false);
   setters.setVoiceRecognitionEnabled(true);
   if (setters.setOptionalDetailsOpen) setters.setOptionalDetailsOpen(false);
-  if (setters.setCreateFlowStep) setters.setCreateFlowStep(isEducation ? 'schedule' : 'choose');
 }
 
 /**
@@ -120,9 +117,7 @@ export default function MeetingCreateForm({
   const [participantDropdownOpen, setParticipantDropdownOpen] = useState(false);
   const [participantSearchQuery, setParticipantSearchQuery] = useState('');
   const participantDropdownRef = useRef(null);
-  const [createFlowStep, setCreateFlowStep] = useState(() => (isEducation ? 'schedule' : 'choose'));
   const [optionalDetailsOpen, setOptionalDetailsOpen] = useState(false);
-  const [adminHostEmail, setAdminHostEmail] = useState('');
 
   const runReset = useCallback(() => {
     try {
@@ -149,7 +144,6 @@ export default function MeetingCreateForm({
       setLoading,
       setVoiceRecognitionEnabled,
       setOptionalDetailsOpen,
-      setCreateFlowStep,
     });
     setParticipantDropdownOpen(false);
     setParticipantSearchQuery('');
@@ -169,10 +163,8 @@ export default function MeetingCreateForm({
         const a = res.data?.admin;
         const o = (a?.email && String(a.email).trim()) || (a?.username && String(a.username).trim()) || '';
         setOrganizer(o);
-        setAdminHostEmail(a?.email && String(a.email).trim() ? String(a.email).trim() : '');
       } catch {
         setOrganizer('');
-        setAdminHostEmail('');
       }
       if (!isEducation) {
         setParticipantBookError('');
@@ -334,73 +326,6 @@ export default function MeetingCreateForm({
     };
   };
 
-  const instantParticipantsList = () => {
-    const fromBook = payloadParticipants();
-    if (fromBook.length > 0) return fromBook;
-    const em =
-      (adminHostEmail && String(adminHostEmail).trim().toLowerCase()) ||
-      (() => {
-        const o = organizer.trim();
-        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(o) ? o.toLowerCase() : '';
-      })();
-    if (!em) return [];
-    const name =
-      (organizer.trim() && organizer.trim().split('@')[0]) ||
-      (em.includes('@') ? em.split('@')[0] : 'Host') ||
-      'Host';
-    return [{ name, email: em, role: 'participant' }];
-  };
-
-  const submitInstant = async () => {
-    setError('');
-    if (subscriptionGate === 'inactive' || subscriptionGate === 'payment_pending') {
-      setError('Subscription required to create a meeting.');
-      return;
-    }
-    const parts = instantParticipantsList();
-    if (parts.length === 0) {
-      setError(
-        'Add a work email on your account, use your organizer email, or select participants to start instantly.'
-      );
-      return;
-    }
-    if (maxParticipantsPerMeeting != null && parts.length > maxParticipantsPerMeeting) {
-      setError(`Your plan allows up to ${maxParticipantsPerMeeting} participants per meeting.`);
-      return;
-    }
-    const orgTrim = organizer.trim() || 'Organizer';
-    const label = new Date().toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' });
-    const body = {
-      title: `Instant session · ${label}`.slice(0, 500),
-      agenda: 'Quick capture session',
-      organizer: orgTrim,
-      scheduledTime: new Date().toISOString(),
-      participants: parts,
-      sendNotification: false,
-      transcriptionEnabled: true,
-      meetingRoom: 'Live recording',
-    };
-    setLoading(true);
-    try {
-      const res = await axios.post('/meetings', body, { timeout: 30000 });
-      const raw = res.data?.meeting;
-      const id = raw?._id ?? raw?.id;
-      const idStr = id != null ? String(id) : '';
-      if (!idStr) {
-        setError('Meeting was created but the app did not receive a meeting id. Open it from the Scheduled list.');
-        return;
-      }
-      await axios.post(`/meetings/${idStr}/start`, {}, { timeout: 15000 });
-      navigate(`/meetings/${idStr}/room`, { state: { autoStartRecording: true } });
-      afterCreate();
-      if (onClose) onClose();
-    } catch (err) {
-      setError(err.response?.data?.error || err.message || 'Could not start instant session.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const submitLive = async () => {
     setError('');
     if (subscriptionGate === 'inactive' || subscriptionGate === 'payment_pending') {
@@ -552,64 +477,6 @@ export default function MeetingCreateForm({
       )}
 
       <>
-          {!isEducation && createFlowStep === 'choose' ? (
-            <div className="start-meeting-flow-choice">
-              <p className="start-meeting-flow-choice__hint">Pick how you want to begin.</p>
-              <button
-                type="button"
-                className="start-meeting-btn start-meeting-btn--primary"
-                onClick={submitInstant}
-                disabled={loading || formDisabled}
-              >
-                {loading ? (
-                  <>
-                    <span className="start-meeting-btn-spinner" aria-hidden />
-                    Starting…
-                  </>
-                ) : (
-                  <>
-                    <Play size={18} strokeWidth={2} aria-hidden />
-                    Start Instant Session
-                  </>
-                )}
-              </button>
-              <button
-                type="button"
-                className="start-meeting-btn start-meeting-btn--ghost"
-                onClick={() => {
-                  setError('');
-                  setCreateFlowStep('schedule');
-                }}
-                disabled={loading || formDisabled}
-              >
-                <CalendarPlus size={18} strokeWidth={2} aria-hidden />
-                Schedule Meeting
-              </button>
-              {error ? <div className="start-meeting-error">{error}</div> : null}
-            </div>
-          ) : (
-            <>
-              {!inline && !isEducation && (
-                <button
-                  type="button"
-                  className="start-meeting-back-to-choice"
-                  onClick={() => !loading && setCreateFlowStep('choose')}
-                  disabled={loading}
-                >
-                  ← Back
-                </button>
-              )}
-              {inline && !isEducation && (
-                <button
-                  type="button"
-                  className="start-meeting-back-to-choice start-meeting-back-to-choice--inline"
-                  onClick={() => !loading && setCreateFlowStep('choose')}
-                  disabled={loading}
-                >
-                  ← Back to start options
-                </button>
-              )}
-
               <div className="meeting-create-primary-block">
                 <div className="start-meeting-field" style={{ marginTop: isEducation ? 4 : 0 }}>
                   <FieldLabel htmlFor="sm-title-agenda" icon={FileText}>
@@ -1020,8 +887,6 @@ export default function MeetingCreateForm({
                   </div>
                 </div>
               </div>
-            </>
-          )}
       </>
     </div>
   );

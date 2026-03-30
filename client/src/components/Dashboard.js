@@ -1,18 +1,60 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import {
   Calendar,
   AlertTriangle,
-  CheckCircle2,
   CheckSquare,
+  FileText,
+  ChevronRight,
 } from 'lucide-react';
 import TopNav from './TopNav';
 import { T } from '../config/terminology';
 import './Dashboard.css';
 
-const Dashboard = ({ config }) => {
+function buildRecentTasks(stats) {
+  if (!stats) return [];
+  const overdue = Array.isArray(stats.taskListOverdue) ? stats.taskListOverdue : [];
+  const dueTom = Array.isArray(stats.taskListDueTomorrow) ? stats.taskListDueTomorrow : [];
+  const upcoming = Array.isArray(stats.upcomingActions) ? stats.upcomingActions : [];
+  const seen = new Set();
+  const out = [];
+  const add = (r) => {
+    if (!r || !r.meetingId) return;
+    const k = `${r.meetingId}:${String(r.task || '').slice(0, 80)}:${r.dueDate || ''}`;
+    if (seen.has(k)) return;
+    seen.add(k);
+    out.push({
+      task: r.task || 'Action item',
+      meetingTitle: r.meetingTitle || 'Meeting',
+      meetingId: r.meetingId,
+      dueDate: r.dueDate,
+      status: r.status || 'not_started',
+      assignee: r.assignee != null ? String(r.assignee).trim() : '',
+    });
+  };
+  overdue.forEach(add);
+  dueTom.forEach(add);
+  upcoming.forEach(add);
+  return out.slice(0, 7);
+}
+
+function formatDue(d) {
+  if (!d) return 'No due date';
+  const x = new Date(d);
+  if (Number.isNaN(x.getTime())) return 'No due date';
+  return x.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function statusLabel(s) {
+  if (s === 'done') return 'Done';
+  if (s === 'in_progress') return 'In progress';
+  return 'Not started';
+}
+
+const Dashboard = () => {
   const [stats, setStats] = useState(null);
+  const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -23,8 +65,12 @@ const Dashboard = ({ config }) => {
 
   const fetchData = async () => {
     try {
-      const statsRes = await axios.get('/admin/stats').catch(() => ({ data: {} }));
+      const [statsRes, meetingsRes] = await Promise.all([
+        axios.get('/admin/stats').catch(() => ({ data: {} })),
+        axios.get('/meetings').catch(() => ({ data: { meetings: [] } })),
+      ]);
       setStats(statsRes.data || {});
+      setMeetings(Array.isArray(meetingsRes.data?.meetings) ? meetingsRes.data.meetings : []);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -32,13 +78,34 @@ const Dashboard = ({ config }) => {
     }
   };
 
+  const recentTasks = useMemo(() => buildRecentTasks(stats), [stats]);
+
+  const pendingSummaries = useMemo(() => {
+    return meetings
+      .filter(
+        (m) =>
+          m.summaryStatus === 'Pending Approval' &&
+          m.transcriptionStatus === 'Completed'
+      )
+      .slice(0, 7);
+  }, [meetings]);
+
   if (loading) {
     return (
       <div className="dashboard-screen">
         <TopNav />
         <div className="dashboard-wrapper">
           <div className="dashboard-content">
-            <div className="dashboard-loading">Loading...</div>
+            <div className="dashboard-loading" role="status">
+              <p className="dashboard-thinking">
+                Loading dashboard
+                <span className="dashboard-thinking-dots" aria-hidden>
+                  <span className="dashboard-thinking-dot" />
+                  <span className="dashboard-thinking-dot" />
+                  <span className="dashboard-thinking-dot" />
+                </span>
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -47,7 +114,6 @@ const Dashboard = ({ config }) => {
 
   const nDueTom = stats?.tasksDueTomorrow ?? 0;
   const nOverdue = stats?.overdueTasks ?? 0;
-  const nDoneWeek = stats?.completedThisWeek ?? 0;
   const nMeetWeek = stats?.meetingsThisWeek ?? 0;
 
   return (
@@ -62,95 +128,155 @@ const Dashboard = ({ config }) => {
             </p>
           </div>
 
-          <div className="dashboard-meetings-cta card" id="dashboard-meetings">
-            <div className="dashboard-meetings-cta__head">
-              <h2 className="dashboard-meetings-cta__title">{T.meetings()}</h2>
-              <p className="dashboard-meetings-cta__desc">
-                Jump straight into creating a meeting, or open your full meetings list.
-              </p>
-            </div>
-            <div className="dashboard-actions-row">
+          <div
+            className="dashboard-start-meeting card ux-dashboard-stagger"
+            style={{ animationDelay: '45ms' }}
+            id="dashboard-meetings"
+          >
+            <h2 className="dashboard-start-meeting__title">Start a meeting</h2>
+            <div className="dashboard-start-meeting__actions">
               <Link
                 to="/meetings"
                 state={{ openStartModal: true }}
-                className="dashboard-btn-primary"
+                className="dashboard-btn-primary dashboard-btn-micro"
               >
-                New meeting
+                New Meeting
               </Link>
               <Link
                 to="/meetings"
                 state={{ showAllMeetings: true }}
-                className="dashboard-btn-secondary"
+                className="dashboard-btn-secondary dashboard-btn-micro"
               >
-                Open meetings
+                View Meetings
               </Link>
             </div>
           </div>
 
           <div
-            className="dashboard-metrics ux-dashboard-stagger"
-            aria-label="Task and meeting shortcuts"
-            style={{ animationDelay: '110ms' }}
+            className="dashboard-compact-stats ux-dashboard-stagger"
+            style={{ animationDelay: '90ms' }}
+            aria-label="Meeting and task summary"
           >
             <Link
-              to="/dashboard/tasks/due-tomorrow"
-              className="metric-card metric-card--tile"
-            >
-              <div className="metric-header">
-                <div className="metric-icon">
-                  <CheckSquare className="metric-lucide" strokeWidth={1.5} aria-hidden />
-                </div>
-                <span className="metric-label">Tasks Due Tomorrow</span>
-              </div>
-              <div className="metric-value">{nDueTom}</div>
-              <p className="metric-desc">
-                {nDueTom === 1 ? '1 task needs attention' : `${nDueTom} tasks need attention`}
-              </p>
-              <span className="metric-tile-hint">View list</span>
-            </Link>
-
-            <Link to="/dashboard/tasks/overdue" className="metric-card metric-card--tile">
-              <div className="metric-header">
-                <div className="metric-icon metric-icon--warn">
-                  <AlertTriangle className="metric-lucide" strokeWidth={1.5} aria-hidden />
-                </div>
-                <span className="metric-label">Overdue Tasks</span>
-              </div>
-              <div className="metric-value">{nOverdue}</div>
-              <p className="metric-desc">Requires follow-up</p>
-              <span className="metric-tile-hint">View list</span>
-            </Link>
-
-            <Link
-              to="/dashboard/tasks/completed-week"
-              className="metric-card metric-card--tile"
-            >
-              <div className="metric-header">
-                <div className="metric-icon metric-icon--ok">
-                  <CheckCircle2 className="metric-lucide" strokeWidth={1.5} aria-hidden />
-                </div>
-                <span className="metric-label">Completed This Week</span>
-              </div>
-              <div className="metric-value">{nDoneWeek}</div>
-              <p className="metric-desc">Tasks marked done this week</p>
-              <span className="metric-tile-hint">View list</span>
-            </Link>
-
-            <Link
               to="/dashboard/tasks/meetings-week"
-              className="metric-card metric-card--tile"
+              className="dashboard-stat-chip dashboard-stat-chip--tile"
             >
-              <div className="metric-header">
-                <div className="metric-icon">
-                  <Calendar className="metric-lucide" strokeWidth={1.5} aria-hidden />
-                </div>
-                <span className="metric-label">Meetings This Week</span>
+              <div className="dashboard-stat-chip__icon" aria-hidden>
+                <Calendar className="dashboard-stat-chip__lucide" strokeWidth={1.5} />
               </div>
-              <div className="metric-value">{nMeetWeek}</div>
-              <p className="metric-desc">Scheduled or held sessions</p>
-              <span className="metric-tile-hint">View list</span>
+              <div className="dashboard-stat-chip__body">
+                <span className="dashboard-stat-chip__label">Meetings this week</span>
+                <span className="dashboard-stat-chip__value">{nMeetWeek}</span>
+              </div>
+              <ChevronRight className="dashboard-stat-chip__chev" strokeWidth={2} aria-hidden />
+            </Link>
+
+            <Link
+              to="/dashboard/tasks/due-tomorrow"
+              className="dashboard-stat-chip dashboard-stat-chip--tile"
+            >
+              <div className="dashboard-stat-chip__icon" aria-hidden>
+                <CheckSquare className="dashboard-stat-chip__lucide" strokeWidth={1.5} />
+              </div>
+              <div className="dashboard-stat-chip__body">
+                <span className="dashboard-stat-chip__label">Tasks due tomorrow</span>
+                <span className="dashboard-stat-chip__value">{nDueTom}</span>
+              </div>
+              <ChevronRight className="dashboard-stat-chip__chev" strokeWidth={2} aria-hidden />
+            </Link>
+
+            <Link
+              to="/dashboard/tasks/overdue"
+              className="dashboard-stat-chip dashboard-stat-chip--tile dashboard-stat-chip--warn"
+            >
+              <div className="dashboard-stat-chip__icon dashboard-stat-chip__icon--warn" aria-hidden>
+                <AlertTriangle className="dashboard-stat-chip__lucide" strokeWidth={1.5} />
+              </div>
+              <div className="dashboard-stat-chip__body">
+                <span className="dashboard-stat-chip__label">Overdue tasks</span>
+                <span className="dashboard-stat-chip__value">{nOverdue}</span>
+              </div>
+              <ChevronRight className="dashboard-stat-chip__chev" strokeWidth={2} aria-hidden />
             </Link>
           </div>
+
+          <section
+            className="dashboard-section card ux-dashboard-stagger dashboard-section--reveal"
+            style={{ animationDelay: '130ms' }}
+            aria-labelledby="dash-recent-tasks"
+          >
+            <div className="dashboard-section__head">
+              <h2 id="dash-recent-tasks" className="dashboard-section__title">
+                Recent action items
+              </h2>
+              <Link to="/dashboard/tasks/due-tomorrow" className="dashboard-section__link">
+                View all
+              </Link>
+            </div>
+            {recentTasks.length === 0 ? (
+              <p className="dashboard-section__empty">No open action items right now.</p>
+            ) : (
+              <ul className="dashboard-task-list">
+                {recentTasks.map((row, idx) => (
+                  <li
+                    key={`${row.meetingId}-${idx}`}
+                    className="dashboard-task-row ux-dashboard-list-item"
+                    style={{ animationDelay: `${Math.min(idx, 6) * 35}ms` }}
+                  >
+                    <Link to={`/meetings/${row.meetingId}/summary`} className="dashboard-task-row__link">
+                      <span className="dashboard-task-row__task">{row.task}</span>
+                      <span className="dashboard-task-row__meta">
+                        <span className="dashboard-task-row__pill">{statusLabel(row.status)}</span>
+                        <span className="dashboard-task-row__due">{formatDue(row.dueDate)}</span>
+                        {row.assignee ? (
+                          <span className="dashboard-task-row__assignee">{row.assignee}</span>
+                        ) : null}
+                      </span>
+                      <span className="dashboard-task-row__meeting">{row.meetingTitle}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section
+            className="dashboard-section card ux-dashboard-stagger dashboard-section--reveal"
+            style={{ animationDelay: '165ms' }}
+            aria-labelledby="dash-pending-summaries"
+          >
+            <div className="dashboard-section__head">
+              <h2 id="dash-pending-summaries" className="dashboard-section__title">
+                Pending summaries
+              </h2>
+              <Link to="/meetings" state={{ showAllMeetings: true }} className="dashboard-section__link">
+                {T.meetings()}
+              </Link>
+            </div>
+            {pendingSummaries.length === 0 ? (
+              <p className="dashboard-section__empty">No summaries waiting for review.</p>
+            ) : (
+              <ul className="dashboard-pending-list">
+                {pendingSummaries.map((m, idx) => {
+                  const id = m._id != null ? String(m._id) : '';
+                  return (
+                    <li
+                      key={id || idx}
+                      className="dashboard-pending-row ux-dashboard-list-item"
+                      style={{ animationDelay: `${Math.min(idx, 6) * 35}ms` }}
+                    >
+                      <Link to={`/meetings/${id}/summary`} className="dashboard-pending-row__link">
+                        <FileText className="dashboard-pending-row__ic" strokeWidth={1.5} aria-hidden />
+                        <span className="dashboard-pending-row__title">{m.title || 'Untitled meeting'}</span>
+                        <span className="dashboard-pending-row__hint">Review &amp; send</span>
+                        <ChevronRight className="dashboard-pending-row__chev" strokeWidth={2} aria-hidden />
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
         </div>
       </div>
     </div>

@@ -201,3 +201,18 @@
   stroke-width: 1.5;
   flex-shrink: 0;
 }
+
+.settings-link-out {
+  display: inline-flex;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--accent-blue, #3b82f6);
+  text-decoration: none;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.settings-link-out:hover {
+  opacity: 0.9;
+  transform: translateX(2px);
+}
