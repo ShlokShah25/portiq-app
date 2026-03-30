@@ -51,6 +51,23 @@ if (process.env.OPENAI_API_KEY) {
   console.warn('⚠️  OPENAI_API_KEY not set. Meeting transcription will not work.');
 }
 
+/** Whisper + chat retries (default 5; override with OPENAI_PIPELINE_MAX_RETRIES). */
+const OPENAI_PIPELINE_MAX_RETRIES = Math.min(
+  10,
+  Math.max(3, parseInt(process.env.OPENAI_PIPELINE_MAX_RETRIES || '5', 10) || 5)
+);
+
+function isRetryableOpenAiError(apiError) {
+  if (!apiError) return false;
+  const s = apiError.status;
+  if (s === 408 || s === 429 || s === 500 || s === 502 || s === 503) return true;
+  const code = apiError.code;
+  if (code && ['ECONNRESET', 'ETIMEDOUT', 'ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN'].includes(code)) {
+    return true;
+  }
+  return false;
+}
+
 function getSummaryChatModel() {
   return process.env.OPENAI_SUMMARY_MODEL || 'gpt-4o-mini';
 }
@@ -215,7 +232,7 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
     `📝 Generating summary from stored transcript (${transcriptTextTrim.length} chars; language hint: ${detectedLanguage})`
   );
 
-  const maxRetries = 3;
+  const maxRetries = OPENAI_PIPELINE_MAX_RETRIES;
 
   let transcriptWithSpeakers = transcriptTextTrim;
   if (meetingObj && meetingObj.participants && meetingObj.participants.length > 0) {
@@ -415,12 +432,12 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
       break;
     } catch (apiError) {
       summaryError = apiError;
-      const isRetryable = apiError.status === 500 || apiError.status === 503 || apiError.status === 429;
+      const retryable = isRetryableOpenAiError(apiError);
 
-      if (isRetryable && attempt < maxRetries) {
+      if (retryable && attempt < maxRetries) {
         const waitTime = Math.pow(2, attempt) * 1000;
         console.warn(
-          `⚠️  OpenAI API error during summary (${apiError.status}), retrying in ${waitTime / 1000}s...`
+          `⚠️  OpenAI API error during summary (${apiError.status || apiError.code || 'unknown'}), retrying in ${waitTime / 1000}s...`
         );
         await new Promise((resolve) => setTimeout(resolve, waitTime));
         continue;
@@ -626,8 +643,8 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
       }
     }
 
-    // Retry logic for OpenAI API calls (handles 500 errors)
-    const maxRetries = 3;
+    // Retry logic for OpenAI API calls (transient 5xx / rate limit / network)
+    const maxRetries = OPENAI_PIPELINE_MAX_RETRIES;
     let transcription = null;
     let lastError = null;
     
@@ -667,15 +684,16 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
         break; // Success, exit retry loop
       } catch (apiError) {
         lastError = apiError;
-        const isRetryable = apiError.status === 500 || apiError.status === 503 || apiError.status === 429;
-        
-        if (isRetryable && attempt < maxRetries) {
+        const retryable = isRetryableOpenAiError(apiError);
+
+        if (retryable && attempt < maxRetries) {
           const waitTime = Math.pow(2, attempt) * 1000; // Exponential backoff: 2s, 4s, 8s
-          console.warn(`⚠️  OpenAI API error (${apiError.status}), retrying in ${waitTime/1000}s...`);
-          await new Promise(resolve => setTimeout(resolve, waitTime));
+          console.warn(
+            `⚠️  OpenAI API error (${apiError.status || apiError.code || 'unknown'}), retrying in ${waitTime / 1000}s...`
+          );
+          await new Promise((resolve) => setTimeout(resolve, waitTime));
           continue;
         } else {
-          // Not retryable or max retries reached
           throw apiError;
         }
       }
@@ -698,10 +716,23 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
 
     await checkpointTranscriptionToDb(meetingObj._id, transcriptText);
 
-    const summaryResult = await generateMeetingSummaryFromTranscript(transcriptText, meetingObj, {
-      ...options,
-      detectedLanguage,
-    });
+    let summaryResult;
+    for (let sumAttempt = 1; sumAttempt <= 2; sumAttempt++) {
+      try {
+        summaryResult = await generateMeetingSummaryFromTranscript(transcriptText, meetingObj, {
+          ...options,
+          detectedLanguage,
+        });
+        break;
+      } catch (sumErr) {
+        if (sumAttempt < 2) {
+          console.warn('⚠️ Summarization failed; retrying once after 2s:', sumErr.message);
+          await new Promise((r) => setTimeout(r, 2000));
+          continue;
+        }
+        throw sumErr;
+      }
+    }
 
     // Clean up compressed file if it was created
     if (finalAudioPath !== audioFilePath && fs.existsSync(finalAudioPath)) {

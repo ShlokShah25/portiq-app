@@ -11,6 +11,7 @@ const { getPlanConstraints } = require('../utils/planConstraints');
 const { hasDashboardAccess } = require('../utils/subscriptionGate');
 const { alignDueYearToMeetingReference } = require('../utils/actionItemDueDate');
 const { resolveUploadPath } = require('../utils/resolveUploadPath');
+const { recoverSummaryFromCheckpointedTranscript } = require('../utils/meetingPipelineRecovery');
 
 function meetingFilterForAdmin(admin) {
   return admin && admin.username !== 'admin' ? { adminId: admin._id } : {};
@@ -728,10 +729,19 @@ router.post('/meetings/:id/retry-transcription', authenticateAdmin, requireSubsc
         // DO NOT auto-send - wait for approval
         console.log('✅ Transcription completed. Summary pending approval from authorized editor.');
       })
-      .catch((error) => {
+      .catch(async (error) => {
         console.error('Transcription retry error:', error);
-        meeting.transcriptionStatus = 'Failed';
-        meeting.save();
+        try {
+          const recovered = await recoverSummaryFromCheckpointedTranscript(meeting._id, {
+            productType: req.admin?.productType,
+          });
+          if (recovered) return;
+        } catch (recErr) {
+          console.error('Post-failure summary recovery error:', recErr);
+        }
+        await Meeting.findByIdAndUpdate(meeting._id, { $set: { transcriptionStatus: 'Failed' } }).catch(
+          () => {}
+        );
       });
 
     res.json({

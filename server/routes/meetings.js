@@ -22,6 +22,7 @@ const {
 } = require('../utils/calendarInviteLinks');
 const { parseZoomMeetingIdFromJoinUrl } = require('../utils/zoomMeetingIds');
 const { enqueueJoinMeeting } = require('../utils/conferenceBotQueue');
+const { recoverSummaryFromCheckpointedTranscript } = require('../utils/meetingPipelineRecovery');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -713,15 +714,21 @@ router.post('/:id/end', upload.single('audio'), async (req, res) => {
           // DO NOT auto-send emails - wait for approval
           console.log('✅ Transcription completed. Summary pending approval from authorized editor.');
         })
-        .catch((error) => {
+        .catch(async (error) => {
           console.error('Transcription processing error:', error);
-          // Mark summarization as failed. Raw transcript may already be checkpointed in MongoDB after Whisper.
-          Meeting.findByIdAndUpdate(
-            meeting._id,
-            { $set: { transcriptionStatus: 'Failed' } }
-          ).catch((e) => {
-            console.error('Failed to mark transcription as failed:', e);
-          });
+          try {
+            const recovered = await recoverSummaryFromCheckpointedTranscript(meeting._id, {
+              productType: admin?.productType,
+            });
+            if (recovered) return;
+          } catch (recErr) {
+            console.error('Post-failure summary recovery error:', recErr);
+          }
+          Meeting.findByIdAndUpdate(meeting._id, { $set: { transcriptionStatus: 'Failed' } }).catch(
+            (e) => {
+              console.error('Failed to mark transcription as failed:', e);
+            }
+          );
         });
     } else {
       meeting.transcriptionStatus = 'Not Started';
@@ -829,8 +836,16 @@ router.post('/:id/retry-transcription', async (req, res) => {
         await Meeting.findByIdAndUpdate(meeting._id, { $set: update }, { new: true });
         console.log('✅ Transcription retry completed. Summary pending approval from authorized editor.');
       })
-      .catch((error) => {
+      .catch(async (error) => {
         console.error('Transcription retry error:', error);
+        try {
+          const recovered = await recoverSummaryFromCheckpointedTranscript(meeting._id, {
+            productType: admin?.productType,
+          });
+          if (recovered) return;
+        } catch (recErr) {
+          console.error('Post-failure summary recovery error:', recErr);
+        }
         Meeting.findByIdAndUpdate(meeting._id, { $set: { transcriptionStatus: 'Failed' } }).catch(
           (e) => {
             console.error('Failed to mark transcription as failed:', e);
