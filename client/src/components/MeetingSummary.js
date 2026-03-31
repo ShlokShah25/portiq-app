@@ -4,6 +4,7 @@ import axios from 'axios';
 import TopNav from './TopNav';
 import { T } from '../config/terminology';
 import { isEducation } from '../config/product';
+import { transcriptionFailureCopy } from '../utils/transcriptionFailureCopy';
 import './MeetingSummary.css';
 import MeetingSummaryReadonlyBody from './MeetingSummaryReadonlyBody';
 
@@ -146,6 +147,10 @@ const MeetingSummary = () => {
 
   const transcriptForFallback = String(meeting.transcription || '').trim();
   const hasStoredTranscript = !!transcriptForFallback;
+  const failureExplanation =
+    meeting.transcriptionStatus === 'Failed'
+      ? transcriptionFailureCopy(meeting.transcriptionFailureCode, { hasTranscript: hasStoredTranscript })
+      : null;
   const showTranscriptFallback =
     !hasContent &&
     hasStoredTranscript &&
@@ -319,13 +324,13 @@ const MeetingSummary = () => {
                   <p className="meeting-summary-empty-message">
                     {showTranscriptFallback
                       ? meeting.transcriptionStatus === 'Failed'
-                        ? 'Summarization did not finish successfully, but a transcript may have been saved. Review it below or try Regenerate summary.'
+                        ? failureExplanation
                         : meeting.transcriptionStatus === 'Completed' &&
                             meeting.status === 'Completed'
                           ? 'No structured AI summary is on file yet, but the meeting transcript was saved. Open it below or use Regenerate summary.'
                           : 'No structured AI summary yet. Your saved transcript is below.'
                       : meeting.transcriptionStatus === 'Failed'
-                        ? 'Transcription or summarization did not finish successfully. If a recording is still on file, you can try again.'
+                        ? failureExplanation
                         : meeting.status === 'Completed' &&
                             meeting.transcriptionStatus === 'Not Started'
                           ? 'No recording was processed for this session, so no AI summary was generated. If you ended the meeting without uploading or saving audio, that is expected.'

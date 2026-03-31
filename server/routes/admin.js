@@ -12,6 +12,10 @@ const { hasDashboardAccess } = require('../utils/subscriptionGate');
 const { alignDueYearToMeetingReference } = require('../utils/actionItemDueDate');
 const { resolveUploadPath } = require('../utils/resolveUploadPath');
 const { recoverSummaryFromCheckpointedTranscript } = require('../utils/meetingPipelineRecovery');
+const {
+  buildTranscriptionFailureSet,
+  clearTranscriptionFailureFields,
+} = require('../utils/transcriptionFailureCodes');
 
 function meetingFilterForAdmin(admin) {
   return admin && admin.username !== 'admin' ? { adminId: admin._id } : {};
@@ -657,6 +661,7 @@ router.post('/meetings/:id/retry-transcription', authenticateAdmin, requireSubsc
 
     // Reset status and retry transcription (or regenerate summary from stored transcript)
     meeting.transcriptionStatus = 'Processing';
+    Object.assign(meeting, clearTranscriptionFailureFields());
     await meeting.save();
 
     const { transcribeAndSummarize, generateMeetingSummaryFromTranscript } = require('../utils/meetingTranscription');
@@ -724,6 +729,7 @@ router.post('/meetings/:id/retry-transcription', authenticateAdmin, requireSubsc
         
         meeting.transcriptionStatus = 'Completed';
         meeting.summaryStatus = 'Pending Approval';
+        Object.assign(meeting, clearTranscriptionFailureFields());
         await meeting.save();
 
         // DO NOT auto-send - wait for approval
@@ -739,7 +745,7 @@ router.post('/meetings/:id/retry-transcription', authenticateAdmin, requireSubsc
         } catch (recErr) {
           console.error('Post-failure summary recovery error:', recErr);
         }
-        await Meeting.findByIdAndUpdate(meeting._id, { $set: { transcriptionStatus: 'Failed' } }).catch(
+        await Meeting.findByIdAndUpdate(meeting._id, { $set: buildTranscriptionFailureSet(error) }).catch(
           () => {}
         );
       });

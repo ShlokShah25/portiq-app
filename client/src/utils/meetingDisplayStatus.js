@@ -30,7 +30,7 @@ export function getMeetingDisplayStatus(meeting) {
     return { key: 'recording', label: 'Recording audio', variant: 'processing' };
   }
   if (mStatus === 'Completed' && tStatus === 'Failed') {
-    return { key: 'failed', label: 'Summary failed', variant: 'warn' };
+    return { key: 'failed', label: 'Summary unavailable', variant: 'warn' };
   }
 
   if (online) {

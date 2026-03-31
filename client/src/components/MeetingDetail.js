@@ -6,6 +6,7 @@ import TopNav from './TopNav';
 import { T } from '../config/terminology';
 import MeetingStatusBadge from './MeetingStatusBadge';
 import { isOnlineMeeting } from '../utils/meetingDisplayStatus';
+import { transcriptionFailureCopy } from '../utils/transcriptionFailureCopy';
 import './MeetingDetail.css';
 import './MeetingUiBadges.css';
 
@@ -101,7 +102,8 @@ const MeetingDetail = () => {
       setMeeting(res.data.meeting);
       setError('');
     } catch (err) {
-      setError(err.response?.data?.error || 'Meeting not found');
+      const d = err.response?.data;
+      setError([d?.error, d?.details].filter(Boolean).join(' ') || 'Meeting not found');
       setMeeting(null);
     } finally {
       setLoading(false);
@@ -575,8 +577,11 @@ const MeetingDetail = () => {
             {isCompleted && meeting.transcriptionEnabled && meeting.transcriptionStatus === 'Failed' && (
               <div className="meeting-detail-processing-block">
                 <p className="meeting-detail-hint meeting-detail-hint--error">
-                  Summary could not be generated. If you have a recording, use <strong>Retry transcription</strong>{' '}
-                  in Meeting Records (admin), then open the summary page again.
+                  {transcriptionFailureCopy(meeting.transcriptionFailureCode, {
+                    hasTranscript: !!String(meeting.transcription || '').trim(),
+                  })}{' '}
+                  If you have a recording, you can also use <strong>Retry transcription</strong> in Meeting Records
+                  (admin), then open the summary page again.
                 </p>
                 <button
                   type="button"

@@ -23,6 +23,10 @@ const {
 const { parseZoomMeetingIdFromJoinUrl } = require('../utils/zoomMeetingIds');
 const { enqueueJoinMeeting } = require('../utils/conferenceBotQueue');
 const { recoverSummaryFromCheckpointedTranscript } = require('../utils/meetingPipelineRecovery');
+const {
+  buildTranscriptionFailureSet,
+  clearTranscriptionFailureFields,
+} = require('../utils/transcriptionFailureCodes');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -584,6 +588,8 @@ router.post('/:id/end', upload.single('audio'), async (req, res) => {
     meeting.status = 'Completed';
     meeting.endTime = new Date();
     meeting.transcriptionStatus = 'Processing';
+    meeting.transcriptionFailureCode = null;
+    meeting.transcriptionFailureAt = null;
 
     // Apply duration limit per plan (backend safety net).
     const { maxDurationMinutes, plan: planName } = getPlanConstraints(admin);
@@ -656,7 +662,8 @@ router.post('/:id/end', upload.single('audio'), async (req, res) => {
             pendingNextSteps: summaryData.nextSteps || [],
             pendingImportantNotes: summaryData.importantNotes || [],
             transcriptionStatus: 'Completed',
-            summaryStatus: 'Pending Approval'
+            summaryStatus: 'Pending Approval',
+            ...clearTranscriptionFailureFields(),
           };
 
           const updated = await Meeting.findByIdAndUpdate(
@@ -724,7 +731,7 @@ router.post('/:id/end', upload.single('audio'), async (req, res) => {
           } catch (recErr) {
             console.error('Post-failure summary recovery error:', recErr);
           }
-          Meeting.findByIdAndUpdate(meeting._id, { $set: { transcriptionStatus: 'Failed' } }).catch(
+          Meeting.findByIdAndUpdate(meeting._id, { $set: buildTranscriptionFailureSet(error) }).catch(
             (e) => {
               console.error('Failed to mark transcription as failed:', e);
             }
@@ -793,7 +800,7 @@ router.post('/:id/retry-transcription', async (req, res) => {
     };
 
     await Meeting.findByIdAndUpdate(meeting._id, {
-      $set: { transcriptionStatus: 'Processing' },
+      $set: { transcriptionStatus: 'Processing', ...clearTranscriptionFailureFields() },
     });
 
     transcribeAndSummarize(audioFilePath, meeting, {
@@ -831,6 +838,7 @@ router.post('/:id/retry-transcription', async (req, res) => {
           pendingImportantNotes: summaryData.importantNotes || [],
           transcriptionStatus: 'Completed',
           summaryStatus: 'Pending Approval',
+          ...clearTranscriptionFailureFields(),
         };
 
         await Meeting.findByIdAndUpdate(meeting._id, { $set: update }, { new: true });
@@ -846,7 +854,7 @@ router.post('/:id/retry-transcription', async (req, res) => {
         } catch (recErr) {
           console.error('Post-failure summary recovery error:', recErr);
         }
-        Meeting.findByIdAndUpdate(meeting._id, { $set: { transcriptionStatus: 'Failed' } }).catch(
+        Meeting.findByIdAndUpdate(meeting._id, { $set: buildTranscriptionFailureSet(error) }).catch(
           (e) => {
             console.error('Failed to mark transcription as failed:', e);
           }
@@ -856,9 +864,7 @@ router.post('/:id/retry-transcription', async (req, res) => {
     const fresh = await Meeting.findById(meeting._id);
     res.json({
       success: true,
-      message: audioOnDisk
-        ? 'Transcription retry started'
-        : 'Summary regeneration started from the transcript saved in the database (recording file is unavailable).',
+      message: 'Transcription retry started',
       meeting: fresh,
     });
   } catch (error) {

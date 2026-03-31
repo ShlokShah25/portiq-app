@@ -5,6 +5,7 @@
  */
 const Meeting = require('../models/Meeting');
 const { generateMeetingSummaryFromTranscript } = require('./meetingTranscription');
+const { clearTranscriptionFailureFields } = require('./transcriptionFailureCodes');
 
 function safeParseDate(value) {
   if (!value) return undefined;
@@ -44,6 +45,7 @@ function buildPipelineUpdateFromSummaryData(summaryData) {
     pendingImportantNotes: summaryData.importantNotes || [],
     transcriptionStatus: 'Completed',
     summaryStatus: 'Pending Approval',
+    ...clearTranscriptionFailureFields(),
   };
 }
 

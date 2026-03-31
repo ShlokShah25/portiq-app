@@ -750,18 +750,35 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
     console.error('   Error status:', error.status);
     console.error('   Error message:', error.message);
     console.error('   Error type:', error.type);
-    
-    // Provide helpful error messages
-    if (error.status === 500 || error.status === 503) {
-      throw new Error(`OpenAI API server error (${error.status}). This is usually temporary - please try again in a few moments. If the issue persists, check your OpenAI API key and account status.`);
-    } else if (error.status === 401) {
-      throw new Error('OpenAI API authentication failed. Please check your OPENAI_API_KEY in .env file.');
-    } else if (error.status === 429) {
-      throw new Error('OpenAI API rate limit exceeded. Please wait a moment and try again.');
-    } else if (error.message && error.message.includes('file')) {
-      throw new Error(`Audio file error: ${error.message}. Please ensure the file is a valid audio format (mp3, wav, m4a, webm).`);
+
+    const wrap = (message) => {
+      const e = new Error(message);
+      if (error && typeof error === 'object') {
+        if (error.status != null) e.status = error.status;
+        if (error.code) e.code = error.code;
+        if (error.type) e.type = error.type;
+      }
+      return e;
+    };
+
+    // User-safe copy: classify downstream from `status` / message; avoid blaming the account holder for provider or config issues.
+    if (error.status === 500 || error.status === 502 || error.status === 503) {
+      throw wrap(
+        'Our AI provider returned a temporary error. Please try again in a few minutes.'
+      );
     }
-    
+    if (error.status === 401) {
+      throw wrap('Summary generation is not available right now. Please try again later or contact support.');
+    }
+    if (error.status === 429) {
+      throw wrap('Our AI provider is busy (rate limited). Please wait a moment and try again.');
+    }
+    if (error.message && error.message.includes('file')) {
+      throw wrap(
+        `We could not read this audio file. Use a supported format (for example mp3, wav, m4a, webm) and try again.`
+      );
+    }
+
     throw error;
   }
 }

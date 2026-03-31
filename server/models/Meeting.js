@@ -171,6 +171,16 @@ const meetingSchema = new mongoose.Schema({
     enum: ['Not Started', 'Recording', 'Processing', 'Completed', 'Failed'],
     default: 'Not Started'
   },
+  /** Set when transcriptionStatus becomes Failed — for user-facing copy (e.g. AI outage vs input). */
+  transcriptionFailureCode: {
+    type: String,
+    default: null,
+    trim: true,
+  },
+  transcriptionFailureAt: {
+    type: Date,
+    default: null,
+  },
   authorizedEditorEmail: {
     type: String,
     default: null,
