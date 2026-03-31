@@ -391,13 +391,13 @@ export function ParticipantBookPanel({ embedded = false }) {
   const addButton = (
     <button
       type="button"
-      className="participant-book-hero__add btn btn-primary"
+      className={`participant-book-hero__add btn btn-primary${embedded ? ' participant-book-hero__add--toolbar' : ''}`}
       onClick={() => setShowAddForm(!showAddForm)}
     >
       {!showAddForm && (
         <svg
-          width="18"
-          height="18"
+          width={embedded ? 16 : 18}
+          height={embedded ? 16 : 18}
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -412,47 +412,63 @@ export function ParticipantBookPanel({ embedded = false }) {
     </button>
   );
 
+  const rosterStats = (
+    <div className={`participant-book-hero__stats${embedded ? ' participant-book-hero__stats--toolbar' : ''}`} aria-label="Roster summary">
+      <div className="participant-book-stat">
+        <span className="participant-book-stat__value">{participants.length}</span>
+        <span className="participant-book-stat__label">Saved</span>
+      </div>
+      <div className="participant-book-stat">
+        <span className="participant-book-stat__value">{voiceReadyCount}</span>
+        <span className="participant-book-stat__label">Voice ready</span>
+      </div>
+      {maxInBook != null ? (
+        <div className="participant-book-stat participant-book-stat--cap">
+          <span className="participant-book-stat__value">
+            {participants.length}
+            <span className="participant-book-stat__sep">/</span>
+            {maxInBook}
+          </span>
+          <span className="participant-book-stat__label">Plan cap</span>
+        </div>
+      ) : null}
+    </div>
+  );
+
   return (
     <div className={rootClass}>
       {!embedded && <TopNav />}
       <div className={wrapperClass}>
         <div className="participants-content">
           <div className={`participant-book ${embedded ? 'participant-book--embedded' : ''}`}>
-            <header
-              className={`participant-book-hero ${embedded ? 'participant-book-hero--compact' : ''}`}
-            >
-              <div className="participant-book-hero__mesh" aria-hidden />
-              <div className="participant-book-hero__row">
-                <div className="participant-book-hero__copy">
-                  <p className="participant-book-hero__eyebrow">Workspace roster</p>
-                  <h1 className="participant-book-hero__title">{T.participantBook()}</h1>
-                  <p className="participant-book-hero__lead">
-                    People you meet with often — saved for invites, recaps, and voice matching in the room.
-                  </p>
-                  <div className="participant-book-hero__stats" aria-label="Roster summary">
-                    <div className="participant-book-stat">
-                      <span className="participant-book-stat__value">{participants.length}</span>
-                      <span className="participant-book-stat__label">Saved</span>
-                    </div>
-                    <div className="participant-book-stat">
-                      <span className="participant-book-stat__value">{voiceReadyCount}</span>
-                      <span className="participant-book-stat__label">Voice ready</span>
-                    </div>
-                    {maxInBook != null ? (
-                      <div className="participant-book-stat participant-book-stat--cap">
-                        <span className="participant-book-stat__value">
-                          {participants.length}
-                          <span className="participant-book-stat__sep">/</span>
-                          {maxInBook}
-                        </span>
-                        <span className="participant-book-stat__label">Plan cap</span>
-                      </div>
-                    ) : null}
-                  </div>
+            {embedded ? (
+              <header
+                className="participant-book-hero participant-book-hero--embed-toolbar"
+                role="region"
+                aria-label={T.participantBook()}
+              >
+                <div className="participant-book-hero__mesh" aria-hidden />
+                <div className="participant-book-hero__row participant-book-hero__row--embed-toolbar">
+                  {rosterStats}
+                  <div className="participant-book-hero__cta participant-book-hero__cta--toolbar">{addButton}</div>
                 </div>
-                <div className="participant-book-hero__cta">{addButton}</div>
-              </div>
-            </header>
+              </header>
+            ) : (
+              <header className="participant-book-hero">
+                <div className="participant-book-hero__mesh" aria-hidden />
+                <div className="participant-book-hero__row">
+                  <div className="participant-book-hero__copy">
+                    <p className="participant-book-hero__eyebrow">Workspace roster</p>
+                    <h1 className="participant-book-hero__title">{T.participantBook()}</h1>
+                    <p className="participant-book-hero__lead">
+                      People you meet with often — saved for invites, recaps, and voice matching in the room.
+                    </p>
+                    {rosterStats}
+                  </div>
+                  <div className="participant-book-hero__cta">{addButton}</div>
+                </div>
+              </header>
+            )}
 
           {showAddForm && (
             <div className="add-participant-form">

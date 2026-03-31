@@ -89,7 +89,7 @@
 .participant-book--embedded {
   max-width: none;
   margin: 0;
-  gap: 20px;
+  gap: 16px;
 }
 
 .participant-book-hero {
@@ -254,6 +254,99 @@
   }
 
   .participant-book-hero__add {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Settings / embedded: single toolbar row — no duplicate page title */
+.participant-book-hero--embed-toolbar {
+  padding: 12px 14px;
+  border-radius: 14px;
+}
+
+.participant-book-hero__row--embed-toolbar {
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.participant-book-hero__stats--toolbar {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  gap: 8px;
+}
+
+.participant-book-hero--embed-toolbar .participant-book-stat {
+  padding: 5px 11px;
+  gap: 6px;
+}
+
+.participant-book-hero--embed-toolbar .participant-book-stat__value {
+  font-size: 15px;
+}
+
+.participant-book-hero--embed-toolbar .participant-book-stat__label {
+  font-size: 10px;
+}
+
+.participant-book-hero__cta--toolbar {
+  padding-top: 0;
+  flex-shrink: 0;
+}
+
+.participant-book-hero__add--toolbar {
+  padding: 9px 16px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  border-radius: 10px !important;
+  line-height: 1.2 !important;
+  box-shadow: 0 1px 8px rgba(37, 99, 235, 0.28) !important;
+}
+
+.participant-book-hero__add--toolbar:hover {
+  transform: translateY(-1px);
+}
+
+.participant-book--embedded .participant-list-initials {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  font-size: 18px;
+}
+
+.participant-book--embedded .voice-guide-disclosure__summary {
+  padding: 12px 16px;
+  font-size: 13px;
+}
+
+.participant-book--embedded .voice-guide-disclosure__inner {
+  padding: 0 16px 16px;
+}
+
+.participant-book--embedded .add-participant-form {
+  padding: 18px;
+  margin-bottom: 16px;
+}
+
+.participant-book--embedded .add-participant-form h2 {
+  font-size: 15px;
+  margin-bottom: 14px;
+}
+
+@media (max-width: 560px) {
+  .participant-book-hero__row--embed-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .participant-book-hero__cta--toolbar {
+    width: 100%;
+  }
+
+  .participant-book-hero__add--toolbar {
     width: 100%;
     justify-content: center;
   }
@@ -448,9 +541,16 @@
 
 /* Elevated person cards */
 .participant-card {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 18px;
+  box-sizing: border-box;
+  border: 1px solid var(--border-color);
   background: var(--surface-card, var(--surface-secondary));
   box-shadow: var(--shadow-soft-sm, none);
-  border-radius: 18px;
+  border-radius: 16px;
   transition:
     transform 0.2s var(--ease-out, ease),
     box-shadow 0.2s ease,
@@ -495,6 +595,11 @@
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
 }
 
+.participant-book--embedded .participants-grid {
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
 .participants-screen--embedded .participant-book-hero__mesh {
   opacity: 0.5;
 }
@@ -532,6 +637,15 @@
   font-weight: 600;
   color: var(--text-primary);
   letter-spacing: -0.01em;
+}
+
+.participant-book--embedded .participants-section-heading {
+  margin: 0 0 10px 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
 }
 
 .participant-intel-stats {
@@ -983,7 +1097,7 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
   min-width: 0;
 }
@@ -1100,7 +1214,7 @@
 
 .participant-voice-btn {
   padding: 6px 12px;
-  height: 32px;
+  min-height: 32px;
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.14);
   background: transparent;
@@ -1108,6 +1222,8 @@
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
+  flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .participant-voice-btn:hover {
@@ -1129,6 +1245,9 @@
 .participant-delete {
   width: 32px;
   height: 32px;
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-left: auto;
   display: flex;
   align-items: center;
   justify-content: center;
