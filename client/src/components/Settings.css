@@ -163,7 +163,9 @@
   min-height: 280px;
   padding: 0;
   border-radius: 18px;
-  background: var(--surface-secondary);
+  /* Slightly elevated vs page bg so the embed reads as a card, not a flat black void (dark theme). */
+  background: var(--dash-row-bg, var(--surface-secondary));
+  color: var(--text-primary);
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow-soft-sm, 0 2px 12px rgba(0, 0, 0, 0.08));
   overflow: auto;

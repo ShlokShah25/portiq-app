@@ -3,6 +3,7 @@ import { useLocation, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { useTheme } from '../contexts/ThemeContext';
 import TopNav from './TopNav';
+import { ParticipantBookPanel } from './Participants';
 import { L, SUPPORTED_UI_LANGUAGES, getUiLanguage, setUiLanguage } from '../config/uiLanguage';
 import './Settings.css';
 import './Profile.css';
