@@ -168,10 +168,9 @@ const Dashboard = () => {
             style={{ animationDelay: '0ms' }}
             aria-label="Dashboard overview"
           >
-            <div className="dashboard-hero-minimal__glow" aria-hidden />
             <h1 className="dashboard-title">Dashboard</h1>
             <p className="dashboard-subtitle">
-              Meeting execution and task intelligence across your workspace
+              Run meetings. Capture outcomes. Stay aligned.
             </p>
           </header>
 

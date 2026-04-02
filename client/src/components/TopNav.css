@@ -58,7 +58,7 @@
   font-weight: 700;
   color: var(--text-primary);
   letter-spacing: -0.02em;
-  font-family: var(--font-heading, 'Space Grotesk', 'Inter', system-ui, sans-serif);
+  font-family: var(--font-sans, 'Inter', system-ui, sans-serif);
 }
 
 .top-nav-menu {

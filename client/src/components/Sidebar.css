@@ -45,7 +45,7 @@
   font-weight: 700;
   color: var(--text-primary);
   letter-spacing: -0.03em;
-  font-family: var(--font-heading, var(--font-sans));
+  font-family: var(--font-sans);
 }
 
 .sidebar-nav {
