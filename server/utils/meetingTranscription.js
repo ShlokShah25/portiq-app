@@ -194,6 +194,154 @@ function isGroundedAgainstTranscript(itemText, transcriptLower) {
   return keywords.some((k) => transcriptLower.includes(k));
 }
 
+const MEANINGLESS_SUMMARY_TOKENS = new Set([
+  'not specified',
+  'not applicable',
+  'n/a',
+  'na',
+  'none',
+  '—',
+  '-',
+]);
+
+function lineHasDisplayableMeaning(text) {
+  const t = String(text || '').trim().toLowerCase();
+  if (!t) return false;
+  return !MEANINGLESS_SUMMARY_TOKENS.has(t);
+}
+
+/**
+ * True if the user would see any structured summary content (matches client MeetingSummary hasContent intent).
+ */
+function summaryPayloadHasDisplayableContent(data) {
+  if (!data) return false;
+  if (lineHasDisplayableMeaning(data.summary)) return true;
+  if ((data.keyPoints || []).some((k) => lineHasDisplayableMeaning(k))) return true;
+  if ((data.decisions || []).some((d) => lineHasDisplayableMeaning(d))) return true;
+  if ((data.nextSteps || []).some((s) => lineHasDisplayableMeaning(s))) return true;
+  if ((data.importantNotes || []).some((n) => lineHasDisplayableMeaning(n))) return true;
+  const items = data.actionItems || [];
+  for (const a of items) {
+    if (lineHasDisplayableMeaning(a && a.task)) return true;
+    if (lineHasDisplayableMeaning(a && a.notes)) return true;
+  }
+  return false;
+}
+
+function deepCopySummaryPayload(data) {
+  return {
+    summary: typeof data.summary === 'string' ? data.summary : '',
+    keyPoints: [...(data.keyPoints || [])],
+    decisions: [...(data.decisions || [])],
+    nextSteps: [...(data.nextSteps || [])],
+    importantNotes: [...(data.importantNotes || [])],
+    actionItems: (data.actionItems || []).map((a) => ({
+      ...(a && typeof a === 'object' ? a : {}),
+      task: a && a.task != null ? String(a.task) : '',
+      assignee: a && a.assignee != null ? String(a.assignee) : '',
+      dueDate: a && a.dueDate != null ? a.dueDate : null,
+      notes: a && a.notes != null ? String(a.notes) : '',
+    })),
+  };
+}
+
+function tryParseModelJsonObject(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return {};
+  try {
+    return JSON.parse(s);
+  } catch (_) {
+    const fence = s.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    if (fence) {
+      try {
+        return JSON.parse(fence[1].trim());
+      } catch (_) {
+        /* continue */
+      }
+    }
+    const start = s.indexOf('{');
+    const end = s.lastIndexOf('}');
+    if (start >= 0 && end > start) {
+      try {
+        return JSON.parse(s.slice(start, end + 1));
+      } catch (_) {
+        /* continue */
+      }
+    }
+  }
+  return {};
+}
+
+function applyGroundingFiltersToSummaryData(summaryData, transcriptLower) {
+  summaryData.keyPoints = (summaryData.keyPoints || []).filter((kp) =>
+    isGroundedAgainstTranscript(kp, transcriptLower)
+  );
+  summaryData.decisions = (summaryData.decisions || []).filter((d) =>
+    isGroundedAgainstTranscript(d, transcriptLower)
+  );
+  summaryData.nextSteps = (summaryData.nextSteps || []).filter((s) =>
+    isGroundedAgainstTranscript(s, transcriptLower)
+  );
+  summaryData.importantNotes = (summaryData.importantNotes || []).filter((n) =>
+    isGroundedAgainstTranscript(n, transcriptLower)
+  );
+  summaryData.actionItems = (summaryData.actionItems || []).filter((a) => {
+    const task = a && a.task ? a.task : '';
+    const notes = a && a.notes ? a.notes : '';
+    return (
+      isGroundedAgainstTranscript(task, transcriptLower) ||
+      isGroundedAgainstTranscript(notes, transcriptLower)
+    );
+  });
+}
+
+function applyTranscriptExcerptFallbackSummary(summaryData, transcriptTextTrim) {
+  const t = String(transcriptTextTrim || '').trim();
+  if (!t) {
+    summaryData.summary =
+      String(summaryData.summary || '').trim() ||
+      'Summary could not be generated and no transcript text was available.';
+    return;
+  }
+  const max = Math.min(
+    20000,
+    Math.max(2000, parseInt(process.env.SUMMARY_FALLBACK_TRANSCRIPT_MAX_CHARS || '12000', 10) || 12000)
+  );
+  const excerpt = t.length > max ? `${t.slice(0, max)}\n\n[…]` : t;
+  summaryData.summary = `Here is an excerpt of your meeting transcript:\n\n${excerpt}`;
+}
+
+/**
+ * If grounding stripped everything the model produced, keep the model output (API succeeded — don't ship empty).
+ * If the model truly returned nothing usable, surface transcript text so the user never hits a blank summary from our logic.
+ */
+function reconcileSummaryPayloadAfterGrounding(preFilter, summaryData, transcriptTextTrim, anchorRef) {
+  if (summaryPayloadHasDisplayableContent(summaryData)) {
+    return;
+  }
+  if (summaryPayloadHasDisplayableContent(preFilter)) {
+    console.warn(
+      '⚠️ Grounding filter removed all displayable summary content; using unfiltered model output (API response was non-empty).'
+    );
+    summaryData.summary = preFilter.summary;
+    summaryData.keyPoints = [...preFilter.keyPoints];
+    summaryData.decisions = [...preFilter.decisions];
+    summaryData.nextSteps = [...preFilter.nextSteps];
+    summaryData.importantNotes = [...preFilter.importantNotes];
+    summaryData.actionItems = preFilter.actionItems.map((a) => ({ ...a }));
+    summaryData.actionItems = enrichActionItemsWithDueDates(summaryData.actionItems, anchorRef, {
+      keyPoints: summaryData.keyPoints,
+      summary: summaryData.summary,
+      nextSteps: summaryData.nextSteps,
+    });
+    return;
+  }
+  console.warn(
+    '⚠️ Model returned no usable structured summary; using transcript excerpt so the meeting is not left empty.'
+  );
+  applyTranscriptExcerptFallbackSummary(summaryData, transcriptTextTrim);
+}
+
 /**
  * Generate structured summary from transcript text only (no Whisper).
  * Used when the recording file is missing on disk but the transcript is still in the database.
@@ -451,12 +599,10 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
     throw summaryError || new Error('Summary generation failed after all retries');
   }
 
-  let summaryData;
-  try {
-    summaryData = JSON.parse(summaryResponse.choices[0].message.content || '{}');
-  } catch (parseErr) {
-    console.error('❌ Failed to parse summary JSON, falling back to minimal structure:', parseErr);
-    summaryData = {};
+  const rawContent = summaryResponse.choices[0].message.content || '';
+  let summaryData = tryParseModelJsonObject(rawContent);
+  if (!rawContent.trim() || Object.keys(summaryData).length === 0) {
+    console.warn('⚠️ Empty or unparseable model JSON; applying transcript safeguards.');
   }
 
   if (typeof summaryData.summary !== 'string') summaryData.summary = '';
@@ -466,27 +612,9 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
   if (!Array.isArray(summaryData.nextSteps)) summaryData.nextSteps = [];
   if (!Array.isArray(summaryData.importantNotes)) summaryData.importantNotes = [];
 
+  const preFilter = deepCopySummaryPayload(summaryData);
   const transcriptLower = transcriptTextTrim.toLowerCase();
-  summaryData.keyPoints = (summaryData.keyPoints || []).filter((kp) =>
-    isGroundedAgainstTranscript(kp, transcriptLower)
-  );
-  summaryData.decisions = (summaryData.decisions || []).filter((d) =>
-    isGroundedAgainstTranscript(d, transcriptLower)
-  );
-  summaryData.nextSteps = (summaryData.nextSteps || []).filter((s) =>
-    isGroundedAgainstTranscript(s, transcriptLower)
-  );
-  summaryData.importantNotes = (summaryData.importantNotes || []).filter((n) =>
-    isGroundedAgainstTranscript(n, transcriptLower)
-  );
-  summaryData.actionItems = (summaryData.actionItems || []).filter((a) => {
-    const task = a && a.task ? a.task : '';
-    const notes = a && a.notes ? a.notes : '';
-    return (
-      isGroundedAgainstTranscript(task, transcriptLower) ||
-      isGroundedAgainstTranscript(notes, transcriptLower)
-    );
-  });
+  applyGroundingFiltersToSummaryData(summaryData, transcriptLower);
 
   summaryData.actionItems = enrichActionItemsWithDueDates(
     summaryData.actionItems,
@@ -497,6 +625,12 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
       nextSteps: summaryData.nextSteps,
     }
   );
+
+  reconcileSummaryPayloadAfterGrounding(preFilter, summaryData, transcriptTextTrim, anchorRef);
+
+  if (!summaryPayloadHasDisplayableContent(summaryData)) {
+    applyTranscriptExcerptFallbackSummary(summaryData, transcriptTextTrim);
+  }
 
   console.log('✅ Summary generated (from stored transcript)');
 

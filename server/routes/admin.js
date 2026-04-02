@@ -16,6 +16,7 @@ const {
   buildTranscriptionFailureSet,
   clearTranscriptionFailureFields,
 } = require('../utils/transcriptionFailureCodes');
+const { attachSummaryUiState } = require('../utils/meetingSummaryUiState');
 
 function meetingFilterForAdmin(admin) {
   return admin && admin.username !== 'admin' ? { adminId: admin._id } : {};
@@ -592,7 +593,9 @@ router.get('/meetings/:id', authenticateAdmin, requireSubscription, async (req, 
     const meeting = await Meeting.findById(req.params.id);
     if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
     if (!canAccessMeeting(meeting, req.admin)) return res.status(404).json({ error: 'Meeting not found' });
-    res.json({ meeting });
+    const payload = meeting.toObject ? meeting.toObject() : meeting;
+    attachSummaryUiState(payload);
+    res.json({ meeting: payload });
   } catch (error) {
     console.error('Error fetching meeting:', error);
     res.status(500).json({ error: 'Failed to fetch meeting' });

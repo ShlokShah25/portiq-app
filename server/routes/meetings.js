@@ -23,6 +23,7 @@ const {
 const { parseZoomMeetingIdFromJoinUrl } = require('../utils/zoomMeetingIds');
 const { enqueueJoinMeeting } = require('../utils/conferenceBotQueue');
 const { recoverSummaryFromCheckpointedTranscript } = require('../utils/meetingPipelineRecovery');
+const { attachSummaryUiState } = require('../utils/meetingSummaryUiState');
 const {
   buildTranscriptionFailureSet,
   clearTranscriptionFailureFields,
@@ -1215,6 +1216,8 @@ router.get('/:id', async (req, res) => {
         };
       }
     }
+
+    attachSummaryUiState(payload);
 
     res.json({ meeting: payload });
   } catch (error) {

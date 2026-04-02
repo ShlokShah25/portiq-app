@@ -4,7 +4,7 @@ import axios from 'axios';
 import TopNav from './TopNav';
 import { T } from '../config/terminology';
 import { isEducation } from '../config/product';
-import { transcriptionFailureCopy } from '../utils/transcriptionFailureCopy';
+import { getSummaryEmptyBodyMessage } from '../utils/summaryEmptyReasonCopy';
 import './MeetingSummary.css';
 import MeetingSummaryReadonlyBody from './MeetingSummaryReadonlyBody';
 
@@ -147,10 +147,6 @@ const MeetingSummary = () => {
 
   const transcriptForFallback = String(meeting.transcription || '').trim();
   const hasStoredTranscript = !!transcriptForFallback;
-  const failureExplanation =
-    meeting.transcriptionStatus === 'Failed'
-      ? transcriptionFailureCopy(meeting.transcriptionFailureCode, { hasTranscript: hasStoredTranscript })
-      : null;
   const showTranscriptFallback =
     !hasContent &&
     hasStoredTranscript &&
@@ -322,19 +318,7 @@ const MeetingSummary = () => {
               ) : (
                 <>
                   <p className="meeting-summary-empty-message">
-                    {showTranscriptFallback
-                      ? meeting.transcriptionStatus === 'Failed'
-                        ? failureExplanation
-                        : meeting.transcriptionStatus === 'Completed' &&
-                            meeting.status === 'Completed'
-                          ? 'No structured AI summary is on file yet, but the meeting transcript was saved. Open it below or use Regenerate summary.'
-                          : 'No structured AI summary yet. Your saved transcript is below.'
-                      : meeting.transcriptionStatus === 'Failed'
-                        ? failureExplanation
-                        : meeting.status === 'Completed' &&
-                            meeting.transcriptionStatus === 'Not Started'
-                          ? 'No recording was processed for this session, so no AI summary was generated. If you ended the meeting without uploading or saving audio, that is expected.'
-                          : 'No summary available yet.'}
+                    {getSummaryEmptyBodyMessage(meeting)}
                   </p>
                   {showTranscriptFallback && (
                     <details className="meeting-summary-transcript-fallback">
