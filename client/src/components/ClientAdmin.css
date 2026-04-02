@@ -11,7 +11,7 @@
 
 .client-admin-header {
   background: var(--surface-secondary);
-  border-bottom: 1px solid #2A2A2C;
+  border-bottom: 1px solid var(--border-color);
   padding: 0 32px;
   height: 64px;
   position: sticky;
@@ -51,7 +51,7 @@
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  background: var(--bg-primary, #000000);
+  background: var(--surface-input);
   border: 1px solid var(--border-color);
   border-radius: 10px;
   color: var(--text-primary);
@@ -64,8 +64,8 @@
 
 .back-btn:hover,
 .logout-btn:hover {
-  background: #111111;
-  border-color: #3A3A3C;
+  background: var(--dash-row-hover-bg);
+  border-color: var(--border-strong);
   color: var(--text-primary);
 }
 
@@ -92,7 +92,7 @@
 .filter-select,
 .filter-input {
   padding: 10px 14px;
-  background: var(--bg-primary, #000000);
+  background: var(--surface-input);
   border: 1px solid var(--border-color);
   border-radius: 10px;
   color: var(--text-primary);
@@ -106,8 +106,8 @@
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
-  background-color: #0f0f10;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2398989d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-color: var(--surface-input);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
   padding-right: 2.75rem;
@@ -117,9 +117,9 @@
 .filter-select:focus,
 .filter-input:focus {
   outline: none;
-  border-color: #3B82F6;
-  background: #111111;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+  border-color: var(--accent-blue);
+  background: var(--surface-secondary);
+  box-shadow: 0 0 0 2px var(--accent-blue-dim);
 }
 
 .filter-input::placeholder {
@@ -157,13 +157,13 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: var(--text-secondary);
-  border-bottom: 1px solid #2A2A2C;
+  border-bottom: 1px solid var(--border-color);
   white-space: nowrap;
 }
 
 .meetings-table td {
   padding: 16px 12px;
-  border-bottom: 1px solid #2A2A2C;
+  border-bottom: 1px solid var(--border-color);
   color: var(--text-primary);
   font-size: 14px;
   vertical-align: top;
@@ -174,13 +174,13 @@
 }
 
 .meetings-table tbody tr:hover {
-  background: #1E1E20;
+  background: var(--dash-row-hover-bg);
 }
 
 .summary-badge {
   padding: 4px 10px;
-  background: rgba(34, 197, 94, 0.15);
-  color: #22C55E;
+  background: rgba(22, 163, 74, 0.12);
+  color: var(--success-green);
   border-radius: 6px;
   font-size: 11px;
   font-weight: 600;
@@ -288,13 +288,13 @@
 
 .participants-toggle:hover {
   background: var(--surface-secondary);
-  border-color: #3A3A3C;
+  border-color: var(--border-strong);
 }
 
 /* Expand participant list in-table (replaces fixed popover — stable in scroll layouts). */
 .participants-inline-row td {
   padding: 0 0 12px;
-  border-bottom: 1px solid #2A2A2C;
+  border-bottom: 1px solid var(--border-color);
   vertical-align: top;
   background: var(--bg-primary);
 }
@@ -305,12 +305,12 @@
   border: 1px solid var(--border-color);
   border-radius: 12px;
   background: var(--surface-secondary);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--shadow-soft-sm);
 }
 
 .actions-inline-row td {
   padding: 0 0 12px;
-  border-bottom: 1px solid #2A2A2C;
+  border-bottom: 1px solid var(--border-color);
   vertical-align: top;
   background: var(--bg-primary);
 }
@@ -321,7 +321,7 @@
   border: 1px solid var(--border-color);
   border-radius: 12px;
   background: var(--surface-secondary);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--shadow-soft-sm);
   max-width: 420px;
 }
 
@@ -340,11 +340,11 @@
 }
 
 .actions-inline-panel button[role='menuitem']:not(:last-child) {
-  border-bottom: 1px solid #2A2A2C;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .actions-inline-panel button[role='menuitem']:hover {
-  background: #2a2a2c;
+  background: var(--dash-row-hover-bg);
 }
 
 .client-admin-action-hint {
@@ -353,14 +353,14 @@
   font-size: 12px;
   line-height: 1.45;
   color: var(--text-secondary);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--pill-muted-bg);
   border-radius: 8px;
   border: 1px solid var(--border-color);
 }
 
 .participant-item {
   padding: 10px;
-  border-bottom: 1px solid #2A2A2C;
+  border-bottom: 1px solid var(--border-color);
   margin-bottom: 8px;
 }
 
@@ -410,17 +410,17 @@
 }
 
 .status-pending-approval {
-  color: #F59E0B;
+  color: var(--warning-orange);
   font-weight: 600;
 }
 
 .status-approved {
-  color: #22C55E;
+  color: var(--success-green);
   font-weight: 600;
 }
 
 .status-sent {
-  color: #3B82F6;
+  color: var(--accent-blue);
   font-weight: 600;
 }
 
@@ -491,7 +491,7 @@
 .reschedule-input {
   width: 100%;
   padding: 12px 16px 12px 48px;
-  background: var(--bg-primary, #000000);
+  background: var(--surface-input);
   border: 1px solid var(--border-color);
   border-radius: 10px;
   color: var(--text-primary);
@@ -504,9 +504,9 @@
 
 .reschedule-input:focus {
   outline: none;
-  border-color: #3B82F6;
-  background: #111111;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+  border-color: var(--accent-blue);
+  background: var(--surface-secondary);
+  box-shadow: 0 0 0 2px var(--accent-blue-dim);
 }
 
 .reschedule-form-group {
@@ -529,7 +529,7 @@
 }
 
 .reschedule-form-group-wrapper:focus-within .reschedule-icon {
-  color: #3B82F6;
+  color: var(--accent-blue);
 }
 
 .reschedule-actions {
@@ -552,14 +552,14 @@
 }
 
 .reschedule-submit {
-  background: #3B82F6;
-  color: var(--text-primary);
-  border: 1px solid #3B82F6;
+  background: var(--accent-blue);
+  color: #ffffff;
+  border: 1px solid var(--accent-blue);
 }
 
 .reschedule-submit:hover {
-  background: #3070D6;
-  border-color: #3070D6;
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 .reschedule-cancel {
@@ -570,7 +570,7 @@
 
 .reschedule-cancel:hover {
   background: var(--surface-secondary);
-  border-color: #3A3A3C;
+  border-color: var(--border-strong);
   color: var(--text-primary);
 }
 
@@ -580,7 +580,7 @@
   padding: 12px 32px;
   font-size: 14px;
   line-height: 1.45;
-  color: #93c5fd;
-  background: rgba(37, 99, 235, 0.12);
-  border-bottom: 1px solid rgba(59, 130, 246, 0.25);
+  color: var(--badge-text);
+  background: var(--accent-blue-dim);
+  border-bottom: 1px solid var(--badge-border);
 }

@@ -1,11 +1,102 @@
-/* PortIQ UI — reference-aligned dark shell (pure black, navy badges, electric blue accents) */
+/* PortIQ — default: premium light SaaS shell. Dark: <html data-theme="dark"> */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-:root[data-theme="dark"],
 :root {
-  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", system-ui,
+    sans-serif;
   --font-primary: var(--font-sans);
 
+  --bg-primary: #edf0f6;
+  --bg-elevated: #ffffff;
+  --surface-secondary: #ffffff;
+  --surface-card: #ffffff;
+  --surface-input: #f8fafc;
+
+  --border-color: #e4e8f1;
+  --border-strong: #cdd5e4;
+  --divider: #e8ecf4;
+
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+  --text-label: #64748b;
+
+  --accent-blue: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-blue-dim: rgba(37, 99, 235, 0.1);
+  --accent-purple: #6366f1;
+
+  --success-green: #16a34a;
+  --success-pulse: #22c55e;
+  --warning-orange: #ea580c;
+  --error-red: #dc2626;
+
+  --badge-bg: rgba(37, 99, 235, 0.08);
+  --badge-border: rgba(37, 99, 235, 0.2);
+  --badge-text: #1d4ed8;
+  --pill-muted-bg: rgba(15, 23, 42, 0.05);
+
+  --skeleton: #e2e8f0;
+  --skeleton-shine: #f1f5f9;
+
+  --page-ambient-gradient: radial-gradient(
+    ellipse 100% 70% at 50% -25%,
+    rgba(37, 99, 235, 0.06),
+    transparent 58%
+  );
+
+  --ease-out: cubic-bezier(0.33, 1, 0.68, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 0.15s;
+  --dur-base: 0.22s;
+  --dur-slow: 0.38s;
+
+  --card-hover-lift: translateY(-1px);
+  --shadow-card-hover: 0 10px 40px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(37, 99, 235, 0.06);
+
+  --shadow-soft-sm: 0 1px 2px rgba(15, 23, 42, 0.05), 0 4px 16px rgba(15, 23, 42, 0.06);
+  --shadow-soft-lg: 0 8px 30px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(15, 23, 42, 0.04);
+  --dash-card-bg: #ffffff;
+  --dash-chip-bg: #f8fafc;
+  --dash-chip-hover-bg: #f1f5f9;
+  --dash-row-bg: #ffffff;
+  --dash-row-hover-bg: #f8fafc;
+  --dash-metric-tile-hover: #f1f5f9;
+  --dash-subtle-hover: rgba(15, 23, 42, 0.04);
+  --dash-link-row-hover: rgba(15, 23, 42, 0.04);
+  --dash-chip-icon-bg: rgba(37, 99, 235, 0.08);
+  --dash-row-border: var(--border-color);
+  --dash-row-border-hover: var(--border-strong);
+  --dash-divider-list: var(--divider);
+  --scrollbar-thumb: #cbd5e1;
+  --scrollbar-thumb-hover: #94a3b8;
+
+  --nav-surface: rgba(255, 255, 255, 0.92);
+  --nav-hover-bg: rgba(15, 23, 42, 0.06);
+  --nav-active-bg: rgba(37, 99, 235, 0.1);
+  --nav-logout-bg: #ffffff;
+  --nav-shadow: 0 1px 0 rgba(15, 23, 42, 0.06), 0 4px 20px rgba(15, 23, 42, 0.04);
+
+  --sidebar-active-bg: #2563eb;
+  --sidebar-active-fg: #ffffff;
+  --sidebar-hover-bg: rgba(15, 23, 42, 0.06);
+  --sidebar-border: var(--divider);
+
+  --accent-color: var(--accent-blue);
+  --info-color: var(--accent-blue);
+  --highlight-color: var(--accent-purple);
+  --gradient-page-ambient: var(--page-ambient-gradient);
+
+  --message-error-bg: rgba(220, 38, 38, 0.08);
+  --message-error-text: #991b1b;
+  --message-error-border: rgba(220, 38, 38, 0.25);
+
+  --message-success-bg: rgba(22, 163, 74, 0.08);
+  --message-success-text: #166534;
+  --message-success-border: rgba(22, 163, 74, 0.22);
+}
+
+:root[data-theme="dark"] {
   --bg-primary: #000000;
   --bg-elevated: #0a0a0a;
   --surface-secondary: #121212;
@@ -21,46 +112,30 @@
   --text-muted: #6b7280;
   --text-label: #86868b;
 
-  /* Accents — electric blue checks / focus */
   --accent-blue: #3b82f6;
-  --accent-blue-dim: rgba(59, 130, 246, 0.14);
   --accent-hover: #60a5fa;
+  --accent-blue-dim: rgba(59, 130, 246, 0.14);
   --accent-purple: #5e5ce6;
 
-  /* Status */
   --success-green: #22c55e;
   --success-pulse: #10b981;
   --warning-orange: #f59e0b;
   --error-red: #ef4444;
 
-  /* Pills / badges (AI SUMMARY READY, DUE FRI, REMINDER) */
   --badge-bg: rgba(30, 58, 138, 0.45);
   --badge-border: rgba(59, 130, 246, 0.25);
   --badge-text: #93c5fd;
   --pill-muted-bg: rgba(255, 255, 255, 0.06);
 
-  /* Skeleton loaders */
   --skeleton: #1e293b;
   --skeleton-shine: #334155;
 
-  /* Ambient page wash (subtle blue/indigo glow — pairs with solid bg) */
-  --page-ambient-gradient:
-    radial-gradient(ellipse 88% 58% at 50% -20%, rgba(59, 130, 246, 0.13), transparent 54%),
+  --page-ambient-gradient: radial-gradient(ellipse 88% 58% at 50% -20%, rgba(59, 130, 246, 0.13), transparent 54%),
     radial-gradient(ellipse 52% 42% at 100% 28%, rgba(99, 102, 241, 0.07), transparent 50%),
     radial-gradient(ellipse 48% 38% at 0% 78%, rgba(14, 165, 233, 0.06), transparent 46%);
 
-  /* Motion (respect prefers-reduced-motion in ui-alive.css) */
-  --ease-out: cubic-bezier(0.33, 1, 0.68, 1);
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --dur-fast: 0.15s;
-  --dur-base: 0.22s;
-  --dur-slow: 0.38s;
-
-  /* Interactive depth */
-  --card-hover-lift: translateY(-2px);
   --shadow-card-hover: 0 8px 32px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(59, 130, 246, 0.1);
 
-  /* Dashboard / cards — dark */
   --shadow-soft-sm: 0 4px 24px rgba(0, 0, 0, 0.22);
   --shadow-soft-lg: 0 12px 40px rgba(0, 0, 0, 0.38);
   --dash-card-bg: linear-gradient(165deg, rgba(32, 32, 36, 0.98) 0%, rgba(24, 24, 28, 0.95) 100%);
@@ -77,78 +152,25 @@
   --dash-divider-list: rgba(255, 255, 255, 0.06);
   --scrollbar-thumb: #2a2a2a;
   --scrollbar-thumb-hover: #3f3f46;
+
   --nav-surface: linear-gradient(180deg, rgba(10, 10, 14, 0.88) 0%, rgba(0, 0, 0, 0.78) 100%);
   --nav-hover-bg: rgba(255, 255, 255, 0.06);
   --nav-active-bg: rgba(255, 255, 255, 0.08);
   --nav-logout-bg: rgba(28, 28, 30, 0.85);
   --nav-shadow: 0 10px 40px rgba(0, 0, 0, 0.45), 0 1px 0 rgba(59, 130, 246, 0.06);
 
-  /* Legacy aliases used across older CSS */
-  --accent-color: var(--accent-blue);
-  --info-color: var(--accent-blue);
-  --highlight-color: var(--accent-purple);
-  /* Matches index.css / MeetingSummary / Dashboard */
-  --gradient-page-ambient: var(--page-ambient-gradient);
-}
+  --sidebar-active-bg: rgba(59, 130, 246, 0.22);
+  --sidebar-active-fg: #f8fafc;
+  --sidebar-hover-bg: rgba(255, 255, 255, 0.06);
+  --sidebar-border: var(--border-strong);
 
-/* Theme Variables - Light Mode */
-:root[data-theme="light"] {
-  --bg-primary: #ffffff;
-  --bg-elevated: #f9fafb;
-  --surface-secondary: #f3f4f6;
-  --surface-card: #ffffff;
-  --surface-input: #f9fafb;
+  --message-error-bg: rgba(239, 68, 68, 0.1);
+  --message-error-text: #fecaca;
+  --message-error-border: rgba(239, 68, 68, 0.35);
 
-  --border-color: #e5e7eb;
-  --border-strong: #d1d5db;
-  --divider: #e5e7eb;
-
-  --text-primary: #111827;
-  --text-secondary: #6b7280;
-  --text-muted: #9ca3af;
-  --text-label: #6b7280;
-
-  --accent-blue: #2563eb;
-  --accent-hover: #1d4ed8;
-  --accent-blue-dim: rgba(37, 99, 235, 0.12);
-  --badge-bg: rgba(37, 99, 235, 0.12);
-  --badge-border: rgba(37, 99, 235, 0.2);
-  --badge-text: #1d4ed8;
-  --pill-muted-bg: rgba(0, 0, 0, 0.05);
-
-  --skeleton: #e5e7eb;
-  --skeleton-shine: #f3f4f6;
-
-  --page-ambient-gradient:
-    radial-gradient(ellipse 90% 55% at 50% -18%, rgba(37, 99, 235, 0.09), transparent 55%),
-    radial-gradient(ellipse 45% 35% at 100% 25%, rgba(99, 102, 241, 0.05), transparent 48%),
-    radial-gradient(ellipse 50% 40% at 0% 80%, rgba(14, 165, 233, 0.04), transparent 46%);
-
-  --shadow-card-hover: 0 10px 40px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(37, 99, 235, 0.08);
-  --gradient-page-ambient: var(--page-ambient-gradient);
-
-  /* Dashboard — light (solid surfaces, soft shadows) */
-  --shadow-soft-sm: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
-  --shadow-soft-lg: 0 12px 40px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(15, 23, 42, 0.04);
-  --dash-card-bg: var(--surface-card);
-  --dash-chip-bg: var(--surface-card);
-  --dash-chip-hover-bg: var(--bg-elevated);
-  --dash-row-bg: var(--surface-card);
-  --dash-row-hover-bg: var(--surface-secondary);
-  --dash-metric-tile-hover: var(--bg-elevated);
-  --dash-subtle-hover: rgba(15, 23, 42, 0.04);
-  --dash-link-row-hover: rgba(15, 23, 42, 0.04);
-  --dash-chip-icon-bg: rgba(15, 23, 42, 0.06);
-  --dash-row-border: var(--border-color);
-  --dash-row-border-hover: var(--border-strong);
-  --dash-divider-list: var(--divider);
-  --scrollbar-thumb: #d1d5db;
-  --scrollbar-thumb-hover: #9ca3af;
-  --nav-surface: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(249, 250, 251, 0.96) 100%);
-  --nav-hover-bg: rgba(15, 23, 42, 0.06);
-  --nav-active-bg: rgba(37, 99, 235, 0.1);
-  --nav-logout-bg: var(--surface-card);
-  --nav-shadow: 0 1px 0 rgba(15, 23, 42, 0.06), 0 4px 24px rgba(15, 23, 42, 0.04);
+  --message-success-bg: rgba(34, 197, 94, 0.1);
+  --message-success-text: #bbf7d0;
+  --message-success-border: rgba(34, 197, 94, 0.3);
 }
 
 body {

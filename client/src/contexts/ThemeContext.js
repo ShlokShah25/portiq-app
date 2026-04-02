@@ -13,7 +13,7 @@ export const useTheme = () => {
 export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(() => {
     const saved = localStorage.getItem('app-theme');
-    return saved || 'dark';
+    return saved || 'light';
   });
 
   useEffect(() => {
