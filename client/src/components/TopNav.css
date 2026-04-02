@@ -1,6 +1,4 @@
-/* Premium Top Navigation - Linear/Vercel Style */
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+/* Top navigation — tokens from theme.css */
 
 .top-nav {
   position: fixed;
@@ -17,7 +15,7 @@
   display: flex;
   align-items: center;
   padding: 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-family: var(--font-sans, 'Inter', system-ui, sans-serif);
 }
 
 .top-nav-container {
@@ -59,8 +57,8 @@
   font-size: 20px;
   font-weight: 700;
   color: var(--text-primary);
-  letter-spacing: -0.01em;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  letter-spacing: -0.02em;
+  font-family: var(--font-heading, 'Space Grotesk', 'Inter', system-ui, sans-serif);
 }
 
 .top-nav-menu {
@@ -84,7 +82,7 @@
   font-weight: 500;
   cursor: pointer;
   position: relative;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-family: var(--font-sans, 'Inter', system-ui, sans-serif);
   white-space: nowrap;
   transition: transform 0.2s ease, opacity 0.2s ease, background 0.15s ease, color 0.15s ease;
 }
@@ -142,7 +140,7 @@
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-family: var(--font-sans, 'Inter', system-ui, sans-serif);
 }
 
 .top-nav-admin:hover,

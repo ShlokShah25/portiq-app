@@ -164,27 +164,19 @@ const Dashboard = () => {
       <div className="dashboard-wrapper">
         <div className="dashboard-content">
           <header
-            className="dashboard-hero-slab ux-dashboard-stagger"
+            className="dashboard-hero-minimal ux-dashboard-stagger"
             style={{ animationDelay: '0ms' }}
             aria-label="Dashboard overview"
           >
-            <div className="dashboard-hero-slab__grid" aria-hidden />
-            <div className="dashboard-hero-slab__inner">
-              <div className="dashboard-hero-slab__copy">
-                <p className="dashboard-hero-slab__eyebrow">Command center</p>
-                <h1 className="dashboard-title dashboard-hero-slab__title">Dashboard</h1>
-                <p className="dashboard-subtitle dashboard-hero-slab__subtitle">
-                  Meeting execution and task intelligence across your workspace
-                </p>
-              </div>
-              <div className="dashboard-hero-slab__orb" aria-hidden>
-                <span className="dashboard-hero-slab__orb-ring" />
-              </div>
-            </div>
+            <div className="dashboard-hero-minimal__glow" aria-hidden />
+            <h1 className="dashboard-title">Dashboard</h1>
+            <p className="dashboard-subtitle">
+              Meeting execution and task intelligence across your workspace
+            </p>
           </header>
 
           <div
-            className="dashboard-start-meeting card ux-dashboard-stagger"
+            className="dashboard-start-meeting dashboard-start-meeting--minimal ux-dashboard-stagger"
             style={{ animationDelay: '45ms' }}
             id="dashboard-meetings"
           >
@@ -193,7 +185,7 @@ const Dashboard = () => {
               <Link
                 to="/meetings"
                 state={{ openStartModal: true }}
-                className="dashboard-btn-primary dashboard-btn-micro"
+                className="dashboard-btn-primary dashboard-btn-primary--hero dashboard-btn-micro"
               >
                 New Meeting
               </Link>
@@ -217,7 +209,7 @@ const Dashboard = () => {
           </div>
 
           <section
-            className="dashboard-section card ux-dashboard-stagger dashboard-section--reveal"
+            className="dashboard-section dashboard-section--minimal ux-dashboard-stagger dashboard-section--reveal"
             style={{ animationDelay: '115ms' }}
             aria-labelledby="dash-in-progress"
           >
@@ -244,7 +236,10 @@ const Dashboard = () => {
                       <Link to={`/meetings/${id}/room`} className="dashboard-task-row__link">
                         <span className="dashboard-task-row__task">{m.title || 'Untitled meeting'}</span>
                         <span className="dashboard-task-row__meta">
-                          <span className="dashboard-task-row__pill">Live</span>
+                          <span className="dashboard-task-row__pill dashboard-task-row__pill--live">
+                            <span className="dashboard-live-dot" aria-hidden />
+                            Live
+                          </span>
                           <span className="dashboard-task-row__due">
                             {m.transcriptionStatus === 'Recording' ? 'Recording' : 'In progress'}
                           </span>
@@ -307,7 +302,7 @@ const Dashboard = () => {
           </div>
 
           <section
-            className="dashboard-section card ux-dashboard-stagger dashboard-section--reveal"
+            className="dashboard-section dashboard-section--minimal ux-dashboard-stagger dashboard-section--reveal"
             style={{ animationDelay: '130ms' }}
             aria-labelledby="dash-recent-tasks"
           >
@@ -349,7 +344,7 @@ const Dashboard = () => {
           </section>
 
           <section
-            className="dashboard-section card ux-dashboard-stagger dashboard-section--reveal"
+            className="dashboard-section dashboard-section--minimal ux-dashboard-stagger dashboard-section--reveal"
             style={{ animationDelay: '165ms' }}
             aria-labelledby="dash-pending-summaries"
           >
@@ -370,7 +365,7 @@ const Dashboard = () => {
                   return (
                     <li
                       key={id || idx}
-                      className="dashboard-pending-row dashboard-pending-row--card ux-dashboard-list-item"
+                      className="dashboard-pending-row ux-dashboard-list-item"
                       style={{ animationDelay: `${Math.min(idx, 6) * 35}ms` }}
                     >
                       <Link to={`/meetings/${id}/summary`} className="dashboard-pending-row__link">

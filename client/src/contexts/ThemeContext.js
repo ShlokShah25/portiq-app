@@ -1,20 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-/** One-time: existing installs often had `app-theme=dark`; light SaaS is now default. Users can switch back in Settings. */
-const PORTIQ_LIGHT_DEFAULT_MIGRATION_KEY = 'portiq-light-default-v1';
-
 function readStoredTheme() {
-  if (typeof window === 'undefined') return 'light';
+  if (typeof window === 'undefined') return 'dark';
   try {
-    if (!localStorage.getItem(PORTIQ_LIGHT_DEFAULT_MIGRATION_KEY)) {
-      localStorage.setItem(PORTIQ_LIGHT_DEFAULT_MIGRATION_KEY, '1');
-      localStorage.setItem('app-theme', 'light');
-      return 'light';
-    }
     const saved = localStorage.getItem('app-theme');
-    return saved === 'dark' ? 'dark' : 'light';
+    return saved === 'light' ? 'light' : 'dark';
   } catch {
-    return 'light';
+    return 'dark';
   }
 }
 
@@ -37,7 +29,7 @@ export const ThemeProvider = ({ children }) => {
   }, [theme]);
 
   const toggleTheme = () => {
-    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+    setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
   };
 
   return (

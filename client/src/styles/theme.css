@@ -1,11 +1,103 @@
-/* PortIQ — default: premium light SaaS shell. Dark: <html data-theme="dark"> */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+/* PortIQ — dark command-center default. Optional light: data-theme="light" (Settings). */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
 
 :root {
   --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", system-ui,
     sans-serif;
+  --font-heading: "Space Grotesk", "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --font-primary: var(--font-sans);
 
+  --bg-primary: #0a0b0f;
+  --bg-elevated: #0f1118;
+  --surface-secondary: #0f1118;
+  --surface-card: rgba(255, 255, 255, 0.03);
+  --surface-input: #14161d;
+
+  --border-color: rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(255, 255, 255, 0.1);
+  --divider: rgba(255, 255, 255, 0.07);
+
+  --text-primary: #e8eaef;
+  --text-secondary: #8b909d;
+  --text-muted: #5c616e;
+  --text-label: #737884;
+
+  --accent-blue: #4a7dd8;
+  --accent-hover: #6b93e0;
+  --accent-blue-dim: rgba(74, 125, 216, 0.12);
+  --accent-purple: #6b63c6;
+
+  --success-green: #3da970;
+  --success-pulse: #34c759;
+  --warning-orange: #c98a32;
+  --error-red: #c45c5c;
+
+  --badge-bg: rgba(74, 125, 216, 0.12);
+  --badge-border: rgba(74, 125, 216, 0.22);
+  --badge-text: #8aaeed;
+  --pill-muted-bg: rgba(255, 255, 255, 0.06);
+
+  --skeleton: #1a1d26;
+  --skeleton-shine: #252830;
+
+  --page-ambient-gradient:
+    radial-gradient(ellipse 85% 55% at 50% -18%, rgba(74, 125, 216, 0.07), transparent 58%),
+    radial-gradient(ellipse 50% 45% at 100% 15%, rgba(107, 99, 198, 0.05), transparent 52%),
+    radial-gradient(ellipse 45% 40% at 0% 85%, rgba(45, 212, 191, 0.03), transparent 48%),
+    linear-gradient(180deg, #0a0b0f 0%, #060708 55%, #08090c 100%);
+
+  --ease-out: cubic-bezier(0.33, 1, 0.68, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 0.15s;
+  --dur-base: 0.22s;
+  --dur-slow: 0.38s;
+
+  --card-hover-lift: translateY(-1px);
+  --shadow-card-hover: 0 12px 40px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(74, 125, 216, 0.06);
+
+  --shadow-soft-sm: 0 2px 16px rgba(0, 0, 0, 0.2);
+  --shadow-soft-lg: 0 8px 32px rgba(0, 0, 0, 0.28);
+  --dash-card-bg: transparent;
+  --dash-chip-bg: rgba(255, 255, 255, 0.035);
+  --dash-chip-hover-bg: rgba(255, 255, 255, 0.055);
+  --dash-row-bg: transparent;
+  --dash-row-hover-bg: rgba(255, 255, 255, 0.04);
+  --dash-metric-tile-hover: rgba(255, 255, 255, 0.05);
+  --dash-subtle-hover: rgba(255, 255, 255, 0.04);
+  --dash-link-row-hover: rgba(255, 255, 255, 0.04);
+  --dash-chip-icon-bg: rgba(255, 255, 255, 0.06);
+  --dash-row-border: transparent;
+  --dash-row-border-hover: rgba(255, 255, 255, 0.08);
+  --dash-divider-list: rgba(255, 255, 255, 0.06);
+  --scrollbar-thumb: #2f323c;
+  --scrollbar-thumb-hover: #3d4150;
+
+  --nav-surface: rgba(10, 11, 15, 0.78);
+  --nav-hover-bg: rgba(255, 255, 255, 0.05);
+  --nav-active-bg: rgba(255, 255, 255, 0.07);
+  --nav-logout-bg: rgba(20, 22, 28, 0.9);
+  --nav-shadow: 0 1px 0 rgba(255, 255, 255, 0.04), 0 8px 32px rgba(0, 0, 0, 0.25);
+
+  --sidebar-active-bg: rgba(74, 125, 216, 0.22);
+  --sidebar-active-fg: #f0f2f6;
+  --sidebar-hover-bg: rgba(255, 255, 255, 0.05);
+  --sidebar-border: var(--border-color);
+
+  --accent-color: var(--accent-blue);
+  --info-color: var(--accent-blue);
+  --highlight-color: var(--accent-purple);
+  --gradient-page-ambient: var(--page-ambient-gradient);
+
+  --message-error-bg: rgba(196, 92, 92, 0.1);
+  --message-error-text: #e8b4b4;
+  --message-error-border: rgba(196, 92, 92, 0.28);
+
+  --message-success-bg: rgba(61, 169, 112, 0.1);
+  --message-success-text: #b4e3c9;
+  --message-success-border: rgba(61, 169, 112, 0.25);
+}
+
+:root[data-theme="light"] {
   --bg-primary: #edf0f6;
   --bg-elevated: #ffffff;
   --surface-secondary: #ffffff;
@@ -45,15 +137,7 @@
     transparent 58%
   );
 
-  --ease-out: cubic-bezier(0.33, 1, 0.68, 1);
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --dur-fast: 0.15s;
-  --dur-base: 0.22s;
-  --dur-slow: 0.38s;
-
-  --card-hover-lift: translateY(-1px);
   --shadow-card-hover: 0 10px 40px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(37, 99, 235, 0.06);
-
   --shadow-soft-sm: 0 1px 2px rgba(15, 23, 42, 0.05), 0 4px 16px rgba(15, 23, 42, 0.06);
   --shadow-soft-lg: 0 8px 30px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(15, 23, 42, 0.04);
   --dash-card-bg: #ffffff;
@@ -82,11 +166,6 @@
   --sidebar-hover-bg: rgba(15, 23, 42, 0.06);
   --sidebar-border: var(--divider);
 
-  --accent-color: var(--accent-blue);
-  --info-color: var(--accent-blue);
-  --highlight-color: var(--accent-purple);
-  --gradient-page-ambient: var(--page-ambient-gradient);
-
   --message-error-bg: rgba(220, 38, 38, 0.08);
   --message-error-text: #991b1b;
   --message-error-border: rgba(220, 38, 38, 0.25);
@@ -94,83 +173,6 @@
   --message-success-bg: rgba(22, 163, 74, 0.08);
   --message-success-text: #166534;
   --message-success-border: rgba(22, 163, 74, 0.22);
-}
-
-:root[data-theme="dark"] {
-  --bg-primary: #000000;
-  --bg-elevated: #0a0a0a;
-  --surface-secondary: #121212;
-  --surface-card: #0b0b0b;
-  --surface-input: #1c1c1e;
-
-  --border-color: rgba(255, 255, 255, 0.06);
-  --border-strong: rgba(255, 255, 255, 0.1);
-  --divider: rgba(255, 255, 255, 0.08);
-
-  --text-primary: #f5f5f7;
-  --text-secondary: #a1a1a6;
-  --text-muted: #6b7280;
-  --text-label: #86868b;
-
-  --accent-blue: #3b82f6;
-  --accent-hover: #60a5fa;
-  --accent-blue-dim: rgba(59, 130, 246, 0.14);
-  --accent-purple: #5e5ce6;
-
-  --success-green: #22c55e;
-  --success-pulse: #10b981;
-  --warning-orange: #f59e0b;
-  --error-red: #ef4444;
-
-  --badge-bg: rgba(30, 58, 138, 0.45);
-  --badge-border: rgba(59, 130, 246, 0.25);
-  --badge-text: #93c5fd;
-  --pill-muted-bg: rgba(255, 255, 255, 0.06);
-
-  --skeleton: #1e293b;
-  --skeleton-shine: #334155;
-
-  --page-ambient-gradient: radial-gradient(ellipse 88% 58% at 50% -20%, rgba(59, 130, 246, 0.13), transparent 54%),
-    radial-gradient(ellipse 52% 42% at 100% 28%, rgba(99, 102, 241, 0.07), transparent 50%),
-    radial-gradient(ellipse 48% 38% at 0% 78%, rgba(14, 165, 233, 0.06), transparent 46%);
-
-  --shadow-card-hover: 0 8px 32px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(59, 130, 246, 0.1);
-
-  --shadow-soft-sm: 0 4px 24px rgba(0, 0, 0, 0.22);
-  --shadow-soft-lg: 0 12px 40px rgba(0, 0, 0, 0.38);
-  --dash-card-bg: linear-gradient(165deg, rgba(32, 32, 36, 0.98) 0%, rgba(24, 24, 28, 0.95) 100%);
-  --dash-chip-bg: linear-gradient(155deg, rgba(34, 34, 38, 0.95) 0%, rgba(26, 26, 30, 0.92) 100%);
-  --dash-chip-hover-bg: linear-gradient(155deg, rgba(36, 38, 48, 0.98) 0%, rgba(28, 30, 38, 0.95) 100%);
-  --dash-row-bg: #1c1c1e;
-  --dash-row-hover-bg: #222224;
-  --dash-metric-tile-hover: #202022;
-  --dash-subtle-hover: rgba(255, 255, 255, 0.04);
-  --dash-link-row-hover: rgba(255, 255, 255, 0.055);
-  --dash-chip-icon-bg: rgba(255, 255, 255, 0.06);
-  --dash-row-border: rgba(255, 255, 255, 0.1);
-  --dash-row-border-hover: rgba(255, 255, 255, 0.16);
-  --dash-divider-list: rgba(255, 255, 255, 0.06);
-  --scrollbar-thumb: #2a2a2a;
-  --scrollbar-thumb-hover: #3f3f46;
-
-  --nav-surface: linear-gradient(180deg, rgba(10, 10, 14, 0.88) 0%, rgba(0, 0, 0, 0.78) 100%);
-  --nav-hover-bg: rgba(255, 255, 255, 0.06);
-  --nav-active-bg: rgba(255, 255, 255, 0.08);
-  --nav-logout-bg: rgba(28, 28, 30, 0.85);
-  --nav-shadow: 0 10px 40px rgba(0, 0, 0, 0.45), 0 1px 0 rgba(59, 130, 246, 0.06);
-
-  --sidebar-active-bg: rgba(59, 130, 246, 0.22);
-  --sidebar-active-fg: #f8fafc;
-  --sidebar-hover-bg: rgba(255, 255, 255, 0.06);
-  --sidebar-border: var(--border-strong);
-
-  --message-error-bg: rgba(239, 68, 68, 0.1);
-  --message-error-text: #fecaca;
-  --message-error-border: rgba(239, 68, 68, 0.35);
-
-  --message-success-bg: rgba(34, 197, 94, 0.1);
-  --message-success-text: #bbf7d0;
-  --message-success-border: rgba(34, 197, 94, 0.3);
 }
 
 body {
@@ -181,4 +183,13 @@ body {
   background-repeat: no-repeat;
   color: var(--text-primary);
   font-family: var(--font-sans);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading);
 }

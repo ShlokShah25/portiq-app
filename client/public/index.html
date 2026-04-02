@@ -1,23 +1,17 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="dark">
   <head>
     <script>
-      /* Keep in sync with ThemeContext.js (portiq-light-default-v1 + readStoredTheme) */
       (function () {
         try {
-          var K = 'portiq-light-default-v1';
-          if (!localStorage.getItem(K)) {
-            localStorage.setItem(K, '1');
-            localStorage.setItem('app-theme', 'light');
-          }
           var t = localStorage.getItem('app-theme');
-          document.documentElement.setAttribute('data-theme', t === 'dark' ? 'dark' : 'light');
+          document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
         } catch (e) {}
       })();
     </script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, shrink-to-fit=no" />
-    <meta name="theme-color" content="#2563eb" />
+    <meta name="theme-color" content="#0a0b0f" />
     <meta name="description" content="PortIQ: transcripts, summaries, and tasks from every meeting. Starter ₹1,499 · Pro ₹2,999 · Business ₹9,999 / mo." />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
