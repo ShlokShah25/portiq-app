@@ -5,7 +5,7 @@
 .dashboard-screen {
   width: 100vw;
   height: 100vh;
-  background-color: var(--bg-primary, #000000);
+  background-color: var(--bg-primary, #edf0f6);
   background-image: var(--page-ambient-gradient, var(--gradient-page-ambient));
   background-repeat: no-repeat;
   background-size: 100% 100%;
