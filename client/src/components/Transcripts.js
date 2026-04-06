@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import TopNav from './TopNav';
 import './Transcripts.css';
 
 const Transcripts = () => {
@@ -31,7 +30,6 @@ const Transcripts = () => {
   if (loading) {
     return (
       <div className="transcripts-screen">
-        <TopNav />
         <div className="transcripts-wrapper">
           <div className="transcripts-content">
             <div className="loading">Loading...</div>
@@ -43,7 +41,6 @@ const Transcripts = () => {
 
   return (
     <div className="transcripts-screen">
-      <TopNav />
       <div className="transcripts-wrapper">
         <div className="transcripts-top-bar">
           <div>

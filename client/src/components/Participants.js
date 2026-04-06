@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { Calendar, CheckSquare } from 'lucide-react';
-import TopNav from './TopNav';
 import { T } from '../config/terminology';
 import {
   VOICE_ENROLLMENT_API_TEMPLATE,
@@ -369,7 +368,6 @@ export function ParticipantBookPanel({ embedded = false }) {
   if (loading) {
     return (
       <div className={rootClass}>
-        {!embedded && <TopNav />}
         <div className={wrapperClass}>
           <div className="participants-content">
             <div className={`participant-book participant-book--loading ${embedded ? 'participant-book--embedded' : ''}`}>
@@ -437,7 +435,6 @@ export function ParticipantBookPanel({ embedded = false }) {
 
   return (
     <div className={rootClass}>
-      {!embedded && <TopNav />}
       <div className={wrapperClass}>
         <div className="participants-content">
           <div className={`participant-book ${embedded ? 'participant-book--embedded' : ''}`}>

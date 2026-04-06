@@ -1,3 +1,40 @@
+.meeting-summary-editor-verify {
+  margin: 20px 0 24px;
+  padding: 20px 20px 22px;
+  border-radius: var(--radius-card, 18px);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.meeting-summary-editor-verify__email {
+  font-weight: 600;
+  color: #e5e7eb;
+  word-break: break-all;
+}
+
+.meeting-summary-editor-verify__row {
+  margin: 14px 0 12px;
+}
+
+.meeting-summary-editor-verify__field {
+  margin-bottom: 14px;
+}
+
+.meeting-summary-editor-verify__input {
+  width: 100%;
+  max-width: 280px;
+  margin-top: 6px;
+  display: block;
+  box-sizing: border-box;
+}
+
+.meeting-summary-editor-verify__notice {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #86efac;
+  line-height: 1.45;
+}
+
 .meeting-summary-screen {
   min-height: 100vh;
   background-color: var(--bg-primary, #000000);
@@ -6,7 +43,7 @@
   background-size: 100% 100%;
   background-attachment: fixed;
   color: var(--text-primary, #f5f5f7);
-  padding-top: 64px; /* clear fixed navbar so back button is visible */
+  padding-top: 24px; /* app shell: no fixed top nav */
 }
 
 .meeting-summary-loading {

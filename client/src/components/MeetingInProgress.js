@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { T } from '../config/terminology';
-import TopNav from './TopNav';
 import './MeetingSummary.css';
 import './MeetingInProgress.css';
 import './MeetingDetail.css';
@@ -34,6 +33,7 @@ const MeetingInProgress = () => {
   const [uploading, setUploading] = useState(false);
   const [maxDurationMinutes, setMaxDurationMinutes] = useState(null);
   const [autoEnded, setAutoEnded] = useState(false);
+  const [sessionDetailsOpen, setSessionDetailsOpen] = useState(false);
   const [followUpOpen, setFollowUpOpen] = useState(false);
   const [followUpDt, setFollowUpDt] = useState('');
   const [checkpointText, setCheckpointText] = useState('');
@@ -386,17 +386,6 @@ const MeetingInProgress = () => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return 'Not scheduled';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    });
-  };
-
   const formatTimeOnly = (dateString) => {
     if (!dateString) return 'Not scheduled';
     const date = new Date(dateString);
@@ -404,6 +393,18 @@ const MeetingInProgress = () => {
       hour: '2-digit', 
       minute: '2-digit',
       hour12: true 
+    });
+  };
+
+  const formatDateCompact = (dateString) => {
+    if (!dateString) return 'Not scheduled';
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return 'Not scheduled';
+    return date.toLocaleDateString(undefined, {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
     });
   };
 
@@ -472,7 +473,6 @@ const MeetingInProgress = () => {
   if (loading) {
     return (
       <div className="meeting-summary-screen meeting-in-progress">
-        <TopNav />
         <div className="meeting-summary-loading">
           <div className="loading-spinner" />
           <p>Loading meeting details...</p>
@@ -484,7 +484,6 @@ const MeetingInProgress = () => {
   if (error && !meeting) {
     return (
       <div className="meeting-summary-screen meeting-in-progress">
-        <TopNav />
         <div className="meeting-summary-container">
           <div className="meeting-summary-error">{error}</div>
           <button
@@ -503,7 +502,6 @@ const MeetingInProgress = () => {
   if (!meeting) {
     return (
       <div className="meeting-summary-screen meeting-in-progress">
-        <TopNav />
         <div className="meeting-summary-container">
           <div className="meeting-summary-error">Meeting not found</div>
           <button
@@ -520,10 +518,15 @@ const MeetingInProgress = () => {
   }
 
   const recordingLive = recording || isGlobalRecordingActive();
+  const meetingLocationTrimmed = meeting ? String(meeting.meetingRoom || '').trim() : '';
+  const hasMeetingLocation = meetingLocationTrimmed.length > 0;
+  const showLiveStatusChip =
+    recordingLive ||
+    meeting.status === 'In Progress' ||
+    meeting.transcriptionStatus === 'Recording';
 
   return (
     <div className="meeting-summary-screen meeting-in-progress">
-      <TopNav />
       <div className="meeting-summary-container">
         <div className={`meeting-summary-card mip-card${meeting && !loading ? ' ux-screen-enter' : ''}`}>
           {meetingEnded ? (
@@ -566,42 +569,78 @@ const MeetingInProgress = () => {
             </>
           ) : (
             <>
-              <h1 className="meeting-summary-page-title">{meeting.title || 'Untitled meeting'}</h1>
-              <p className="meeting-summary-subtitle">
-                {meeting.status === 'Scheduled'
-                  ? 'Live session — use Start recording when you begin'
-                  : 'Meeting in progress'}
-              </p>
-              <div className="meeting-summary-see-all-row">
-                <button
-                  type="button"
-                  className="meeting-summary-btn meeting-summary-btn--secondary meeting-summary-btn--see-all"
-                  onClick={() => navigate('/meetings', { state: { showAllMeetings: true } })}
-                >
-                  View All Meetings
-                </button>
-              </div>
-              <p className="mip-ai-disclaimer">
-                Audio is captured in your browser. When you stop recording or end the meeting, we&apos;ll upload audio
-                and generate your transcript and summary.
-              </p>
+              <header className="mip-live-header">
+                <div className="mip-live-header__row">
+                  <span
+                    className={`mip-status-chip${showLiveStatusChip ? ' mip-status-chip--live' : ' mip-status-chip--ready'}`}
+                  >
+                    {showLiveStatusChip ? 'LIVE' : 'READY'}
+                  </span>
+                </div>
+                <h1 className="meeting-summary-page-title mip-live-title">{meeting.title || 'Untitled meeting'}</h1>
+                <p className="meeting-summary-subtitle mip-live-subtitle">
+                  {meeting.status === 'Scheduled'
+                    ? 'When you begin, start recording below.'
+                    : 'Meeting in progress'}
+                </p>
+              </header>
 
-              <div
-                className={`meeting-summary-ready-badge mip-ready-badge${
-                  recordingLive && !paused ? ' mip-ready-badge--live' : ''
-                }`}
-              >
-                <span className="meeting-summary-ready-badge__dot" />
-                {uploading
-                  ? 'Uploading audio'
-                  : recordingLive
-                    ? paused
-                      ? 'Recording paused'
-                      : 'Recording'
-                    : meeting.status === 'Scheduled'
-                      ? 'Ready to record'
-                      : 'Session active'}
-              </div>
+              {meeting.transcriptionEnabled && (
+                <div className="mip-recording-hero mip-recording-hero--primary">
+                  {!recordingLive && !uploading && (
+                    <button type="button" className="mip-recording-hero__start" onClick={startRecording}>
+                      Start Recording
+                    </button>
+                  )}
+                  {recordingLive && !uploading && (
+                    <div className="mip-recording-hero__active">
+                      <div className="mip-recording-hero__status-row">
+                        {!paused ? (
+                          <span className="mip-recording-hero__live-dot" aria-hidden />
+                        ) : (
+                          <span className="mip-recording-hero__paused-dot" aria-hidden />
+                        )}
+                        <span className="mip-recording-hero__status-text">
+                          {paused ? 'Paused' : 'Recording…'}
+                        </span>
+                        <span className="mip-recording-hero__timer">{formatTime(elapsedTime)}</span>
+                      </div>
+                      <div className="mip-recording-hero__controls">
+                        {!paused ? (
+                          <button
+                            type="button"
+                            className="meeting-summary-btn meeting-summary-btn--secondary mip-recording-hero__ctrl"
+                            onClick={pauseRecording}
+                          >
+                            Pause
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="meeting-summary-btn meeting-summary-btn--secondary mip-recording-hero__ctrl mip-recording-hero__resume"
+                            onClick={resumeRecording}
+                          >
+                            Resume
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className="meeting-summary-btn mip-btn-stop-upload mip-recording-hero__ctrl"
+                          onClick={stopRecording}
+                        >
+                          Stop &amp; upload
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {uploading && (
+                    <div className="mip-uploading-status mip-uploading-status--hero">
+                      <div className="upload-spinner" />
+                      <span>Uploading audio…</span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {meeting.parentContinuation && (
                 <div className="meeting-detail-continuation mip-continuation">
@@ -617,101 +656,65 @@ const MeetingInProgress = () => {
                 </div>
               )}
 
-              <div className="meeting-summary-section">
-                <h2 className="meeting-summary-heading">Session details</h2>
-                <div className="meeting-details-grid mip-details-grid">
-          <div className="meeting-detail-card">
-            <div className="detail-icon">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
-                <rect x="3" y="4" width="18" height="18" rx="3" ry="3" />
-                <line x1="3" y1="10" x2="21" y2="10" />
-                <line x1="9" y1="2" x2="9" y2="6" />
-                <line x1="15" y1="2" x2="15" y2="6" />
-              </svg>
-            </div>
-            <div className="detail-content">
-              <div className="detail-label">Date</div>
-              <div className="detail-value">{formatDate(meeting.scheduledTime || meeting.startTime)}</div>
-            </div>
-          </div>
-
-          <div className="meeting-detail-card">
-            <div className="detail-icon">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
-                <circle cx="12" cy="12" r="9" />
-                <polyline points="12 7 12 12 16 14" />
-              </svg>
-            </div>
-            <div className="detail-content">
-              <div className="detail-label">Scheduled Time</div>
-              <div className="detail-value">{formatTimeOnly(meeting.scheduledTime)}</div>
-            </div>
-          </div>
-
-          <div className="meeting-detail-card">
-            <div className="detail-icon">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
-                <circle cx="12" cy="14" r="7" />
-                <line x1="12" y1="7" x2="12" y2="3" />
-                <polyline points="12 14 15 12" />
-              </svg>
-            </div>
-            <div className="detail-content">
-              <div className="detail-label">Duration</div>
-              <div className="detail-value duration-value">{formatTime(elapsedTime)}</div>
-            </div>
-          </div>
-
-          <div className="meeting-detail-card">
-            <div className="detail-icon">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
-                <rect x="3" y="3" width="7" height="18" rx="1" />
-                <rect x="14" y="7" width="7" height="14" rx="1" />
-                <line x1="6.5" y1="7" x2="6.5" y2="7" />
-                <line x1="6.5" y1="11" x2="6.5" y2="11" />
-                <line x1="6.5" y1="15" x2="6.5" y2="15" />
-                <line x1="17.5" y1="11" x2="17.5" y2="11" />
-                <line x1="17.5" y1="15" x2="17.5" y2="15" />
-              </svg>
-            </div>
-            <div className="detail-content">
-              <div className="detail-label">Location</div>
-              <div className="detail-value">{meeting.meetingRoom || 'Not specified'}</div>
-            </div>
-          </div>
-
-          <div className="meeting-detail-card">
-            <div className="detail-icon">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                <circle cx="12" cy="7" r="4"></circle>
-              </svg>
-            </div>
-            <div className="detail-content">
-              <div className="detail-label">Organizer</div>
-              <div className="detail-value">{meeting.organizer || 'Not specified'}</div>
-            </div>
-          </div>
-
-          <div className="meeting-detail-card">
-            <div className="detail-icon">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
-                <path d="M5 21v-2a4 4 0 0 1 4-4h2" />
-                <path d="M17 21v-2a4 4 0 0 0-4-4h-2" />
-                <circle cx="9" cy="7" r="3" />
-                <circle cx="17" cy="7" r="3" />
-              </svg>
-            </div>
-            <div className="detail-content">
-              <div className="detail-label">Participants</div>
-              <div className="detail-value">{meeting.participants?.length || 0} people</div>
-            </div>
-          </div>
-        </div>
+              <div className="mip-session-details">
+                <button
+                  type="button"
+                  className="mip-session-details__toggle"
+                  aria-expanded={sessionDetailsOpen}
+                  onClick={() => setSessionDetailsOpen((o) => !o)}
+                >
+                  <span className="mip-session-details__toggle-label">Session details</span>
+                  <span className="mip-session-details__teaser">
+                    {formatDateCompact(meeting.scheduledTime || meeting.startTime)} ·{' '}
+                    {formatTimeOnly(meeting.scheduledTime)}
+                    {hasMeetingLocation ? ` · ${meetingLocationTrimmed}` : ''}
+                  </span>
+                  <svg
+                    className={`mip-session-details__chev${sessionDetailsOpen ? ' is-open' : ''}`}
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    aria-hidden
+                  >
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+                <div
+                  className={`mip-session-details__panel${sessionDetailsOpen ? ' mip-session-details__panel--open' : ''}`}
+                  aria-hidden={!sessionDetailsOpen}
+                >
+                  <div className="mip-session-details__panel-inner">
+                    <div className="mip-meta-strip" aria-label="Session details">
+                      <div className="mip-meta-chunk">
+                        <span className="mip-meta-k">Date</span>
+                        <span className="mip-meta-v">{formatDateCompact(meeting.scheduledTime || meeting.startTime)}</span>
+                      </div>
+                      <div className="mip-meta-chunk">
+                        <span className="mip-meta-k">Time</span>
+                        <span className="mip-meta-v">{formatTimeOnly(meeting.scheduledTime)}</span>
+                      </div>
+                      <div className="mip-meta-chunk">
+                        <span className="mip-meta-k">Duration</span>
+                        <span className="mip-meta-v mip-meta-v--mono">
+                          {recordingLive ? formatTime(elapsedTime) : '00:00'}
+                        </span>
+                      </div>
+                      {hasMeetingLocation ? (
+                        <div className="mip-meta-chunk">
+                          <span className="mip-meta-k">Location</span>
+                          <span className="mip-meta-v">{meetingLocationTrimmed}</span>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
               </div>
 
         {meeting.participants && meeting.participants.length > 0 && (
-          <div className="meeting-summary-section meeting-summary-section--keypoints mip-participants-section">
+          <div className="meeting-summary-section meeting-summary-section--keypoints mip-participants-section mip-participants-section--after-meta">
             <h2 className="meeting-summary-heading">Participants</h2>
             <div className="participants-list participants-list--room mip-participants-list">
             <div className="participants-grid participants-grid--room">
@@ -734,7 +737,7 @@ const MeetingInProgress = () => {
                     </div>
                     {hasVoice ? (
                       <span
-                        className="mip-participant-voice"
+                        className="mip-participant-voice mip-participant-voice--pulse"
                         title="Voice profile configured"
                       >
                         <svg
@@ -761,58 +764,18 @@ const MeetingInProgress = () => {
           </div>
         )}
 
-        {meeting.transcriptionEnabled && (
-          <div className="meeting-summary-section mip-recording-section">
-            <h2 className="meeting-summary-heading">Recording</h2>
-            <div className="recording-controls mip-recording-controls">
-            {!recordingLive && !uploading && (
-              <button
-                type="button"
-                className="meeting-summary-btn meeting-summary-btn--primary mip-btn-start-recording"
-                onClick={startRecording}
-              >
-                <span className="mip-record-dot" aria-hidden />
-                Start Recording
-              </button>
-            )}
-            {recordingLive && (
-              <>
-                {!paused ? (
-                  <button
-                    type="button"
-                    className="meeting-summary-btn meeting-summary-btn--secondary"
-                    onClick={pauseRecording}
-                  >
-                    Pause
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="meeting-summary-btn meeting-summary-btn--primary mip-btn-start-recording"
-                    onClick={resumeRecording}
-                  >
-                    <span className="mip-record-dot" aria-hidden />
-                    Resume
-                  </button>
-                )}
+              <div className="mip-secondary-row">
                 <button
                   type="button"
-                  className="meeting-summary-btn mip-btn-stop-upload"
-                  onClick={stopRecording}
+                  className="mip-secondary-row__link"
+                  onClick={() => navigate('/meetings', { state: { showAllMeetings: true } })}
                 >
-                  Stop &amp; upload
+                  View all meetings
                 </button>
-              </>
-            )}
-            {uploading && (
-              <div className="mip-uploading-status">
-                <div className="upload-spinner" />
-                <span>Uploading audio…</span>
+                <p className="mip-ai-disclaimer mip-ai-disclaimer--footer">
+                  Audio is captured in your browser. Stopping recording or ending uploads audio for your transcript.
+                </p>
               </div>
-            )}
-            </div>
-          </div>
-        )}
 
         {error && <div className="meeting-summary-action-error">{error}</div>}
 

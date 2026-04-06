@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { Video, Mic, Bot } from 'lucide-react';
-import TopNav from './TopNav';
 import { T } from '../config/terminology';
 import MeetingStatusBadge from './MeetingStatusBadge';
 import { isOnlineMeeting } from '../utils/meetingDisplayStatus';
@@ -221,7 +220,6 @@ const MeetingDetail = () => {
   if (loading) {
     return (
       <div className="meeting-detail-screen">
-        <TopNav />
         <div className="meeting-detail-loading">
           <div className="loading-spinner" />
           <p>Loading meeting...</p>
@@ -233,7 +231,6 @@ const MeetingDetail = () => {
   if (error && !meeting) {
     return (
       <div className="meeting-detail-screen">
-        <TopNav />
         <div className="meeting-detail-container">
           <div className="meeting-detail-error">{error}</div>
         </div>
@@ -315,7 +312,6 @@ const MeetingDetail = () => {
 
   return (
     <div className="meeting-detail-screen">
-      <TopNav />
       <div className="meeting-detail-container ux-screen-enter">
         <div className="meeting-detail-card">
           {parentCont && (

@@ -25,6 +25,12 @@ const { enqueueJoinMeeting } = require('../utils/conferenceBotQueue');
 const { recoverSummaryFromCheckpointedTranscript } = require('../utils/meetingPipelineRecovery');
 const { attachSummaryUiState } = require('../utils/meetingSummaryUiState');
 const {
+  meetingNeedsEditorVerification,
+  editorVerificationProofValid,
+  redactMeetingPayloadForEditorVerification,
+  assertEditorVerificationOrRespond,
+} = require('../utils/editorVerification');
+const {
   buildTranscriptionFailureSet,
   clearTranscriptionFailureFields,
 } = require('../utils/transcriptionFailureCodes');
@@ -1167,7 +1173,17 @@ router.get('/', async (req, res) => {
       .sort({ startTime: -1 })
       .limit(100);
 
-    res.json({ meetings });
+    const meetingsPayload = meetings.map((m) => {
+      const o = m.toObject ? m.toObject() : { ...m };
+      if (meetingNeedsEditorVerification(m)) {
+        redactMeetingPayloadForEditorVerification(o);
+      } else {
+        attachSummaryUiState(o);
+      }
+      return o;
+    });
+
+    res.json({ meetings: meetingsPayload });
   } catch (error) {
     console.error('Error fetching meetings:', error);
     res.status(500).json({ error: 'Failed to fetch meetings' });
@@ -1217,7 +1233,11 @@ router.get('/:id', async (req, res) => {
       }
     }
 
-    attachSummaryUiState(payload);
+    if (meetingNeedsEditorVerification(meeting) && !editorVerificationProofValid(meeting, req)) {
+      redactMeetingPayloadForEditorVerification(payload);
+    } else {
+      attachSummaryUiState(payload);
+    }
 
     res.json({ meeting: payload });
   } catch (error) {
@@ -1317,18 +1337,13 @@ router.post('/:id/verify-and-get-summary', async (req, res) => {
     if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
     const admin = await getAdminFromRequest(req);
     if (!canAccessMeeting(meeting, admin)) return res.status(404).json({ error: 'Meeting not found' });
-    const { email, code } = req.body;
-    if (!email || !code) {
-      return res.status(400).json({ error: 'Email and verification code are required' });
+    const { code } = req.body;
+    if (!code || !String(code).trim()) {
+      return res.status(400).json({ error: 'Verification code is required' });
     }
 
-    // Check if email matches authorized editor
-    if (meeting.authorizedEditorEmail && meeting.authorizedEditorEmail.toLowerCase() !== email.toLowerCase()) {
-      return res.status(403).json({ error: 'This email is not authorized to edit this meeting summary' });
-    }
-
-    // Verify OTP
-    if (!meeting.editorVerificationCode || meeting.editorVerificationCode !== code) {
+    const trimmed = String(code).trim();
+    if (!meeting.editorVerificationCode || meeting.editorVerificationCode !== trimmed) {
       return res.status(401).json({ error: 'Invalid verification code' });
     }
 
@@ -1364,9 +1379,10 @@ router.put('/:id/pending-summary', async (req, res) => {
     if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
     const admin = await getAdminFromRequest(req);
     if (!canAccessMeeting(meeting, admin)) return res.status(404).json({ error: 'Meeting not found' });
+    if (!assertEditorVerificationOrRespond(meeting, req, res)) return;
     const { summary, keyPoints, actionItems, decisions, nextSteps, importantNotes } = req.body;
 
-    // Update pending summary (no verification / code required anymore)
+    // Update pending summary
     if (summary !== undefined) meeting.pendingSummary = summary;
     if (keyPoints !== undefined) meeting.pendingKeyPoints = keyPoints;
     if (actionItems !== undefined) {
@@ -1519,6 +1535,7 @@ router.post('/:id/approve-and-send', async (req, res) => {
     if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
     const admin = await getAdminFromRequest(req);
     if (!canAccessMeeting(meeting, admin)) return res.status(404).json({ error: 'Meeting not found' });
+    if (!assertEditorVerificationOrRespond(meeting, req, res)) return;
     const { additionalParticipants, translationLanguage } = req.body;
 
     const planInfo = getPlanConstraints(admin);

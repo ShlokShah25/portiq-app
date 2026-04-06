@@ -1,6 +1,7 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import axios from 'axios';
+import ProtectedLayout from './components/ProtectedLayout';
 import './App.css';
 
 // Lazy load components for better performance
@@ -95,137 +96,29 @@ function App() {
     );
   }
 
-  const RequireAuth = ({ children }) => {
-    if (!isBrowser) return null;
-    const token = window.localStorage.getItem('clientAdminToken');
-    if (!token) {
-      return <Navigate to="/admin-login" replace />;
-    }
-    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    return children;
-  };
-
   return (
     <Router>
       <div className="App">
         <Suspense fallback={<div className="app-loading"><div className="loading-spinner"></div><p>Loading...</p></div>}>
           <Routes>
-            <Route
-              path="/admin-login"
-              element={<AdminLogin />}
-            />
-            <Route
-              path="/reset-password"
-              element={<ResetPassword />}
-            />
-            <Route
-              path="/"
-              element={
-                <RequireAuth>
-                  <Dashboard config={config} />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/dashboard/tasks/:bucket"
-              element={
-                <RequireAuth>
-                  <DashboardTasksPage />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/dashboard"
-              element={
-                <RequireAuth>
-                  <Dashboard config={config} />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/meetings"
-              element={
-                <RequireAuth>
-                  <MeetingsScreen config={config} />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/meetings/:id/summary"
-              element={
-                <RequireAuth>
-                  <MeetingSummary />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/meetings/:id/room"
-              element={
-                <RequireAuth>
-                  <MeetingInProgress />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/meetings/:id"
-              element={
-                <RequireAuth>
-                  <MeetingDetail />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/transcripts"
-              element={
-                <RequireAuth>
-                  <Transcripts />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/participants"
-              element={
-                <RequireAuth>
-                  <Participants />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/insights"
-              element={
-                <RequireAuth>
-                  <Insights />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/settings"
-              element={
-                <RequireAuth>
-                  <Settings />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/profile"
-              element={
-                <RequireAuth>
-                  <Navigate to="/settings" replace />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/admin"
-              element={
-                <RequireAuth>
-                  <ClientAdmin />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="*"
-              element={<Navigate to="/" replace />}
-            />
+            <Route path="/admin-login" element={<AdminLogin />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/" element={<ProtectedLayout config={config} />}>
+              <Route index element={<Dashboard />} />
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="dashboard/tasks/:bucket" element={<DashboardTasksPage />} />
+              <Route path="meetings" element={<MeetingsScreen />} />
+              <Route path="meetings/:id/summary" element={<MeetingSummary />} />
+              <Route path="meetings/:id/room" element={<MeetingInProgress />} />
+              <Route path="meetings/:id" element={<MeetingDetail />} />
+              <Route path="transcripts" element={<Transcripts />} />
+              <Route path="participants" element={<Participants />} />
+              <Route path="insights" element={<Insights />} />
+              <Route path="settings" element={<Settings />} />
+              <Route path="profile" element={<Navigate to="/settings" replace />} />
+              <Route path="admin" element={<ClientAdmin />} />
+            </Route>
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
       </div>

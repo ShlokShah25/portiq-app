@@ -3,8 +3,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 .meetings-screen {
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  min-height: 100%;
   background-color: var(--bg-primary);
   background-image: var(--page-ambient-gradient);
   background-size: 100% 100%;
@@ -12,21 +12,16 @@
   background-attachment: fixed;
   display: flex;
   flex-direction: column;
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
   overflow: hidden;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
 }
 
 .meetings-wrapper {
-  margin-top: 64px;
+  margin-top: 0;
   flex: 1;
   min-height: 0;
   width: 100%;
-  max-width: 100vw;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -113,8 +108,21 @@
 }
 
 .meetings-new-meeting-form-wrap {
-  padding: 0 4px 8px;
-  margin-top: 4px;
+  padding: 0;
+  margin-top: 8px;
+}
+
+.meetings-new-meeting-panel {
+  padding: 0 0 8px;
+}
+
+.meetings-new-meeting-panel__title {
+  margin: 0 0 16px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
 }
 
 .meetings-advanced-collapse {

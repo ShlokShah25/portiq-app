@@ -1,11 +1,11 @@
-/* Sidebar — premium SaaS (light-first; tokens switch in dark theme) */
+/* Sidebar — PortIQ premium shell (dark-first; tokens in theme.css) */
 
 .sidebar {
-  width: 252px;
+  width: var(--sidebar-width, 260px);
   height: 100vh;
+  min-height: 100dvh;
   background: var(--surface-secondary);
-  border-right: 1px solid var(--sidebar-border, var(--divider));
-  padding: 22px 14px 20px;
+  padding: 20px 12px 16px;
   position: fixed;
   left: 0;
   top: 0;
@@ -14,41 +14,56 @@
   z-index: 100;
   display: flex;
   flex-direction: column;
-  box-shadow: 2px 0 24px rgba(15, 23, 42, 0.04);
+  box-sizing: border-box;
+  border-right: 1px solid var(--sidebar-border, var(--border-color));
 }
 
-:root[data-theme="dark"] .sidebar {
-  box-shadow: none;
+:root[data-theme='dark'] .sidebar {
+  background: linear-gradient(180deg, rgba(17, 22, 29, 0.98) 0%, rgba(11, 15, 20, 0.95) 100%);
+  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.04);
 }
 
-.sidebar-header {
-  margin-bottom: 28px;
-  padding-bottom: 20px;
+.sidebar__brand {
+  margin-bottom: 24px;
+  padding: 0 6px 20px;
   border-bottom: 1px solid var(--divider);
 }
 
-.sidebar-logo {
+.sidebar__brand-btn {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  border-radius: 12px;
+  transition: background var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
 }
 
-.sidebar-logo-img {
-  width: 44px;
-  height: 44px;
+.sidebar__brand-btn:hover {
+  background: var(--sidebar-hover-bg);
+}
+
+.sidebar__brand-mark {
+  width: 36px;
+  height: 36px;
   object-fit: contain;
   border-radius: 10px;
+  flex-shrink: 0;
 }
 
-.sidebar-logo-text {
-  font-size: 18px;
+.sidebar__brand-name {
+  font-family: var(--font-display);
+  font-size: 1.125rem;
   font-weight: 700;
+  letter-spacing: -0.04em;
   color: var(--text-primary);
-  letter-spacing: -0.03em;
-  font-family: var(--font-sans);
 }
 
-.sidebar-nav {
+.sidebar__nav {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -59,13 +74,17 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 11px 14px;
-  border-radius: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
   color: var(--text-secondary);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: background var(--dur-fast) ease, color var(--dur-fast) ease;
+  transition:
+    background var(--dur-base) var(--ease-out),
+    color var(--dur-fast) ease,
+    transform var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-base) ease;
   border: none;
   background: transparent;
   text-align: left;
@@ -76,16 +95,19 @@
 .sidebar-item:hover {
   background: var(--sidebar-hover-bg);
   color: var(--text-primary);
+  transform: translateX(2px);
 }
 
 .sidebar-item.active {
-  background: var(--sidebar-active-bg);
   color: var(--sidebar-active-fg);
-  box-shadow: 0 2px 10px rgba(37, 99, 235, 0.25);
+  background: var(--sidebar-active-bg);
+  box-shadow:
+    0 0 0 1px rgba(99, 102, 241, 0.2),
+    0 4px 24px rgba(59, 130, 246, 0.18);
 }
 
-:root[data-theme="dark"] .sidebar-item.active {
-  box-shadow: none;
+:root[data-theme='light'] .sidebar-item.active {
+  box-shadow: 0 2px 12px rgba(37, 99, 235, 0.2);
 }
 
 .sidebar-item svg {
@@ -93,14 +115,59 @@
   height: 20px;
   stroke-width: 1.5;
   flex-shrink: 0;
+  opacity: 0.9;
 }
 
 .sidebar-item.active svg {
-  stroke: currentColor;
+  opacity: 1;
 }
 
 .sidebar-item span {
   flex: 1;
+}
+
+.sidebar__footer {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--divider);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebar-footer-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition:
+    background var(--dur-fast) ease,
+    color var(--dur-fast) ease,
+    transform var(--dur-fast) ease;
+}
+
+.sidebar-footer-btn:hover {
+  background: var(--sidebar-hover-bg);
+  color: var(--text-primary);
+}
+
+.sidebar-footer-btn--logout:hover {
+  color: var(--error-red);
+}
+
+.sidebar-footer-btn svg {
+  flex-shrink: 0;
+  opacity: 0.85;
 }
 
 .sidebar::-webkit-scrollbar {

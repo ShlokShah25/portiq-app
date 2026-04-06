@@ -43,6 +43,7 @@ const STRINGS = {
     'settings.tabDisplay': 'Display',
     'settings.tabNotifications': 'Notifications',
     'settings.tabGeneral': 'General',
+    'settings.sectionPreferences': 'Preferences',
     'settings.accountTagline': 'Account details for this workspace.',
     'settings.accountDetailsTitle': 'Account details',
     'settings.accountDetailsDesc': 'Your sign-in identity as stored for this admin account.',

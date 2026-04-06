@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useOutletContext } from 'react-router-dom';
 import axios from 'axios';
-import TopNav from './TopNav';
 import { isEducation } from '../config/product';
 import { T } from '../config/terminology';
 import { getClassrooms } from '../utils/classroomsStorage';
@@ -16,6 +15,12 @@ import { Loader2, Mic, Video } from 'lucide-react';
 import MeetingCreateForm from './MeetingCreateForm';
 import MeetingStatusBadge from './MeetingStatusBadge';
 import { isOnlineMeeting } from '../utils/meetingDisplayStatus';
+import {
+  editorOtpHeaders,
+  getStoredEditorOtp,
+  setStoredEditorOtp,
+  clearStoredEditorOtp,
+} from '../utils/meetingEditorOtp';
 import './MeetingSummary.css';
 import './MeetingsScreen.css';
 import './MeetingUiBadges.css';
@@ -25,7 +30,8 @@ const MARKETING_URL =
   process.env.REACT_APP_WEBSITE_URL ||
   'https://www.portiqtechnologies.com';
 
-const MeetingsScreen = ({ config }) => {
+const MeetingsScreen = () => {
+  const { config } = useOutletContext() || {};
   const navigate = useNavigate();
   const location = useLocation();
   const [meetings, setMeetings] = useState([]);
@@ -50,6 +56,10 @@ const MeetingsScreen = ({ config }) => {
   const [additionalParticipants, setAdditionalParticipants] = useState([
     { name: '', email: '' }
   ]);
+  const [editorGateError, setEditorGateError] = useState('');
+  const [editorGateNotice, setEditorGateNotice] = useState('');
+  const [editorGateVerifyBusy, setEditorGateVerifyBusy] = useState(false);
+  const [editorGateResendBusy, setEditorGateResendBusy] = useState(false);
 
   const [maxParticipantsPerMeeting, setMaxParticipantsPerMeeting] = useState(null); // by plan from server profile, null = no limit
   /** null = loading profile; ok = can create; inactive / payment_pending = blocked */
@@ -94,6 +104,37 @@ const MeetingsScreen = ({ config }) => {
   useEffect(() => {
     fetchMeetings();
   }, [fetchMeetings]);
+
+  /** If a stored editor OTP exists, refetch full meeting when list only had redacted data. */
+  useEffect(() => {
+    const mid = selectedMeeting?._id;
+    if (!mid || !selectedMeeting.editorVerificationRequired) return;
+    const code = getStoredEditorOtp(mid);
+    if (!code) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await axios.get(`/meetings/${mid}`, { headers: editorOtpHeaders(mid) });
+        if (
+          !cancelled &&
+          res.data?.meeting &&
+          !res.data.meeting.editorVerificationRequired
+        ) {
+          setSelectedMeeting(res.data.meeting);
+        }
+      } catch {
+        /* keep redacted state */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedMeeting?._id, selectedMeeting?.editorVerificationRequired]);
+
+  useEffect(() => {
+    setEditorGateError('');
+    setEditorGateNotice('');
+  }, [selectedMeeting?._id]);
 
   // Profile: plan limits + subscription gate for creating meetings
   useEffect(() => {
@@ -250,7 +291,9 @@ const MeetingsScreen = ({ config }) => {
 
     const poll = async () => {
       try {
-        const res = await axios.get(`/meetings/${id}`);
+        const res = await axios.get(`/meetings/${id}`, {
+          headers: editorOtpHeaders(id),
+        });
         const m = res.data.meeting;
         setSelectedMeeting(m);
         
@@ -447,7 +490,6 @@ const MeetingsScreen = ({ config }) => {
 
   return (
     <div className="meetings-screen">
-      <TopNav />
       <div className="meetings-wrapper">
         <div className="meetings-top-bar">
           <h1 className="meetings-top-bar-title">{T.meetings()}</h1>
@@ -605,10 +647,8 @@ const MeetingsScreen = ({ config }) => {
 
         <div className="meetings-layout">
           <div className="meetings-left">
-            <div className="card">
-              <div className="card-header">
-                <h2>{T.newMeeting()}</h2>
-              </div>
+            <div className="meetings-new-meeting-panel">
+              <h2 className="meetings-new-meeting-panel__title">{T.newMeeting()}</h2>
               {subscriptionGate === 'inactive' && (
                 <div className="meetings-subscription-banner meetings-subscription-banner--inactive" role="alert">
                   <div className="meetings-subscription-banner-text">
@@ -837,11 +877,13 @@ const MeetingsScreen = ({ config }) => {
                   </div>
                 )}
 
-                {/* Summary ready — show gate whenever not yet sent (status may be missing on older rows) */}
+                {/* Summary ready — includes editor OTP gate when an authorized editor is set */}
                 {selectedMeeting.summaryStatus !== 'Sent' &&
                   selectedMeeting.transcriptionStatus === 'Completed' &&
                   !editableSummary &&
-                  (selectedMeeting.pendingSummary || selectedMeeting.summary) && (
+                  (selectedMeeting.pendingSummary ||
+                    selectedMeeting.summary ||
+                    selectedMeeting.editorVerificationRequired) && (
                     <div className="meeting-summary-card meetings-inline-summary">
                       <div
                         className="meeting-summary-ready-badge meeting-summary-ready-badge--sentence"
@@ -866,55 +908,182 @@ const MeetingsScreen = ({ config }) => {
                           <line x1="16" y1="17" x2="8" y2="17"></line>
                           <polyline points="10 9 9 9 8 9"></polyline>
                         </svg>
-                        Review before send
+                        {selectedMeeting.editorVerificationRequired
+                          ? 'Verification required'
+                          : 'Review before send'}
                       </h3>
-                      <p className="meeting-summary-body" style={{ marginBottom: 12 }}>
-                        The summary is generated and can be emailed to participants once you approve it.
-                      </p>
-                      <p style={{ marginBottom: 20, color: '#9ca3af', fontSize: 13 }}>
-                        Open to review, edit if needed, add late participants, then approve and send.
-                      </p>
-                      <button
-                        type="button"
-                        className="meeting-summary-btn meeting-summary-btn--primary"
-                        style={{ width: '100%' }}
-                        onClick={() => {
-                          const base = {
-                            summary:
-                              selectedMeeting.pendingSummary ||
-                              selectedMeeting.summary ||
-                              '',
-                            keyPoints:
-                              selectedMeeting.pendingKeyPoints?.length
-                                ? selectedMeeting.pendingKeyPoints
-                                : selectedMeeting.keyPoints || [],
-                            actionItems:
-                              selectedMeeting.pendingActionItems?.length
-                                ? selectedMeeting.pendingActionItems
-                                : selectedMeeting.actionItems || [],
-                            decisions:
-                              selectedMeeting.pendingDecisions?.length
-                                ? selectedMeeting.pendingDecisions
-                                : selectedMeeting.decisions || [],
-                            nextSteps:
-                              selectedMeeting.pendingNextSteps?.length
-                                ? selectedMeeting.pendingNextSteps
-                                : selectedMeeting.nextSteps || [],
-                            importantNotes:
-                              selectedMeeting.pendingImportantNotes?.length
-                                ? selectedMeeting.pendingImportantNotes
-                                : selectedMeeting.importantNotes || []
-                          };
+                      {selectedMeeting.editorVerificationRequired ? (
+                        <>
+                          <p className="meeting-summary-body" style={{ marginBottom: 12 }}>
+                            Enter the verification code emailed to the authorized editor
+                            {selectedMeeting.authorizedEditorEmail
+                              ? ` (${selectedMeeting.authorizedEditorEmail})`
+                              : ''}
+                            . Then you can review, edit, and send the summary.
+                          </p>
+                          <button
+                            type="button"
+                            className="meeting-summary-btn meeting-summary-btn--secondary"
+                            style={{ marginBottom: 12 }}
+                            disabled={
+                              editorGateResendBusy || !selectedMeeting.authorizedEditorEmail
+                            }
+                            onClick={async () => {
+                              setEditorGateResendBusy(true);
+                              setEditorGateError('');
+                              setEditorGateNotice('');
+                              try {
+                                await axios.post(
+                                  `/meetings/${selectedMeeting._id}/request-verification`,
+                                  {
+                                    email: String(selectedMeeting.authorizedEditorEmail).trim(),
+                                  }
+                                );
+                                setEditorGateNotice(
+                                  'If email is configured, the code was sent to the authorized editor.'
+                                );
+                                window.setTimeout(() => setEditorGateNotice(''), 10000);
+                              } catch (err) {
+                                const d = err.response?.data;
+                                setEditorGateError(
+                                  [d?.error, d?.details].filter(Boolean).join(' — ') ||
+                                    'Could not send verification email.'
+                                );
+                              } finally {
+                                setEditorGateResendBusy(false);
+                              }
+                            }}
+                          >
+                            {editorGateResendBusy ? 'Sending…' : 'Resend code to editor'}
+                          </button>
+                          {editorGateNotice && (
+                            <p style={{ color: '#86efac', fontSize: 13, marginBottom: 10 }} role="status">
+                              {editorGateNotice}
+                            </p>
+                          )}
+                          <label
+                            style={{ display: 'block', color: '#9ca3af', fontSize: 12, marginBottom: 6 }}
+                            htmlFor="meetings-inline-editor-otp"
+                          >
+                            Verification code
+                          </label>
+                          <input
+                            id="meetings-inline-editor-otp"
+                            type="text"
+                            inputMode="numeric"
+                            autoComplete="one-time-code"
+                            value={verificationCode}
+                            onChange={(e) =>
+                              setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 8))
+                            }
+                            style={{
+                              width: '100%',
+                              maxWidth: 280,
+                              padding: '10px 12px',
+                              borderRadius: 10,
+                              border: '1px solid rgba(255,255,255,0.2)',
+                              background: 'rgba(0,0,0,0.35)',
+                              color: '#fff',
+                              marginBottom: 12,
+                              boxSizing: 'border-box',
+                            }}
+                            placeholder="6-digit code"
+                          />
+                          {editorGateError && (
+                            <p style={{ color: '#fca5a5', fontSize: 13, marginBottom: 10 }} role="alert">
+                              {editorGateError}
+                            </p>
+                          )}
+                          <button
+                            type="button"
+                            className="meeting-summary-btn meeting-summary-btn--primary"
+                            style={{ width: '100%' }}
+                            disabled={editorGateVerifyBusy}
+                            onClick={async () => {
+                              const code = String(verificationCode || '').trim();
+                              if (!code) {
+                                setEditorGateError('Enter the verification code.');
+                                return;
+                              }
+                              setEditorGateVerifyBusy(true);
+                              setEditorGateError('');
+                              try {
+                                await axios.post(
+                                  `/meetings/${selectedMeeting._id}/verify-and-get-summary`,
+                                  { code }
+                                );
+                                setStoredEditorOtp(selectedMeeting._id, code);
+                                const res = await axios.get(`/meetings/${selectedMeeting._id}`, {
+                                  headers: editorOtpHeaders(selectedMeeting._id),
+                                });
+                                setSelectedMeeting(res.data.meeting);
+                                setVerificationCode('');
+                              } catch (err) {
+                                const d = err.response?.data;
+                                setEditorGateError(
+                                  [d?.error, d?.details].filter(Boolean).join(' — ') ||
+                                    'Verification failed.'
+                                );
+                                clearStoredEditorOtp(selectedMeeting._id);
+                              } finally {
+                                setEditorGateVerifyBusy(false);
+                              }
+                            }}
+                          >
+                            {editorGateVerifyBusy ? 'Verifying…' : 'Verify and continue'}
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <p className="meeting-summary-body" style={{ marginBottom: 12 }}>
+                            The summary is generated and can be emailed to participants once you approve it.
+                          </p>
+                          <p style={{ marginBottom: 20, color: '#9ca3af', fontSize: 13 }}>
+                            Open to review, edit if needed, add late participants, then approve and send.
+                          </p>
+                          <button
+                            type="button"
+                            className="meeting-summary-btn meeting-summary-btn--primary"
+                            style={{ width: '100%' }}
+                            onClick={() => {
+                              const base = {
+                                summary:
+                                  selectedMeeting.pendingSummary ||
+                                  selectedMeeting.summary ||
+                                  '',
+                                keyPoints:
+                                  selectedMeeting.pendingKeyPoints?.length
+                                    ? selectedMeeting.pendingKeyPoints
+                                    : selectedMeeting.keyPoints || [],
+                                actionItems:
+                                  selectedMeeting.pendingActionItems?.length
+                                    ? selectedMeeting.pendingActionItems
+                                    : selectedMeeting.actionItems || [],
+                                decisions:
+                                  selectedMeeting.pendingDecisions?.length
+                                    ? selectedMeeting.pendingDecisions
+                                    : selectedMeeting.decisions || [],
+                                nextSteps:
+                                  selectedMeeting.pendingNextSteps?.length
+                                    ? selectedMeeting.pendingNextSteps
+                                    : selectedMeeting.nextSteps || [],
+                                importantNotes:
+                                  selectedMeeting.pendingImportantNotes?.length
+                                    ? selectedMeeting.pendingImportantNotes
+                                    : selectedMeeting.importantNotes || [],
+                              };
 
-                          setEditableSummary(base);
-                          setEditingSummary(true);
-                          setVerificationStep('edit');
-                          setError('');
-                          setAdditionalParticipants([{ name: '', email: '' }]);
-                        }}
-                      >
-                        View &amp; Edit Summary
-                      </button>
+                              setEditableSummary(base);
+                              setEditingSummary(true);
+                              setVerificationStep('edit');
+                              setError('');
+                              setAdditionalParticipants([{ name: '', email: '' }]);
+                            }}
+                          >
+                            View &amp; Edit Summary
+                          </button>
+                        </>
+                      )}
                     </div>
                   )}
 
@@ -1141,7 +1310,7 @@ const MeetingsScreen = ({ config }) => {
                         className="meeting-summary-btn meeting-summary-btn--primary meeting-summary-btn--send"
                         onClick={async () => {
                           try {
-                            const emailToUse = verificationEmail || selectedMeeting.authorizedEditorEmail;
+                            const otpHeaders = editorOtpHeaders(selectedMeeting._id);
 
                             const validAdditionalParticipants = additionalParticipants
                               .filter((p) => p.email && p.email.trim())
@@ -1152,23 +1321,28 @@ const MeetingsScreen = ({ config }) => {
                               }));
 
                             if (editableSummary) {
-                              await axios.put(`/meetings/${selectedMeeting._id}/pending-summary`, {
-                                email: emailToUse,
-                                code: verificationCode,
-                                summary: editableSummary.summary,
-                                keyPoints: editableSummary.keyPoints,
-                                actionItems: editableSummary.actionItems,
-                                decisions: editableSummary.decisions,
-                                nextSteps: editableSummary.nextSteps,
-                                importantNotes: editableSummary.importantNotes,
-                              });
+                              await axios.put(
+                                `/meetings/${selectedMeeting._id}/pending-summary`,
+                                {
+                                  summary: editableSummary.summary,
+                                  keyPoints: editableSummary.keyPoints,
+                                  actionItems: editableSummary.actionItems,
+                                  decisions: editableSummary.decisions,
+                                  nextSteps: editableSummary.nextSteps,
+                                  importantNotes: editableSummary.importantNotes,
+                                },
+                                { headers: otpHeaders }
+                              );
                             }
 
-                            const res = await axios.post(`/meetings/${selectedMeeting._id}/approve-and-send`, {
-                              email: emailToUse,
-                              code: verificationCode,
-                              additionalParticipants: validAdditionalParticipants,
-                            });
+                            const res = await axios.post(
+                              `/meetings/${selectedMeeting._id}/approve-and-send`,
+                              {
+                                additionalParticipants: validAdditionalParticipants,
+                              },
+                              { headers: otpHeaders }
+                            );
+                            clearStoredEditorOtp(selectedMeeting._id);
                             setSelectedMeeting(res.data.meeting);
                             setVerificationStep('approved');
                             setError('');
@@ -1180,7 +1354,11 @@ const MeetingsScreen = ({ config }) => {
                             alert(msg);
                             setTimeout(() => navigate('/meetings'), 2000);
                           } catch (err) {
-                            setError(err.response?.data?.error || 'Failed to save summary');
+                            const d = err.response?.data;
+                            setError(
+                              [d?.error, d?.details].filter(Boolean).join(' — ') ||
+                                'Failed to save summary'
+                            );
                           }
                         }}
                       >

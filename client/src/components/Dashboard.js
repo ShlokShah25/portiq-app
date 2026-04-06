@@ -5,12 +5,10 @@ import {
   Calendar,
   AlertTriangle,
   CheckSquare,
-  FileText,
   ChevronRight,
   Lightbulb,
+  FileText,
 } from 'lucide-react';
-import TopNav from './TopNav';
-import { T } from '../config/terminology';
 import './Dashboard.css';
 
 function buildRecentTasks(stats) {
@@ -61,10 +59,11 @@ function statusLabel(s) {
 }
 
 const DASHBOARD_TIPS = [
+  'Tip: Add participants quickly from Settings → Workspace.',
   'Tip: Add participants directly while creating a meeting.',
   'Tip: Use optional details to adjust date, time, and location before you start.',
-  'Tip: Approve pending summaries so participants receive recaps on time.',
-  'Tip: Action items from meetings surface here — check due dates regularly.',
+  'Tip: Review action items regularly so nothing slips through.',
+  'Tip: Pending summaries need a quick review before they go out.',
 ];
 
 function pickDashboardTipIndex() {
@@ -87,12 +86,19 @@ const Dashboard = () => {
   const [stats, setStats] = useState(null);
   const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [tipIndex] = useState(() => pickDashboardTipIndex());
+  const [tipIndex, setTipIndex] = useState(() => pickDashboardTipIndex());
 
   useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setTipIndex((i) => (i + 1) % DASHBOARD_TIPS.length);
+    }, 6500);
+    return () => window.clearInterval(id);
   }, []);
 
   const fetchData = async () => {
@@ -112,16 +118,6 @@ const Dashboard = () => {
 
   const recentTasks = useMemo(() => buildRecentTasks(stats), [stats]);
 
-  const pendingSummaries = useMemo(() => {
-    return meetings
-      .filter(
-        (m) =>
-          m.summaryStatus === 'Pending Approval' &&
-          m.transcriptionStatus === 'Completed'
-      )
-      .slice(0, 7);
-  }, [meetings]);
-
   const inProgressMeetings = useMemo(() => {
     return meetings
       .filter((m) => {
@@ -132,10 +128,20 @@ const Dashboard = () => {
       .slice(0, 3);
   }, [meetings]);
 
+  const pendingSummaryMeetings = useMemo(() => {
+    return meetings
+      .filter((m) => String(m.pendingSummary || '').trim().length > 0)
+      .sort((a, b) => {
+        const ta = new Date(a.updatedAt || a.endTime || a.startTime || 0).getTime();
+        const tb = new Date(b.updatedAt || b.endTime || b.startTime || 0).getTime();
+        return tb - ta;
+      })
+      .slice(0, 6);
+  }, [meetings]);
+
   if (loading) {
     return (
       <div className="dashboard-screen">
-        <TopNav />
         <div className="dashboard-wrapper">
           <div className="dashboard-content">
             <div className="dashboard-loading" role="status">
@@ -160,7 +166,6 @@ const Dashboard = () => {
 
   return (
     <div className="dashboard-screen">
-      <TopNav />
       <div className="dashboard-wrapper">
         <div className="dashboard-content">
           <header
@@ -198,14 +203,55 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div
-            className="dashboard-tip-strip ux-dashboard-tip-fade"
-            role="status"
-            aria-live="polite"
-          >
+          <div className="dashboard-tip-strip" role="status" aria-live="polite">
             <Lightbulb className="dashboard-tip-strip__ic" strokeWidth={1.5} aria-hidden />
-            <span>{DASHBOARD_TIPS[tipIndex]}</span>
+            <span key={tipIndex} className="dashboard-tip-strip__text ux-dashboard-tip-fade">
+              {DASHBOARD_TIPS[tipIndex]}
+            </span>
           </div>
+
+          {pendingSummaryMeetings.length > 0 ? (
+            <section
+              className="dashboard-pending-summaries ux-dashboard-stagger"
+              style={{ animationDelay: '80ms' }}
+              aria-labelledby="dash-pending-summaries"
+            >
+              <div className="dashboard-pending-summaries__head">
+                <div className="dashboard-pending-summaries__title-row">
+                  <span className="dashboard-pending-summaries__icon" aria-hidden>
+                    <FileText className="dashboard-stat-chip__lucide" strokeWidth={1.5} />
+                  </span>
+                  <div>
+                    <h2 id="dash-pending-summaries" className="dashboard-pending-summaries__title">
+                      Pending summaries
+                    </h2>
+                    <p className="dashboard-pending-summaries__sub">
+                      Review and approve before they go to participants.
+                    </p>
+                  </div>
+                </div>
+                <Link to="/meetings" state={{ showAllMeetings: true }} className="dashboard-section__link">
+                  Meetings
+                </Link>
+              </div>
+              <ul className="dashboard-pending-summaries__list">
+                {pendingSummaryMeetings.map((m) => {
+                  const id = m._id != null ? String(m._id) : '';
+                  return (
+                    <li key={id}>
+                      <Link to={`/meetings/${id}/summary`} className="dashboard-pending-summaries__row">
+                        <span className="dashboard-pending-summaries__meeting-title">
+                          {m.title || 'Untitled meeting'}
+                        </span>
+                        <span className="dashboard-pending-summaries__cta">Review</span>
+                        <ChevronRight className="dashboard-pending-summaries__chev" strokeWidth={2} aria-hidden />
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ) : null}
 
           <section
             className="dashboard-section dashboard-section--minimal ux-dashboard-stagger dashboard-section--reveal"
@@ -279,7 +325,7 @@ const Dashboard = () => {
                 <CheckSquare className="dashboard-stat-chip__lucide" strokeWidth={1.5} />
               </div>
               <div className="dashboard-stat-chip__body">
-                <span className="dashboard-stat-chip__label">Tasks due tomorrow</span>
+                <span className="dashboard-stat-chip__label">Tasks due</span>
                 <span className="dashboard-stat-chip__value">{nDueTom}</span>
               </div>
               <ChevronRight className="dashboard-stat-chip__chev" strokeWidth={2} aria-hidden />
@@ -309,7 +355,7 @@ const Dashboard = () => {
               <h2 id="dash-recent-tasks" className="dashboard-section__title">
                 Recent action items
               </h2>
-              <Link to="/dashboard/tasks/due-tomorrow" className="dashboard-section__link">
+              <Link to="/insights" className="dashboard-section__link">
                 View all
               </Link>
             </div>
@@ -338,44 +384,6 @@ const Dashboard = () => {
                     </Link>
                   </li>
                 ))}
-              </ul>
-            )}
-          </section>
-
-          <section
-            className="dashboard-section dashboard-section--minimal ux-dashboard-stagger dashboard-section--reveal"
-            style={{ animationDelay: '165ms' }}
-            aria-labelledby="dash-pending-summaries"
-          >
-            <div className="dashboard-section__head">
-              <h2 id="dash-pending-summaries" className="dashboard-section__title">
-                Pending summaries
-              </h2>
-              <Link to="/meetings" state={{ showAllMeetings: true }} className="dashboard-section__link">
-                {T.meetings()}
-              </Link>
-            </div>
-            {pendingSummaries.length === 0 ? (
-              <p className="dashboard-section__empty">No summaries waiting for review.</p>
-            ) : (
-              <ul className="dashboard-pending-list">
-                {pendingSummaries.map((m, idx) => {
-                  const id = m._id != null ? String(m._id) : '';
-                  return (
-                    <li
-                      key={id || idx}
-                      className="dashboard-pending-row ux-dashboard-list-item"
-                      style={{ animationDelay: `${Math.min(idx, 6) * 35}ms` }}
-                    >
-                      <Link to={`/meetings/${id}/summary`} className="dashboard-pending-row__link">
-                        <FileText className="dashboard-pending-row__ic" strokeWidth={1.5} aria-hidden />
-                        <span className="dashboard-pending-row__title">{m.title || 'Untitled meeting'}</span>
-                        <span className="dashboard-pending-row__hint">Review &amp; send</span>
-                        <ChevronRight className="dashboard-pending-row__chev" strokeWidth={2} aria-hidden />
-                      </Link>
-                    </li>
-                  );
-                })}
               </ul>
             )}
           </section>

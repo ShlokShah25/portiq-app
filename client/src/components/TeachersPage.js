@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import TopNav from './TopNav';
 import { getTeachers, addTeacher, removeTeacher } from '../utils/teachersStorage';
 import './TeachersPage.css';
 
@@ -32,7 +31,6 @@ const TeachersPage = () => {
 
   return (
     <div className="teachers-page">
-      <TopNav />
       <div className="teachers-wrapper">
         <div className="teachers-header">
           <h1>Teachers</h1>

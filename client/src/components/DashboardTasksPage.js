@@ -7,7 +7,6 @@ import {
   Square,
   ArrowLeft,
 } from 'lucide-react';
-import TopNav from './TopNav';
 import './Dashboard.css';
 
 const BUCKET_MAP = {
@@ -170,7 +169,6 @@ export default function DashboardTasksPage() {
   if (loading) {
     return (
       <div className="dashboard-screen">
-        <TopNav />
         <div className="dashboard-wrapper">
           <div className="dashboard-content">
             <div className="dashboard-loading">Loading...</div>
@@ -184,7 +182,6 @@ export default function DashboardTasksPage() {
 
   return (
     <div className="dashboard-screen">
-      <TopNav />
       <div className="dashboard-wrapper">
         <div className="dashboard-content">
           <div className="dashboard-tasks-back">

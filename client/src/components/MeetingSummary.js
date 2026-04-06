@@ -1,10 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
-import TopNav from './TopNav';
 import { T } from '../config/terminology';
 import { isEducation } from '../config/product';
 import { getSummaryEmptyBodyMessage } from '../utils/summaryEmptyReasonCopy';
+import {
+  editorOtpHeaders,
+  setStoredEditorOtp,
+  clearStoredEditorOtp,
+} from '../utils/meetingEditorOtp';
 import './MeetingSummary.css';
 import MeetingSummaryReadonlyBody from './MeetingSummaryReadonlyBody';
 
@@ -22,6 +26,11 @@ const MeetingSummary = () => {
   const [allowsTranslatedSummary, setAllowsTranslatedSummary] = useState(false);
   const [retryBusy, setRetryBusy] = useState(false);
   const [retryError, setRetryError] = useState('');
+  const [otpInput, setOtpInput] = useState('');
+  const [verifyBusy, setVerifyBusy] = useState(false);
+  const [verifyError, setVerifyError] = useState('');
+  const [resendBusy, setResendBusy] = useState(false);
+  const [resendNotice, setResendNotice] = useState('');
 
   const fetchMeeting = useCallback(
     async (opts = {}) => {
@@ -29,7 +38,9 @@ const MeetingSummary = () => {
       if (!id) return;
       if (!silent) setLoading(true);
       try {
-        const res = await axios.get(`/meetings/${id}`);
+        const res = await axios.get(`/meetings/${id}`, {
+          headers: editorOtpHeaders(id),
+        });
         setMeeting(res.data.meeting);
         setError('');
       } catch (err) {
@@ -81,7 +92,6 @@ const MeetingSummary = () => {
   if (loading) {
     return (
       <div className="meeting-summary-screen">
-        <TopNav />
         <div className="meeting-summary-loading">
           <div className="loading-spinner" />
           <p className="meeting-summary-thinking" role="status">
@@ -100,7 +110,6 @@ const MeetingSummary = () => {
   if (error && !meeting) {
     return (
       <div className="meeting-summary-screen">
-        <TopNav />
         <div className="meeting-summary-container">
           <div className="meeting-summary-error">{error}</div>
         </div>
@@ -158,6 +167,52 @@ const MeetingSummary = () => {
       meeting.transcriptionStatus === 'Not Started' ||
       (meeting.transcriptionStatus === 'Completed' && !hasContent));
 
+  const handleRequestEditorOtp = async () => {
+    if (!id || !meeting?.authorizedEditorEmail) return;
+    setResendBusy(true);
+    setVerifyError('');
+    setResendNotice('');
+    try {
+      await axios.post(`/meetings/${id}/request-verification`, {
+        email: String(meeting.authorizedEditorEmail).trim(),
+      });
+      setResendNotice('If email is configured, the code was sent to the authorized editor’s inbox.');
+      window.setTimeout(() => setResendNotice(''), 10000);
+    } catch (err) {
+      const d = err.response?.data;
+      setVerifyError(
+        [d?.error, d?.details].filter(Boolean).join(' — ') || 'Could not send verification email.'
+      );
+    } finally {
+      setResendBusy(false);
+    }
+  };
+
+  const handleVerifyEditorOtp = async () => {
+    if (!id) return;
+    const code = String(otpInput || '').trim();
+    if (!code) {
+      setVerifyError('Enter the verification code from the email.');
+      return;
+    }
+    setVerifyBusy(true);
+    setVerifyError('');
+    try {
+      await axios.post(`/meetings/${id}/verify-and-get-summary`, { code });
+      setStoredEditorOtp(id, code);
+      await fetchMeeting({ silent: true });
+      setOtpInput('');
+    } catch (err) {
+      const d = err.response?.data;
+      setVerifyError(
+        [d?.error, d?.details].filter(Boolean).join(' — ') || 'Verification failed.'
+      );
+      clearStoredEditorOtp(id);
+    } finally {
+      setVerifyBusy(false);
+    }
+  };
+
   const handleRetryTranscription = async () => {
     setRetryBusy(true);
     setRetryError('');
@@ -196,27 +251,37 @@ const MeetingSummary = () => {
   const handleApproveAndSend = async () => {
     setSaving(true);
     setActionError('');
+    const otpHeaders = editorOtpHeaders(id);
     try {
       if (editableSummary) {
-        await axios.put(`/meetings/${id}/pending-summary`, {
-          summary: editableSummary.summary,
-          keyPoints: editableSummary.keyPoints,
-          actionItems: editableSummary.actionItems,
-          decisions: editableSummary.decisions,
-          nextSteps: editableSummary.nextSteps,
-          importantNotes: editableSummary.importantNotes
-        });
+        await axios.put(
+          `/meetings/${id}/pending-summary`,
+          {
+            summary: editableSummary.summary,
+            keyPoints: editableSummary.keyPoints,
+            actionItems: editableSummary.actionItems,
+            decisions: editableSummary.decisions,
+            nextSteps: editableSummary.nextSteps,
+            importantNotes: editableSummary.importantNotes,
+          },
+          { headers: otpHeaders }
+        );
       }
-      const res = await axios.post(`/meetings/${id}/approve-and-send`, {
-        additionalParticipants: [],
-        translationLanguage:
-          allowsTranslatedSummary && translationLanguage
-            ? translationLanguage
-            : null,
-      });
+      const res = await axios.post(
+        `/meetings/${id}/approve-and-send`,
+        {
+          additionalParticipants: [],
+          translationLanguage:
+            allowsTranslatedSummary && translationLanguage
+              ? translationLanguage
+              : null,
+        },
+        { headers: otpHeaders }
+      );
       setMeeting(res.data.meeting);
       setEditingSummary(false);
       setEditableSummary(null);
+      clearStoredEditorOtp(id);
       const msg = res.data.message || (res.data.emailSent ? 'Summary approved and sent to participants.' : 'Summary approved and saved. Emails could not be sent (check mail configuration).');
       alert(msg);
       navigate('/meetings');
@@ -232,12 +297,14 @@ const MeetingSummary = () => {
 
   return (
     <div className="meeting-summary-screen">
-      <TopNav />
       <div className="meeting-summary-container ux-screen-enter">
         <div className="meeting-summary-card">
           <h1 className="meeting-summary-page-title">{meeting.title || 'Untitled meeting'}</h1>
 
-          {!editingSummary && !!hasContent && actionItems.length > 0 && (
+          {!meeting.editorVerificationRequired &&
+            !editingSummary &&
+            !!hasContent &&
+            actionItems.length > 0 && (
             <MeetingSummaryReadonlyBody
               meeting={meeting}
               meetingId={id}
@@ -269,6 +336,81 @@ const MeetingSummary = () => {
             </button>
           </div>
 
+          {meeting.editorVerificationRequired && (
+            <div
+              className="meeting-summary-editor-verify"
+              role="region"
+              aria-label="Authorized editor verification"
+            >
+              <h2 className="meeting-summary-heading">Verification required</h2>
+              <p className="meeting-summary-body">
+                An authorized editor is set for this meeting
+                {meeting.authorizedEditorEmail ? (
+                  <>
+                    {' '}
+                    (<span className="meeting-summary-editor-verify__email">{meeting.authorizedEditorEmail}</span>
+                    ).
+                  </>
+                ) : (
+                  '.'
+                )}{' '}
+                Enter the code from the email they received to view or edit the summary before it is sent to
+                participants.
+              </p>
+              <div className="meeting-summary-editor-verify__row">
+                <button
+                  type="button"
+                  className="meeting-summary-btn meeting-summary-btn--secondary"
+                  disabled={resendBusy || !meeting.authorizedEditorEmail}
+                  onClick={handleRequestEditorOtp}
+                >
+                  {resendBusy ? 'Sending…' : 'Resend code to editor'}
+                </button>
+              </div>
+              {resendNotice && (
+                <p className="meeting-summary-editor-verify__notice" role="status">
+                  {resendNotice}
+                </p>
+              )}
+              <div className="meeting-summary-editor-verify__field">
+                <label className="meeting-summary-language-label" htmlFor="summary-editor-otp">
+                  Verification code
+                </label>
+                <input
+                  id="summary-editor-otp"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  className="meeting-summary-language-select meeting-summary-editor-verify__input"
+                  placeholder="6-digit code"
+                  value={otpInput}
+                  onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                />
+              </div>
+              {verifyError && (
+                <div className="meeting-summary-action-error" role="alert">
+                  {verifyError}
+                </div>
+              )}
+              <button
+                type="button"
+                className="meeting-summary-btn meeting-summary-btn--primary"
+                disabled={verifyBusy}
+                onClick={handleVerifyEditorOtp}
+              >
+                {verifyBusy ? (
+                  <>
+                    <span className="meeting-summary-btn-spinner" aria-hidden />
+                    Verifying…
+                  </>
+                ) : (
+                  'Verify and view summary'
+                )}
+              </button>
+            </div>
+          )}
+
+          {!meeting.editorVerificationRequired && (
           <p
             style={{
               marginTop: '4px',
@@ -281,8 +423,9 @@ const MeetingSummary = () => {
             This summary and its action items are generated by AI and may not be 100% accurate.
             Please review carefully before sharing or acting on them.
           </p>
+          )}
 
-          {canEditAndSend && allowsTranslatedSummary && (
+          {canEditAndSend && allowsTranslatedSummary && !meeting.editorVerificationRequired && (
             <div className="meeting-summary-language-row">
               <label className="meeting-summary-language-label">
                 Also send translated summary in:
@@ -304,7 +447,7 @@ const MeetingSummary = () => {
             </div>
           )}
 
-          {!hasContent && !editingSummary && (
+          {!hasContent && !editingSummary && !meeting.editorVerificationRequired && (
             <div className="meeting-summary-empty">
               {meeting.transcriptionStatus === 'Processing' ? (
                 <p className="meeting-summary-thinking meeting-summary-thinking--muted" role="status">
@@ -359,7 +502,7 @@ const MeetingSummary = () => {
             </div>
           )}
 
-          {editingSummary && editableSummary && (
+          {editingSummary && editableSummary && !meeting.editorVerificationRequired && (
             <>
               <div className="meeting-summary-edit">
                 <div className="meeting-summary-edit-field">
@@ -486,7 +629,7 @@ const MeetingSummary = () => {
 
           {actionError && <div className="meeting-summary-action-error">{actionError}</div>}
 
-          {!!hasContent && !editingSummary && (
+          {!!hasContent && !editingSummary && !meeting.editorVerificationRequired && (
             <>
               <div
                 className={

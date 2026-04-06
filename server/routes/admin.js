@@ -17,6 +17,11 @@ const {
   clearTranscriptionFailureFields,
 } = require('../utils/transcriptionFailureCodes');
 const { attachSummaryUiState } = require('../utils/meetingSummaryUiState');
+const {
+  meetingNeedsEditorVerification,
+  editorVerificationProofValid,
+  redactMeetingPayloadForEditorVerification,
+} = require('../utils/editorVerification');
 
 function meetingFilterForAdmin(admin) {
   return admin && admin.username !== 'admin' ? { adminId: admin._id } : {};
@@ -578,7 +583,17 @@ router.get('/meetings', authenticateAdmin, requireSubscription, async (req, res)
       .sort({ startTime: -1 })
       .limit(parseInt(limit, 10));
 
-    res.json({ meetings });
+    const meetingsPayload = meetings.map((m) => {
+      const o = m.toObject ? m.toObject() : { ...m };
+      if (meetingNeedsEditorVerification(m)) {
+        redactMeetingPayloadForEditorVerification(o);
+      } else {
+        attachSummaryUiState(o);
+      }
+      return o;
+    });
+
+    res.json({ meetings: meetingsPayload });
   } catch (error) {
     console.error('Error fetching meetings:', error);
     res.status(500).json({ error: 'Failed to fetch meetings' });
@@ -594,7 +609,11 @@ router.get('/meetings/:id', authenticateAdmin, requireSubscription, async (req, 
     if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
     if (!canAccessMeeting(meeting, req.admin)) return res.status(404).json({ error: 'Meeting not found' });
     const payload = meeting.toObject ? meeting.toObject() : meeting;
-    attachSummaryUiState(payload);
+    if (meetingNeedsEditorVerification(meeting) && !editorVerificationProofValid(meeting, req)) {
+      redactMeetingPayloadForEditorVerification(payload);
+    } else {
+      attachSummaryUiState(payload);
+    }
     res.json({ meeting: payload });
   } catch (error) {
     console.error('Error fetching meeting:', error);

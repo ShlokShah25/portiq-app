@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Calendar, CheckSquare, AlertTriangle, ListTodo, FolderX } from 'lucide-react';
-import TopNav from './TopNav';
 import './Insights.css';
 
 function itemsFromMeeting(meeting) {
@@ -131,7 +130,6 @@ const Insights = () => {
   if (loading) {
     return (
       <div className="insights-screen">
-        <TopNav />
         <div className="insights-wrapper">
           <div className="insights-content">
             <div className="loading">Loading...</div>
@@ -148,7 +146,6 @@ const Insights = () => {
 
   return (
     <div className="insights-screen">
-      <TopNav />
       <div className="insights-wrapper">
         <div className="insights-top-bar">
           <div>

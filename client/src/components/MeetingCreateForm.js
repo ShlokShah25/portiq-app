@@ -4,19 +4,16 @@ import axios from 'axios';
 import {
   X,
   Mic,
-  ExternalLink,
   FileText,
   Calendar,
   Clock,
   User,
   MapPin,
-  Users,
   CircleDashed,
   GraduationCap,
   UserCheck,
   Square,
   Mail,
-  BookUser,
   ChevronDown,
   Search,
 } from 'lucide-react';
@@ -524,35 +521,14 @@ export default function MeetingCreateForm({
 
           {!isEducation && (
             <>
-              <div className="start-meeting-section-label start-meeting-section-label--row" style={{ marginTop: 8 }}>
-                <Users size={16} strokeWidth={1.75} className="start-meeting-section-label__ic" aria-hidden />
-                Participants
+              <div className="start-meeting-participants-bar">
+                <span className="start-meeting-participants-bar__label">Select people</span>
+                <Link to="/participants" className="start-meeting-participants-bar__add" onClick={linkClose}>
+                  + Add new
+                </Link>
               </div>
-              <p className="start-meeting-field-hint">
-                Search and select people from your book — name and email are used for the meeting. Voice is optional and
-                can be set later.
-              </p>
-              {participantBookError && (
-                <p className="start-meeting-field-hint start-meeting-field-hint--warn">
-                  {participantBookError}{' '}
-                  <Link to="/participants" className="start-meeting-inline-link" onClick={linkClose}>
-                    Participant book
-                  </Link>
-                </p>
-              )}
-              {!participantBookError && participantBook.length === 0 && (
-                <p className="start-meeting-field-hint">
-                  Your book is empty.{' '}
-                  <Link to="/participants" className="start-meeting-inline-link" onClick={linkClose}>
-                    Add people in Participant book
-                  </Link>
-                </p>
-              )}
               {participantBook.length > 0 && (
                 <div className="start-meeting-field" style={{ marginBottom: 12 }}>
-                  <FieldLabel htmlFor="sm-participants-trigger" icon={BookUser}>
-                    Participant book
-                  </FieldLabel>
                   <div className="meeting-create-participant-dd" ref={participantDropdownRef}>
                     <button
                       id="sm-participants-trigger"
@@ -562,10 +538,11 @@ export default function MeetingCreateForm({
                       disabled={formDisabled}
                       aria-expanded={participantDropdownOpen}
                       aria-haspopup="listbox"
+                      aria-label="Select people from your book"
                     >
                       <span className="meeting-create-participant-dd__trigger-text">
                         {selectedBookEmails.length === 0
-                          ? 'Select people…'
+                          ? 'Select people'
                           : `${selectedBookEmails.length} selected${
                               maxParticipantsPerMeeting != null
                                 ? ` · max ${maxParticipantsPerMeeting}`
@@ -643,10 +620,6 @@ export default function MeetingCreateForm({
                       </div>
                     )}
                   </div>
-                  <p id="sm-participants-hint" className="start-meeting-field-hint">
-                    Selected: {selectedBookEmails.length}
-                    {maxParticipantsPerMeeting != null ? ` / max ${maxParticipantsPerMeeting}` : ''}
-                  </p>
                 </div>
               )}
               {selectedBookEmails.length > 0 && participantBook.length > 0 && (
@@ -735,10 +708,6 @@ export default function MeetingCreateForm({
                   )}
                 </div>
               )}
-              <Link to="/participants" className="start-meeting-book-manage" onClick={linkClose}>
-                <ExternalLink size={14} aria-hidden />
-                Manage participant book
-              </Link>
               {maxParticipantsPerMeeting != null && (
                 <p className="start-meeting-field-hint">
                   Up to {maxParticipantsPerMeeting} participants per meeting on your plan.
@@ -764,7 +733,7 @@ export default function MeetingCreateForm({
                     ) : isEducation ? (
                       'Create lecture'
                     ) : (
-                      'Start Meeting'
+                      'Create meeting'
                     )}
                   </button>
                   {!inline && (

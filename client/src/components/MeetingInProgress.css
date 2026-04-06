@@ -1,6 +1,7 @@
-/* Live session uses MeetingSummary shell (TopNav + card). Keep scroll/width sane on small viewports. */
+/* Live session — app shell + centered card. Keep scroll/width sane on small viewports. */
 .meeting-summary-screen.meeting-in-progress {
   overflow-x: hidden;
+  background-image: none;
 }
 
 .meeting-summary-card.mip-card {
@@ -9,12 +10,409 @@
   margin-right: auto;
 }
 
+.meeting-in-progress .meeting-summary-card.mip-card {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 20px 20px 40px;
+}
+
 .mip-ai-disclaimer {
   margin: 4px 0 16px;
   font-size: 12px;
   line-height: 1.5;
   color: rgba(148, 163, 184, 0.95);
   font-style: italic;
+}
+
+.mip-live-header {
+  margin-bottom: 4px;
+}
+
+.meeting-in-progress .mip-live-title.meeting-summary-page-title {
+  font-size: 1.375rem;
+  line-height: 1.25;
+  margin-bottom: 6px;
+}
+
+.meeting-in-progress .mip-live-subtitle.meeting-summary-subtitle {
+  margin-bottom: 0;
+}
+
+.mip-live-header__row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.mip-status-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-family: var(--font-display, system-ui);
+}
+
+.mip-status-chip--ready {
+  color: #93c5fd;
+  background: rgba(59, 130, 246, 0.15);
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.12);
+}
+
+.mip-status-chip--live {
+  color: #fecaca;
+  background: rgba(239, 68, 68, 0.18);
+  box-shadow: 0 0 24px rgba(239, 68, 68, 0.2);
+}
+
+.mip-session-details {
+  margin: 12px 0 0;
+}
+
+.mip-session-details__toggle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: none;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-primary, #f4f4f5);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  transition:
+    background var(--dur-base) ease,
+    box-shadow var(--dur-base) ease,
+    transform var(--dur-fast) ease;
+}
+
+.mip-session-details__toggle:hover {
+  background: rgba(99, 102, 241, 0.1);
+  box-shadow: 0 0 24px rgba(59, 130, 246, 0.08);
+}
+
+.mip-session-details__toggle-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted, #9ca3af);
+}
+
+.mip-session-details__teaser {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--text-secondary, #cbd5e1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mip-session-details__chev {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: transform var(--dur-base) var(--ease-out);
+}
+
+.mip-session-details__chev.is-open {
+  transform: rotate(180deg);
+}
+
+.mip-session-details__panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.38s var(--ease-out);
+}
+
+.mip-session-details__panel--open {
+  grid-template-rows: 1fr;
+}
+
+.mip-session-details__panel-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.mip-session-details__panel-inner .mip-meta-strip {
+  border-top: none;
+  margin-top: 0;
+  padding-top: 4px;
+  padding-bottom: 12px;
+}
+
+.mip-participant-voice--pulse {
+  animation: mip-mic-glow 2s ease-in-out infinite;
+}
+
+@keyframes mip-mic-glow {
+  0%,
+  100% {
+    opacity: 1;
+    filter: drop-shadow(0 0 2px rgba(52, 211, 153, 0.35));
+  }
+  50% {
+    opacity: 0.88;
+    filter: drop-shadow(0 0 8px rgba(52, 211, 153, 0.55));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mip-participant-voice--pulse {
+    animation: none;
+  }
+}
+
+.mip-ai-disclaimer--footer {
+  margin: 0;
+  flex: 1;
+  min-width: min(100%, 280px);
+  font-size: 11px;
+  line-height: 1.45;
+  color: rgba(148, 163, 184, 0.85);
+  font-style: normal;
+  text-align: left;
+}
+
+@media (min-width: 560px) {
+  .mip-ai-disclaimer--footer {
+    text-align: right;
+  }
+}
+
+.mip-secondary-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 20px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.mip-secondary-row__link {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: #93c5fd;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.mip-secondary-row__link:hover {
+  color: #bfdbfe;
+}
+
+.mip-recording-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin: 20px 0 24px;
+  gap: 16px;
+}
+
+.mip-recording-hero--primary {
+  margin-top: 18px;
+  margin-bottom: 22px;
+}
+
+.mip-recording-hero__start {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 440px;
+  min-height: 68px;
+  padding: 0 28px;
+  border: none;
+  border-radius: 16px;
+  font-size: 19px;
+  font-weight: 650;
+  font-family: inherit;
+  cursor: pointer;
+  color: #fff;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  box-shadow: 0 4px 28px rgba(37, 99, 235, 0.45);
+  animation: mip-primary-pulse 2.4s ease-in-out infinite;
+  transition: filter 0.2s ease, transform 0.2s ease;
+}
+
+.mip-recording-hero__start:hover:not(:disabled) {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+}
+
+.mip-recording-hero__start:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+@keyframes mip-primary-pulse {
+  0%,
+  100% {
+    box-shadow: 0 4px 28px rgba(37, 99, 235, 0.42), 0 0 0 1px rgba(96, 165, 250, 0.2);
+  }
+  50% {
+    box-shadow: 0 8px 40px rgba(37, 99, 235, 0.55), 0 0 48px rgba(59, 130, 246, 0.2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mip-recording-hero__start {
+    animation: none;
+  }
+}
+
+.mip-recording-hero__active {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 16px;
+}
+
+.mip-recording-hero__status-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  padding: 18px 20px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.mip-recording-hero__live-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.35);
+  animation: mip-live-dot-pulse 1.4s ease-in-out infinite;
+}
+
+.mip-recording-hero__paused-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #9ca3af;
+  box-shadow: none;
+  animation: none;
+}
+
+@keyframes mip-live-dot-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mip-recording-hero__live-dot {
+    animation: none;
+  }
+}
+
+.mip-recording-hero__status-text {
+  font-size: 18px;
+  font-weight: 650;
+  color: #f9fafb;
+  letter-spacing: -0.02em;
+}
+
+.mip-recording-hero__timer {
+  font-family: ui-monospace, 'SF Mono', Menlo, Monaco, monospace;
+  font-size: 22px;
+  font-weight: 600;
+  color: #f3f4f6;
+  font-variant-numeric: tabular-nums;
+}
+
+.mip-recording-hero__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.meeting-in-progress .mip-recording-hero__ctrl {
+  min-height: 40px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.mip-uploading-status--hero {
+  margin: 0 auto;
+}
+
+.mip-meta-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px 28px;
+  margin: 0;
+  padding: 14px 0 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.mip-meta-chunk {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mip-meta-k {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+
+.mip-meta-v {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e5e7eb;
+  line-height: 1.3;
+}
+
+.mip-meta-v--mono {
+  font-family: ui-monospace, 'SF Mono', Menlo, Monaco, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.meeting-in-progress .mip-participants-section--after-meta {
+  padding-top: 18px;
+  margin-top: 4px;
+  border-top: none;
+}
+
+.meeting-in-progress .mip-participants-section--after-meta.meeting-summary-section:first-of-type {
+  padding-top: 18px;
 }
 
 .mip-ready-badge--neutral {
@@ -56,10 +454,10 @@
 
 .mip-participants-list.participants-list {
   margin-bottom: 0;
-  padding: 20px;
-  background: #111111;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
 }
 
 .mip-recording-section {
@@ -319,11 +717,16 @@
   align-items: center;
   gap: 14px;
   width: 100%;
-  padding: 14px 16px;
-  background: var(--bg-primary, #000000);
-  border: 1px solid #1f2933;
-  border-radius: 14px;
+  padding: 10px 0;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 0;
   box-sizing: border-box;
+}
+
+.mip-participants-list .mip-participant-row:last-child {
+  border-bottom: none;
 }
 
 .mip-participant-avatar {

@@ -2,21 +2,28 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { useTheme } from '../contexts/ThemeContext';
-import TopNav from './TopNav';
 import { ParticipantBookPanel } from './Participants';
 import { L, SUPPORTED_UI_LANGUAGES, getUiLanguage, setUiLanguage } from '../config/uiLanguage';
 import './Settings.css';
 import './Profile.css';
 
-const VALID_TABS = [
-  'account',
-  'password',
-  'subscription',
-  'workspace',
-  'display',
-  'notifications',
-  'general',
-];
+const SETTINGS_SECTIONS = ['account', 'workspace', 'preferences', 'notifications'];
+
+function normalizeSettingsSection(tab) {
+  if (!tab) return 'account';
+  const map = {
+    password: 'account',
+    subscription: 'account',
+    workspace: 'workspace',
+    notifications: 'notifications',
+    preferences: 'preferences',
+    display: 'preferences',
+    general: 'preferences',
+    account: 'account',
+  };
+  if (map[tab]) return map[tab];
+  return SETTINGS_SECTIONS.includes(tab) ? tab : 'account';
+}
 
 const Settings = () => {
   const { theme, toggleTheme } = useTheme();
@@ -41,21 +48,18 @@ const Settings = () => {
   const [uiLanguage, setUiLanguageState] = useState('en');
 
   const tabFromUrl = searchParams.get('tab');
-  const activeTab = VALID_TABS.includes(tabFromUrl) ? tabFromUrl : 'account';
+  const activeSection = normalizeSettingsSection(tabFromUrl);
 
-  const setTab = (id) => {
+  const setSection = (id) => {
     setSearchParams({ tab: id }, { replace: true });
   };
 
   const navItems = useMemo(
     () => [
       { id: 'account', labelKey: 'settings.tabAccount' },
-      { id: 'password', labelKey: 'settings.tabPassword' },
-      { id: 'subscription', labelKey: 'settings.tabSubscription' },
       { id: 'workspace', labelKey: 'settings.tabWorkspace' },
-      { id: 'display', labelKey: 'settings.tabDisplay' },
+      { id: 'preferences', labelKey: 'settings.sectionPreferences' },
       { id: 'notifications', labelKey: 'settings.tabNotifications' },
-      { id: 'general', labelKey: 'settings.tabGeneral' },
     ],
     []
   );
@@ -168,7 +172,6 @@ const Settings = () => {
 
   return (
     <div className="settings-screen">
-      <TopNav />
       <div className="settings-body">
         <aside className="settings-sidebar" aria-label={L('settings.menu')}>
           <p className="settings-sidebar__heading">{L('settings.menu')}</p>
@@ -177,8 +180,8 @@ const Settings = () => {
               <button
                 key={item.id}
                 type="button"
-                className={`settings-sidebar__link${activeTab === item.id ? ' settings-sidebar__link--active' : ''}`}
-                onClick={() => setTab(item.id)}
+                className={`settings-sidebar__link${activeSection === item.id ? ' settings-sidebar__link--active' : ''}`}
+                onClick={() => setSection(item.id)}
               >
                 {L(item.labelKey)}
               </button>
@@ -192,23 +195,8 @@ const Settings = () => {
             <p className="settings-page-subtitle">{L('settings.subtitle')}</p>
           </header>
 
-          <div className="settings-tabs" role="tablist" aria-label={L('nav.settings')}>
-            {navItems.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                role="tab"
-                aria-selected={activeTab === item.id}
-                className={`settings-tab${activeTab === item.id ? ' settings-tab--active' : ''}`}
-                onClick={() => setTab(item.id)}
-              >
-                {L(item.labelKey)}
-              </button>
-            ))}
-          </div>
-
           <div className="settings-panels">
-            {activeTab === 'account' && (
+            {activeSection === 'account' && (
               <div className="settings-panel" role="tabpanel">
                 <div className="settings-identity settings-identity--inline">
                   <div className="profile-avatar-ring">
@@ -243,11 +231,9 @@ const Settings = () => {
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
 
-            {activeTab === 'password' && (
-              <div className="settings-panel" role="tabpanel">
+                <div className="settings-divider" />
+
                 <div className="settings-panel-row settings-panel-row--stack">
                   <div className="settings-panel-row__meta">
                     <h3 className="settings-panel-row__title">{L('settings.passwordTitle')}</h3>
@@ -290,11 +276,9 @@ const Settings = () => {
                     </form>
                   </div>
                 </div>
-              </div>
-            )}
 
-            {activeTab === 'subscription' && (
-              <div className="settings-panel" role="tabpanel">
+                <div className="settings-divider" />
+
                 <div className="settings-panel-row settings-panel-row--stack">
                   <div className="settings-panel-row__meta">
                     <h3 className="settings-panel-row__title">{L('settings.subscriptionTitle')}</h3>
@@ -353,7 +337,7 @@ const Settings = () => {
               </div>
             )}
 
-            {activeTab === 'workspace' && (
+            {activeSection === 'workspace' && (
               <div className="settings-panel" role="tabpanel" id="settings-participant-book">
                 <div className="settings-panel-row settings-panel-row--stack">
                   <div className="settings-panel-row__meta">
@@ -367,7 +351,7 @@ const Settings = () => {
               </div>
             )}
 
-            {activeTab === 'display' && (
+            {activeSection === 'preferences' && (
               <div className="settings-panel" role="tabpanel">
                 <div className="settings-panel-row">
                   <div className="settings-panel-row__meta">
@@ -430,32 +414,9 @@ const Settings = () => {
                     <p className="profile-language-hint settings-language-hint">{L('settings.languageHint')}</p>
                   </div>
                 </div>
-              </div>
-            )}
 
-            {activeTab === 'notifications' && (
-              <div className="settings-panel" role="tabpanel">
-                <div className="settings-panel-row settings-panel-row--stack">
-                  <div className="settings-panel-row__meta">
-                    <h3 className="settings-panel-row__title">{L('settings.notificationsTitle')}</h3>
-                    <p className="settings-panel-row__desc">{L('settings.notificationsDesc')}</p>
-                  </div>
-                  <div className="settings-panel-row__control">
-                    <label className="settings-checkbox-label">
-                      <input type="checkbox" defaultChecked />
-                      <span>{L('settings.notifyEmail')}</span>
-                    </label>
-                    <label className="settings-checkbox-label">
-                      <input type="checkbox" defaultChecked />
-                      <span>{L('settings.notifySummary')}</span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-            )}
+                <div className="settings-divider" />
 
-            {activeTab === 'general' && (
-              <div className="settings-panel" role="tabpanel">
                 <div className="settings-panel-row">
                   <div className="settings-panel-row__meta">
                     <h3 className="settings-panel-row__title">{L('settings.generalCompanyTitle')}</h3>
@@ -473,6 +434,27 @@ const Settings = () => {
                   </div>
                   <div className="settings-panel-row__control">
                     <input type="number" className="settings-input" placeholder="60" />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeSection === 'notifications' && (
+              <div className="settings-panel" role="tabpanel">
+                <div className="settings-panel-row settings-panel-row--stack">
+                  <div className="settings-panel-row__meta">
+                    <h3 className="settings-panel-row__title">{L('settings.notificationsTitle')}</h3>
+                    <p className="settings-panel-row__desc">{L('settings.notificationsDesc')}</p>
+                  </div>
+                  <div className="settings-panel-row__control">
+                    <label className="settings-checkbox-label">
+                      <input type="checkbox" defaultChecked />
+                      <span>{L('settings.notifyEmail')}</span>
+                    </label>
+                    <label className="settings-checkbox-label">
+                      <input type="checkbox" defaultChecked />
+                      <span>{L('settings.notifySummary')}</span>
+                    </label>
                   </div>
                 </div>
               </div>

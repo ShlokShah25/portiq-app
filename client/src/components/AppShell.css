@@ -1,0 +1,41 @@
+/* Main content area beside fixed sidebar */
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  background: var(--bg-primary);
+}
+
+.app-shell__main {
+  flex: 1;
+  margin-left: var(--sidebar-width);
+  min-height: 100vh;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: var(--bg-primary);
+  position: relative;
+}
+
+/* Subtle top fade for depth (no hard border) */
+.app-shell__main::before {
+  content: '';
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  display: block;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(99, 102, 241, 0.15) 40%,
+    rgba(59, 130, 246, 0.2) 50%,
+    rgba(99, 102, 241, 0.15) 60%,
+    transparent
+  );
+  z-index: 2;
+  pointer-events: none;
+  margin-bottom: -1px;
+}
