@@ -11,7 +11,10 @@ const { getPlanConstraints } = require('../utils/planConstraints');
 const { hasDashboardAccess } = require('../utils/subscriptionGate');
 const { alignDueYearToMeetingReference } = require('../utils/actionItemDueDate');
 const { resolveUploadPath } = require('../utils/resolveUploadPath');
-const { recoverSummaryFromCheckpointedTranscript } = require('../utils/meetingPipelineRecovery');
+const {
+  recoverSummaryFromCheckpointedTranscript,
+  buildPipelineUpdateFromSummaryData,
+} = require('../utils/meetingPipelineRecovery');
 const {
   buildTranscriptionFailureSet,
   clearTranscriptionFailureFields,
@@ -698,61 +701,8 @@ router.post('/meetings/:id/retry-transcription', authenticateAdmin, requireSubsc
 
     retryPromise
       .then(async (summaryData) => {
-        const safeParseDate = (value) => {
-          if (!value) return undefined;
-          const d = new Date(value);
-          return Number.isNaN(d.getTime()) ? undefined : d;
-        };
-
-        meeting.transcription = summaryData.transcription;
-        meeting.summary = summaryData.summary;
-        meeting.keyPoints = summaryData.keyPoints;
-        meeting.actionItems = (summaryData.actionItems || []).map((item) => ({
-          task: item.task || '',
-          assignee: item.assignee || '',
-          dueDate: safeParseDate(item.dueDate),
-          status: 'not_started',
-          reviewReminderSent: false,
-          reviewReminderSentAt: null
-        }));
-        meeting.decisions = summaryData.decisions || [];
-        meeting.nextSteps = summaryData.nextSteps || [];
-        meeting.importantNotes = summaryData.importantNotes || [];
-        
-        // Store ORIGINAL summary (before any editor edits) for audit trail
-        meeting.originalSummary = summaryData.summary;
-        meeting.originalKeyPoints = summaryData.keyPoints || [];
-        meeting.originalActionItems = (summaryData.actionItems || []).map((item) => ({
-          task: item.task || '',
-          assignee: item.assignee || '',
-          dueDate: safeParseDate(item.dueDate),
-          status: 'not_started',
-          reviewReminderSent: false,
-          reviewReminderSentAt: null
-        }));
-        meeting.originalDecisions = summaryData.decisions || [];
-        meeting.originalNextSteps = summaryData.nextSteps || [];
-        meeting.originalImportantNotes = summaryData.importantNotes || [];
-        
-        // Copy to pending fields for approval workflow
-        meeting.pendingSummary = summaryData.summary;
-        meeting.pendingKeyPoints = summaryData.keyPoints || [];
-        meeting.pendingActionItems = (summaryData.actionItems || []).map((item) => ({
-          task: item.task || '',
-          assignee: item.assignee || '',
-          dueDate: safeParseDate(item.dueDate),
-          status: 'not_started',
-          reviewReminderSent: false,
-          reviewReminderSentAt: null
-        }));
-        meeting.pendingDecisions = summaryData.decisions || [];
-        meeting.pendingNextSteps = summaryData.nextSteps || [];
-        meeting.pendingImportantNotes = summaryData.importantNotes || [];
-        
-        meeting.transcriptionStatus = 'Completed';
-        meeting.summaryStatus = 'Pending Approval';
-        Object.assign(meeting, clearTranscriptionFailureFields());
-        await meeting.save();
+        const update = buildPipelineUpdateFromSummaryData(summaryData);
+        await Meeting.findByIdAndUpdate(meeting._id, { $set: update }, { new: true });
 
         // DO NOT auto-send - wait for approval
         console.log('✅ Transcription completed. Summary pending approval from authorized editor.');

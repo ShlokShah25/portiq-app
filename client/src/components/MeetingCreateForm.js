@@ -76,6 +76,9 @@ function resetAllState(setters) {
   setters.setLoading(false);
   setters.setVoiceRecognitionEnabled(false);
   if (setters.setOptionalDetailsOpen) setters.setOptionalDetailsOpen(false);
+  if (setters.setSummaryMode) setters.setSummaryMode('standard');
+  if (setters.setInterviewCandidateName) setters.setInterviewCandidateName('');
+  if (setters.setInterviewRole) setters.setInterviewRole('');
 }
 
 /**
@@ -115,6 +118,9 @@ export default function MeetingCreateForm({
   const [participantSearchQuery, setParticipantSearchQuery] = useState('');
   const participantDropdownRef = useRef(null);
   const [optionalDetailsOpen, setOptionalDetailsOpen] = useState(false);
+  const [summaryMode, setSummaryMode] = useState('standard');
+  const [interviewCandidateName, setInterviewCandidateName] = useState('');
+  const [interviewRole, setInterviewRole] = useState('');
 
   const runReset = useCallback(() => {
     try {
@@ -141,6 +147,9 @@ export default function MeetingCreateForm({
       setLoading,
       setVoiceRecognitionEnabled,
       setOptionalDetailsOpen,
+      setSummaryMode,
+      setInterviewCandidateName,
+      setInterviewRole,
     });
     setParticipantDropdownOpen(false);
     setParticipantSearchQuery('');
@@ -325,6 +334,11 @@ export default function MeetingCreateForm({
       authorizedEditorEmail: authorizedEditorEmail.trim() || undefined,
       transcriptionEnabled: true,
       meetingRoom: room,
+      summaryMode: isEducation ? 'standard' : summaryMode === 'interview' ? 'interview' : 'standard',
+      interviewCandidateName:
+        !isEducation && summaryMode === 'interview' ? interviewCandidateName.trim().slice(0, 200) : '',
+      interviewRole:
+        !isEducation && summaryMode === 'interview' ? interviewRole.trim().slice(0, 200) : '',
       ...extra,
     };
   };
@@ -717,6 +731,58 @@ export default function MeetingCreateForm({
           )}
 
                 {error && <div className="start-meeting-error">{error}</div>}
+
+                {!isEducation && (
+                  <div className="meeting-create-mode-block" role="group" aria-label="Meeting mode">
+                    <span className="meeting-create-mode-block__label">Meeting mode</span>
+                    <div className="meeting-create-mode-segment">
+                      <label className="meeting-create-mode-option">
+                        <input
+                          type="radio"
+                          name="portiq-summary-mode"
+                          value="standard"
+                          checked={summaryMode === 'standard'}
+                          onChange={() => setSummaryMode('standard')}
+                          disabled={formDisabled}
+                        />
+                        <span>Standard</span>
+                      </label>
+                      <label className="meeting-create-mode-option">
+                        <input
+                          type="radio"
+                          name="portiq-summary-mode"
+                          value="interview"
+                          checked={summaryMode === 'interview'}
+                          onChange={() => setSummaryMode('interview')}
+                          disabled={formDisabled}
+                        />
+                        <span>Interview</span>
+                      </label>
+                    </div>
+                    {summaryMode === 'interview' && (
+                      <div className="meeting-create-interview-fields">
+                        <input
+                          type="text"
+                          className="meeting-create-interview-input"
+                          placeholder="Candidate name (optional)"
+                          value={interviewCandidateName}
+                          onChange={(e) => setInterviewCandidateName(e.target.value)}
+                          autoComplete="off"
+                          disabled={formDisabled}
+                        />
+                        <input
+                          type="text"
+                          className="meeting-create-interview-input"
+                          placeholder="Role (optional)"
+                          value={interviewRole}
+                          onChange={(e) => setInterviewRole(e.target.value)}
+                          autoComplete="off"
+                          disabled={formDisabled}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className={`start-meeting-actions meeting-create-primary-actions${inline ? ' start-meeting-actions--inline' : ''}`}>
                   <button

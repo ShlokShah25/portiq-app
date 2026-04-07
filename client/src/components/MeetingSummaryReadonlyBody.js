@@ -6,6 +6,7 @@ import {
   ListChecks,
   CheckCircle,
   Square,
+  Award,
 } from 'lucide-react';
 import { getEffectiveDueDate } from '../utils/actionItemDueDate';
 import {
@@ -32,19 +33,39 @@ export default function MeetingSummaryReadonlyBody({
   showReadyBadge = true,
   includeSections = 'all',
   staggerSections = false,
+  summaryMode: summaryModeProp,
+  hiringRecommendation = '',
+  hiringRecommendationReason = '',
+  evaluationSignals = null,
 }) {
   const [statusSaving, setStatusSaving] = useState({});
+
+  const summaryMode =
+    summaryModeProp || (meeting?.summaryMode === 'interview' ? 'interview' : 'standard');
+  const isInterview = summaryMode === 'interview';
 
   const decisionsDisplay = (decisions || []).filter(
     (d) => String(d || '').trim().toLowerCase() !== 'not specified'
   );
+
+  const hireRec = String(hiringRecommendation || '').trim();
+  const hireReason = String(hiringRecommendationReason || '').trim();
+  const hasHiringBlock =
+    isInterview && (hireRec || hireReason);
+  const hasEvalSignals =
+    isInterview &&
+    evaluationSignals &&
+    typeof evaluationSignals === 'object' &&
+    Object.keys(evaluationSignals).length > 0;
 
   const hasRestContent =
     !!(summaryText && String(summaryText).trim()) ||
     (keyPoints && keyPoints.length) ||
     decisionsDisplay.length ||
     (nextSteps && nextSteps.length) ||
-    (importantNotes && importantNotes.length);
+    (importantNotes && importantNotes.length) ||
+    hasHiringBlock ||
+    hasEvalSignals;
 
   const hasActionItems = actionItems && actionItems.length > 0;
 
@@ -284,13 +305,40 @@ export default function MeetingSummaryReadonlyBody({
   const renderRest = () => {
     if (!(showAll || showRestOnly)) return null;
 
+    const signalLabels = {
+      communicationClarity: 'Communication clarity',
+      ownershipSignals: 'Ownership signals',
+      depthOfAnswers: 'Depth of answers',
+      confidenceLevel: 'Confidence level',
+    };
+
     return (
       <>
+        {hasHiringBlock && (
+          <section
+            className={`meeting-summary-section meeting-summary-section--hiring${staggerSections ? ' meeting-summary-section--ux-reveal' : ''}`}
+            style={staggerSections ? { animationDelay: '0ms' } : undefined}
+          >
+            <h2 className="meeting-summary-heading meeting-summary-heading--with-icon">
+              <Award className="meeting-summary-heading-icon" strokeWidth={1.5} aria-hidden />
+              Hiring recommendation
+            </h2>
+            {hireRec ? (
+              <p className="meeting-summary-hiring-verdict" data-verdict={hireRec.replace(/\s+/g, '-').toLowerCase()}>
+                {hireRec}
+              </p>
+            ) : null}
+            {hireReason ? (
+              <p className="meeting-summary-body meeting-summary-hiring-reason">{hireReason}</p>
+            ) : null}
+          </section>
+        )}
+
         {showReadyBadge && (
           <div
             className={`meeting-summary-ready-badge meeting-summary-ready-badge--sentence${staggerSections ? ' meeting-summary-section--ux-reveal' : ''}`}
             aria-live="polite"
-            style={staggerSections ? { animationDelay: '40ms' } : undefined}
+            style={staggerSections ? { animationDelay: hasHiringBlock ? '60ms' : '40ms' } : undefined}
           >
             <span className="meeting-summary-ready-badge__dot" aria-hidden="true" />
             AI Generated • Ready for review
@@ -300,11 +348,15 @@ export default function MeetingSummaryReadonlyBody({
         {!!summaryText && String(summaryText).trim() && (
           <section
             className={`meeting-summary-section meeting-summary-section--minutes${staggerSections ? ' meeting-summary-section--ux-reveal' : ''}`}
-            style={staggerSections ? { animationDelay: showReadyBadge ? '80ms' : '40ms' } : undefined}
+            style={
+              staggerSections
+                ? { animationDelay: hasHiringBlock ? '100ms' : showReadyBadge ? '80ms' : '40ms' }
+                : undefined
+            }
           >
             <h2 className="meeting-summary-heading meeting-summary-heading--with-icon">
               <FileText className="meeting-summary-heading-icon" strokeWidth={1.5} aria-hidden />
-              {isEducation ? 'Summary' : 'Minutes of the meeting'}
+              {isInterview || isEducation ? 'Summary' : 'Minutes of the meeting'}
             </h2>
             <p className="meeting-summary-body">{summaryText}</p>
           </section>
@@ -317,7 +369,7 @@ export default function MeetingSummaryReadonlyBody({
           >
             <h2 className="meeting-summary-heading meeting-summary-heading--with-icon">
               <ListChecks className="meeting-summary-heading-icon" strokeWidth={1.5} aria-hidden />
-              Key Points
+              {isInterview ? 'Key strengths' : 'Key Points'}
             </h2>
             <ul className="meeting-summary-list meeting-summary-list--checks">
               {keyPoints.map((p, idx) => (
@@ -364,13 +416,45 @@ export default function MeetingSummaryReadonlyBody({
             style={staggerSections ? { animationDelay: '240ms' } : undefined}
           >
             <h2 className="meeting-summary-heading">
-              {isEducation ? 'Important Concepts' : 'Important Notes'}
+              {isInterview
+                ? 'Concerns / red flags'
+                : isEducation
+                  ? 'Important Concepts'
+                  : 'Important Notes'}
             </h2>
             <ul className="meeting-summary-list">
               {importantNotes.map((n, idx) => (
                 <li key={idx}>{n}</li>
               ))}
             </ul>
+          </section>
+        )}
+
+        {hasEvalSignals && (
+          <section
+            className={`meeting-summary-section meeting-summary-section--signals${staggerSections ? ' meeting-summary-section--ux-reveal' : ''}`}
+            style={staggerSections ? { animationDelay: '280ms' } : undefined}
+          >
+            <h2 className="meeting-summary-heading">Evaluation signals</h2>
+            <dl className="meeting-summary-signals">
+              {Object.keys(signalLabels).map((k) => {
+                const row = evaluationSignals[k];
+                if (!row || typeof row !== 'object') return null;
+                const level = row.level != null ? String(row.level) : '';
+                const just = row.justification != null ? String(row.justification) : '';
+                return (
+                  <div key={k} className="meeting-summary-signal-row">
+                    <dt>{signalLabels[k]}</dt>
+                    <dd>
+                      {level ? (
+                        <span className="meeting-summary-signal-level">{level}</span>
+                      ) : null}
+                      {just ? <span className="meeting-summary-signal-just">{just}</span> : null}
+                    </dd>
+                  </div>
+                );
+              })}
+            </dl>
           </section>
         )}
       </>

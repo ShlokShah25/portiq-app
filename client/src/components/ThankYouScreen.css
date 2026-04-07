@@ -1,7 +1,10 @@
 .thank-you-screen {
   width: 100vw;
   height: 100vh;
-  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+  background-color: var(--bg-primary, var(--primary-color));
+  background-image: var(--page-ambient-gradient, linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%));
+  background-size: 100% 100%;
+  background-attachment: fixed;
   display: flex;
   justify-content: center;
   align-items: center;

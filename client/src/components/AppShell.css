@@ -16,6 +16,7 @@
   -webkit-overflow-scrolling: touch;
   background: var(--bg-primary);
   position: relative;
+  isolation: isolate;
 }
 
 /* Subtle top fade for depth (no hard border) */

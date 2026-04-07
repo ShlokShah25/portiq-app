@@ -13,6 +13,13 @@ const { mirrorMeetingAudioToPersistentDir } = require('./meetingAudioMirror');
 const VoiceProfile = require('../models/VoiceProfile');
 const Admin = require('../models/Admin');
 const Meeting = require('../models/Meeting');
+const {
+  SUMMARY_MODES,
+  INTERVIEW_EVALUATION_SYSTEM_PROMPT,
+  normalizeInterviewJson,
+  mapInterviewToPipelinePayload,
+  buildInterviewUserJsonInstructions,
+} = require('./meetingSummaryModes');
 
 /**
  * Save Whisper output to MongoDB before summarization so GPT failures or deploys never wipe recoverable text.
@@ -102,6 +109,155 @@ function formatParticipantLinesForSummaryPrompt(participants) {
       return `- ${label}${email ? ` (${email})` : ''}`;
     })
     .join('\n');
+}
+
+/** Optional voice-profile hint for speaker attribution (shared by standard + interview summary paths). */
+async function buildTranscriptWithSpeakerHints(meetingObj, transcriptTextTrim) {
+  let transcriptWithSpeakers = transcriptTextTrim;
+  if (!(meetingObj && meetingObj.participants && meetingObj.participants.length > 0)) {
+    return transcriptWithSpeakers;
+  }
+  try {
+    const participantEmails = meetingObj.participants
+      .filter((p) => p && isValidEmailForLookup(p.email))
+      .map((p) => p.email.trim().toLowerCase());
+
+    if (participantEmails.length > 0) {
+      const voiceProfiles = await VoiceProfile.find({
+        email: { $in: participantEmails },
+      });
+
+      if (voiceProfiles.length > 0) {
+        console.log(`✅ Found ${voiceProfiles.length} voice profile(s) for speaker identification`);
+
+        const participantList = meetingObj.participants
+          .map((p, i) => {
+            const name = p && p.name ? String(p.name).trim() : '';
+            const email = p && p.email ? String(p.email).trim() : '';
+            if (!name && !email) return `Participant ${i + 1} (no email on file)`;
+            if (email) return `${name || email.split('@')[0]} (${email})`;
+            return name;
+          })
+          .join(', ');
+
+        transcriptWithSpeakers =
+          `Participants in this meeting: ${participantList}\n\n` +
+          `[Note: The following transcript may contain speech from multiple participants. ` +
+          `Only attribute statements to a named participant when confidence is high. ` +
+          `If uncertain, mark speaker as unknown instead of guessing.]\n\n` +
+          transcriptTextTrim;
+      }
+    }
+  } catch (speakerErr) {
+    console.warn('⚠️  Error processing speaker identification:', speakerErr.message);
+    transcriptWithSpeakers = transcriptTextTrim;
+  }
+  return transcriptWithSpeakers;
+}
+
+/**
+ * Interview evaluation — same pipeline, different system prompt + JSON shape.
+ */
+async function generateInterviewMeetingSummaryFromTranscript(transcriptRaw, meetingObj, options = {}) {
+  if (!openai) {
+    throw new Error('OpenAI API key not configured');
+  }
+
+  const summaryChatModel = getSummaryChatModel();
+  const detectedLanguage =
+    String(options.detectedLanguage || '').trim().toLowerCase() || 'unknown';
+  const transcriptTextTrim = String(transcriptRaw || '').trim();
+  if (!transcriptTextTrim) {
+    throw new Error('Stored transcript is empty');
+  }
+
+  const maxRetries = OPENAI_PIPELINE_MAX_RETRIES;
+  const transcriptWithSpeakers = await buildTranscriptWithSpeakerHints(meetingObj, transcriptTextTrim);
+
+  const candidateName = String(meetingObj.interviewCandidateName || '').trim();
+  const role = String(meetingObj.interviewRole || '').trim();
+  const optionalContext = [
+    candidateName && `Expected candidate name (hint only): ${candidateName}`,
+    role && `Role / position (hint only): ${role}`,
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  const meetingTitle = meetingObj.title || 'Interview';
+
+  const interviewUser =
+    `Analyze the following interview transcript. When the transcript includes clear role cues or speaker labels, ` +
+    `prefer describing speakers as Interviewer vs Candidate when supported by the text; do not invent roles.\n\n` +
+    (optionalContext ? `${optionalContext}\n\n` : '') +
+    `Calendar / booking title (may be generic; do not treat as the ground truth about topic): ${meetingTitle}\n\n` +
+    `Detected primary transcription language: ${detectedLanguage}\n\n` +
+    `Transcript:\n\n${transcriptWithSpeakers}\n\n` +
+    buildInterviewUserJsonInstructions();
+
+  let summaryResponse = null;
+  let summaryError = null;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(
+        `   Interview evaluation (attempt ${attempt}/${maxRetries})… model=${summaryChatModel}`
+      );
+      summaryResponse = await openai.chat.completions.create({
+        model: summaryChatModel,
+        messages: [
+          { role: 'system', content: INTERVIEW_EVALUATION_SYSTEM_PROMPT },
+          { role: 'user', content: interviewUser },
+        ],
+        temperature: 0.2,
+        response_format: { type: 'json_object' },
+      });
+      break;
+    } catch (apiError) {
+      summaryError = apiError;
+      const retryable = isRetryableOpenAiError(apiError);
+      if (retryable && attempt < maxRetries) {
+        const waitTime = Math.pow(2, attempt) * 1000;
+        console.warn(
+          `⚠️  OpenAI API error during interview summary (${apiError.status || apiError.code || 'unknown'}), retrying in ${waitTime / 1000}s...`
+        );
+        await new Promise((resolve) => setTimeout(resolve, waitTime));
+        continue;
+      }
+      throw apiError;
+    }
+  }
+
+  if (!summaryResponse) {
+    throw summaryError || new Error('Interview summary generation failed after all retries');
+  }
+
+  const rawContent = summaryResponse.choices[0].message.content || '';
+  let summaryData = tryParseModelJsonObject(rawContent);
+  if (!rawContent.trim() || Object.keys(summaryData).length === 0) {
+    console.warn('⚠️ Empty or unparseable interview JSON; applying safeguards.');
+  }
+
+  const normalized = normalizeInterviewJson(summaryData);
+  const payload = mapInterviewToPipelinePayload(normalized);
+
+  if (!summaryPayloadHasDisplayableContent(payload)) {
+    applyTranscriptExcerptFallbackSummary(payload, transcriptTextTrim);
+  }
+
+  console.log('✅ Interview evaluation summary generated');
+
+  return {
+    transcription: transcriptTextTrim,
+    summary: payload.summary || '',
+    keyPoints: payload.keyPoints || [],
+    actionItems: [],
+    decisions: [],
+    nextSteps: [],
+    importantNotes: payload.importantNotes || [],
+    hiringRecommendation: payload.hiringRecommendation || '',
+    hiringRecommendationReason: payload.hiringRecommendationReason || '',
+    evaluationSignals: payload.evaluationSignals || null,
+  };
 }
 
 function extractGroundingKeywords(text) {
@@ -376,50 +532,20 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
     throw new Error('Stored transcript is empty');
   }
 
+  const summaryMode = String(
+    options.summaryMode || meetingObj.summaryMode || SUMMARY_MODES.STANDARD
+  ).toLowerCase();
+  if (summaryMode === SUMMARY_MODES.INTERVIEW) {
+    return generateInterviewMeetingSummaryFromTranscript(transcriptRaw, meetingObj, options);
+  }
+
   console.log(
     `📝 Generating summary from stored transcript (${transcriptTextTrim.length} chars; language hint: ${detectedLanguage})`
   );
 
   const maxRetries = OPENAI_PIPELINE_MAX_RETRIES;
 
-  let transcriptWithSpeakers = transcriptTextTrim;
-  if (meetingObj && meetingObj.participants && meetingObj.participants.length > 0) {
-    try {
-      const participantEmails = meetingObj.participants
-        .filter((p) => p && isValidEmailForLookup(p.email))
-        .map((p) => p.email.trim().toLowerCase());
-
-      if (participantEmails.length > 0) {
-        const voiceProfiles = await VoiceProfile.find({
-          email: { $in: participantEmails },
-        });
-
-        if (voiceProfiles.length > 0) {
-          console.log(`✅ Found ${voiceProfiles.length} voice profile(s) for speaker identification`);
-
-          const participantList = meetingObj.participants
-            .map((p, i) => {
-              const name = p && p.name ? String(p.name).trim() : '';
-              const email = p && p.email ? String(p.email).trim() : '';
-              if (!name && !email) return `Participant ${i + 1} (no email on file)`;
-              if (email) return `${name || email.split('@')[0]} (${email})`;
-              return name;
-            })
-            .join(', ');
-
-          transcriptWithSpeakers =
-            `Participants in this meeting: ${participantList}\n\n` +
-            `[Note: The following transcript may contain speech from multiple participants. ` +
-            `Only attribute statements to a named participant when confidence is high. ` +
-            `If uncertain, mark speaker as unknown instead of guessing.]\n\n` +
-            transcriptTextTrim;
-        }
-      }
-    } catch (speakerErr) {
-      console.warn('⚠️  Error processing speaker identification:', speakerErr.message);
-      transcriptWithSpeakers = transcriptTextTrim;
-    }
-  }
+  const transcriptWithSpeakers = await buildTranscriptWithSpeakerHints(meetingObj, transcriptTextTrim);
 
   let durationMinutes = null;
   if (meetingObj && meetingObj.startTime && meetingObj.endTime) {
@@ -642,6 +768,9 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
     decisions: summaryData.decisions || [],
     nextSteps: summaryData.nextSteps || [],
     importantNotes: summaryData.importantNotes || [],
+    hiringRecommendation: '',
+    hiringRecommendationReason: '',
+    evaluationSignals: null,
   };
 }
 
@@ -797,6 +926,9 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
           // Never inject the calendar title here—short names like "Test" / "Retest" prime the model
           // to mis-hear unrelated speech (e.g. travel, family) as those words.
           'Transcribe only what is spoken. Do not infer wording from any meeting name or calendar title.',
+          String(meetingObj.summaryMode || '').toLowerCase() === 'interview'
+            ? 'Interview context: when roles are clear from speech, prefer accurate wording for interviewer and candidate.'
+            : '',
           participantNames.length
             ? `Participant names (spell as heard; hints only): ${participantNames.join(', ')}.`
             : '',

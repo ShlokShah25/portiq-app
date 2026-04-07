@@ -25,13 +25,18 @@ function meetingHasSummaryContent(m) {
     ? m.pendingImportantNotes
     : m.importantNotes) || [];
 
+  const hiring =
+    String(m.pendingHiringRecommendation || m.hiringRecommendation || '').trim() ||
+    String(m.pendingHiringRecommendationReason || m.hiringRecommendationReason || '').trim();
+
   return (
     !!summaryText ||
     keyPoints.length > 0 ||
     actionItems.length > 0 ||
     decisionsDisplay.length > 0 ||
     nextSteps.length > 0 ||
-    importantNotes.length > 0
+    importantNotes.length > 0 ||
+    !!hiring
   );
 }
 

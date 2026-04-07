@@ -1,0 +1,97 @@
+/* PortIQ — global SaaS polish (Perplexity-like: calm depth, readable type, token-driven) */
+:root {
+  --radius-card: 18px;
+  --radius-soft: 14px;
+  --radius-pill: 999px;
+  --link-color: var(--accent-hover);
+  --link-hover: #93c5fd;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: rgba(59, 130, 246, 0.28);
+  color: var(--text-primary, #f4f6f8);
+}
+
+/* In-app links */
+.App a {
+  color: var(--link-color);
+  text-decoration: none;
+  text-underline-offset: 2px;
+  transition: color var(--dur-fast, 0.15s) ease, opacity var(--dur-fast, 0.15s) ease;
+}
+
+.App a:hover {
+  color: var(--link-hover);
+}
+
+.App p a,
+.App .meeting-summary-body a {
+  text-decoration: underline;
+  text-decoration-color: rgba(96, 165, 250, 0.45);
+}
+
+/* Page titles: consistent display font */
+.dashboard-title,
+.settings-page-title,
+.transcripts-title,
+.insights-title,
+.participant-book-hero__title,
+.meetings-top-bar-title,
+.client-admin .admin-header-content h1 {
+  font-family: var(--font-display, 'Inter Tight', system-ui, sans-serif);
+}
+
+/* Top bars: subtle lift */
+.transcripts-top-bar,
+.insights-top-bar,
+.meetings-top-bar,
+.client-admin-header {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+:root[data-theme='light'] .transcripts-top-bar,
+:root[data-theme='light'] .insights-top-bar,
+:root[data-theme='light'] .meetings-top-bar,
+:root[data-theme='light'] .client-admin-header {
+  background: rgba(255, 255, 255, 0.85);
+}
+
+:root[data-theme='dark'] .transcripts-top-bar,
+:root[data-theme='dark'] .insights-top-bar,
+:root[data-theme='dark'] .meetings-top-bar,
+:root[data-theme='dark'] .client-admin-header {
+  background: rgba(17, 22, 29, 0.82);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* List rows / transcript cards — hover glow */
+.transcript-item,
+.insight-stat-card,
+.dashboard-pending-summaries__row {
+  transition:
+    border-color var(--dur-base, 0.22s) ease,
+    box-shadow var(--dur-base, 0.22s) ease,
+    transform var(--dur-fast, 0.15s) var(--ease-out, ease);
+}
+
+.transcript-item:hover,
+.insight-stat-card:hover {
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(99, 102, 241, 0.12);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .transcript-item,
+  .insight-stat-card,
+  .dashboard-pending-summaries__row,
+  .App .card {
+    transition: none;
+  }
+}

@@ -22,7 +22,10 @@ const {
 } = require('../utils/calendarInviteLinks');
 const { parseZoomMeetingIdFromJoinUrl } = require('../utils/zoomMeetingIds');
 const { enqueueJoinMeeting } = require('../utils/conferenceBotQueue');
-const { recoverSummaryFromCheckpointedTranscript } = require('../utils/meetingPipelineRecovery');
+const {
+  recoverSummaryFromCheckpointedTranscript,
+  buildPipelineUpdateFromSummaryData,
+} = require('../utils/meetingPipelineRecovery');
 const { attachSummaryUiState } = require('../utils/meetingSummaryUiState');
 const {
   meetingNeedsEditorVerification,
@@ -150,6 +153,9 @@ router.post('/', async (req, res) => {
       conferenceJoinUrl,
       externalMeetingId,
       agenda,
+      summaryMode: summaryModeBody,
+      interviewCandidateName: interviewCandidateNameBody,
+      interviewRole: interviewRoleBody,
     } = req.body;
 
     const admin = await getAdminFromRequest(req);
@@ -236,6 +242,16 @@ router.post('/', async (req, res) => {
       extMeetingId = parseZoomMeetingIdFromJoinUrl(joinUrlTrim) || null;
     }
 
+    const modeRaw =
+      summaryModeBody != null ? String(summaryModeBody).trim().toLowerCase() : 'standard';
+    const summaryMode = modeRaw === 'interview' ? 'interview' : 'standard';
+    const interviewCandidateName =
+      interviewCandidateNameBody != null
+        ? String(interviewCandidateNameBody).trim().slice(0, 200)
+        : '';
+    const interviewRole =
+      interviewRoleBody != null ? String(interviewRoleBody).trim().slice(0, 200) : '';
+
     const meeting = new Meeting({
       adminId: admin ? admin._id : null,
       meetingRoom: roomTrim,
@@ -251,6 +267,9 @@ router.post('/', async (req, res) => {
       conferenceJoinUrl: joinUrlTrim,
       externalMeetingId: extMeetingId,
       conferenceBotStatus: joinUrlTrim ? 'queued' : '',
+      summaryMode,
+      interviewCandidateName,
+      interviewRole,
     });
 
     // Generate verification code for authorized editor if specified
@@ -614,13 +633,6 @@ router.post('/:id/end', upload.single('audio'), async (req, res) => {
       }
     }
 
-    // Helper to safely parse dates from AI output
-    const safeParseDate = (value) => {
-      if (!value) return undefined;
-      const d = new Date(value);
-      return Number.isNaN(d.getTime()) ? undefined : d;
-    };
-
     // Process transcription if audio file exists (either newly uploaded or existing)
     const audioFilePath = req.file
       ? req.file.path
@@ -639,39 +651,7 @@ router.post('/:id/end', upload.single('audio'), async (req, res) => {
         productType: admin?.productType,
       })
         .then(async (summaryData) => {
-          const safeActionItems = (summaryData.actionItems || []).map((item) => ({
-            task: item.task || '',
-            assignee: item.assignee || '',
-            dueDate: safeParseDate(item.dueDate),
-            status: 'not_started',
-            reviewReminderSent: false,
-            reviewReminderSentAt: null
-          }));
-
-          const update = {
-            transcription: summaryData.transcription,
-            summary: summaryData.summary,
-            keyPoints: summaryData.keyPoints,
-            actionItems: safeActionItems,
-            decisions: summaryData.decisions || [],
-            nextSteps: summaryData.nextSteps || [],
-            importantNotes: summaryData.importantNotes || [],
-            originalSummary: summaryData.summary,
-            originalKeyPoints: summaryData.keyPoints || [],
-            originalActionItems: safeActionItems,
-            originalDecisions: summaryData.decisions || [],
-            originalNextSteps: summaryData.nextSteps || [],
-            originalImportantNotes: summaryData.importantNotes || [],
-            pendingSummary: summaryData.summary,
-            pendingKeyPoints: summaryData.keyPoints || [],
-            pendingActionItems: safeActionItems,
-            pendingDecisions: summaryData.decisions || [],
-            pendingNextSteps: summaryData.nextSteps || [],
-            pendingImportantNotes: summaryData.importantNotes || [],
-            transcriptionStatus: 'Completed',
-            summaryStatus: 'Pending Approval',
-            ...clearTranscriptionFailureFields(),
-          };
+          const update = buildPipelineUpdateFromSummaryData(summaryData);
 
           const updated = await Meeting.findByIdAndUpdate(
             meeting._id,
@@ -800,12 +780,6 @@ router.post('/:id/retry-transcription', async (req, res) => {
       });
     }
 
-    const safeParseDate = (value) => {
-      if (!value) return undefined;
-      const d = new Date(value);
-      return Number.isNaN(d.getTime()) ? undefined : d;
-    };
-
     await Meeting.findByIdAndUpdate(meeting._id, {
       $set: { transcriptionStatus: 'Processing', ...clearTranscriptionFailureFields() },
     });
@@ -814,39 +788,7 @@ router.post('/:id/retry-transcription', async (req, res) => {
       productType: admin?.productType,
     })
       .then(async (summaryData) => {
-        const safeActionItems = (summaryData.actionItems || []).map((item) => ({
-          task: item.task || '',
-          assignee: item.assignee || '',
-          dueDate: safeParseDate(item.dueDate),
-          status: 'not_started',
-          reviewReminderSent: false,
-          reviewReminderSentAt: null,
-        }));
-
-        const update = {
-          transcription: summaryData.transcription,
-          summary: summaryData.summary,
-          keyPoints: summaryData.keyPoints,
-          actionItems: safeActionItems,
-          decisions: summaryData.decisions || [],
-          nextSteps: summaryData.nextSteps || [],
-          importantNotes: summaryData.importantNotes || [],
-          originalSummary: summaryData.summary,
-          originalKeyPoints: summaryData.keyPoints || [],
-          originalActionItems: safeActionItems,
-          originalDecisions: summaryData.decisions || [],
-          originalNextSteps: summaryData.nextSteps || [],
-          originalImportantNotes: summaryData.importantNotes || [],
-          pendingSummary: summaryData.summary,
-          pendingKeyPoints: summaryData.keyPoints || [],
-          pendingActionItems: safeActionItems,
-          pendingDecisions: summaryData.decisions || [],
-          pendingNextSteps: summaryData.nextSteps || [],
-          pendingImportantNotes: summaryData.importantNotes || [],
-          transcriptionStatus: 'Completed',
-          summaryStatus: 'Pending Approval',
-          ...clearTranscriptionFailureFields(),
-        };
+        const update = buildPipelineUpdateFromSummaryData(summaryData);
 
         await Meeting.findByIdAndUpdate(meeting._id, { $set: update }, { new: true });
         console.log('✅ Transcription retry completed. Summary pending approval from authorized editor.');
@@ -1380,7 +1322,17 @@ router.put('/:id/pending-summary', async (req, res) => {
     const admin = await getAdminFromRequest(req);
     if (!canAccessMeeting(meeting, admin)) return res.status(404).json({ error: 'Meeting not found' });
     if (!assertEditorVerificationOrRespond(meeting, req, res)) return;
-    const { summary, keyPoints, actionItems, decisions, nextSteps, importantNotes } = req.body;
+    const {
+      summary,
+      keyPoints,
+      actionItems,
+      decisions,
+      nextSteps,
+      importantNotes,
+      hiringRecommendation,
+      hiringRecommendationReason,
+      evaluationSignals,
+    } = req.body;
 
     // Update pending summary
     if (summary !== undefined) meeting.pendingSummary = summary;
@@ -1407,6 +1359,15 @@ router.put('/:id/pending-summary', async (req, res) => {
     if (decisions !== undefined) meeting.pendingDecisions = decisions;
     if (nextSteps !== undefined) meeting.pendingNextSteps = nextSteps;
     if (importantNotes !== undefined) meeting.pendingImportantNotes = importantNotes;
+    if (hiringRecommendation !== undefined) {
+      meeting.pendingHiringRecommendation = String(hiringRecommendation || '').trim();
+    }
+    if (hiringRecommendationReason !== undefined) {
+      meeting.pendingHiringRecommendationReason = String(hiringRecommendationReason || '').trim();
+    }
+    if (evaluationSignals !== undefined) {
+      meeting.pendingEvaluationSignals = evaluationSignals;
+    }
 
     await meeting.save();
 
@@ -1575,6 +1536,16 @@ router.post('/:id/approve-and-send', async (req, res) => {
     meeting.decisions = meeting.pendingDecisions.length > 0 ? meeting.pendingDecisions : (meeting.decisions || []);
     meeting.nextSteps = meeting.pendingNextSteps.length > 0 ? meeting.pendingNextSteps : (meeting.nextSteps || []);
     meeting.importantNotes = meeting.pendingImportantNotes.length > 0 ? meeting.pendingImportantNotes : (meeting.importantNotes || []);
+
+    meeting.hiringRecommendation =
+      String(meeting.pendingHiringRecommendation || '').trim() || meeting.hiringRecommendation || '';
+    meeting.hiringRecommendationReason =
+      String(meeting.pendingHiringRecommendationReason || '').trim() ||
+      meeting.hiringRecommendationReason ||
+      '';
+    if (meeting.pendingEvaluationSignals != null) {
+      meeting.evaluationSignals = meeting.pendingEvaluationSignals;
+    }
 
     meeting.summaryStatus = 'Sent';
     meeting.editorVerificationCode = null; // Clear code after use

@@ -75,6 +75,64 @@ const meetingSchema = new mongoose.Schema({
     enum: ['Scheduled', 'In Progress', 'Completed', 'Cancelled'],
     default: 'Scheduled'
   },
+  /** standard | interview — switches LLM prompt/output shape; same pipeline otherwise */
+  summaryMode: {
+    type: String,
+    enum: ['standard', 'interview'],
+    default: 'standard',
+  },
+  interviewCandidateName: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  interviewRole: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  hiringRecommendation: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  hiringRecommendationReason: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  evaluationSignals: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null,
+  },
+  pendingHiringRecommendation: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  pendingHiringRecommendationReason: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  pendingEvaluationSignals: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null,
+  },
+  originalHiringRecommendation: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  originalHiringRecommendationReason: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  originalEvaluationSignals: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null,
+  },
   transcriptionEnabled: {
     type: Boolean,
     default: true

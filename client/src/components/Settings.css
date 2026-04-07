@@ -67,9 +67,19 @@
 }
 
 .settings-sidebar__link--active {
-  background: rgba(255, 255, 255, 0.08);
+  background: linear-gradient(
+    135deg,
+    rgba(59, 130, 246, 0.14) 0%,
+    rgba(139, 92, 246, 0.1) 100%
+  );
+  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.2);
   color: var(--text-primary);
   font-weight: 600;
+}
+
+:root[data-theme='light'] .settings-sidebar__link--active {
+  background: rgba(37, 99, 235, 0.08);
+  box-shadow: none;
 }
 
 .settings-main {

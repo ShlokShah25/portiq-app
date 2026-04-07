@@ -139,9 +139,29 @@ const MeetingSummary = () => {
     (meeting.pendingImportantNotes && meeting.pendingImportantNotes.length) ? meeting.pendingImportantNotes
       : meeting.importantNotes || [];
 
+  const summaryMode = meeting.summaryMode === 'interview' ? 'interview' : 'standard';
+  const hiringRecommendation = String(
+    meeting.pendingHiringRecommendation || meeting.hiringRecommendation || ''
+  ).trim();
+  const hiringRecommendationReason = String(
+    meeting.pendingHiringRecommendationReason || meeting.hiringRecommendationReason || ''
+  ).trim();
+  const evaluationSignals =
+    meeting.pendingEvaluationSignals != null
+      ? meeting.pendingEvaluationSignals
+      : meeting.evaluationSignals;
+
   const decisionsDisplay = (decisions || []).filter(
     (d) => String(d || '').trim().toLowerCase() !== 'not specified'
   );
+
+  const hasInterviewHiring =
+    summaryMode === 'interview' &&
+    (hiringRecommendation ||
+      hiringRecommendationReason ||
+      (evaluationSignals &&
+        typeof evaluationSignals === 'object' &&
+        Object.keys(evaluationSignals).length > 0));
 
   // Use explicit length checks — a bare `.length` chain can evaluate to `0`, which React then renders.
   const hasContent =
@@ -150,7 +170,8 @@ const MeetingSummary = () => {
     actionItems.length > 0 ||
     decisionsDisplay.length > 0 ||
     nextSteps.length > 0 ||
-    importantNotes.length > 0;
+    importantNotes.length > 0 ||
+    hasInterviewHiring;
   /** Any state before distribution — not only strict "Pending Approval" (legacy rows may omit status). */
   const canEditAndSend = meeting.summaryStatus !== 'Sent' && hasContent;
 
@@ -242,7 +263,11 @@ const MeetingSummary = () => {
       })),
       decisions: [...(decisions || [])],
       nextSteps: [...(nextSteps || [])],
-      importantNotes: [...(importantNotes || [])]
+      importantNotes: [...(importantNotes || [])],
+      summaryMode,
+      hiringRecommendation,
+      hiringRecommendationReason,
+      evaluationSignals: evaluationSignals || null,
     });
     setEditingSummary(true);
     setActionError('');
@@ -254,18 +279,20 @@ const MeetingSummary = () => {
     const otpHeaders = editorOtpHeaders(id);
     try {
       if (editableSummary) {
-        await axios.put(
-          `/meetings/${id}/pending-summary`,
-          {
-            summary: editableSummary.summary,
-            keyPoints: editableSummary.keyPoints,
-            actionItems: editableSummary.actionItems,
-            decisions: editableSummary.decisions,
-            nextSteps: editableSummary.nextSteps,
-            importantNotes: editableSummary.importantNotes,
-          },
-          { headers: otpHeaders }
-        );
+        const pendingBody = {
+          summary: editableSummary.summary,
+          keyPoints: editableSummary.keyPoints,
+          actionItems: editableSummary.actionItems,
+          decisions: editableSummary.decisions,
+          nextSteps: editableSummary.nextSteps,
+          importantNotes: editableSummary.importantNotes,
+        };
+        if (editableSummary.summaryMode === 'interview') {
+          pendingBody.hiringRecommendation = editableSummary.hiringRecommendation || '';
+          pendingBody.hiringRecommendationReason = editableSummary.hiringRecommendationReason || '';
+          pendingBody.evaluationSignals = editableSummary.evaluationSignals;
+        }
+        await axios.put(`/meetings/${id}/pending-summary`, pendingBody, { headers: otpHeaders });
       }
       const res = await axios.post(
         `/meetings/${id}/approve-and-send`,
@@ -319,6 +346,10 @@ const MeetingSummary = () => {
               showReadyBadge={false}
               includeSections="actionItemsOnly"
               staggerSections
+              summaryMode={summaryMode}
+              hiringRecommendation={hiringRecommendation}
+              hiringRecommendationReason={hiringRecommendationReason}
+              evaluationSignals={evaluationSignals}
             />
           )}
 
@@ -506,7 +537,11 @@ const MeetingSummary = () => {
             <>
               <div className="meeting-summary-edit">
                 <div className="meeting-summary-edit-field">
-                  <label>{isEducation ? 'Summary' : 'Minutes of the meeting'}</label>
+                  <label>
+                    {editableSummary.summaryMode === 'interview' || isEducation
+                      ? 'Summary'
+                      : 'Minutes of the meeting'}
+                  </label>
                   <textarea
                     value={editableSummary.summary}
                     onChange={e => setEditableSummary({ ...editableSummary, summary: e.target.value })}
@@ -514,8 +549,47 @@ const MeetingSummary = () => {
                     className="meeting-summary-textarea"
                   />
                 </div>
+                {editableSummary.summaryMode === 'interview' && (
+                  <>
+                    <div className="meeting-summary-edit-field">
+                      <label htmlFor="edit-hiring-rec">Final recommendation</label>
+                      <select
+                        id="edit-hiring-rec"
+                        className="meeting-summary-select"
+                        value={editableSummary.hiringRecommendation || ''}
+                        onChange={(e) =>
+                          setEditableSummary({ ...editableSummary, hiringRecommendation: e.target.value })
+                        }
+                      >
+                        <option value="">Select…</option>
+                        <option value="Strong Hire">Strong Hire</option>
+                        <option value="Lean Hire">Lean Hire</option>
+                        <option value="No Hire">No Hire</option>
+                      </select>
+                    </div>
+                    <div className="meeting-summary-edit-field">
+                      <label htmlFor="edit-hiring-reason">Recommendation reasoning</label>
+                      <textarea
+                        id="edit-hiring-reason"
+                        value={editableSummary.hiringRecommendationReason || ''}
+                        onChange={(e) =>
+                          setEditableSummary({
+                            ...editableSummary,
+                            hiringRecommendationReason: e.target.value,
+                          })
+                        }
+                        rows={3}
+                        className="meeting-summary-textarea"
+                      />
+                    </div>
+                  </>
+                )}
                 <div className="meeting-summary-edit-field">
-                  <label>Key Points (one per line)</label>
+                  <label>
+                    {editableSummary.summaryMode === 'interview'
+                      ? 'Key strengths (one per line)'
+                      : 'Key Points (one per line)'}
+                  </label>
                   <textarea
                     value={(editableSummary.keyPoints || []).join('\n')}
                     onChange={e => setEditableSummary({ ...editableSummary, keyPoints: e.target.value.split('\n').filter(l => l.trim()) })}
@@ -585,7 +659,13 @@ const MeetingSummary = () => {
                   />
                 </div>
                 <div className="meeting-summary-edit-field">
-                  <label>{isEducation ? 'Important Concepts (one per line)' : 'Important Notes (one per line)'}</label>
+                  <label>
+                    {editableSummary.summaryMode === 'interview'
+                      ? 'Concerns / red flags (one per line)'
+                      : isEducation
+                        ? 'Important Concepts (one per line)'
+                        : 'Important Notes (one per line)'}
+                  </label>
                   <textarea
                     value={(editableSummary.importantNotes || []).join('\n')}
                     onChange={e => setEditableSummary({ ...editableSummary, importantNotes: e.target.value.split('\n').filter(l => l.trim()) })}
@@ -649,6 +729,10 @@ const MeetingSummary = () => {
                   onMeetingPatched={setMeeting}
                   includeSections="withoutActionItems"
                   staggerSections
+                  summaryMode={summaryMode}
+                  hiringRecommendation={hiringRecommendation}
+                  hiringRecommendationReason={hiringRecommendationReason}
+                  evaluationSignals={evaluationSignals}
                 />
               </div>
               {canEditAndSend && (

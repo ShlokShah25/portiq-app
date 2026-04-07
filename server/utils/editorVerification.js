@@ -52,6 +52,12 @@ function redactMeetingPayloadForEditorVerification(payload) {
   payload.nextSteps = [];
   payload.pendingImportantNotes = [];
   payload.importantNotes = [];
+  payload.pendingHiringRecommendation = '';
+  payload.hiringRecommendation = '';
+  payload.pendingHiringRecommendationReason = '';
+  payload.hiringRecommendationReason = '';
+  payload.pendingEvaluationSignals = null;
+  payload.evaluationSignals = null;
   if (payload.transcription !== undefined) payload.transcription = '';
   if (payload.parentContinuation && typeof payload.parentContinuation === 'object') {
     payload.parentContinuation = {

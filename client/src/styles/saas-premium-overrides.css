@@ -1,0 +1,136 @@
+/**
+ * Loads after App.css — fixes global scrollbar hide, button contrast, and shared surfaces.
+ * Perplexity-style: calm depth, visible scroll where it matters, accessible focus.
+ */
+
+/* —— Scrollbars (App.css hides all; restore on main scroll regions) —— */
+.app-shell__main::-webkit-scrollbar,
+.dashboard-content::-webkit-scrollbar,
+.settings-main::-webkit-scrollbar,
+.settings-sidebar::-webkit-scrollbar,
+.transcripts-content::-webkit-scrollbar,
+.insights-content::-webkit-scrollbar,
+.participants-content::-webkit-scrollbar,
+.meetings-content::-webkit-scrollbar,
+.client-admin-content::-webkit-scrollbar,
+.meeting-detail-screen::-webkit-scrollbar,
+.meeting-summary-screen.meeting-in-progress::-webkit-scrollbar,
+.approval-workflow-modal::-webkit-scrollbar {
+  display: block;
+  width: 8px;
+  height: 8px;
+}
+
+.app-shell__main::-webkit-scrollbar-track,
+.dashboard-content::-webkit-scrollbar-track,
+.settings-main::-webkit-scrollbar-track,
+.settings-sidebar::-webkit-scrollbar-track,
+.transcripts-content::-webkit-scrollbar-track,
+.insights-content::-webkit-scrollbar-track,
+.participants-content::-webkit-scrollbar-track,
+.meetings-content::-webkit-scrollbar-track,
+.client-admin-content::-webkit-scrollbar-track,
+.meeting-detail-screen::-webkit-scrollbar-track,
+.meeting-summary-screen.meeting-in-progress::-webkit-scrollbar-track,
+.approval-workflow-modal::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.app-shell__main::-webkit-scrollbar-thumb,
+.dashboard-content::-webkit-scrollbar-thumb,
+.settings-main::-webkit-scrollbar-thumb,
+.settings-sidebar::-webkit-scrollbar-thumb,
+.transcripts-content::-webkit-scrollbar-thumb,
+.insights-content::-webkit-scrollbar-thumb,
+.participants-content::-webkit-scrollbar-thumb,
+.meetings-content::-webkit-scrollbar-thumb,
+.client-admin-content::-webkit-scrollbar-thumb,
+.meeting-detail-screen::-webkit-scrollbar-thumb,
+.meeting-summary-screen.meeting-in-progress::-webkit-scrollbar-thumb,
+.approval-workflow-modal::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.app-shell__main::-webkit-scrollbar-thumb:hover,
+.dashboard-content::-webkit-scrollbar-thumb:hover,
+.settings-main::-webkit-scrollbar-thumb:hover,
+.transcripts-content::-webkit-scrollbar-thumb:hover,
+.insights-content::-webkit-scrollbar-thumb:hover,
+.participants-content::-webkit-scrollbar-thumb:hover,
+.meetings-content::-webkit-scrollbar-thumb:hover,
+.client-admin-content::-webkit-scrollbar-thumb:hover,
+.meeting-detail-screen::-webkit-scrollbar-thumb:hover,
+.meeting-summary-screen.meeting-in-progress::-webkit-scrollbar-thumb:hover,
+.approval-workflow-modal::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  background-clip: padding-box;
+}
+
+/* —— Primary CTA: brand gradient (keeps App.css structure, upgrades finish) —— */
+.App .btn-primary {
+  background: var(--gradient-accent);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: var(--shadow-glow-blue);
+}
+
+.App .btn-primary:hover {
+  filter: brightness(1.05);
+  box-shadow: 0 8px 32px rgba(59, 130, 246, 0.4), 0 0 0 1px rgba(129, 140, 248, 0.25);
+}
+
+:root[data-theme='dark'] .App .btn-secondary {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+}
+
+:root[data-theme='dark'] .App .btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(129, 140, 248, 0.35);
+  color: var(--text-primary);
+}
+
+:root[data-theme='light'] .App .btn-secondary {
+  background: var(--surface-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+}
+
+/* —— Cards: depth without breaking layouts —— */
+.App .card {
+  background: var(--surface-glass, var(--dash-card-bg));
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-card, 18px);
+  box-shadow: var(--shadow-soft-sm);
+  transition:
+    border-color var(--dur-base, 0.22s) ease,
+    box-shadow var(--dur-base, 0.22s) ease,
+    transform var(--dur-fast, 0.15s) var(--ease-out, ease);
+}
+
+.App .card:hover {
+  border-color: var(--dash-row-border-hover);
+  box-shadow: var(--shadow-soft-lg);
+}
+
+/* —— Focus rings (keyboard) —— */
+.App a:focus-visible,
+.App button:focus-visible,
+.App input:focus-visible,
+.App select:focus-visible,
+.App textarea:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px rgba(59, 130, 246, 0.45);
+}
+
+:root[data-theme='light'] .App a:focus-visible,
+:root[data-theme='light'] .App button:focus-visible,
+:root[data-theme='light'] .App input:focus-visible,
+:root[data-theme='light'] .App select:focus-visible,
+:root[data-theme='light'] .App textarea:focus-visible {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgba(37, 99, 235, 0.45);
+}

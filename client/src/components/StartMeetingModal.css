@@ -1058,3 +1058,101 @@
   border-color: rgba(255, 255, 255, 0.35);
   border-top-color: #fff;
 }
+
+/* Standard vs Interview summary mode (create meeting) */
+.meeting-create-mode-block {
+  margin: 16px 0 4px;
+  padding: 14px 14px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(
+    165deg,
+    rgba(59, 130, 246, 0.06) 0%,
+    rgba(17, 22, 29, 0.5) 100%
+  );
+}
+
+.meeting-create-mode-block__label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9ca3af;
+  margin-bottom: 10px;
+}
+
+.meeting-create-mode-segment {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.meeting-create-mode-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: #d1d5db;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.meeting-create-mode-option:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.meeting-create-mode-option input {
+  accent-color: #3b82f6;
+  margin: 0;
+  cursor: pointer;
+}
+
+.meeting-create-mode-option:has(input:checked) {
+  border-color: rgba(59, 130, 246, 0.45);
+  background: rgba(59, 130, 246, 0.12);
+  color: #e5e7eb;
+}
+
+.meeting-create-interview-fields {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+@media (min-width: 480px) {
+  .meeting-create-interview-fields {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.meeting-create-interview-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.25);
+  color: #f3f4f6;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.meeting-create-interview-input::placeholder {
+  color: #6b7280;
+}
+
+.meeting-create-interview-input:focus {
+  outline: none;
+  border-color: rgba(59, 130, 246, 0.45);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}

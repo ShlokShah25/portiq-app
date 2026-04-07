@@ -524,6 +524,127 @@
   margin-top: 2px;
 }
 
+.meeting-summary-section--hiring {
+  padding-top: 20px;
+  border-top: 1px solid rgba(139, 92, 246, 0.22);
+  background: linear-gradient(
+    165deg,
+    rgba(139, 92, 246, 0.08) 0%,
+    rgba(17, 22, 29, 0.35) 100%
+  );
+  border-radius: 14px;
+  padding-left: 18px;
+  padding-right: 18px;
+  padding-bottom: 4px;
+  margin-top: 8px;
+}
+
+.meeting-summary-hiring-verdict {
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #e5e7eb;
+  margin: 0 0 10px;
+}
+
+.meeting-summary-hiring-verdict[data-verdict='strong-hire'] {
+  color: #34d399;
+}
+
+.meeting-summary-hiring-verdict[data-verdict='lean-hire'] {
+  color: #fbbf24;
+}
+
+.meeting-summary-hiring-verdict[data-verdict='no-hire'] {
+  color: #f87171;
+}
+
+.meeting-summary-hiring-reason {
+  margin-top: 4px;
+}
+
+.meeting-summary-section--signals {
+  padding-top: 20px;
+}
+
+.meeting-summary-signals {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.meeting-summary-signal-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.meeting-summary-signal-row dt {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-label, #86868b);
+  margin: 0;
+}
+
+.meeting-summary-signal-row dd {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-secondary, #a1a1a6);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.meeting-summary-signal-level {
+  display: inline-flex;
+  align-self: flex-start;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.14);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.25);
+}
+
+.meeting-summary-signal-just {
+  display: block;
+}
+
+.meeting-summary-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  width: 100%;
+  max-width: 320px;
+  background-color: var(--surface-input, #161c24);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2398989d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  color: #e5e5e5;
+  font-size: 14px;
+  padding: 10px 14px;
+  padding-right: 2.5rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.meeting-summary-select:focus {
+  outline: none;
+  border-color: rgba(59, 130, 246, 0.45);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
 .meeting-summary-heading {
   font-size: 0.6875rem;
   font-weight: 600;

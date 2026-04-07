@@ -12,6 +12,8 @@
   --surface-secondary: #11161d;
   --surface-card: #11161d;
   --surface-input: #161c24;
+  /* Frosted panels (cards, strips) */
+  --surface-glass: rgba(17, 22, 29, 0.78);
 
   --border-color: rgba(255, 255, 255, 0.055);
   --border-strong: rgba(255, 255, 255, 0.09);
@@ -105,6 +107,7 @@
   --surface-secondary: #ffffff;
   --surface-card: #ffffff;
   --surface-input: #f8fafc;
+  --surface-glass: rgba(255, 255, 255, 0.88);
 
   --border-color: #e4e8f1;
   --border-strong: #cdd5e4;

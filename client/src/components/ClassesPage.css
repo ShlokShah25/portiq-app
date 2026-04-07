@@ -1,7 +1,11 @@
 .classes-page {
   min-height: 100vh;
-  background: #0a0a0a;
-  color: #e5e5e5;
+  background-color: var(--bg-primary, #0a0a0a);
+  background-image: var(--page-ambient-gradient, none);
+  background-size: 100% 100%;
+  background-attachment: fixed;
+  color: var(--text-primary, #e5e5e5);
+  font-family: var(--font-sans, 'Inter', system-ui, sans-serif);
 }
 
 .classes-wrapper {

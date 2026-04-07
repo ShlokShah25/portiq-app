@@ -23,6 +23,11 @@ function buildPipelineUpdateFromSummaryData(summaryData) {
     reviewReminderSentAt: null,
   }));
 
+  const hr = summaryData.hiringRecommendation != null ? String(summaryData.hiringRecommendation) : '';
+  const hrr =
+    summaryData.hiringRecommendationReason != null ? String(summaryData.hiringRecommendationReason) : '';
+  const ev = summaryData.evaluationSignals !== undefined ? summaryData.evaluationSignals : null;
+
   return {
     transcription: summaryData.transcription,
     summary: summaryData.summary,
@@ -43,6 +48,15 @@ function buildPipelineUpdateFromSummaryData(summaryData) {
     pendingDecisions: summaryData.decisions || [],
     pendingNextSteps: summaryData.nextSteps || [],
     pendingImportantNotes: summaryData.importantNotes || [],
+    hiringRecommendation: hr,
+    hiringRecommendationReason: hrr,
+    evaluationSignals: ev,
+    pendingHiringRecommendation: hr,
+    pendingHiringRecommendationReason: hrr,
+    pendingEvaluationSignals: ev,
+    originalHiringRecommendation: hr,
+    originalHiringRecommendationReason: hrr,
+    originalEvaluationSignals: ev,
     transcriptionStatus: 'Completed',
     summaryStatus: 'Pending Approval',
     ...clearTranscriptionFailureFields(),
