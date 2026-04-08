@@ -60,8 +60,7 @@ function statusLabel(s) {
 }
 
 const DASHBOARD_TIPS = [
-  'Tip: Add participants quickly from Settings → Workspace.',
-  'Tip: Add participants directly while creating a meeting.',
+  'Tip: Add participants from Settings → Workspace or directly while creating a meeting.',
   'Tip: Use optional details to adjust date, time, and location before you start.',
   'Tip: Review action items regularly so nothing slips through.',
   'Tip: Pending summaries need a quick review before they go out.',
