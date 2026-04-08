@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Lightbulb,
   FileText,
+  Users,
 } from 'lucide-react';
 import './Dashboard.css';
 
@@ -64,7 +65,60 @@ const DASHBOARD_TIPS = [
   'Tip: Use optional details to adjust date, time, and location before you start.',
   'Tip: Review action items regularly so nothing slips through.',
   'Tip: Pending summaries need a quick review before they go out.',
+  'Tip: Interview meetings leave your decision queue after you approve and send the summary.',
 ];
+
+function interviewCandidateSubtitle(m) {
+  const arr = Array.isArray(m.interviewCandidates) ? m.interviewCandidates : [];
+  const named = arr.filter((c) => c && String(c.name || '').trim());
+  if (named.length === 0) {
+    const leg = String(m.interviewCandidateName || '').trim();
+    return leg || 'Interview';
+  }
+  if (named.length === 1) return named[0].name;
+  return `${named.length} candidates`;
+}
+
+function hiringVerdictChipClass(m) {
+  const h = String(m.hiringRecommendation || '').trim().toLowerCase();
+  if (h.includes('strong')) return 'dashboard-interview-verdict--strong';
+  if (h.includes('lean')) return 'dashboard-interview-verdict--lean';
+  if (h.includes('no hire')) return 'dashboard-interview-verdict--nohire';
+  return 'dashboard-interview-verdict--neutral';
+}
+
+function hiringVerdictShort(m) {
+  const h = String(m.hiringRecommendation || '').trim();
+  if (!h) return 'Recorded';
+  if (h.includes('Strong')) return 'Strong hire';
+  if (h.includes('Lean')) return 'Lean hire';
+  if (h.includes('No')) return 'No hire';
+  return h;
+}
+
+function isInterviewDecisionPending(m) {
+  if (m.summaryMode !== 'interview') return false;
+  if (m.transcriptionStatus === 'Failed') return false;
+  if (m.transcriptionStatus !== 'Completed') return false;
+  if (m.summaryStatus === 'Sent') return false;
+  const hasSummary = String(m.pendingSummary || m.summary || '').trim().length > 0;
+  const hasHiringDraft =
+    String(
+      m.pendingHiringRecommendation ||
+        m.hiringRecommendation ||
+        m.pendingHiringRecommendationReason ||
+        m.hiringRecommendationReason ||
+        ''
+    ).trim().length > 0;
+  const hasEval =
+    (m.pendingEvaluationSignals &&
+      typeof m.pendingEvaluationSignals === 'object' &&
+      Object.keys(m.pendingEvaluationSignals).length > 0) ||
+    (m.evaluationSignals &&
+      typeof m.evaluationSignals === 'object' &&
+      Object.keys(m.evaluationSignals).length > 0);
+  return hasSummary || hasHiringDraft || hasEval;
+}
 
 function pickDashboardTipIndex() {
   try {
@@ -131,9 +185,32 @@ const Dashboard = () => {
   const pendingSummaryMeetings = useMemo(() => {
     return meetings
       .filter((m) => String(m.pendingSummary || '').trim().length > 0)
+      .filter((m) => m.summaryMode !== 'interview')
       .sort((a, b) => {
         const ta = new Date(a.updatedAt || a.endTime || a.startTime || 0).getTime();
         const tb = new Date(b.updatedAt || b.endTime || b.startTime || 0).getTime();
+        return tb - ta;
+      })
+      .slice(0, 6);
+  }, [meetings]);
+
+  const interviewQueuePending = useMemo(() => {
+    return meetings
+      .filter(isInterviewDecisionPending)
+      .sort((a, b) => {
+        const ta = new Date(a.updatedAt || a.endTime || a.startTime || 0).getTime();
+        const tb = new Date(b.updatedAt || b.endTime || b.startTime || 0).getTime();
+        return tb - ta;
+      })
+      .slice(0, 8);
+  }, [meetings]);
+
+  const interviewQueueResolved = useMemo(() => {
+    return meetings
+      .filter((m) => m.summaryMode === 'interview' && m.summaryStatus === 'Sent')
+      .sort((a, b) => {
+        const ta = new Date(a.interviewDecisionAt || a.updatedAt || 0).getTime();
+        const tb = new Date(b.interviewDecisionAt || b.updatedAt || 0).getTime();
         return tb - ta;
       })
       .slice(0, 6);
@@ -250,6 +327,121 @@ const Dashboard = () => {
                   );
                 })}
               </ul>
+            </section>
+          ) : null}
+
+          {interviewQueuePending.length > 0 || interviewQueueResolved.length > 0 ? (
+            <section
+              className="dashboard-interview-pipeline ux-dashboard-stagger"
+              style={{ animationDelay: '95ms' }}
+              aria-labelledby="dash-interview-pipeline"
+            >
+              <div className="dashboard-interview-pipeline__head">
+                <span className="dashboard-interview-pipeline__icon" aria-hidden>
+                  <Users className="dashboard-stat-chip__lucide" strokeWidth={1.5} />
+                </span>
+                <div className="dashboard-interview-pipeline__head-copy">
+                  <h2 id="dash-interview-pipeline" className="dashboard-interview-pipeline__title">
+                    Interview pipeline
+                  </h2>
+                  <p className="dashboard-interview-pipeline__sub">
+                    Approve your hiring recommendation and send the summary — interviews drop off this list once
+                    they&apos;re sent. Recent decisions stay below for a quick audit trail.
+                  </p>
+                </div>
+                <Link to="/meetings" state={{ showAllMeetings: true }} className="dashboard-section__link">
+                  Meetings
+                </Link>
+              </div>
+
+              {interviewQueuePending.length > 0 ? (
+                <div className="dashboard-interview-pipeline__block">
+                  <h3 className="dashboard-interview-pipeline__block-title">Needs your decision</h3>
+                  <ul className="dashboard-interview-pipeline__list">
+                    {interviewQueuePending.map((m) => {
+                      const id = m._id != null ? String(m._id) : '';
+                      const draft = String(
+                        m.pendingHiringRecommendation || m.hiringRecommendation || ''
+                      ).trim();
+                      return (
+                        <li key={id}>
+                          <Link
+                            to={`/meetings/${id}/summary`}
+                            className="dashboard-interview-pipeline__row dashboard-interview-pipeline__row--pending"
+                          >
+                            <span className="dashboard-interview-pipeline__row-main">
+                              <span className="dashboard-interview-pipeline__meeting-title">
+                                {m.title || 'Interview'}
+                              </span>
+                              <span className="dashboard-interview-pipeline__meta">
+                                {interviewCandidateSubtitle(m)}
+                              </span>
+                            </span>
+                            {draft ? (
+                              <span
+                                className={`dashboard-interview-verdict dashboard-interview-verdict--draft ${hiringVerdictChipClass(
+                                  { hiringRecommendation: draft }
+                                )}`}
+                              >
+                                AI: {hiringVerdictShort({ hiringRecommendation: draft })}
+                              </span>
+                            ) : (
+                              <span className="dashboard-interview-pipeline__cta">Review</span>
+                            )}
+                            <ChevronRight
+                              className="dashboard-interview-pipeline__chev"
+                              strokeWidth={2}
+                              aria-hidden
+                            />
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ) : (
+                <p className="dashboard-interview-pipeline__caught-up">
+                  You&apos;re all caught up — nothing waiting on a hiring decision.
+                </p>
+              )}
+
+              {interviewQueueResolved.length > 0 ? (
+                <div className="dashboard-interview-pipeline__block dashboard-interview-pipeline__block--resolved">
+                  <h3 className="dashboard-interview-pipeline__block-title">Recent decisions</h3>
+                  <ul className="dashboard-interview-pipeline__list dashboard-interview-pipeline__list--resolved">
+                    {interviewQueueResolved.map((m) => {
+                      const id = m._id != null ? String(m._id) : '';
+                      return (
+                        <li key={id}>
+                          <Link
+                            to={`/meetings/${id}/summary`}
+                            className="dashboard-interview-pipeline__row dashboard-interview-pipeline__row--resolved"
+                          >
+                            <span className="dashboard-interview-pipeline__row-main">
+                              <span className="dashboard-interview-pipeline__meeting-title">
+                                {m.title || 'Interview'}
+                              </span>
+                              <span className="dashboard-interview-pipeline__meta">
+                                {interviewCandidateSubtitle(m)}
+                              </span>
+                            </span>
+                            <span
+                              className={`dashboard-interview-verdict ${hiringVerdictChipClass(m)}`}
+                            >
+                              {hiringVerdictShort(m)}
+                            </span>
+                            <ChevronRight
+                              className="dashboard-interview-pipeline__chev"
+                              strokeWidth={2}
+                              aria-hidden
+                            />
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ) : null}
             </section>
           ) : null}
 

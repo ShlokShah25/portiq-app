@@ -16,6 +16,55 @@ function countAdminActionMenuItems(m) {
   return n;
 }
 
+/** Interview rows use the same Meeting model as standard meetings; export + UI surface type + hiring fields. */
+function formatMeetingInterviewMeta(meeting) {
+  if (!meeting || meeting.summaryMode !== 'interview') return '';
+  let s = '';
+  s += `Meeting type: Interview\n`;
+  const ie = String(meeting.interviewInterviewerEmail || '').trim();
+  if (ie) s += `Interviewer (email): ${ie}\n`;
+  const cands = Array.isArray(meeting.interviewCandidates) ? meeting.interviewCandidates : [];
+  const named = cands.filter((c) => c && String(c.name || '').trim());
+  if (named.length) {
+    s += `Candidates:\n`;
+    named.forEach((c) => {
+      const n = String(c.name || '').trim();
+      const r = String(c.role || '').trim();
+      s += `  - ${n}${r ? ` — ${r}` : ''}\n`;
+    });
+  } else if (String(meeting.interviewCandidateName || '').trim()) {
+    s += `Candidate: ${String(meeting.interviewCandidateName).trim()}`;
+    if (String(meeting.interviewRole || '').trim()) s += ` — ${String(meeting.interviewRole).trim()}`;
+    s += '\n';
+  }
+  const hire =
+    String(meeting.hiringRecommendation || meeting.pendingHiringRecommendation || '').trim() ||
+    '';
+  const hireReason =
+    String(
+      meeting.hiringRecommendationReason || meeting.pendingHiringRecommendationReason || ''
+    ).trim() || '';
+  if (hire || hireReason) {
+    s += `Hiring recommendation: ${hire || '(pending)'}\n`;
+    if (hireReason) s += `Recommendation notes: ${hireReason}\n`;
+  }
+  const ev = meeting.evaluationSignals || meeting.pendingEvaluationSignals;
+  if (ev && typeof ev === 'object' && Object.keys(ev).length) {
+    s += `Evaluation signals:\n`;
+    Object.entries(ev).forEach(([k, v]) => {
+      if (v && typeof v === 'object') {
+        s += `  - ${k}: ${String(v.level || '').trim()} — ${String(v.justification || '').trim()}\n`;
+      }
+    });
+  }
+  s += '\n';
+  return s;
+}
+
+function meetingTypeLabel(m) {
+  return m && m.summaryMode === 'interview' ? 'Interview' : 'Standard';
+}
+
 function computeAdminActionMenuPosition(anchorRect, itemCount) {
   const gap = 8;
   const vh = window.innerHeight;
@@ -40,7 +89,8 @@ const Meetings = () => {
   const [filters, setFilters] = useState({
     status: '',
     meetingRoom: '',
-    date: ''
+    date: '',
+    summaryMode: '',
   });
   /** Snapshot meeting + geometry so the menu never disappears when find() fails on _id shape. */
   const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
@@ -89,6 +139,7 @@ const Meetings = () => {
       if (filters.status) params.status = filters.status;
       if (filters.meetingRoom) params.meetingRoom = filters.meetingRoom;
       if (filters.date) params.date = filters.date;
+      if (filters.summaryMode) params.summaryMode = filters.summaryMode;
 
       const response = await axios.get('/admin/meetings', { params });
       setMeetings(response.data.meetings || []);
@@ -172,6 +223,7 @@ const Meetings = () => {
     content += `Start Time: ${formatDate(meeting.startTime)}\n`;
     content += `End Time: ${formatDate(meeting.endTime)}\n`;
     content += `Status: ${meeting.status}\n`;
+    content += formatMeetingInterviewMeta(meeting);
     if (meeting.participants && meeting.participants.length > 0) {
       content += `Participants:\n`;
       meeting.participants.forEach(p => {
@@ -287,7 +339,8 @@ const Meetings = () => {
             <div>
               <h1>All Meetings</h1>
               <p style={{ color: '#666', marginTop: '10px' }}>
-                View and manage all meeting records (including completed meetings beyond display window)
+                View and manage all meeting records (standard and interview use the same store; filter by meeting type
+                if needed).
               </p>
             </div>
             <button 
@@ -319,7 +372,7 @@ const Meetings = () => {
 
         <div className="card">
           <h2>Filters</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '15px' }}>
             <div className="form-group">
               <label>Status</label>
               <select
@@ -331,6 +384,17 @@ const Meetings = () => {
                 <option value="In Progress">In Progress</option>
                 <option value="Completed">Completed</option>
                 <option value="Cancelled">Cancelled</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Meeting type</label>
+              <select
+                value={filters.summaryMode}
+                onChange={(e) => setFilters({ ...filters, summaryMode: e.target.value })}
+              >
+                <option value="">All types</option>
+                <option value="standard">Standard</option>
+                <option value="interview">Interview</option>
               </select>
             </div>
             <div className="form-group">
@@ -368,6 +432,7 @@ const Meetings = () => {
                   <thead>
                     <tr>
                       <th>Title</th>
+                      <th>Type</th>
                       <th>Room</th>
                       <th>Organizer</th>
                       <th>Start Time</th>
@@ -392,6 +457,9 @@ const Meetings = () => {
                                 style={{ width: '100%', padding: '6px', border: '1px solid #ddd', borderRadius: '4px' }}
                                 onClick={(e) => e.stopPropagation()}
                               />
+                            </td>
+                            <td>
+                              <span style={{ fontSize: '12px', color: '#555' }}>{meetingTypeLabel(meeting)}</span>
                             </td>
                             <td>
                               <input
@@ -450,6 +518,21 @@ const Meetings = () => {
                           <>
                             <td onClick={() => setSelectedMeeting(meeting)} style={{ cursor: 'pointer' }}>
                               <strong>{meeting.title}</strong>
+                            </td>
+                            <td onClick={() => setSelectedMeeting(meeting)} style={{ cursor: 'pointer' }}>
+                              <span
+                                style={{
+                                  display: 'inline-block',
+                                  padding: '2px 8px',
+                                  borderRadius: '10px',
+                                  fontSize: '11px',
+                                  fontWeight: 600,
+                                  background: meeting.summaryMode === 'interview' ? '#ecfdf5' : '#f3f4f6',
+                                  color: meeting.summaryMode === 'interview' ? '#047857' : '#4b5563',
+                                }}
+                              >
+                                {meetingTypeLabel(meeting)}
+                              </span>
                             </td>
                             <td onClick={() => setSelectedMeeting(meeting)} style={{ cursor: 'pointer' }}>
                               {meeting.meetingRoom}
@@ -556,6 +639,81 @@ const Meetings = () => {
               <p><strong>Start:</strong> {formatDate(selectedMeeting.startTime)}</p>
               <p><strong>End:</strong> {formatDate(selectedMeeting.endTime)}</p>
               <p><strong>Status:</strong> <span style={getStatusBadge(selectedMeeting.status)}>{selectedMeeting.status}</span></p>
+              <p>
+                <strong>Meeting type:</strong>{' '}
+                <span
+                  style={{
+                    display: 'inline-block',
+                    padding: '2px 10px',
+                    borderRadius: '10px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    background: selectedMeeting.summaryMode === 'interview' ? '#ecfdf5' : '#f3f4f6',
+                    color: selectedMeeting.summaryMode === 'interview' ? '#047857' : '#4b5563',
+                  }}
+                >
+                  {meetingTypeLabel(selectedMeeting)}
+                </span>
+              </p>
+              {selectedMeeting.summaryMode === 'interview' && (
+                <div style={{ marginTop: '12px', marginBottom: '20px', padding: '12px 14px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <p style={{ margin: '0 0 8px', fontWeight: 600 }}>Interview</p>
+                  {String(selectedMeeting.interviewInterviewerEmail || '').trim() ? (
+                    <p style={{ margin: '4px 0' }}>
+                      <strong>Interviewer:</strong> {String(selectedMeeting.interviewInterviewerEmail).trim()}
+                    </p>
+                  ) : null}
+                  {Array.isArray(selectedMeeting.interviewCandidates) &&
+                  selectedMeeting.interviewCandidates.some((c) => c && String(c.name || '').trim()) ? (
+                    <ul style={{ margin: '8px 0 0 18px', padding: 0 }}>
+                      {selectedMeeting.interviewCandidates
+                        .filter((c) => c && String(c.name || '').trim())
+                        .map((c, idx) => (
+                          <li key={idx}>
+                            {String(c.name).trim()}
+                            {String(c.role || '').trim() ? (
+                              <span style={{ color: '#64748b' }}> — {String(c.role).trim()}</span>
+                            ) : null}
+                          </li>
+                        ))}
+                    </ul>
+                  ) : String(selectedMeeting.interviewCandidateName || '').trim() ? (
+                    <p style={{ margin: '4px 0' }}>
+                      <strong>Candidate:</strong> {String(selectedMeeting.interviewCandidateName).trim()}
+                      {String(selectedMeeting.interviewRole || '').trim()
+                        ? ` — ${String(selectedMeeting.interviewRole).trim()}`
+                        : ''}
+                    </p>
+                  ) : null}
+                  {(selectedMeeting.hiringRecommendation ||
+                    selectedMeeting.pendingHiringRecommendation ||
+                    selectedMeeting.hiringRecommendationReason ||
+                    selectedMeeting.pendingHiringRecommendationReason) && (
+                    <>
+                      <p style={{ margin: '12px 0 4px', fontWeight: 600 }}>Hiring recommendation</p>
+                      <p style={{ margin: '0 0 6px' }}>
+                        {String(
+                          selectedMeeting.hiringRecommendation ||
+                            selectedMeeting.pendingHiringRecommendation ||
+                            ''
+                        ).trim() || '(pending)'}
+                      </p>
+                      {String(
+                        selectedMeeting.hiringRecommendationReason ||
+                          selectedMeeting.pendingHiringRecommendationReason ||
+                          ''
+                      ).trim() ? (
+                        <p style={{ margin: 0, color: '#475569', fontSize: '14px' }}>
+                          {String(
+                            selectedMeeting.hiringRecommendationReason ||
+                              selectedMeeting.pendingHiringRecommendationReason
+                          ).trim()}
+                        </p>
+                      ) : null}
+                    </>
+                  )}
+                </div>
+              )}
               <p><strong>Participants:</strong></p>
               <ul style={{ marginLeft: '20px', marginTop: '10px' }}>
                 {selectedMeeting.participants?.map((p, idx) => (

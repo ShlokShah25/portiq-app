@@ -525,6 +525,7 @@ const MeetingInProgress = () => {
   }
 
   const recordingLive = recording || isGlobalRecordingActive();
+  const isInterview = meeting?.summaryMode === 'interview';
   const meetingLocationTrimmed = meeting ? String(meeting.meetingRoom || '').trim() : '';
   const hasMeetingLocation = meetingLocationTrimmed.length > 0;
   const showLiveStatusChip =
@@ -540,10 +541,12 @@ const MeetingInProgress = () => {
             <>
               <div className="meeting-summary-ready-badge mip-ready-badge mip-ready-badge--neutral">
                 <span className="meeting-summary-ready-badge__dot mip-ready-badge__dot--neutral" />
-                Meeting ended
+                {isInterview ? 'Interview ended' : 'Meeting ended'}
               </div>
               <h1 className="meeting-summary-page-title">{meeting.title || 'Untitled meeting'}</h1>
-              <p className="meeting-summary-subtitle">Session ended</p>
+              <p className="meeting-summary-subtitle">
+                {isInterview ? 'Session ended — next, review AI recommendations' : 'Session ended'}
+              </p>
               <div className="meeting-summary-see-all-row">
                 <button
                   type="button"
@@ -554,8 +557,18 @@ const MeetingInProgress = () => {
                 </button>
               </div>
               <p className="mip-ai-disclaimer">
-                Your {T.meeting().toLowerCase()} is closed. Open the summary to review the transcript and AI-generated
-                minutes before you send anything to participants.
+                {isInterview ? (
+                  <>
+                    This interview is closed. Open the summary to see the transcript, evaluation signals, and hiring
+                    recommendation (they may take a minute to generate). Review and approve before anything is sent to
+                    participants.
+                  </>
+                ) : (
+                  <>
+                    Your {T.meeting().toLowerCase()} is closed. Open the summary to review the transcript and AI-generated
+                    minutes before you send anything to participants.
+                  </>
+                )}
               </p>
               <div className="meeting-summary-actions">
                 <button
@@ -563,7 +576,7 @@ const MeetingInProgress = () => {
                   className="meeting-summary-btn meeting-summary-btn--primary"
                   onClick={() => navigate(`/meetings/${meetingId}/summary`)}
                 >
-                  View {T.meetingSummary()}
+                  {isInterview ? 'View interview summary & recommendations' : `View ${T.meetingSummary()}`}
                 </button>
                 <button
                   type="button"
@@ -586,9 +599,13 @@ const MeetingInProgress = () => {
                 </div>
                 <h1 className="meeting-summary-page-title mip-live-title">{meeting.title || 'Untitled meeting'}</h1>
                 <p className="meeting-summary-subtitle mip-live-subtitle">
-                  {meeting.status === 'Scheduled'
-                    ? 'When you begin, start recording below.'
-                    : 'Meeting in progress'}
+                  {isInterview
+                    ? meeting.status === 'Scheduled'
+                      ? 'Start recording when the interview begins — we’ll build notes and hiring recommendations afterward.'
+                      : 'Interview in progress'
+                    : meeting.status === 'Scheduled'
+                      ? 'When you begin, start recording below.'
+                      : 'Meeting in progress'}
                 </p>
               </header>
 
@@ -802,7 +819,7 @@ const MeetingInProgress = () => {
             onClick={handleEndMeeting}
             disabled={uploading}
           >
-            End meeting
+            {isInterview ? 'End interview' : 'End meeting'}
           </button>
         </div>
             </>

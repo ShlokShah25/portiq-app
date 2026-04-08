@@ -1601,6 +1601,9 @@ router.post('/:id/approve-and-send', async (req, res) => {
     }
 
     meeting.summaryStatus = 'Sent';
+    if (meeting.summaryMode === 'interview') {
+      meeting.interviewDecisionAt = new Date();
+    }
     meeting.editorVerificationCode = null; // Clear code after use
     meeting.editorVerificationExpiry = null;
     await meeting.save();

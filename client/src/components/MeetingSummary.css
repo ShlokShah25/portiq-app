@@ -524,6 +524,60 @@
   margin-top: 2px;
 }
 
+.meeting-summary-section--interview-roster {
+  padding-top: 16px;
+  margin-top: 4px;
+  border-top: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 14px;
+  padding-left: 16px;
+  padding-right: 16px;
+  padding-bottom: 8px;
+  background: rgba(59, 130, 246, 0.06);
+}
+
+.meeting-summary-interview-roster-note {
+  font-size: 12px;
+  color: var(--text-muted, #6b7280);
+  margin: 0 0 12px;
+  line-height: 1.45;
+}
+
+.meeting-summary-interview-roster-line {
+  margin: 0 0 12px;
+}
+
+.meeting-summary-interview-roster-table-wrap {
+  overflow-x: auto;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.meeting-summary-interview-roster-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.meeting-summary-interview-roster-table th,
+.meeting-summary-interview-roster-table td {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.meeting-summary-interview-roster-table th {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-label, #86868b);
+}
+
+.meeting-summary-interview-roster-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
 .meeting-summary-section--hiring {
   padding-top: 20px;
   border-top: 1px solid rgba(139, 92, 246, 0.22);

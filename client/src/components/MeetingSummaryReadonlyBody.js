@@ -7,6 +7,7 @@ import {
   CheckCircle,
   Square,
   Award,
+  Users,
 } from 'lucide-react';
 import { getEffectiveDueDate } from '../utils/actionItemDueDate';
 import {
@@ -44,6 +45,35 @@ export default function MeetingSummaryReadonlyBody({
     summaryModeProp || (meeting?.summaryMode === 'interview' ? 'interview' : 'standard');
   const isInterview = summaryMode === 'interview';
 
+  const intEmail = String(meeting?.interviewInterviewerEmail || '').trim().toLowerCase();
+  const interviewerLabel = (() => {
+    if (!intEmail) return '';
+    const parts = meeting?.participants;
+    if (!Array.isArray(parts)) return intEmail;
+    const p = parts.find(
+      (x) => x && String(x.email || '').trim().toLowerCase() === intEmail
+    );
+    const nm = p && String(p.name || '').trim();
+    return nm ? `${nm} (${intEmail})` : `${intEmail.split('@')[0]} (${intEmail})`;
+  })();
+
+  const candidatesFromDoc = Array.isArray(meeting?.interviewCandidates)
+    ? meeting.interviewCandidates.filter((c) => c && String(c.name || '').trim())
+    : [];
+  const legacyName = String(meeting?.interviewCandidateName || '').trim();
+  const legacyRole = String(meeting?.interviewRole || '').trim();
+  const rosterRows =
+    candidatesFromDoc.length > 0
+      ? candidatesFromDoc.map((c) => ({
+          name: String(c.name || '').trim(),
+          role: String(c.role || '').trim(),
+        }))
+      : legacyName
+        ? [{ name: legacyName, role: legacyRole }]
+        : [];
+
+  const hasInterviewRoster = isInterview && (!!interviewerLabel || rosterRows.length > 0);
+
   const decisionsDisplay = (decisions || []).filter(
     (d) => String(d || '').trim().toLowerCase() !== 'not specified'
   );
@@ -59,6 +89,7 @@ export default function MeetingSummaryReadonlyBody({
     Object.keys(evaluationSignals).length > 0;
 
   const hasRestContent =
+    hasInterviewRoster ||
     !!(summaryText && String(summaryText).trim()) ||
     (keyPoints && keyPoints.length) ||
     decisionsDisplay.length ||
@@ -314,6 +345,46 @@ export default function MeetingSummaryReadonlyBody({
 
     return (
       <>
+        {hasInterviewRoster && (
+          <section
+            className={`meeting-summary-section meeting-summary-section--interview-roster${staggerSections ? ' meeting-summary-section--ux-reveal' : ''}`}
+            style={staggerSections ? { animationDelay: '0ms' } : undefined}
+          >
+            <h2 className="meeting-summary-heading meeting-summary-heading--with-icon">
+              <Users className="meeting-summary-heading-icon" strokeWidth={1.5} aria-hidden />
+              Interview roster
+            </h2>
+            <p className="meeting-summary-interview-roster-note">
+              People you set when creating this interview (not the AI summary).
+            </p>
+            {interviewerLabel ? (
+              <p className="meeting-summary-body meeting-summary-interview-roster-line">
+                <strong>Interviewer:</strong> {interviewerLabel}
+              </p>
+            ) : null}
+            {rosterRows.length > 0 ? (
+              <div className="meeting-summary-interview-roster-table-wrap">
+                <table className="meeting-summary-interview-roster-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Candidate</th>
+                      <th scope="col">Role</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rosterRows.map((row, idx) => (
+                      <tr key={`${row.name}-${idx}`}>
+                        <td>{row.name}</td>
+                        <td>{row.role || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+          </section>
+        )}
+
         {hasHiringBlock && (
           <section
             className={`meeting-summary-section meeting-summary-section--hiring${staggerSections ? ' meeting-summary-section--ux-reveal' : ''}`}

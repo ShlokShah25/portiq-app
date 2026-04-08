@@ -105,6 +105,11 @@ const meetingSchema = new mongoose.Schema({
       voiceEmail: { type: String, default: '', trim: true },
     },
   ],
+  /** Set when interview summary is approved & sent (hiring decision finalized for pipeline UX) */
+  interviewDecisionAt: {
+    type: Date,
+    default: null,
+  },
   hiringRecommendation: {
     type: String,
     default: '',

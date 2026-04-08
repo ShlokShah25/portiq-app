@@ -567,13 +567,16 @@ function canAccessMeeting(meeting, admin) {
 
 router.get('/meetings', authenticateAdmin, requireSubscription, async (req, res) => {
   try {
-    const { status, meetingRoom, date, limit = 100 } = req.query;
+    const { status, meetingRoom, date, limit = 100, summaryMode: summaryModeFilter } = req.query;
     const query = {};
     if (req.admin && req.admin.username !== 'admin') {
       query.adminId = req.admin._id;
     }
     if (status) query.status = status;
     if (meetingRoom) query.meetingRoom = meetingRoom;
+    const sm = String(summaryModeFilter || '').trim().toLowerCase();
+    if (sm === 'interview') query.summaryMode = 'interview';
+    else if (sm === 'standard') query.summaryMode = { $ne: 'interview' };
     if (date) {
       const startDate = new Date(date);
       startDate.setHours(0, 0, 0, 0);

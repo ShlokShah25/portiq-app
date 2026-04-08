@@ -575,7 +575,11 @@ export default function MeetingCreateForm({
       {!inline && (
         <div className="start-meeting-modal__head">
           <h2 id="start-meeting-title" className="start-meeting-modal__title">
-            {isEducation ? 'Create lecture' : 'Create meeting'}
+            {isEducation
+              ? 'Create lecture'
+              : summaryMode === 'interview'
+                ? 'Start interview'
+                : 'Create meeting'}
           </h2>
           <button
             type="button"
@@ -851,7 +855,7 @@ export default function MeetingCreateForm({
                           onChange={() => setSummaryMode('interview')}
                           disabled={formDisabled}
                         />
-                        <span>Interview</span>
+                        <span>Start interview</span>
                       </label>
                     </div>
                     {summaryMode === 'interview' && (
@@ -1028,10 +1032,12 @@ export default function MeetingCreateForm({
                     {loading ? (
                       <>
                         <span className="start-meeting-btn-spinner" aria-hidden />
-                        Creating…
+                        {isEducation ? 'Creating…' : summaryMode === 'interview' ? 'Starting…' : 'Creating…'}
                       </>
                     ) : isEducation ? (
                       'Create lecture'
+                    ) : summaryMode === 'interview' ? (
+                      'Start interview'
                     ) : (
                       'Create meeting'
                     )}

@@ -21,12 +21,19 @@ IMPORTANT RULES:
 - Base all conclusions ONLY on what is said in the transcript
 - If signals are weak or unclear, explicitly say so
 
+ROLE AS REFERENCE (when the user message includes a role or position for the candidate):
+- Use that role as the fixed reference for judging the interviewee’s answers: interpret what they said in light of what strong performance looks like for that role (skills, judgment, communication style, depth).
+- Do not score answers in the abstract—always anchor comments to “for a [role], this answer shows …” or “relative to [role] expectations …” when the transcript supports it.
+- Strengths and concerns should cite specific answers and explain how they meet, exceed, or fall short of what the role needs.
+- Evaluation signal justifications should tie evidence to role-relevant expectations (e.g. depth of technical reasoning for an engineer, stakeholder clarity for a PM).
+- If multiple candidates or roles are listed, map evidence to the right person/role when the transcript allows; otherwise focus on the primary candidate.
+
 ----------------------------------
 
 OUTPUT FORMAT:
 
 1. SUMMARY  
-Provide a concise 3–5 line summary of the candidate's performance in the interview.
+Provide a concise 3–5 line summary of the candidate’s performance relative to the role (when a role is given), or of the interview overall if no role is given.
 
 ----------------------------------
 
@@ -48,7 +55,7 @@ List any concerns, vague answers, lack of clarity, or weak signals.
 - Depth of Answers: (High / Medium / Low)  
 - Confidence Level: (High / Medium / Low)  
 
-For each, give 1 short justification.
+For each, give 1 short justification that references how the candidate’s answers showed up in the interview, in role-relevant terms when a role was provided.
 
 ----------------------------------
 
@@ -158,7 +165,7 @@ function buildInterviewUserJsonInstructions() {
   return `Return ONLY a JSON object (no markdown fences) with this exact structure:
 {
   "hiringRecommendation": "Strong Hire" | "Lean Hire" | "No Hire",
-  "hiringRecommendationReason": "1-2 line justification matching the tone rules above",
+  "hiringRecommendationReason": "1-2 line justification matching the tone rules above; if a role was given, tie justification to role fit",
   "summary": "3-5 line summary paragraph",
   "keyStrengths": ["strength 1", "strength 2"],
   "concernsRedFlags": ["concern 1", "concern 2"],
@@ -170,7 +177,7 @@ function buildInterviewUserJsonInstructions() {
   }
 }
 
-Use empty arrays only if there is truly nothing to list. Ground every field in the transcript.`;
+Use empty arrays only if there is truly nothing to list. Ground every field in the transcript. If the user message provided a role/position, judge every answer you mention against that role as reference; strengths, concerns, signals, and hiring recommendation must reflect that comparison.`;
 }
 
 module.exports = {

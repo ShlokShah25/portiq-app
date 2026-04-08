@@ -250,12 +250,21 @@ async function generateInterviewMeetingSummaryFromTranscript(transcriptRaw, meet
 
   const candidateName = String(meetingObj.interviewCandidateName || '').trim();
   const role = String(meetingObj.interviewRole || '').trim();
+  const hasAnyRoleHint =
+    (role && role.length > 0) ||
+    (Array.isArray(meetingObj.interviewCandidates) &&
+      meetingObj.interviewCandidates.some((c) => c && String(c.role || '').trim()));
+
   const optionalContext = [
     interviewerLine,
     multiCandidates.length
       ? `Candidate(s) (hints only):\n${multiCandidates.join('\n')}`
       : candidateName && `Expected candidate name (hint only): ${candidateName}`,
     !multiCandidates.length && role && `Role / position (hint only): ${role}`,
+    hasAnyRoleHint &&
+      `Role as reference (critical): Use the role(s) above as the rubric for the interviewee’s answers. For each ` +
+        `strength, concern, and signal, ask whether their answers demonstrate what this role requires. Cite ` +
+        `transcript-backed examples and explain fit or gaps relative to that role—not a generic “good/bad” interview.`,
   ]
     .filter(Boolean)
     .join('\n');
@@ -264,7 +273,10 @@ async function generateInterviewMeetingSummaryFromTranscript(transcriptRaw, meet
 
   const interviewUser =
     `Analyze the following interview transcript. When the transcript includes clear role cues or speaker labels, ` +
-    `prefer describing speakers as Interviewer vs Candidate when supported by the text; do not invent roles.\n\n` +
+    `prefer describing speakers as Interviewer vs Candidate when supported by the text; do not invent roles.\n` +
+    (hasAnyRoleHint
+      ? `When a role is listed above, treat it as the standard against which you interpret and evaluate the candidate’s answers.\n\n`
+      : '') +
     (optionalContext ? `${optionalContext}\n\n` : '') +
     `Calendar / booking title (may be generic; do not treat as the ground truth about topic): ${meetingTitle}\n\n` +
     `Detected primary transcription language: ${detectedLanguage}\n\n` +
