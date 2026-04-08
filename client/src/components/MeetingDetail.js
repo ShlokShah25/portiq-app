@@ -245,6 +245,7 @@ const MeetingDetail = () => {
   const isScheduled = meeting.status === 'Scheduled';
   const isInProgress = meeting.status === 'In Progress';
   const isCompleted = meeting.status === 'Completed';
+  const isInterview = meeting.summaryMode === 'interview';
   const online = isOnlineMeeting(meeting);
   const prov = String(meeting.conferenceProvider || '').toLowerCase();
   const platformLabel =
@@ -552,7 +553,7 @@ const MeetingDetail = () => {
                 className="meeting-detail-btn meeting-detail-btn--primary"
                 onClick={() => navigate(`/meetings/${id}/summary`, { state: { approve: true } })}
               >
-                Review & send summary
+                {isInterview ? 'Review & finalize decision' : 'Review & send summary'}
               </button>
             )}
             {isCompleted && meeting.transcriptionEnabled && meeting.transcriptionStatus === 'Processing' && (
