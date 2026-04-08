@@ -3,8 +3,8 @@
   --radius-card: 16px;
   --shadow-soft-lg: 0 12px 40px rgba(0, 0, 0, 0.38);
   --shadow-soft-sm: 0 4px 24px rgba(0, 0, 0, 0.22);
-  --shadow-glow-blue: 0 4px 28px rgba(59, 130, 246, 0.32), 0 0 0 1px rgba(59, 130, 246, 0.14);
-  --gradient-accent: linear-gradient(135deg, #3b82f6 0%, #2563eb 48%, #1d4ed8 100%);
+  --shadow-glow-blue: 0 1px 0 rgba(255, 255, 255, 0.06), 0 6px 28px rgba(0, 0, 0, 0.38);
+  --gradient-accent: linear-gradient(180deg, #4f46e5 0%, #4f46e5 100%);
   /* --page-ambient-gradient / --gradient-page-ambient: see styles/theme.css */
 }
 

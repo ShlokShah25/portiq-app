@@ -69,17 +69,18 @@
   background-clip: padding-box;
 }
 
-/* —— Primary CTA: brand gradient (keeps App.css structure, upgrades finish) —— */
+/* —— Primary CTA: matte indigo (solid, no neon glow) —— */
 .App .btn-primary {
-  background: var(--gradient-accent);
+  background: var(--accent-blue);
   color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: var(--shadow-glow-blue);
 }
 
 .App .btn-primary:hover {
-  filter: brightness(1.05);
-  box-shadow: 0 8px 32px rgba(59, 130, 246, 0.4), 0 0 0 1px rgba(129, 140, 248, 0.25);
+  background: var(--accent-primary-hover, #4338ca);
+  filter: none;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 32px rgba(0, 0, 0, 0.4);
 }
 
 :root[data-theme='dark'] .App .btn-secondary {
@@ -124,7 +125,7 @@
 .App select:focus-visible,
 .App textarea:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px rgba(59, 130, 246, 0.45);
+  box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px rgba(79, 70, 229, 0.45);
 }
 
 :root[data-theme='light'] .App a:focus-visible,

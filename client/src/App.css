@@ -2,7 +2,7 @@
   /* Legacy aliases — prefer theme.css tokens */
   --primary-color: #121212;
   --secondary-color: #1c1c1e;
-  --accent-color: var(--accent-blue, #3b82f6);
+  --accent-color: var(--accent-blue, #4f46e5);
   --highlight-color: var(--accent-purple, #5e5ce6);
   --background-color: var(--bg-primary, #000000);
   --text-color: var(--text-primary, #f5f5f7);
@@ -10,7 +10,7 @@
   --success-color: var(--success-green, #22c55e);
   --error-color: var(--error-red, #ef4444);
   --warning-color: var(--warning-orange, #f59e0b);
-  --info-color: var(--accent-blue, #3b82f6);
+  --info-color: var(--accent-blue, #4f46e5);
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.12);
   --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.16);

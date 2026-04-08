@@ -245,14 +245,15 @@
   font-family: inherit;
   cursor: pointer;
   color: #fff;
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-  box-shadow: 0 4px 28px rgba(37, 99, 235, 0.45);
+  background: var(--accent-blue, #4f46e5);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08), 0 6px 28px rgba(0, 0, 0, 0.38);
   animation: mip-primary-pulse 2.4s ease-in-out infinite;
-  transition: filter 0.2s ease, transform 0.2s ease;
+  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .mip-recording-hero__start:hover:not(:disabled) {
-  filter: brightness(1.06);
+  background: var(--accent-primary-hover, #4338ca);
+  filter: none;
   transform: translateY(-1px);
 }
 
@@ -263,10 +264,10 @@
 @keyframes mip-primary-pulse {
   0%,
   100% {
-    box-shadow: 0 4px 28px rgba(37, 99, 235, 0.42), 0 0 0 1px rgba(96, 165, 250, 0.2);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08), 0 6px 28px rgba(0, 0, 0, 0.38);
   }
   50% {
-    box-shadow: 0 8px 40px rgba(37, 99, 235, 0.55), 0 0 48px rgba(59, 130, 246, 0.2);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.1), 0 10px 36px rgba(0, 0, 0, 0.45);
   }
 }
 

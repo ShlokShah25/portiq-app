@@ -65,8 +65,8 @@
   border-radius: 50%;
   background: radial-gradient(
     circle,
-    rgba(59, 130, 246, 0.12) 0%,
-    rgba(99, 102, 241, 0.05) 40%,
+    rgba(79, 70, 229, 0.1) 0%,
+    rgba(79, 70, 229, 0.03) 45%,
     transparent 70%
   );
   animation: meeting-summary-loading-breathe 3.2s ease-in-out infinite;
@@ -92,10 +92,10 @@
   width: 40px;
   height: 40px;
   border: 3px solid #1f2937;
-  border-top-color: #3b82f6;
+  border-top-color: #4f46e5;
   border-radius: 50%;
   animation: meeting-summary-spin 0.8s linear infinite;
-  box-shadow: 0 0 24px rgba(59, 130, 246, 0.25);
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.35);
 }
 
 @keyframes meeting-summary-spin {
@@ -118,8 +118,8 @@
 }
 
 .meeting-summary-card {
-  background: linear-gradient(168deg, rgba(20, 20, 24, 0.98) 0%, rgba(12, 12, 16, 0.96) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--surface-card, #101a33);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
   border-radius: var(--radius-card, 18px);
   padding: 32px 36px;
   box-shadow: var(--shadow-soft-lg);
@@ -216,7 +216,7 @@
 }
 
 .meeting-summary-btn--send:hover:not(:disabled) {
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
 }
 
 .meeting-summary-btn {
@@ -236,16 +236,17 @@
 }
 
 .meeting-summary-btn--primary {
-  background: var(--gradient-accent);
+  background: var(--accent-blue);
   color: #fff;
-  border-color: transparent;
+  border-color: rgba(255, 255, 255, 0.1);
   box-shadow: var(--shadow-glow-blue);
 }
 
 .meeting-summary-btn--primary:hover:not(:disabled) {
-  filter: brightness(1.06);
-  transform: scale(1.02);
-  box-shadow: 0 6px 32px rgba(59, 130, 246, 0.4), 0 0 0 1px rgba(96, 165, 250, 0.18);
+  filter: none;
+  background: var(--accent-primary-hover, #4338ca);
+  transform: scale(1.01);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 32px rgba(0, 0, 0, 0.4);
 }
 
 .meeting-summary-btn--primary:active:not(:disabled) {
@@ -425,9 +426,9 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  background: rgba(37, 99, 235, 0.15);
-  border: 1px solid rgba(59, 130, 246, 0.35);
-  color: #93c5fd;
+  background: rgba(79, 70, 229, 0.14);
+  border: 1px solid rgba(79, 70, 229, 0.32);
+  color: #a5b4fc;
   margin: 0 0 20px;
   width: fit-content;
   max-width: 100%;
@@ -439,9 +440,8 @@
   position: relative;
   isolation: isolate;
   border-color: rgba(34, 197, 94, 0.35);
-  background: linear-gradient(120deg, rgba(37, 99, 235, 0.18) 0%, rgba(22, 163, 74, 0.12) 100%);
-  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.15), 0 4px 28px rgba(34, 197, 94, 0.12),
-    0 8px 32px rgba(0, 0, 0, 0.25);
+  background: rgba(22, 101, 52, 0.12);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 6px 24px rgba(0, 0, 0, 0.28);
   animation: meeting-summary-live-halo 3s ease-in-out infinite;
 }
 
@@ -450,7 +450,7 @@
   position: absolute;
   inset: -1px;
   border-radius: inherit;
-  background: radial-gradient(circle at 30% 40%, rgba(34, 197, 94, 0.2), transparent 55%);
+  background: radial-gradient(circle at 30% 40%, rgba(34, 197, 94, 0.12), transparent 55%);
   opacity: 0.45;
   z-index: -1;
   pointer-events: none;
@@ -460,12 +460,10 @@
 @keyframes meeting-summary-live-halo {
   0%,
   100% {
-    box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.12), 0 4px 24px rgba(34, 197, 94, 0.1),
-      0 8px 28px rgba(0, 0, 0, 0.22);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 4px 22px rgba(0, 0, 0, 0.26);
   }
   50% {
-    box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.22), 0 6px 36px rgba(34, 197, 94, 0.18),
-      0 12px 40px rgba(0, 0, 0, 0.28);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 6px 28px rgba(0, 0, 0, 0.32);
   }
 }
 
@@ -580,12 +578,8 @@
 
 .meeting-summary-section--hiring {
   padding-top: 20px;
-  border-top: 1px solid rgba(139, 92, 246, 0.22);
-  background: linear-gradient(
-    165deg,
-    rgba(139, 92, 246, 0.08) 0%,
-    rgba(17, 22, 29, 0.35) 100%
-  );
+  border-top: 1px solid rgba(79, 70, 229, 0.2);
+  background: rgba(79, 70, 229, 0.06);
   border-radius: 14px;
   padding-left: 18px;
   padding-right: 18px;

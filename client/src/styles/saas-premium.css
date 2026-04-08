@@ -4,7 +4,7 @@
   --radius-soft: 14px;
   --radius-pill: 999px;
   --link-color: var(--accent-hover);
-  --link-hover: #93c5fd;
+  --link-hover: #c7d2fe;
 }
 
 body {
@@ -67,8 +67,8 @@ body {
 :root[data-theme='dark'] .insights-top-bar,
 :root[data-theme='dark'] .meetings-top-bar,
 :root[data-theme='dark'] .client-admin-header {
-  background: rgba(17, 22, 29, 0.82);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04);
+  background: rgba(11, 16, 32, 0.88);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 /* List rows / transcript cards — hover glow */
@@ -83,7 +83,7 @@ body {
 
 .transcript-item:hover,
 .insight-stat-card:hover {
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(99, 102, 241, 0.12);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
 /* Reduced motion */
