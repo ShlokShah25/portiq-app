@@ -308,6 +308,21 @@ export default function MeetingCreateForm({
     });
   }, [participantBook, participantSearchQuery]);
 
+  const interviewerOptions = useMemo(
+    () =>
+      participantBook
+        .map((p) => {
+          const em = String(p?.email || '').trim().toLowerCase();
+          if (!em) return null;
+          return {
+            email: em,
+            label: `${String(p?.name || '').trim() || em.split('@')[0]} (${em})`,
+          };
+        })
+        .filter(Boolean),
+    [participantBook]
+  );
+
   const scheduledIso = () => {
     if (!scheduledDate || !scheduledTime) return null;
     const iso = new Date(`${scheduledDate}T${scheduledTime}`).toISOString();
@@ -640,101 +655,104 @@ export default function MeetingCreateForm({
                   + Add new
                 </Link>
               </div>
-              {participantBook.length > 0 && (
-                <div className="start-meeting-field" style={{ marginBottom: 12 }}>
-                  <div className="meeting-create-participant-dd" ref={participantDropdownRef}>
-                    <button
-                      id="sm-participants-trigger"
-                      type="button"
-                      className="meeting-create-participant-dd__trigger"
-                      onClick={() => setParticipantDropdownOpen((o) => !o)}
-                      disabled={formDisabled}
-                      aria-expanded={participantDropdownOpen}
-                      aria-haspopup="listbox"
-                      aria-label="Select people from your book"
-                    >
-                      <span className="meeting-create-participant-dd__trigger-text">
-                        {selectedBookEmails.length === 0
-                          ? 'Select people'
-                          : `${selectedBookEmails.length} selected${
-                              maxParticipantsPerMeeting != null
-                                ? ` · max ${maxParticipantsPerMeeting}`
-                                : ''
-                            }`}
-                      </span>
-                      <ChevronDown
-                        size={18}
-                        strokeWidth={2}
-                        className={
-                          participantDropdownOpen
-                            ? 'meeting-create-participant-dd__chev meeting-create-participant-dd__chev--open'
-                            : 'meeting-create-participant-dd__chev'
-                        }
-                        aria-hidden
-                      />
-                    </button>
-                    {participantDropdownOpen && (
-                      <div className="meeting-create-participant-dd__panel" role="listbox" aria-multiselectable>
-                        <div className="meeting-create-participant-dd__search-wrap">
-                          <Search size={16} strokeWidth={2} className="meeting-create-participant-dd__search-icon" aria-hidden />
-                          <input
-                            type="search"
-                            className="meeting-create-participant-dd__search"
-                            value={participantSearchQuery}
-                            onChange={(e) => setParticipantSearchQuery(e.target.value)}
-                            placeholder="Search by name or email…"
-                            autoComplete="off"
-                          />
-                        </div>
-                        <div className="meeting-create-participant-dd__list">
-                          {filteredParticipantBook.length === 0 ? (
-                            <p className="meeting-create-participant-dd__empty">No matches</p>
-                          ) : (
-                            filteredParticipantBook.map((p) => {
-                              const em = (p.email && String(p.email).trim().toLowerCase()) || '';
-                              if (!em) return null;
-                              const checked = selectedBookEmails.includes(em);
-                              const hasVoice = !!voiceProfiles[em]?.hasProfile;
-                              return (
-                                <button
-                                  key={em}
-                                  type="button"
-                                  role="option"
-                                  aria-selected={checked}
-                                  className={`meeting-create-participant-dd__item${checked ? ' meeting-create-participant-dd__item--selected' : ''}`}
-                                  onClick={() => toggleBookParticipantEmail(em)}
-                                >
-                                  <span
-                                    className={`meeting-create-participant-dd__check${checked ? ' meeting-create-participant-dd__check--on' : ''}`}
-                                    aria-hidden
-                                  />
-                                  <span className="meeting-create-participant-dd__item-body">
-                                    <span className="meeting-create-participant-dd__name">
-                                      {p.name || em.split('@')[0]}
-                                    </span>
-                                    <span className="meeting-create-participant-dd__email">{em}</span>
-                                  </span>
-                                  {hasVoice ? (
-                                    <span className="meeting-create-participant-dd__voice-status meeting-create-participant-dd__voice-status--ok">
-                                      <Mic size={12} strokeWidth={2} aria-hidden />
-                                      Configured
-                                    </span>
-                                  ) : (
-                                    <span className="meeting-create-participant-dd__voice-status">
-                                      <CircleDashed size={12} strokeWidth={2} aria-hidden />
-                                      Not configured
-                                    </span>
-                                  )}
-                                </button>
-                              );
-                            })
-                          )}
-                        </div>
+              <div className="start-meeting-field" style={{ marginBottom: 12 }}>
+                <div className="meeting-create-participant-dd" ref={participantDropdownRef}>
+                  <button
+                    id="sm-participants-trigger"
+                    type="button"
+                    className="meeting-create-participant-dd__trigger"
+                    onClick={() => setParticipantDropdownOpen((o) => !o)}
+                    disabled={formDisabled}
+                    aria-expanded={participantDropdownOpen}
+                    aria-haspopup="listbox"
+                    aria-label="Select people from your book"
+                  >
+                    <span className="meeting-create-participant-dd__trigger-text">
+                      {selectedBookEmails.length === 0
+                        ? participantBook.length === 0
+                          ? 'No people in participant book yet'
+                          : 'Select people'
+                        : `${selectedBookEmails.length} selected${
+                            maxParticipantsPerMeeting != null ? ` · max ${maxParticipantsPerMeeting}` : ''
+                          }`}
+                    </span>
+                    <ChevronDown
+                      size={18}
+                      strokeWidth={2}
+                      className={
+                        participantDropdownOpen
+                          ? 'meeting-create-participant-dd__chev meeting-create-participant-dd__chev--open'
+                          : 'meeting-create-participant-dd__chev'
+                      }
+                      aria-hidden
+                    />
+                  </button>
+                  {participantDropdownOpen && (
+                    <div className="meeting-create-participant-dd__panel" role="listbox" aria-multiselectable>
+                      <div className="meeting-create-participant-dd__search-wrap">
+                        <Search size={16} strokeWidth={2} className="meeting-create-participant-dd__search-icon" aria-hidden />
+                        <input
+                          type="search"
+                          className="meeting-create-participant-dd__search"
+                          value={participantSearchQuery}
+                          onChange={(e) => setParticipantSearchQuery(e.target.value)}
+                          placeholder="Search by name or email…"
+                          autoComplete="off"
+                          disabled={participantBook.length === 0}
+                        />
                       </div>
-                    )}
-                  </div>
+                      <div className="meeting-create-participant-dd__list">
+                        {participantBookError ? (
+                          <p className="meeting-create-participant-dd__empty">{participantBookError}</p>
+                        ) : filteredParticipantBook.length === 0 ? (
+                          <p className="meeting-create-participant-dd__empty">
+                            {participantBook.length === 0 ? 'No people in participant book yet' : 'No matches'}
+                          </p>
+                        ) : (
+                          filteredParticipantBook.map((p) => {
+                            const em = (p.email && String(p.email).trim().toLowerCase()) || '';
+                            if (!em) return null;
+                            const checked = selectedBookEmails.includes(em);
+                            const hasVoice = !!voiceProfiles[em]?.hasProfile;
+                            return (
+                              <button
+                                key={em}
+                                type="button"
+                                role="option"
+                                aria-selected={checked}
+                                className={`meeting-create-participant-dd__item${checked ? ' meeting-create-participant-dd__item--selected' : ''}`}
+                                onClick={() => toggleBookParticipantEmail(em)}
+                              >
+                                <span
+                                  className={`meeting-create-participant-dd__check${checked ? ' meeting-create-participant-dd__check--on' : ''}`}
+                                  aria-hidden
+                                />
+                                <span className="meeting-create-participant-dd__item-body">
+                                  <span className="meeting-create-participant-dd__name">
+                                    {p.name || em.split('@')[0]}
+                                  </span>
+                                  <span className="meeting-create-participant-dd__email">{em}</span>
+                                </span>
+                                {hasVoice ? (
+                                  <span className="meeting-create-participant-dd__voice-status meeting-create-participant-dd__voice-status--ok">
+                                    <Mic size={12} strokeWidth={2} aria-hidden />
+                                    Configured
+                                  </span>
+                                ) : (
+                                  <span className="meeting-create-participant-dd__voice-status">
+                                    <CircleDashed size={12} strokeWidth={2} aria-hidden />
+                                    Not configured
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
               {selectedBookEmails.length > 0 && participantBook.length > 0 && (
                 <div className="meeting-create-voice-optional">
                   <button
@@ -855,13 +873,14 @@ export default function MeetingCreateForm({
                           onChange={() => setSummaryMode('interview')}
                           disabled={formDisabled}
                         />
-                        <span>Start interview</span>
+                        <span>Interview</span>
                       </label>
                     </div>
                     {summaryMode === 'interview' && (
                       <div className="meeting-create-interview-panel">
                         <p className="meeting-create-interview-lead">
-                          Interviewer comes from <strong>selected people</strong> (your book). Candidates are only for
+                          Interviewer comes from your <strong>participant book</strong> (auto-added to selected people).
+                          Candidates are only for
                           this meeting — they are <strong>not</strong> added to your participant book. Configure voice
                           for the interviewer in <strong>Configure voice</strong> above when needed.
                         </p>
@@ -873,24 +892,25 @@ export default function MeetingCreateForm({
                             id="sm-interviewer"
                             className="meeting-create-interview-select"
                             value={interviewInterviewerEmail}
-                            onChange={(e) => setInterviewInterviewerEmail(e.target.value)}
-                            disabled={formDisabled || selectedBookEmails.length === 0}
+                            onChange={(e) => {
+                              const em = String(e.target.value || '').trim().toLowerCase();
+                              setInterviewInterviewerEmail(em);
+                              if (em) {
+                                setSelectedBookEmails((prev) => (prev.includes(em) ? prev : [...prev, em]));
+                              }
+                            }}
+                            disabled={formDisabled || interviewerOptions.length === 0}
                           >
                             <option value="">
-                              {selectedBookEmails.length === 0
-                                ? 'Select people from your book first'
+                              {interviewerOptions.length === 0
+                                ? 'No people in participant book yet'
                                 : 'Choose interviewer…'}
                             </option>
-                            {selectedBookEmails.map((em) => {
-                              const p = participantBook.find(
-                                (x) => x.email && String(x.email).trim().toLowerCase() === em
-                              );
-                              return (
-                                <option key={em} value={em}>
-                                  {p?.name || em.split('@')[0]} ({em})
-                                </option>
-                              );
-                            })}
+                            {interviewerOptions.map((opt) => (
+                              <option key={opt.email} value={opt.email}>
+                                {opt.label}
+                              </option>
+                            ))}
                           </select>
                         </div>
 
