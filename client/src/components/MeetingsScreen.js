@@ -356,6 +356,12 @@ const MeetingsScreen = () => {
   };
 
   const companyName = config?.companyName || 'Your Company';
+  const isInterviewMeeting = (m) => m?.summaryMode === 'interview';
+  const interviewStatusLabel = (status) => {
+    if (status === 'Sent' || status === 'Approved') return 'Finalized';
+    if (status === 'Pending Approval') return 'Pending decision';
+    return status || '';
+  };
 
   const scheduledMeetings = (meetings || [])
     .filter(m => m && m.status === 'Scheduled')
@@ -891,9 +897,13 @@ const MeetingsScreen = () => {
                         <polyline points="22 4 12 14.01 9 11.01"></polyline>
                       </svg>
                     </div>
-                    <h3 style={{ color: 'white', marginBottom: '8px', fontSize: '20px', fontWeight: '600' }}>Summary Sent Successfully!</h3>
+                    <h3 style={{ color: 'white', marginBottom: '8px', fontSize: '20px', fontWeight: '600' }}>
+                      {isInterviewMeeting(selectedMeeting) ? 'Decision Finalized Successfully!' : 'Summary Sent Successfully!'}
+                    </h3>
                     <p style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '15px' }}>
-                      The meeting summary has been approved and sent to all participants.
+                      {isInterviewMeeting(selectedMeeting)
+                        ? 'The interview recommendation has been finalized and saved internally.'
+                        : 'The meeting summary has been approved and sent to all participants.'}
                     </p>
                   </div>
                 )}
@@ -1673,10 +1683,15 @@ const MeetingsScreen = () => {
                             <line x1="12" y1="8" x2="12" y2="12"></line>
                             <line x1="12" y1="16" x2="12.01" y2="16"></line>
                           </svg>
-                          Needs Approval
+                          {isInterviewMeeting(m) ? 'Needs Decision' : 'Needs Approval'}
                         </span>
                       )}
                     </div>
+                    {m.summaryStatus && (
+                      <div style={{ marginTop: '6px', color: 'rgba(255,255,255,0.6)', fontSize: '12px' }}>
+                        {isInterviewMeeting(m) ? interviewStatusLabel(m.summaryStatus) : m.summaryStatus}
+                      </div>
+                    )}
                         <div className="meetings-list-badges-row">
                           {online ? (
                             <span className="meeting-ui-badge meeting-ui-badge--mode">

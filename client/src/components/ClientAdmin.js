@@ -52,6 +52,16 @@ function normalizeParticipantForDisplay(p, index) {
   return { title, subtitle, role };
 }
 
+function summaryStatusLabelForMeeting(meeting) {
+  const status = meeting?.summaryStatus || '';
+  if (!status) return '';
+  if (meeting?.summaryMode === 'interview') {
+    if (status === 'Sent' || status === 'Approved') return 'Finalized';
+    if (status === 'Pending Approval') return 'Pending decision';
+  }
+  return status;
+}
+
 const ClientAdmin = () => {
   const navigate = useNavigate();
   const [meetings, setMeetings] = useState([]);
@@ -451,7 +461,7 @@ const ClientAdmin = () => {
                                       .toLowerCase()
                                       .replace(' ', '-')}`}
                                   >
-                                    {meeting.summaryStatus}
+                                    {summaryStatusLabelForMeeting(meeting)}
                                   </span>
                                 </div>
                               )}
