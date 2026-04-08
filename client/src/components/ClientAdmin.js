@@ -384,6 +384,7 @@ const ClientAdmin = () => {
               <thead>
                 <tr>
                   <th>Title</th>
+                  <th>Type</th>
                   <th>Room</th>
                   <th>Organizer</th>
                   <th>Date</th>
@@ -406,6 +407,31 @@ const ClientAdmin = () => {
                     <Fragment key={rowId}>
                       <tr>
                         <td>{meeting.title}</td>
+                        <td>
+                          <span
+                            style={{
+                              display: 'inline-block',
+                              padding: '2px 8px',
+                              borderRadius: '10px',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              background:
+                                meeting.summaryMode === 'interview'
+                                  ? 'rgba(79, 70, 229, 0.14)'
+                                  : 'rgba(255, 255, 255, 0.06)',
+                              color:
+                                meeting.summaryMode === 'interview'
+                                  ? '#c7d2fe'
+                                  : 'rgba(234, 240, 255, 0.82)',
+                              border:
+                                meeting.summaryMode === 'interview'
+                                  ? '1px solid rgba(79, 70, 229, 0.35)'
+                                  : '1px solid rgba(255, 255, 255, 0.12)',
+                            }}
+                          >
+                            {meeting.summaryMode === 'interview' ? 'Interview' : 'Meeting'}
+                          </span>
+                        </td>
                         <td>{meeting.meetingRoom || 'N/A'}</td>
                         <td>{meeting.organizer || 'N/A'}</td>
                         <td>{formatDate(meeting.startTime || meeting.scheduledTime)}</td>
@@ -510,7 +536,7 @@ const ClientAdmin = () => {
                       </tr>
                       {participantRows.length > 0 && participantsExpanded && (
                         <tr className="participants-inline-row" aria-live="polite">
-                          <td colSpan={9}>
+                          <td colSpan={10}>
                             <div
                               className="participants-inline-panel"
                               role="region"
@@ -536,7 +562,7 @@ const ClientAdmin = () => {
                       )}
                       {actionsExpanded && (
                         <tr className="actions-inline-row">
-                          <td colSpan={9}>
+                          <td colSpan={10}>
                             <div
                               id={`client-admin-actions-${rowId}`}
                               className="actions-inline-panel"
