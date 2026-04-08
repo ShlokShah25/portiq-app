@@ -11,7 +11,11 @@ const {
 } = require('../utils/meetingTranscription');
 const { getPlanConstraints } = require('../utils/planConstraints');
 const { resolveUploadPath } = require('../utils/resolveUploadPath');
-const { subscriptionDeniedResponse } = require('../utils/subscriptionGate');
+const {
+  subscriptionDeniedResponse,
+  subscriptionPaymentPendingResponse,
+  TRIAL_MEETING_LIMIT,
+} = require('../utils/subscriptionGate');
 const jwt = require('jsonwebtoken');
 const Admin = require('../models/Admin');
 const { generateVoiceEmbedding } = require('../utils/voiceRecognition');
@@ -141,6 +145,33 @@ function canAccessMeeting(meeting, admin) {
   if (!admin || admin.username === 'admin') return true;
   if (!meeting.adminId) return true;
   return String(meeting.adminId) === String(admin._id);
+}
+
+/**
+ * Count one completed meeting toward the free trial (idempotent per meeting).
+ */
+async function incrementTrialUsageIfNeeded(meetingDoc, admin) {
+  if (!meetingDoc || meetingDoc.status !== 'Completed') {
+    return { incremented: false };
+  }
+  if (meetingDoc.trialUsageCounted) return { incremented: false };
+  if (!admin || !admin._id) return { incremented: false };
+  const u = String(admin.username || '').toLowerCase();
+  if (u === 'admin') return { incremented: false };
+  if (admin.hasActiveSubscription || admin.complimentaryAccess) return { incremented: false };
+
+  const used = Number(admin.trialMeetingsUsed) || 0;
+  const remaining = Math.max(0, TRIAL_MEETING_LIMIT - used);
+  if (remaining <= 0) return { incremented: false };
+
+  await Admin.findByIdAndUpdate(admin._id, { $inc: { trialMeetingsUsed: 1 } });
+  await Meeting.findByIdAndUpdate(meetingDoc._id, { $set: { trialUsageCounted: true } });
+  const newUsed = used + 1;
+  return {
+    incremented: true,
+    celebrateFirstMeeting: newUsed === 1,
+    trialMeetingsUsed: newUsed,
+  };
 }
 
 /**
@@ -696,7 +727,7 @@ router.post('/:id/end', upload.single('audio'), async (req, res) => {
     meeting.transcriptionFailureAt = null;
 
     // Apply duration limit per plan (backend safety net).
-    const { maxDurationMinutes, plan: planName } = getPlanConstraints(admin);
+    const { maxDurationMinutes, plan: planName } = getPlanConstraints(admin || {});
     if (maxDurationMinutes && meeting.startTime) {
       const started = new Date(meeting.startTime);
       const ended = new Date(meeting.endTime);
@@ -807,10 +838,22 @@ router.post('/:id/end', upload.single('audio'), async (req, res) => {
       await meeting.save();
     }
 
-    res.json({ 
-      success: true, 
+    let celebrateFirstMeeting = false;
+    if (admin) {
+      const adminForTrial = await Admin.findById(admin._id).select(
+        'trialMeetingsUsed username hasActiveSubscription complimentaryAccess'
+      );
+      if (adminForTrial) {
+        const inc = await incrementTrialUsageIfNeeded(meeting, adminForTrial);
+        celebrateFirstMeeting = !!inc.celebrateFirstMeeting;
+      }
+    }
+
+    res.json({
+      success: true,
       meeting,
-      message: meeting.transcriptionEnabled ? 'Transcription processing started' : 'Meeting ended'
+      celebrateFirstMeeting,
+      message: meeting.transcriptionEnabled ? 'Transcription processing started' : 'Meeting ended',
     });
   } catch (error) {
     console.error('Error ending meeting:', error);
@@ -834,10 +877,6 @@ router.post('/:id/retry-transcription', async (req, res) => {
     }
     if (!canAccessMeeting(meeting, admin)) {
       return res.status(404).json({ error: 'Meeting not found' });
-    }
-    const denied = subscriptionDeniedResponse(admin);
-    if (denied) {
-      return res.status(denied.status).json(denied.json);
     }
 
     if (!meeting.transcriptionEnabled) {
@@ -916,9 +955,9 @@ router.post('/:id/schedule-follow-up', async (req, res) => {
     if (!canAccessMeeting(meeting, admin)) {
       return res.status(404).json({ error: 'Meeting not found' });
     }
-    const denied = subscriptionDeniedResponse(admin);
-    if (denied) {
-      return res.status(denied.status).json(denied.json);
+    const deniedPayment = subscriptionPaymentPendingResponse(admin);
+    if (deniedPayment) {
+      return res.status(deniedPayment.status).json(deniedPayment.json);
     }
 
     const {
@@ -950,6 +989,8 @@ router.post('/:id/schedule-follow-up', async (req, res) => {
         error: 'Follow-up can only be scheduled from a scheduled, in-progress, or completed meeting.',
       });
     }
+
+    const wasInProgress = meeting.status === 'In Progress';
 
     if (endCurrentSession && meeting.status === 'In Progress') {
       meeting.status = 'Completed';
@@ -987,6 +1028,17 @@ router.post('/:id/schedule-follow-up', async (req, res) => {
     await child.save();
     meeting.followUpMeetingId = child._id;
     await meeting.save();
+
+    let celebrateFirstMeeting = false;
+    if (endCurrentSession && wasInProgress && admin) {
+      const adminForTrial = await Admin.findById(admin._id).select(
+        'trialMeetingsUsed username hasActiveSubscription complimentaryAccess'
+      );
+      if (adminForTrial) {
+        const inc = await incrementTrialUsageIfNeeded(meeting, adminForTrial);
+        celebrateFirstMeeting = !!inc.celebrateFirstMeeting;
+      }
+    }
 
     const sendEmailNow = sendEmailFlag !== false;
     if (sendEmailNow && isEmailConfigured()) {
@@ -1097,6 +1149,7 @@ router.post('/:id/schedule-follow-up', async (req, res) => {
       message: 'Follow-up meeting scheduled.',
       parentMeeting: parentFresh,
       followUpMeeting: childFresh,
+      celebrateFirstMeeting,
     });
   } catch (error) {
     console.error('Error scheduling follow-up:', error);

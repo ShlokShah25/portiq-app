@@ -52,6 +52,12 @@ const adminSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  /** Completed meetings counted toward the free trial (max 3). */
+  trialMeetingsUsed: {
+    type: Number,
+    default: 0,
+    min: 0,
+  },
   // Razorpay subscription id (set on subscription.activated) so we can cancel via API.
   razorpaySubscriptionId: {
     type: String,

@@ -2,6 +2,7 @@ import React from 'react';
 import { Outlet, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import Sidebar from './Sidebar';
+import TrialExperienceProvider from './TrialExperienceProvider';
 import './AppShell.css';
 
 /**
@@ -15,11 +16,13 @@ export default function ProtectedLayout({ config }) {
   }
   axios.defaults.headers.common.Authorization = `Bearer ${token}`;
   return (
-    <div className="app-shell">
-      <Sidebar />
-      <main className="app-shell__main" id="app-main">
-        <Outlet context={{ config }} />
-      </main>
-    </div>
+    <TrialExperienceProvider>
+      <div className="app-shell">
+        <Sidebar />
+        <main className="app-shell__main" id="app-main">
+          <Outlet context={{ config }} />
+        </main>
+      </div>
+    </TrialExperienceProvider>
   );
 }

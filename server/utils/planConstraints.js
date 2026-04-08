@@ -1,3 +1,5 @@
+const { trialMeetingsRemaining } = require('./subscriptionGate');
+
 const DEFAULT_PRODUCT = 'workplace';
 const DEFAULT_PLAN = 'starter';
 
@@ -59,6 +61,24 @@ function resolveProductAndPlan(admin) {
 function getPlanConstraints(admin) {
   const { product, plan } = resolveProductAndPlan(admin);
   const byProduct = PLAN_LIMITS.workplace;
+
+  const rem = trialMeetingsRemaining(admin);
+  const trialing =
+    rem !== null &&
+    rem > 0 &&
+    admin &&
+    !admin.hasActiveSubscription &&
+    !admin.complimentaryAccess &&
+    String(admin.username || '').toLowerCase() !== 'admin';
+
+  if (trialing) {
+    return {
+      product,
+      plan: 'business',
+      ...byProduct.business,
+    };
+  }
+
   const limits =
     byProduct[plan] || byProduct[DEFAULT_PLAN] || PLAN_LIMITS.workplace.starter;
 

@@ -76,23 +76,16 @@ const AdminLogin = () => {
       window.localStorage.setItem('portiq_product', serverProduct);
 
       window.localStorage.setItem('clientAdminToken', token);
-      const unlocked =
-        serverAdmin.hasDashboardAccess ??
-        (serverAdmin.hasActiveSubscription || serverAdmin.complimentaryAccess);
-      window.localStorage.setItem('portiq_has_subscription', unlocked ? 'true' : 'false');
+      const subscribed =
+        !!serverAdmin.hasActiveSubscription || !!serverAdmin.complimentaryAccess;
+      window.localStorage.setItem('portiq_has_subscription', subscribed ? 'true' : 'false');
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       await syncWebsiteSession();
-      // If /admin/profile returned NO_SUBSCRIPTION, the axios interceptor clears the token
-      // and may redirect to pricing — do not SPA-navigate to dashboard with no token.
       if (!window.localStorage.getItem('clientAdminToken')) {
         window.location.href = WEBSITE_URL + '/#pricing';
         return;
       }
-      if (unlocked) {
-        navigate('/dashboard', { replace: true });
-      } else {
-        window.location.href = WEBSITE_URL + '/#pricing';
-      }
+      navigate('/dashboard', { replace: true });
     } catch (err) {
       if (err.response?.status === 403 && /subscription/i.test(err.response?.data?.error || '')) {
         window.location.href = WEBSITE_URL + '/#pricing';

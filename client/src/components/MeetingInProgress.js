@@ -41,6 +41,7 @@ const MeetingInProgress = () => {
   const [sendEmailParticipants, setSendEmailParticipants] = useState(true);
   const [followUpSubmitting, setFollowUpSubmitting] = useState(false);
   const [followUpError, setFollowUpError] = useState('');
+  const [firstMeetingToast, setFirstMeetingToast] = useState(false);
   const [voiceProfiles, setVoiceProfiles] = useState({});
   const mediaRecorderRef = React.useRef(null);
   const streamRef = React.useRef(null);
@@ -52,6 +53,14 @@ const MeetingInProgress = () => {
       isMountedRef.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!firstMeetingToast) return undefined;
+    const id = window.setTimeout(() => {
+      if (isMountedRef.current) setFirstMeetingToast(false);
+    }, 6500);
+    return () => window.clearTimeout(id);
+  }, [firstMeetingToast]);
 
   // Warn only on tab close / refresh while a recorder is active (SPA navigation stays allowed).
   useEffect(() => {
@@ -323,6 +332,7 @@ const MeetingInProgress = () => {
       if (isMountedRef.current) {
         setMeeting(res.data.meeting);
         setUploading(false);
+        if (res.data?.celebrateFirstMeeting) setFirstMeetingToast(true);
       }
       if (pendingEndUpload) {
         pendingEndUpload.resolve(res);
@@ -370,6 +380,9 @@ const MeetingInProgress = () => {
         const res = await axios.post(`/meetings/${meeting._id}/end`);
         if (isMountedRef.current && res.data?.meeting) {
           setMeeting(res.data.meeting);
+        }
+        if (isMountedRef.current && res.data?.celebrateFirstMeeting) {
+          setFirstMeetingToast(true);
         }
       }
       if (isMountedRef.current) setMeetingEnded(true);
@@ -462,6 +475,9 @@ const MeetingInProgress = () => {
         sendEmail: sendEmailParticipants,
         endCurrentSession: true,
       });
+      if (res.data?.celebrateFirstMeeting && isMountedRef.current) {
+        setFirstMeetingToast(true);
+      }
       setFollowUpOpen(false);
       const nextId = res.data?.followUpMeeting?._id;
       if (nextId) {
@@ -537,6 +553,11 @@ const MeetingInProgress = () => {
   return (
     <div className="meeting-summary-screen meeting-in-progress">
       <div className="meeting-summary-container">
+        {firstMeetingToast && (
+          <div className="mip-first-meeting-toast" role="status">
+            Nice — your meeting is now structured and actionable.
+          </div>
+        )}
         <div className={`meeting-summary-card mip-card${meeting && !loading ? ' ux-screen-enter' : ''}`}>
           {meetingEnded ? (
             <>

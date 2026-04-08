@@ -43,6 +43,15 @@ axios.interceptors.response.use(
       window.location.href = WEBSITE_URL + '/#pricing';
       return Promise.reject(error);
     }
+    if (error.response?.status === 403 && error.response?.data?.code === 'TRIAL_LIMIT_REACHED') {
+      try {
+        window.sessionStorage.setItem('portiq_trial_limit_modal_v1', '1');
+        window.dispatchEvent(new CustomEvent('portiq-trial-limit'));
+      } catch (e) {
+        /* ignore */
+      }
+      return Promise.reject(error);
+    }
     console.error('API Error:', error.response?.status, error.response?.data || error.message);
     if (error.code === 'ECONNREFUSED') {
       console.error('❌ Cannot connect to backend. Make sure the workplace server is running on port 5001');

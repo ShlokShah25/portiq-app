@@ -174,6 +174,10 @@ const MeetingsScreen = () => {
           setSubscriptionGate('ok');
         } else if (admin.subscriptionPaymentPending) {
           setSubscriptionGate('payment_pending');
+        } else if (admin.trialExhausted || admin.trialMeetingsRemaining === 0) {
+          setSubscriptionGate('trial_exhausted');
+        } else if (admin.isTrialing) {
+          setSubscriptionGate('ok');
         } else {
           setSubscriptionGate('inactive');
         }
@@ -196,7 +200,7 @@ const MeetingsScreen = () => {
       }
     };
     fetchProfile();
-  }, []);
+  }, [location.pathname]);
 
   // Refresh meetings periodically and on window focus
   useEffect(() => {
@@ -705,6 +709,16 @@ const MeetingsScreen = () => {
                 </div>
                   <a className="meetings-subscription-banner-link" href={`${MARKETING_URL}#pricing`}>
                     Finish payment
+                  </a>
+                </div>
+              )}
+              {subscriptionGate === 'trial_exhausted' && (
+                <div className="meetings-subscription-banner meetings-subscription-banner--inactive" role="alert">
+                  <div className="meetings-subscription-banner-text">
+                    <p>You’ve reached your free meeting allowance. Upgrade when you’re ready to create more.</p>
+                  </div>
+                  <a className="meetings-subscription-banner-link" href={`${MARKETING_URL}#pricing`}>
+                    See plans
                   </a>
                 </div>
               )}

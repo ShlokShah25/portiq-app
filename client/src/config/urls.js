@@ -5,3 +5,8 @@
  */
 export const MARKETING_URL = process.env.REACT_APP_MARKETING_URL || 'https://portiqtechnologies.com';
 export const MARKETING_CTA_HASH = '#cta';
+
+/** Public marketing pricing anchor (same pattern as website). */
+export function marketingPricingUrl() {
+  return `${MARKETING_URL}/#pricing`;
+}

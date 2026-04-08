@@ -75,6 +75,11 @@ const meetingSchema = new mongoose.Schema({
     enum: ['Scheduled', 'In Progress', 'Completed', 'Cancelled'],
     default: 'Scheduled'
   },
+  /** Once true, this meeting no longer increments admin.trialMeetingsUsed. */
+  trialUsageCounted: {
+    type: Boolean,
+    default: false,
+  },
   /** standard | interview — switches LLM prompt/output shape; same pipeline otherwise */
   summaryMode: {
     type: String,

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import './Dashboard.css';
 import { FEATURE_INTERVIEW_UI } from '../config/featureFlags';
+import { useTrialExperience } from './TrialExperienceProvider';
 
 function buildRecentTasks(stats) {
   if (!stats) return [];
@@ -160,6 +161,7 @@ function pickDashboardTipIndex() {
 }
 
 const Dashboard = () => {
+  const trial = useTrialExperience();
   const [stats, setStats] = useState(null);
   const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -186,6 +188,10 @@ const Dashboard = () => {
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    trial?.refreshProfile?.();
+  }, [trial?.refreshProfile]);
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -280,6 +286,20 @@ const Dashboard = () => {
   const nOverdue = stats?.overdueTasks ?? 0;
   const nMeetWeek = stats?.meetingsThisWeek ?? 0;
 
+  const trialProfile = trial?.profile;
+  const showTrialBanner =
+    trialProfile?.isTrialing &&
+    typeof trialProfile.trialMeetingsRemaining === 'number' &&
+    trialProfile.trialMeetingsRemaining > 0;
+  const lastFreeMeeting =
+    showTrialBanner && trialProfile.trialMeetingsRemaining === 1;
+  const minutesSaved =
+    trialProfile != null
+      ? typeof trialProfile.totalMinutesSaved === 'number'
+        ? trialProfile.totalMinutesSaved
+        : 0
+      : null;
+
   return (
     <div className="dashboard-screen">
       <div className="dashboard-wrapper">
@@ -294,6 +314,31 @@ const Dashboard = () => {
               Run meetings. Capture outcomes. Stay aligned.
             </p>
           </header>
+
+          {trialProfile && minutesSaved != null && (
+            <p
+              className="dashboard-value-metric ux-dashboard-stagger"
+              style={{ animationDelay: '18ms' }}
+            >
+              You’ve saved {minutesSaved} minute{minutesSaved === 1 ? '' : 's'} of manual work
+            </p>
+          )}
+
+          {showTrialBanner && (
+            <div
+              className="dashboard-trial-banner ux-dashboard-stagger"
+              style={{ animationDelay: '24ms' }}
+              role="status"
+            >
+              <p className="dashboard-trial-banner__line">
+                Free Trial: {trialProfile.trialMeetingsRemaining} meeting
+                {trialProfile.trialMeetingsRemaining === 1 ? '' : 's'} remaining
+              </p>
+              {lastFreeMeeting && (
+                <p className="dashboard-trial-banner__hint">This is your last free meeting</p>
+              )}
+            </div>
+          )}
 
           <div
             className="dashboard-start-meeting dashboard-start-meeting--minimal ux-dashboard-stagger"

@@ -487,8 +487,16 @@ export default function MeetingCreateForm({
 
   const submitLive = async () => {
     setError('');
-    if (subscriptionGate === 'inactive' || subscriptionGate === 'payment_pending') {
-      setError('Subscription required to create a meeting.');
+    if (
+      subscriptionGate === 'inactive' ||
+      subscriptionGate === 'payment_pending' ||
+      subscriptionGate === 'trial_exhausted'
+    ) {
+      setError(
+        subscriptionGate === 'trial_exhausted'
+          ? 'You’ve reached your free meeting allowance. Upgrade when you’re ready to create more.'
+          : 'Subscription required to create a meeting.'
+      );
       return;
     }
     const v = validateCommon();
@@ -512,7 +520,19 @@ export default function MeetingCreateForm({
       afterCreate();
       if (onClose) onClose();
     } catch (err) {
-      setError(err.response?.data?.error || err.message || 'Could not create meeting.');
+      const d = err.response?.data;
+      if (err.response?.status === 403 && d?.code === 'TRIAL_LIMIT_REACHED') {
+        try {
+          window.dispatchEvent(new CustomEvent('portiq-trial-limit'));
+        } catch (e) {
+          /* ignore */
+        }
+      }
+      setError(
+        [d?.error, d?.details].filter(Boolean).join(' — ') ||
+          err.message ||
+          'Could not create meeting.'
+      );
     } finally {
       setLoading(false);
     }
@@ -622,7 +642,10 @@ export default function MeetingCreateForm({
   if (!active) return null;
 
   const formDisabled =
-    subscriptionGate === null || subscriptionGate === 'inactive' || subscriptionGate === 'payment_pending';
+    subscriptionGate === null ||
+    subscriptionGate === 'inactive' ||
+    subscriptionGate === 'payment_pending' ||
+    subscriptionGate === 'trial_exhausted';
 
   return (
     <div className={inline ? 'meetings-inline-meeting-form' : undefined}>

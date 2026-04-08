@@ -60,6 +60,38 @@
   font-family: var(--font-sans, 'Inter', system-ui, sans-serif);
 }
 
+.dashboard-value-metric {
+  margin: 0 0 16px;
+  font-size: 14px;
+  color: var(--text-secondary, #94a3b8);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.dashboard-trial-banner {
+  margin: 0 0 20px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.12) 0%, rgba(124, 58, 237, 0.08) 100%);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  max-width: 36rem;
+}
+
+.dashboard-trial-banner__line {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.dashboard-trial-banner__hint {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
 /* Pending summaries — high-visibility strip */
 .dashboard-pending-summaries {
   margin-bottom: 36px;
