@@ -1618,23 +1618,28 @@ router.post('/:id/approve-and-send', async (req, res) => {
       importantNotes: meeting.importantNotes
     };
 
+    const isInterview = meeting.summaryMode === 'interview';
     let emailSent = false;
-    try {
-      const result = await sendMeetingSummary(meeting, summaryData, {
-        translationLanguage: translation,
-      });
-      emailSent = !!(result && result.success);
-    } catch (err) {
-      console.error('Error sending summary email (summary still saved):', err.message);
+    if (!isInterview) {
+      try {
+        const result = await sendMeetingSummary(meeting, summaryData, {
+          translationLanguage: translation,
+        });
+        emailSent = !!(result && result.success);
+      } catch (err) {
+        console.error('Error sending summary email (summary still saved):', err.message);
+      }
     }
 
     res.json({
       success: true,
       meeting,
       emailSent,
-      message: emailSent
-        ? 'Summary approved and sent to participants'
-        : 'Summary approved and saved. Emails could not be sent to participants (check mail configuration).'
+      message: isInterview
+        ? 'Decision finalized and saved.'
+        : emailSent
+          ? 'Summary approved and sent to participants'
+          : 'Summary approved and saved. Emails could not be sent to participants (check mail configuration).'
     });
   } catch (error) {
     console.error('Error approving and sending summary:', error);
