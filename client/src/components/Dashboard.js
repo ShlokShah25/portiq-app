@@ -64,7 +64,7 @@ const DASHBOARD_TIPS = [
   'Tip: Use optional details to adjust date, time, and location before you start.',
   'Tip: Review action items regularly so nothing slips through.',
   'Tip: Pending summaries need a quick review before they go out.',
-  'Tip: Interview meetings leave your decision queue after you approve and send the summary.',
+  'Tip: Interview meetings leave your decision queue once you finalize the decision.',
 ];
 
 function interviewCandidateSubtitle(m) {

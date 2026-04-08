@@ -1057,10 +1057,14 @@ const MeetingsScreen = () => {
                       ) : (
                         <>
                           <p className="meeting-summary-body" style={{ marginBottom: 12 }}>
-                            The summary is generated and can be emailed to participants once you approve it.
+                            {selectedMeeting.summaryMode === 'interview'
+                              ? 'The interview summary and recommendation are generated. Finalize the decision when you are ready.'
+                              : 'The summary is generated and can be emailed to participants once you approve it.'}
                           </p>
                           <p style={{ marginBottom: 20, color: '#9ca3af', fontSize: 13 }}>
-                            Open to review, edit if needed, add late participants, then approve and send.
+                            {selectedMeeting.summaryMode === 'interview'
+                              ? 'Open to review and edit, then finalize the decision. This is internal and is not sent to candidates.'
+                              : 'Open to review, edit if needed, add late participants, then approve and send.'}
                           </p>
                       <button
                             type="button"
@@ -1307,6 +1311,7 @@ const MeetingsScreen = () => {
                             />
                             
                             {/* Add Additional Participants Section - Only after summary is visible */}
+                            {selectedMeeting.summaryMode !== 'interview' && (
                             <div style={{ 
                               background: 'rgba(255, 255, 255, 0.05)', 
                               border: '1px solid rgba(255, 255, 255, 0.2)', 
@@ -1397,6 +1402,7 @@ const MeetingsScreen = () => {
                                 + Add Another Participant
                               </button>
                             </div>
+                            )}
                           </div>
                         )}
 
@@ -1408,7 +1414,10 @@ const MeetingsScreen = () => {
                           try {
                             const otpHeaders = editorOtpHeaders(selectedMeeting._id);
 
-                            const validAdditionalParticipants = additionalParticipants
+                            const validAdditionalParticipants =
+                              selectedMeeting.summaryMode === 'interview'
+                                ? []
+                                : additionalParticipants
                               .filter((p) => p.email && p.email.trim())
                               .map((p) => ({
                                 name: p.name.trim() || '',
@@ -1452,9 +1461,11 @@ const MeetingsScreen = () => {
                             setError('');
                             const msg =
                               res.data.message ||
-                              (res.data.emailSent
-                                ? 'Summary approved and sent to all participants!'
-                                : 'Summary approved and saved. Emails could not be sent (check mail configuration).');
+                              (selectedMeeting.summaryMode === 'interview'
+                                ? 'Decision finalized and saved.'
+                                : res.data.emailSent
+                                  ? 'Summary approved and sent to all participants!'
+                                  : 'Summary approved and saved. Emails could not be sent (check mail configuration).');
                             alert(msg);
                             setTimeout(() => navigate('/meetings'), 2000);
                           } catch (err) {
@@ -1468,7 +1479,9 @@ const MeetingsScreen = () => {
                       >
                         {isEducation
                           ? 'Send Lecture Notes to Participants'
-                          : 'Send Summary to Participants'}
+                          : selectedMeeting.summaryMode === 'interview'
+                            ? 'Finalize Decision'
+                            : 'Send Summary to Participants'}
                       </button>
                       <button
                         type="button"

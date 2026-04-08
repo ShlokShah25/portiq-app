@@ -140,6 +140,7 @@ const MeetingSummary = () => {
       : meeting.importantNotes || [];
 
   const summaryMode = meeting.summaryMode === 'interview' ? 'interview' : 'standard';
+  const isInterview = summaryMode === 'interview';
   const hiringRecommendation = String(
     meeting.pendingHiringRecommendation || meeting.hiringRecommendation || ''
   ).trim();
@@ -309,13 +310,20 @@ const MeetingSummary = () => {
       setEditingSummary(false);
       setEditableSummary(null);
       clearStoredEditorOtp(id);
-      const msg = res.data.message || (res.data.emailSent ? 'Summary approved and sent to participants.' : 'Summary approved and saved. Emails could not be sent (check mail configuration).');
+      const msg =
+        res.data.message ||
+        (isInterview
+          ? 'Decision finalized and saved.'
+          : res.data.emailSent
+            ? 'Summary approved and sent to participants.'
+            : 'Summary approved and saved. Emails could not be sent (check mail configuration).');
       alert(msg);
       navigate('/meetings');
     } catch (err) {
       const d = err.response?.data;
       setActionError(
-        [d?.error, d?.details].filter(Boolean).join(' ') || 'Failed to save or send summary.'
+        [d?.error, d?.details].filter(Boolean).join(' ') ||
+          (isInterview ? 'Failed to finalize decision.' : 'Failed to save or send summary.')
       );
     } finally {
       setSaving(false);
@@ -685,10 +693,12 @@ const MeetingSummary = () => {
                     {saving ? (
                       <>
                         <span className="meeting-summary-btn-spinner" aria-hidden />
-                        Sending…
+                        Finalizing…
                       </>
                     ) : isEducation ? (
                       'Send Lecture Notes to Participants'
+                    ) : isInterview ? (
+                      'Finalize Decision'
                     ) : (
                       'Send Summary to Participants'
                     )}
@@ -746,10 +756,12 @@ const MeetingSummary = () => {
                     {saving ? (
                       <>
                         <span className="meeting-summary-btn-spinner" aria-hidden />
-                        Sending…
+                        Finalizing…
                       </>
                     ) : isEducation ? (
                       'Send Lecture Notes to Participants'
+                    ) : isInterview ? (
+                      'Finalize Decision'
                     ) : (
                       'Send Summary to Participants'
                     )}

@@ -560,8 +560,8 @@ const MeetingInProgress = () => {
                 {isInterview ? (
                   <>
                     This interview is closed. Open the summary to see the transcript, evaluation signals, and hiring
-                    recommendation (they may take a minute to generate). Review and approve before anything is sent to
-                    participants.
+                    recommendation (they may take a minute to generate). Review, edit if needed, then finalize the
+                    decision internally.
                   </>
                 ) : (
                   <>
