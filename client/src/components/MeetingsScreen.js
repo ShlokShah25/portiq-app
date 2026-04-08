@@ -758,7 +758,7 @@ const MeetingsScreen = () => {
                       className="btn btn-secondary"
                       onClick={() => navigate(`/meetings/${selectedMeeting._id}/room`)}
                     >
-                      {T.startMeeting()}
+                      {selectedMeeting.summaryMode === 'interview' ? 'Start interview' : T.startMeeting()}
                     </button>
                   )}
                 </div>
@@ -1634,9 +1634,15 @@ const MeetingsScreen = () => {
                               e.stopPropagation();
                               navigate(online ? `/meetings/${m._id}` : `/meetings/${m._id}/room`);
                             }}
-                            title={online ? 'Open meeting' : 'Start meeting'}
+                            title={
+                              online
+                                ? 'Open meeting'
+                                : m.summaryMode === 'interview'
+                                  ? 'Start interview'
+                                  : 'Start meeting'
+                            }
                           >
-                            {online ? 'Open' : 'Start'}
+                            {online ? 'Open' : m.summaryMode === 'interview' ? 'Start interview' : 'Start'}
                           </button>
                         </div>
                         );

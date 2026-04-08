@@ -452,7 +452,7 @@ const MeetingDetail = () => {
                     Opening…
                   </>
                 ) : (
-                  T.startMeeting()
+                  isInterview ? 'Start interview' : T.startMeeting()
                 )}
               </button>
             )}
