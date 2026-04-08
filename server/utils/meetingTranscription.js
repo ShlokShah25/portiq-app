@@ -277,6 +277,8 @@ async function generateInterviewMeetingSummaryFromTranscript(transcriptRaw, meet
     (hasAnyRoleHint
       ? `When a role is listed above, treat it as the standard against which you interpret and evaluate the candidate’s answers.\n\n`
       : '') +
+    `Hard grounding rule: every claim must be directly supported by transcript evidence. Do not infer personality, intent, ` +
+    `or behavior from weak signals. If evidence is missing, explicitly state "Insufficient evidence from transcript".\n\n` +
     (optionalContext ? `${optionalContext}\n\n` : '') +
     `Calendar / booking title (may be generic; do not treat as the ground truth about topic): ${meetingTitle}\n\n` +
     `Detected primary transcription language: ${detectedLanguage}\n\n` +

@@ -20,6 +20,9 @@ IMPORTANT RULES:
 - Avoid generic statements
 - Base all conclusions ONLY on what is said in the transcript
 - If signals are weak or unclear, explicitly say so
+- Do NOT infer motivations, intent, or personality traits unless the transcript directly supports that claim
+- Do NOT write claims like "the candidate demonstrated X" unless specific interview responses in the transcript support it
+- When evidence is missing or unclear, explicitly use: "Insufficient evidence from transcript"
 
 ROLE AS REFERENCE (when the user message includes a role or position for the candidate):
 - Use that role as the fixed reference for judging the interviewee’s answers: interpret what they said in light of what strong performance looks like for that role (skills, judgment, communication style, depth).
@@ -39,12 +42,12 @@ Provide a concise 3–5 line summary of the candidate’s performance relative t
 
 2. KEY STRENGTHS  
 List 2–4 specific strengths observed.  
-Only include strengths that are supported by actual responses.
+Only include strengths that are supported by actual responses. If there are no clear strengths, return an empty array.
 
 ----------------------------------
 
 3. CONCERNS / RED FLAGS  
-List any concerns, vague answers, lack of clarity, or weak signals.
+List concerns, vague answers, lack of clarity, or weak signals that are directly grounded in transcript evidence. If none, return an empty array.
 
 ----------------------------------
 
@@ -68,6 +71,7 @@ Choose ONE:
 - No Hire  
 
 Then provide a clear 1–2 line justification.
+If justification evidence is weak, state: "Insufficient evidence from transcript for high-confidence recommendation."
 
 ----------------------------------
 
@@ -165,7 +169,7 @@ function buildInterviewUserJsonInstructions() {
   return `Return ONLY a JSON object (no markdown fences) with this exact structure:
 {
   "hiringRecommendation": "Strong Hire" | "Lean Hire" | "No Hire",
-  "hiringRecommendationReason": "1-2 line justification matching the tone rules above; if a role was given, tie justification to role fit",
+  "hiringRecommendationReason": "1-2 line justification matching the tone rules above; if a role was given, tie justification to role fit. If evidence is weak, say insufficient evidence from transcript",
   "summary": "3-5 line summary paragraph",
   "keyStrengths": ["strength 1", "strength 2"],
   "concernsRedFlags": ["concern 1", "concern 2"],
@@ -177,7 +181,7 @@ function buildInterviewUserJsonInstructions() {
   }
 }
 
-Use empty arrays only if there is truly nothing to list. Ground every field in the transcript. If the user message provided a role/position, judge every answer you mention against that role as reference; strengths, concerns, signals, and hiring recommendation must reflect that comparison.`;
+Use empty arrays only if there is truly nothing to list. Ground every field in the transcript. Never invent behaviors, intent, or traits that are not clearly present in the transcript. If evidence is uncertain, explicitly say "Insufficient evidence from transcript". If the user message provided a role/position, judge every answer you mention against that role as reference; strengths, concerns, signals, and hiring recommendation must reflect that comparison.`;
 }
 
 module.exports = {

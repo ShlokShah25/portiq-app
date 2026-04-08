@@ -73,6 +73,8 @@ export default function MeetingSummaryReadonlyBody({
         : [];
 
   const hasInterviewRoster = isInterview && (!!interviewerLabel || rosterRows.length > 0);
+  const hasMultipleCandidates = isInterview && rosterRows.length > 1;
+  const singleCandidate = isInterview && rosterRows.length === 1 ? rosterRows[0] : null;
 
   const decisionsDisplay = (decisions || []).filter(
     (d) => String(d || '').trim().toLowerCase() !== 'not specified'
@@ -345,10 +347,21 @@ export default function MeetingSummaryReadonlyBody({
 
     return (
       <>
-        {hasInterviewRoster && (
+        {showReadyBadge && (
+          <div
+            className={`meeting-summary-ready-badge meeting-summary-ready-badge--sentence meeting-summary-ready-badge--compact${staggerSections ? ' meeting-summary-section--ux-reveal' : ''}`}
+            aria-live="polite"
+            style={staggerSections ? { animationDelay: '30ms' } : undefined}
+          >
+            <span className="meeting-summary-ready-badge__dot" aria-hidden="true" />
+            AI generated • ready for review
+          </div>
+        )}
+
+        {hasMultipleCandidates && (
           <section
             className={`meeting-summary-section meeting-summary-section--interview-roster${staggerSections ? ' meeting-summary-section--ux-reveal' : ''}`}
-            style={staggerSections ? { animationDelay: '0ms' } : undefined}
+            style={staggerSections ? { animationDelay: '60ms' } : undefined}
           >
             <h2 className="meeting-summary-heading meeting-summary-heading--with-icon">
               <Users className="meeting-summary-heading-icon" strokeWidth={1.5} aria-hidden />
@@ -356,6 +369,9 @@ export default function MeetingSummaryReadonlyBody({
             </h2>
             <p className="meeting-summary-interview-roster-note">
               People you set when creating this interview (not the AI summary).
+            </p>
+            <p className="meeting-summary-interview-roster-recommendation">
+              Recommendation: for multiple candidates, configure voice profiles for clearer speaker attribution.
             </p>
             {interviewerLabel ? (
               <p className="meeting-summary-body meeting-summary-interview-roster-line">
@@ -385,6 +401,27 @@ export default function MeetingSummaryReadonlyBody({
           </section>
         )}
 
+        {singleCandidate && (
+          <section
+            className={`meeting-summary-section meeting-summary-section--candidate-profile${staggerSections ? ' meeting-summary-section--ux-reveal' : ''}`}
+            style={staggerSections ? { animationDelay: '60ms' } : undefined}
+          >
+            <h2 className="meeting-summary-heading meeting-summary-heading--with-icon">
+              <Users className="meeting-summary-heading-icon" strokeWidth={1.5} aria-hidden />
+              Candidate
+            </h2>
+            <p className="meeting-summary-body meeting-summary-interview-roster-line">
+              <strong>{singleCandidate.name}</strong>
+              {singleCandidate.role ? ` — ${singleCandidate.role}` : ''}
+            </p>
+            {interviewerLabel ? (
+              <p className="meeting-summary-body meeting-summary-interview-roster-line">
+                <strong>Interviewer:</strong> {interviewerLabel}
+              </p>
+            ) : null}
+          </section>
+        )}
+
         {hasHiringBlock && (
           <section
             className={`meeting-summary-section meeting-summary-section--hiring${staggerSections ? ' meeting-summary-section--ux-reveal' : ''}`}
@@ -403,17 +440,6 @@ export default function MeetingSummaryReadonlyBody({
               <p className="meeting-summary-body meeting-summary-hiring-reason">{hireReason}</p>
             ) : null}
           </section>
-        )}
-
-        {showReadyBadge && (
-          <div
-            className={`meeting-summary-ready-badge meeting-summary-ready-badge--sentence${staggerSections ? ' meeting-summary-section--ux-reveal' : ''}`}
-            aria-live="polite"
-            style={staggerSections ? { animationDelay: hasHiringBlock ? '60ms' : '40ms' } : undefined}
-          >
-            <span className="meeting-summary-ready-badge__dot" aria-hidden="true" />
-            AI Generated • Ready for review
-          </div>
         )}
 
         {!!summaryText && String(summaryText).trim() && (

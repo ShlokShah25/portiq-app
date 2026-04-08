@@ -494,6 +494,15 @@
   color: #a5b4fc;
 }
 
+.meeting-summary-ready-badge--compact {
+  margin: 0 0 14px;
+  padding: 5px 10px;
+  font-size: 0.7rem;
+  border-color: rgba(79, 70, 229, 0.24);
+  background: rgba(79, 70, 229, 0.08);
+  box-shadow: none;
+}
+
 @keyframes meeting-summary-pulse-dot {
   0%,
   100% {
@@ -540,8 +549,26 @@
   line-height: 1.45;
 }
 
+.meeting-summary-interview-roster-recommendation {
+  font-size: 12px;
+  color: var(--text-secondary, #a1a1a6);
+  margin: 0 0 12px;
+  line-height: 1.45;
+}
+
 .meeting-summary-interview-roster-line {
   margin: 0 0 12px;
+}
+
+.meeting-summary-section--candidate-profile {
+  padding-top: 16px;
+  margin-top: 4px;
+  border-top: 1px solid rgba(79, 70, 229, 0.2);
+  border-radius: 14px;
+  padding-left: 16px;
+  padding-right: 16px;
+  padding-bottom: 8px;
+  background: rgba(79, 70, 229, 0.06);
 }
 
 .meeting-summary-interview-roster-table-wrap {
