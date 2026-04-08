@@ -67,6 +67,26 @@ const DASHBOARD_TIPS = [
   'Tip: Interview meetings leave your decision queue once you finalize the decision.',
 ];
 
+const DASHBOARD_SECTION_KEYS = {
+  tipStrip: 'tipStrip',
+  pendingSummaries: 'pendingSummaries',
+  interviewPipeline: 'interviewPipeline',
+  inProgress: 'inProgress',
+  compactStats: 'compactStats',
+  recentTasks: 'recentTasks',
+};
+
+function readHiddenSections() {
+  try {
+    const raw = localStorage.getItem('portiq_dashboard_hidden_sections');
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 function interviewCandidateSubtitle(m) {
   const arr = Array.isArray(m.interviewCandidates) ? m.interviewCandidates : [];
   const named = arr.filter((c) => c && String(c.name || '').trim());
@@ -140,6 +160,22 @@ const Dashboard = () => {
   const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tipIndex, setTipIndex] = useState(() => pickDashboardTipIndex());
+  const [hiddenSections, setHiddenSections] = useState(() => readHiddenSections());
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('portiq_dashboard_hidden_sections', JSON.stringify(hiddenSections));
+    } catch {}
+  }, [hiddenSections]);
+
+  const hideSection = (key) =>
+    setHiddenSections((prev) => ({
+      ...prev,
+      [key]: true,
+    }));
+  const showAllSections = () => setHiddenSections({});
+  const isHidden = (key) => !!hiddenSections[key];
+  const hiddenCount = Object.values(hiddenSections).filter(Boolean).length;
 
   useEffect(() => {
     fetchData();
@@ -279,14 +315,36 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="dashboard-tip-strip" role="status" aria-live="polite">
-            <Lightbulb className="dashboard-tip-strip__ic" strokeWidth={1.5} aria-hidden />
-            <span key={tipIndex} className="dashboard-tip-strip__text ux-dashboard-tip-fade">
-              {DASHBOARD_TIPS[tipIndex]}
-            </span>
-          </div>
+          {hiddenCount > 0 ? (
+            <div className="dashboard-section-tools">
+              <button
+                type="button"
+                className="dashboard-section-tools__btn"
+                onClick={showAllSections}
+              >
+                Show hidden sections ({hiddenCount})
+              </button>
+            </div>
+          ) : null}
 
-          {pendingSummaryMeetings.length > 0 ? (
+          {!isHidden(DASHBOARD_SECTION_KEYS.tipStrip) ? (
+            <div className="dashboard-tip-strip" role="status" aria-live="polite">
+              <Lightbulb className="dashboard-tip-strip__ic" strokeWidth={1.5} aria-hidden />
+              <span key={tipIndex} className="dashboard-tip-strip__text ux-dashboard-tip-fade">
+                {DASHBOARD_TIPS[tipIndex]}
+              </span>
+              <button
+                type="button"
+                className="dashboard-section-hide"
+                onClick={() => hideSection(DASHBOARD_SECTION_KEYS.tipStrip)}
+                aria-label="Hide tips"
+              >
+                Hide
+              </button>
+            </div>
+          ) : null}
+
+          {pendingSummaryMeetings.length > 0 && !isHidden(DASHBOARD_SECTION_KEYS.pendingSummaries) ? (
             <section
               className="dashboard-pending-summaries ux-dashboard-stagger"
               style={{ animationDelay: '80ms' }}
@@ -306,9 +364,19 @@ const Dashboard = () => {
                     </p>
                   </div>
                 </div>
-                <Link to="/meetings" state={{ showAllMeetings: true }} className="dashboard-section__link">
-                  Meetings
-                </Link>
+                <div className="dashboard-head-actions">
+                  <Link to="/meetings" state={{ showAllMeetings: true }} className="dashboard-section__link">
+                    Meetings
+                  </Link>
+                  <button
+                    type="button"
+                    className="dashboard-section-hide"
+                    onClick={() => hideSection(DASHBOARD_SECTION_KEYS.pendingSummaries)}
+                    aria-label="Hide pending summaries section"
+                  >
+                    Hide
+                  </button>
+                </div>
               </div>
               <ul className="dashboard-pending-summaries__list">
                 {pendingSummaryMeetings.map((m) => {
@@ -329,7 +397,8 @@ const Dashboard = () => {
             </section>
           ) : null}
 
-          {interviewQueuePending.length > 0 || interviewQueueResolved.length > 0 ? (
+          {(interviewQueuePending.length > 0 || interviewQueueResolved.length > 0) &&
+          !isHidden(DASHBOARD_SECTION_KEYS.interviewPipeline) ? (
             <section
               className="dashboard-interview-pipeline ux-dashboard-stagger"
               style={{ animationDelay: '95ms' }}
@@ -348,9 +417,19 @@ const Dashboard = () => {
                     they&apos;re sent. Recent decisions stay below for a quick audit trail.
                   </p>
                 </div>
-                <Link to="/meetings" state={{ showAllMeetings: true }} className="dashboard-section__link">
-                  Meetings
-                </Link>
+                <div className="dashboard-head-actions">
+                  <Link to="/meetings" state={{ showAllMeetings: true }} className="dashboard-section__link">
+                    Meetings
+                  </Link>
+                  <button
+                    type="button"
+                    className="dashboard-section-hide"
+                    onClick={() => hideSection(DASHBOARD_SECTION_KEYS.interviewPipeline)}
+                    aria-label="Hide interview pipeline section"
+                  >
+                    Hide
+                  </button>
+                </div>
               </div>
 
               {interviewQueuePending.length > 0 ? (
@@ -444,6 +523,7 @@ const Dashboard = () => {
             </section>
           ) : null}
 
+          {!isHidden(DASHBOARD_SECTION_KEYS.inProgress) ? (
           <section
             className="dashboard-section dashboard-section--minimal ux-dashboard-stagger dashboard-section--reveal"
             style={{ animationDelay: '115ms' }}
@@ -453,9 +533,19 @@ const Dashboard = () => {
               <h2 id="dash-in-progress" className="dashboard-section__title">
                 In progress
               </h2>
-              <Link to="/meetings" state={{ showAllMeetings: true }} className="dashboard-section__link">
-                View all
-              </Link>
+              <div className="dashboard-head-actions">
+                <Link to="/meetings" state={{ showAllMeetings: true }} className="dashboard-section__link">
+                  View all
+                </Link>
+                <button
+                  type="button"
+                  className="dashboard-section-hide"
+                  onClick={() => hideSection(DASHBOARD_SECTION_KEYS.inProgress)}
+                  aria-label="Hide in progress section"
+                >
+                  Hide
+                </button>
+              </div>
             </div>
             {inProgressMeetings.length === 0 ? (
               <p className="dashboard-section__empty">No live sessions right now.</p>
@@ -488,7 +578,22 @@ const Dashboard = () => {
               </ul>
             )}
           </section>
+          ) : null}
 
+          {!isHidden(DASHBOARD_SECTION_KEYS.compactStats) ? (
+          <div className="dashboard-head-actions dashboard-head-actions--inline-tools">
+            <button
+              type="button"
+              className="dashboard-section-hide"
+              onClick={() => hideSection(DASHBOARD_SECTION_KEYS.compactStats)}
+              aria-label="Hide compact stats section"
+            >
+              Hide stats
+            </button>
+          </div>
+          ) : null}
+
+          {!isHidden(DASHBOARD_SECTION_KEYS.compactStats) ? (
           <div
             className="dashboard-compact-stats ux-dashboard-stagger"
             style={{ animationDelay: '90ms' }}
@@ -536,7 +641,9 @@ const Dashboard = () => {
               <ChevronRight className="dashboard-stat-chip__chev" strokeWidth={2} aria-hidden />
             </Link>
           </div>
+          ) : null}
 
+          {!isHidden(DASHBOARD_SECTION_KEYS.recentTasks) ? (
           <section
             className="dashboard-section dashboard-section--minimal ux-dashboard-stagger dashboard-section--reveal"
             style={{ animationDelay: '130ms' }}
@@ -546,9 +653,19 @@ const Dashboard = () => {
               <h2 id="dash-recent-tasks" className="dashboard-section__title">
                 Recent action items
               </h2>
-              <Link to="/insights" className="dashboard-section__link">
-                View all
-              </Link>
+              <div className="dashboard-head-actions">
+                <Link to="/insights" className="dashboard-section__link">
+                  View all
+                </Link>
+                <button
+                  type="button"
+                  className="dashboard-section-hide"
+                  onClick={() => hideSection(DASHBOARD_SECTION_KEYS.recentTasks)}
+                  aria-label="Hide recent tasks section"
+                >
+                  Hide
+                </button>
+              </div>
             </div>
             {recentTasks.length === 0 ? (
               <p className="dashboard-section__empty">
@@ -578,6 +695,7 @@ const Dashboard = () => {
               </ul>
             )}
           </section>
+          ) : null}
         </div>
       </div>
     </div>
