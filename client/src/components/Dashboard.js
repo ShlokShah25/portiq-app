@@ -413,8 +413,7 @@ const Dashboard = () => {
                     Interview pipeline
                   </h2>
                   <p className="dashboard-interview-pipeline__sub">
-                    Approve your hiring recommendation and send the summary — interviews drop off this list once
-                    they&apos;re sent. Recent decisions stay below for a quick audit trail.
+                    Finalize hiring decisions and keep recent outcomes visible.
                   </p>
                 </div>
                 <div className="dashboard-head-actions">
@@ -479,7 +478,7 @@ const Dashboard = () => {
                 </div>
               ) : (
                 <p className="dashboard-interview-pipeline__caught-up">
-                  You&apos;re all caught up — nothing waiting on a hiring decision.
+                  No pending hiring decisions.
                 </p>
               )}
 
