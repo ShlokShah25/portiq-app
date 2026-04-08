@@ -5,10 +5,14 @@ const Config = require('../models/Config');
 const Visitor = require('../models/Visitor');
 const Meeting = require('../models/Meeting');
 const jwt = require('jsonwebtoken');
-const { authenticateAdmin, requireSubscription } = require('../middleware/auth');
+const { authenticateAdmin } = require('../middleware/auth');
 const { getMeetingContext } = require('../utils/meetingContext');
 const { getPlanConstraints } = require('../utils/planConstraints');
-const { hasDashboardAccess } = require('../utils/subscriptionGate');
+const {
+  hasDashboardAccess,
+  trialMeetingsRemaining,
+  MINUTES_SAVED_PER_MEETING,
+} = require('../utils/subscriptionGate');
 const { alignDueYearToMeetingReference } = require('../utils/actionItemDueDate');
 const { resolveUploadPath } = require('../utils/resolveUploadPath');
 const {
@@ -108,15 +112,6 @@ router.post('/login', async (req, res) => {
       }
     }
 
-    // After password is verified: gate dashboard (paid subscription, complimentary access, or legacy admin).
-    if (!hasDashboardAccess(admin)) {
-      return res.status(403).json({
-        error:
-          'No active subscription. Please purchase a plan from the website to access the dashboard.',
-        code: 'NO_SUBSCRIPTION',
-      });
-    }
-
     admin.lastLogin = new Date();
     await admin.save();
 
@@ -166,6 +161,13 @@ router.get('/profile', authenticateAdmin, async (req, res) => {
 
   const pc = getPlanConstraints(req.admin);
   const dash = hasDashboardAccess(req.admin);
+  const meetingsCompleted = await Meeting.countDocuments({
+    adminId: req.admin._id,
+    status: 'Completed',
+  });
+  const totalMinutesSaved = meetingsCompleted * MINUTES_SAVED_PER_MEETING;
+  const trialUsed = Number(admin.trialMeetingsUsed) || 0;
+  const trialRemaining = trialMeetingsRemaining(req.admin);
 
   res.json({
     admin: {
@@ -179,6 +181,21 @@ router.get('/profile', authenticateAdmin, async (req, res) => {
       hasActiveSubscription: !!admin.hasActiveSubscription,
       complimentaryAccess: !!admin.complimentaryAccess,
       hasDashboardAccess: dash,
+      trialMeetingsUsed: trialUsed,
+      trialMeetingsRemaining: trialRemaining,
+      isTrialing:
+        !admin.hasActiveSubscription &&
+        !admin.complimentaryAccess &&
+        String(req.admin.username || '').toLowerCase() !== 'admin' &&
+        trialRemaining != null &&
+        trialRemaining > 0,
+      trialExhausted:
+        !admin.hasActiveSubscription &&
+        !admin.complimentaryAccess &&
+        String(req.admin.username || '').toLowerCase() !== 'admin' &&
+        trialRemaining === 0,
+      meetingsCompleted,
+      totalMinutesSaved,
       subscriptionPaymentPending:
         !!admin.razorpaySubscriptionId && !admin.hasActiveSubscription,
       allowsTranslatedSummary: !!pc.allowsTranslatedSummary,
@@ -229,7 +246,7 @@ router.patch('/meeting-platforms', authenticateAdmin, async (req, res) => {
 /**
  * Get participant book (saved participants) for the current admin
  */
-router.get('/participant-book', authenticateAdmin, requireSubscription, async (req, res) => {
+router.get('/participant-book', authenticateAdmin, async (req, res) => {
   try {
     const admin = await Admin.findById(req.admin._id).select('savedParticipants').lean();
     const raw = admin && admin.savedParticipants ? admin.savedParticipants : [];
@@ -295,7 +312,7 @@ router.get('/participant-book', authenticateAdmin, requireSubscription, async (r
 /**
  * Save participant book (enforces plan limit maxParticipantsInBook)
  */
-router.put('/participant-book', authenticateAdmin, requireSubscription, async (req, res) => {
+router.put('/participant-book', authenticateAdmin, async (req, res) => {
   try {
     const list = req.body.participants;
     if (!Array.isArray(list)) {
@@ -361,7 +378,7 @@ router.put('/password', authenticateAdmin, async (req, res) => {
 /**
  * Get dashboard stats
  */
-router.get('/stats', authenticateAdmin, requireSubscription, async (req, res) => {
+router.get('/stats', authenticateAdmin, async (req, res) => {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -524,7 +541,7 @@ router.get('/stats', authenticateAdmin, requireSubscription, async (req, res) =>
 /**
  * Get configuration
  */
-router.get('/config', authenticateAdmin, requireSubscription, async (req, res) => {
+router.get('/config', authenticateAdmin, async (req, res) => {
   try {
     const config = await Config.getConfig();
     res.json({ config });
@@ -537,7 +554,7 @@ router.get('/config', authenticateAdmin, requireSubscription, async (req, res) =
 /**
  * Update configuration
  */
-router.put('/config', authenticateAdmin, requireSubscription, async (req, res) => {
+router.put('/config', authenticateAdmin, async (req, res) => {
   try {
     const { companyName, completedMeetingDisplayHours } = req.body;
     const config = await Config.getConfig();
@@ -565,7 +582,7 @@ function canAccessMeeting(meeting, admin) {
   return String(meeting.adminId) === String(admin._id);
 }
 
-router.get('/meetings', authenticateAdmin, requireSubscription, async (req, res) => {
+router.get('/meetings', authenticateAdmin, async (req, res) => {
   try {
     const { status, meetingRoom, date, limit = 100, summaryMode: summaryModeFilter } = req.query;
     const query = {};
@@ -609,7 +626,7 @@ router.get('/meetings', authenticateAdmin, requireSubscription, async (req, res)
 /**
  * Get meeting by ID (admin view)
  */
-router.get('/meetings/:id', authenticateAdmin, requireSubscription, async (req, res) => {
+router.get('/meetings/:id', authenticateAdmin, async (req, res) => {
   try {
     const meeting = await Meeting.findById(req.params.id);
     if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
@@ -630,7 +647,7 @@ router.get('/meetings/:id', authenticateAdmin, requireSubscription, async (req, 
 /**
  * Update meeting (admin view - for renaming)
  */
-router.put('/meetings/:id', authenticateAdmin, requireSubscription, async (req, res) => {
+router.put('/meetings/:id', authenticateAdmin, async (req, res) => {
   try {
     const { title, meetingRoom, organizer, showOnKiosk, scheduledTime } = req.body;
     const meeting = await Meeting.findById(req.params.id);
@@ -655,7 +672,7 @@ router.put('/meetings/:id', authenticateAdmin, requireSubscription, async (req, 
 /**
  * Retry transcription for a failed meeting
  */
-router.post('/meetings/:id/retry-transcription', authenticateAdmin, requireSubscription, async (req, res) => {
+router.post('/meetings/:id/retry-transcription', authenticateAdmin, async (req, res) => {
   try {
     const fs = require('fs');
     const meeting = await Meeting.findById(req.params.id);
@@ -741,7 +758,7 @@ router.post('/meetings/:id/retry-transcription', authenticateAdmin, requireSubsc
 /**
  * Get AI learning analytics - shows how the system learns from past meetings
  */
-router.get('/ai-learning', authenticateAdmin, requireSubscription, async (req, res) => {
+router.get('/ai-learning', authenticateAdmin, async (req, res) => {
   try {
     // Get a recent completed meeting to analyze context
     const recentMeeting = await Meeting.findOne({
@@ -830,7 +847,7 @@ router.get('/ai-learning', authenticateAdmin, requireSubscription, async (req, r
 /**
  * Download original summary (before editor edits) as PDF
  */
-router.get('/meetings/:id/original-summary', authenticateAdmin, requireSubscription, async (req, res) => {
+router.get('/meetings/:id/original-summary', authenticateAdmin, async (req, res) => {
   try {
     const meeting = await Meeting.findById(req.params.id);
     if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
@@ -938,7 +955,7 @@ router.get('/meetings/:id/original-summary', authenticateAdmin, requireSubscript
 /**
  * Download current meeting minutes as PDF (pending fields while in review, else final summary + action items).
  */
-router.get('/meetings/:id/summary-pdf', authenticateAdmin, requireSubscription, async (req, res) => {
+router.get('/meetings/:id/summary-pdf', authenticateAdmin, async (req, res) => {
   try {
     const meeting = await Meeting.findById(req.params.id);
     if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
@@ -983,7 +1000,7 @@ router.get('/meetings/:id/summary-pdf', authenticateAdmin, requireSubscription, 
 /**
  * Download meeting audio recording
  */
-router.get('/meetings/:id/audio', authenticateAdmin, requireSubscription, async (req, res) => {
+router.get('/meetings/:id/audio', authenticateAdmin, async (req, res) => {
   try {
     const meeting = await Meeting.findById(req.params.id);
     if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
