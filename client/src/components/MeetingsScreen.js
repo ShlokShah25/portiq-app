@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation, useOutletContext } from 'react-router-dom';
 import axios from 'axios';
 import { isEducation } from '../config/product';
+import { FEATURE_INTERVIEW_UI } from '../config/featureFlags';
 import { T } from '../config/terminology';
 import { getClassrooms } from '../utils/classroomsStorage';
 import { PORTIQ_MEETINGS_HINT, PORTIQ_PRICE_ROW } from '../config/productPitch';
@@ -356,7 +357,8 @@ const MeetingsScreen = () => {
   };
 
   const companyName = config?.companyName || 'Your Company';
-  const isInterviewMeeting = (m) => m?.summaryMode === 'interview';
+  const isInterviewMeeting = (m) => FEATURE_INTERVIEW_UI && m?.summaryMode === 'interview';
+  const meetingTypeLabel = (m) => (isInterviewMeeting(m) ? 'Interview' : 'Meeting');
   const interviewStatusLabel = (status) => {
     if (status === 'Sent' || status === 'Approved') return 'Finalized';
     if (status === 'Pending Approval') return 'Pending decision';
@@ -598,6 +600,15 @@ const MeetingsScreen = () => {
                         >
                           {badge.label}
                         </span>
+                        <span
+                          className={`meeting-ui-badge ${
+                            isInterviewMeeting(m)
+                              ? 'meeting-ui-badge--type-interview'
+                              : 'meeting-ui-badge--type-standard'
+                          }`}
+                        >
+                          {meetingTypeLabel(m)}
+                        </span>
                         <h3 className="meeting-card-portiq-title">{m.title || 'Untitled'}</h3>
                         <p className="meeting-card-portiq-location">
                           {m.meetingRoom || 'No location'}
@@ -758,7 +769,7 @@ const MeetingsScreen = () => {
                       className="btn btn-secondary"
                       onClick={() => navigate(`/meetings/${selectedMeeting._id}/room`)}
                     >
-                      {selectedMeeting.summaryMode === 'interview' ? 'Start interview' : T.startMeeting()}
+                      {isInterviewMeeting(selectedMeeting) ? 'Start interview' : T.startMeeting()}
                     </button>
                   )}
                 </div>
@@ -1067,12 +1078,12 @@ const MeetingsScreen = () => {
                       ) : (
                         <>
                           <p className="meeting-summary-body" style={{ marginBottom: 12 }}>
-                            {selectedMeeting.summaryMode === 'interview'
+                            {isInterviewMeeting(selectedMeeting)
                               ? 'The interview summary and recommendation are generated. Finalize the decision when you are ready.'
                               : 'The summary is generated and can be emailed to participants once you approve it.'}
                           </p>
                           <p style={{ marginBottom: 20, color: '#9ca3af', fontSize: 13 }}>
-                            {selectedMeeting.summaryMode === 'interview'
+                            {isInterviewMeeting(selectedMeeting)
                               ? 'Open to review and edit, then finalize the decision. This is internal and is not sent to candidates.'
                               : 'Open to review, edit if needed, add late participants, then approve and send.'}
                           </p>
@@ -1161,7 +1172,7 @@ const MeetingsScreen = () => {
                           <div className="meeting-summary-edit">
                             <div className="meeting-summary-edit-field">
                               <label>
-                                {editableSummary.summaryMode === 'interview' || isEducation
+                                {(FEATURE_INTERVIEW_UI && editableSummary.summaryMode === 'interview') || isEducation
                                   ? 'Summary'
                                   : 'Minutes of the meeting'}
                               </label>
@@ -1172,7 +1183,7 @@ const MeetingsScreen = () => {
                                 className="meeting-summary-textarea"
                               />
                             </div>
-                            {editableSummary.summaryMode === 'interview' && (
+                            {FEATURE_INTERVIEW_UI && editableSummary.summaryMode === 'interview' && (
                               <>
                                 <div className="meeting-summary-edit-field">
                                   <label htmlFor="meetings-inline-hiring-rec">Final recommendation</label>
@@ -1212,7 +1223,7 @@ const MeetingsScreen = () => {
                             )}
                             <div className="meeting-summary-edit-field">
                               <label>
-                                {editableSummary.summaryMode === 'interview'
+                                {FEATURE_INTERVIEW_UI && editableSummary.summaryMode === 'interview'
                                   ? 'Key strengths (one per line)'
                                   : 'Key Points (one per line)'}
                               </label>
@@ -1287,7 +1298,7 @@ const MeetingsScreen = () => {
                             </div>
                             <div className="meeting-summary-edit-field">
                               <label>
-                                {editableSummary.summaryMode === 'interview'
+                                {FEATURE_INTERVIEW_UI && editableSummary.summaryMode === 'interview'
                                   ? 'Concerns / red flags (one per line)'
                                   : isEducation
                                     ? 'Important Concepts (one per line)'
@@ -1321,7 +1332,7 @@ const MeetingsScreen = () => {
                             />
                             
                             {/* Add Additional Participants Section - Only after summary is visible */}
-                            {selectedMeeting.summaryMode !== 'interview' && (
+                            {!isInterviewMeeting(selectedMeeting) && (
                             <div style={{ 
                               background: 'rgba(255, 255, 255, 0.05)', 
                               border: '1px solid rgba(255, 255, 255, 0.2)', 
@@ -1425,7 +1436,7 @@ const MeetingsScreen = () => {
                             const otpHeaders = editorOtpHeaders(selectedMeeting._id);
 
                             const validAdditionalParticipants =
-                              selectedMeeting.summaryMode === 'interview'
+                              isInterviewMeeting(selectedMeeting)
                                 ? []
                                 : additionalParticipants
                               .filter((p) => p.email && p.email.trim())
@@ -1471,7 +1482,7 @@ const MeetingsScreen = () => {
                             setError('');
                             const msg =
                               res.data.message ||
-                              (selectedMeeting.summaryMode === 'interview'
+                              (isInterviewMeeting(selectedMeeting)
                                 ? 'Decision finalized and saved.'
                                 : res.data.emailSent
                                   ? 'Summary approved and sent to all participants!'
@@ -1489,7 +1500,7 @@ const MeetingsScreen = () => {
                       >
                         {isEducation
                           ? 'Send Lecture Notes to Participants'
-                          : selectedMeeting.summaryMode === 'interview'
+                          : isInterviewMeeting(selectedMeeting)
                             ? 'Finalize Decision'
                             : 'Send Summary to Participants'}
                       </button>
@@ -1603,6 +1614,15 @@ const MeetingsScreen = () => {
                           >
                             <div className="meeting-title">{m.title}</div>
                             <div className="meetings-list-badges-row">
+                              <span
+                                className={`meeting-ui-badge ${
+                                  isInterviewMeeting(m)
+                                    ? 'meeting-ui-badge--type-interview'
+                                    : 'meeting-ui-badge--type-standard'
+                                }`}
+                              >
+                                {meetingTypeLabel(m)}
+                              </span>
                               {online ? (
                                 <span className="meeting-ui-badge meeting-ui-badge--mode">
                                   <Video className="meeting-ui-badge__icon" size={11} strokeWidth={2} aria-hidden />
@@ -1637,12 +1657,12 @@ const MeetingsScreen = () => {
                             title={
                               online
                                 ? 'Open meeting'
-                                : m.summaryMode === 'interview'
+                                : isInterviewMeeting(m)
                                   ? 'Start interview'
                                   : 'Start meeting'
                             }
                           >
-                            {online ? 'Open' : m.summaryMode === 'interview' ? 'Start interview' : 'Start'}
+                            {online ? 'Open' : isInterviewMeeting(m) ? 'Start interview' : 'Start'}
                           </button>
                         </div>
                         );
@@ -1699,6 +1719,15 @@ const MeetingsScreen = () => {
                       </div>
                     )}
                         <div className="meetings-list-badges-row">
+                          <span
+                            className={`meeting-ui-badge ${
+                              isInterviewMeeting(m)
+                                ? 'meeting-ui-badge--type-interview'
+                                : 'meeting-ui-badge--type-standard'
+                            }`}
+                          >
+                            {meetingTypeLabel(m)}
+                          </span>
                           {online ? (
                             <span className="meeting-ui-badge meeting-ui-badge--mode">
                               <Video className="meeting-ui-badge__icon" size={11} strokeWidth={2} aria-hidden />

@@ -16,6 +16,7 @@ import {
   buildIcsContent,
 } from '../utils/meetingCalendarLinks';
 import './MeetingSummary.css';
+import { FEATURE_INTERVIEW_UI } from '../config/featureFlags';
 
 /**
  * Read-only summary layout. Use includeSections to render only action items or everything except.
@@ -43,18 +44,25 @@ export default function MeetingSummaryReadonlyBody({
 
   const summaryMode =
     summaryModeProp || (meeting?.summaryMode === 'interview' ? 'interview' : 'standard');
-  const isInterview = summaryMode === 'interview';
+  const isInterview = FEATURE_INTERVIEW_UI && summaryMode === 'interview';
 
-  const intEmail = String(meeting?.interviewInterviewerEmail || '').trim().toLowerCase();
+  const interviewerEmails = [
+    ...(Array.isArray(meeting?.interviewInterviewerEmails) ? meeting.interviewInterviewerEmails : []),
+    meeting?.interviewInterviewerEmail,
+  ]
+    .map((e) => String(e || '').trim().toLowerCase())
+    .filter(Boolean)
+    .filter((e, i, arr) => arr.indexOf(e) === i);
   const interviewerLabel = (() => {
-    if (!intEmail) return '';
+    if (!interviewerEmails.length) return '';
     const parts = meeting?.participants;
-    if (!Array.isArray(parts)) return intEmail;
-    const p = parts.find(
-      (x) => x && String(x.email || '').trim().toLowerCase() === intEmail
-    );
-    const nm = p && String(p.name || '').trim();
-    return nm ? `${nm} (${intEmail})` : `${intEmail.split('@')[0]} (${intEmail})`;
+    if (!Array.isArray(parts)) return interviewerEmails.join(', ');
+    const labels = interviewerEmails.map((email) => {
+      const p = parts.find((x) => x && String(x.email || '').trim().toLowerCase() === email);
+      const nm = p && String(p.name || '').trim();
+      return nm ? `${nm} (${email})` : `${email.split('@')[0]} (${email})`;
+    });
+    return labels.join(', ');
   })();
 
   const candidatesFromDoc = Array.isArray(meeting?.interviewCandidates)

@@ -11,6 +11,7 @@ import {
   Users,
 } from 'lucide-react';
 import './Dashboard.css';
+import { FEATURE_INTERVIEW_UI } from '../config/featureFlags';
 
 function buildRecentTasks(stats) {
   if (!stats) return [];
@@ -59,13 +60,16 @@ function statusLabel(s) {
   return 'Not started';
 }
 
-const DASHBOARD_TIPS = [
+const DASHBOARD_TIPS_ALL = [
   'Tip: Add participants from Settings → Workspace or directly while creating a meeting.',
   'Tip: Use optional details to adjust date, time, and location before you start.',
   'Tip: Review action items regularly so nothing slips through.',
   'Tip: Pending summaries need a quick review before they go out.',
   'Tip: Interview meetings leave your decision queue once you finalize the decision.',
 ];
+const DASHBOARD_TIPS = FEATURE_INTERVIEW_UI
+  ? DASHBOARD_TIPS_ALL
+  : DASHBOARD_TIPS_ALL.filter((t) => !t.includes('Interview'));
 
 const DASHBOARD_SECTION_KEYS = {
   tipStrip: 'tipStrip',
@@ -220,7 +224,7 @@ const Dashboard = () => {
   const pendingSummaryMeetings = useMemo(() => {
     return meetings
       .filter((m) => String(m.pendingSummary || '').trim().length > 0)
-      .filter((m) => m.summaryMode !== 'interview')
+      .filter((m) => !FEATURE_INTERVIEW_UI || m.summaryMode !== 'interview')
       .sort((a, b) => {
         const ta = new Date(a.updatedAt || a.endTime || a.startTime || 0).getTime();
         const tb = new Date(b.updatedAt || b.endTime || b.startTime || 0).getTime();
@@ -397,7 +401,8 @@ const Dashboard = () => {
             </section>
           ) : null}
 
-          {(interviewQueuePending.length > 0 || interviewQueueResolved.length > 0) &&
+          {FEATURE_INTERVIEW_UI &&
+          (interviewQueuePending.length > 0 || interviewQueueResolved.length > 0) &&
           !isHidden(DASHBOARD_SECTION_KEYS.interviewPipeline) ? (
             <section
               className="dashboard-interview-pipeline ux-dashboard-stagger"

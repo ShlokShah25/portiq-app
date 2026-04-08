@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { Video, Mic, Bot } from 'lucide-react';
 import { T } from '../config/terminology';
+import { FEATURE_INTERVIEW_UI } from '../config/featureFlags';
 import MeetingStatusBadge from './MeetingStatusBadge';
 import { isOnlineMeeting } from '../utils/meetingDisplayStatus';
 import { transcriptionFailureCopy } from '../utils/transcriptionFailureCopy';
@@ -245,7 +246,7 @@ const MeetingDetail = () => {
   const isScheduled = meeting.status === 'Scheduled';
   const isInProgress = meeting.status === 'In Progress';
   const isCompleted = meeting.status === 'Completed';
-  const isInterview = meeting.summaryMode === 'interview';
+  const isInterview = FEATURE_INTERVIEW_UI && meeting.summaryMode === 'interview';
   const online = isOnlineMeeting(meeting);
   const prov = String(meeting.conferenceProvider || '').toLowerCase();
   const platformLabel =

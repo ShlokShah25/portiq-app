@@ -26,6 +26,24 @@
   margin-top: 6px;
   display: block;
   box-sizing: border-box;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-color: #1c1c1e;
+  background-image: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #e5e5e5;
+  font-size: 15px;
+  padding: 10px 12px;
+  letter-spacing: 0.06em;
+  cursor: text;
+}
+
+.meeting-summary-editor-verify__input:focus {
+  outline: none;
+  border-color: rgba(59, 130, 246, 0.45);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
 }
 
 .meeting-summary-editor-verify__notice {

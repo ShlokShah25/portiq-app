@@ -1187,6 +1187,17 @@
   font-weight: 600;
 }
 
+.meeting-create-interview-title-auto {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(99, 102, 241, 0.26);
+  background: rgba(99, 102, 241, 0.1);
+  color: #c7d2fe;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .meeting-create-field-stack {
   display: flex;
   flex-direction: column;
@@ -1234,6 +1245,50 @@
 .meeting-create-interview-select:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+.meeting-create-interview-multi {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.meeting-create-interview-multi__empty {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: #9ca3af;
+  font-size: 13px;
+}
+
+.meeting-create-interview-multi__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  color: #d1d5db;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.meeting-create-interview-multi__item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.meeting-create-interview-multi__item input {
+  margin: 0;
+  accent-color: #4f46e5;
+}
+
+.meeting-create-interview-multi__item--selected {
+  background: rgba(79, 70, 229, 0.14);
+  border-color: rgba(99, 102, 241, 0.38);
 }
 
 .meeting-create-interview-candidates-head {

@@ -156,20 +156,28 @@ async function buildTranscriptWithSpeakerHints(meetingObj, transcriptTextTrim) {
       })
       .join(', ');
 
-    const intEmail = String(meetingObj.interviewInterviewerEmail || '')
-      .trim()
-      .toLowerCase();
-    const interviewerHint =
-      intEmail && Array.isArray(meetingObj.participants)
-        ? (() => {
-            const ip = meetingObj.participants.find(
-              (p) => p && String(p.email || '').trim().toLowerCase() === intEmail
-            );
-            if (!ip) return '';
-            const nm = String(ip.name || '').trim() || intEmail.split('@')[0];
-            return `Designated interviewer (from participant list): ${nm} (${intEmail})`;
-          })()
-        : '';
+    const interviewerEmails = [
+      ...(Array.isArray(meetingObj.interviewInterviewerEmails)
+        ? meetingObj.interviewInterviewerEmails
+        : []),
+      meetingObj.interviewInterviewerEmail,
+    ]
+      .map((e) => String(e || '').trim().toLowerCase())
+      .filter(Boolean)
+      .filter((e, i, arr) => arr.indexOf(e) === i);
+    const interviewerHints =
+      interviewerEmails.length && Array.isArray(meetingObj.participants)
+        ? interviewerEmails
+            .map((email) => {
+              const ip = meetingObj.participants.find(
+                (p) => p && String(p.email || '').trim().toLowerCase() === email
+              );
+              if (!ip) return '';
+              const nm = String(ip.name || '').trim() || email.split('@')[0];
+              return `Designated interviewer (from participant list): ${nm} (${email})`;
+            })
+            .filter(Boolean)
+        : [];
 
     const candidateHints = Array.isArray(meetingObj.interviewCandidates)
       ? meetingObj.interviewCandidates
@@ -183,10 +191,10 @@ async function buildTranscriptWithSpeakerHints(meetingObj, transcriptTextTrim) {
       : [];
 
     let prefix = '';
-    if (interviewerHint || candidateHints.length) {
+    if (interviewerHints.length || candidateHints.length) {
       prefix =
         `[Interview roster hints — use only when supported by the audio/transcript]\n` +
-        (interviewerHint ? `${interviewerHint}\n` : '') +
+        (interviewerHints.length ? `${interviewerHints.join('\n')}\n` : '') +
         (candidateHints.length ? `${candidateHints.join('\n')}\n` : '') +
         `\n`;
     }
@@ -227,15 +235,28 @@ async function generateInterviewMeetingSummaryFromTranscript(transcriptRaw, meet
   const maxRetries = OPENAI_PIPELINE_MAX_RETRIES;
   const transcriptWithSpeakers = await buildTranscriptWithSpeakerHints(meetingObj, transcriptTextTrim);
 
-  const intEmail = String(meetingObj.interviewInterviewerEmail || '').trim().toLowerCase();
+  const interviewerEmails = [
+    ...(Array.isArray(meetingObj.interviewInterviewerEmails)
+      ? meetingObj.interviewInterviewerEmails
+      : []),
+    meetingObj.interviewInterviewerEmail,
+  ]
+    .map((e) => String(e || '').trim().toLowerCase())
+    .filter(Boolean)
+    .filter((e, i, arr) => arr.indexOf(e) === i);
   const interviewerLine = (() => {
-    if (!intEmail || !Array.isArray(meetingObj.participants)) return '';
-    const ip = meetingObj.participants.find(
-      (p) => p && String(p.email || '').trim().toLowerCase() === intEmail
-    );
-    if (!ip) return '';
-    const nm = String(ip.name || '').trim() || intEmail.split('@')[0];
-    return `Interviewer (expected): ${nm}`;
+    if (!interviewerEmails.length || !Array.isArray(meetingObj.participants)) return '';
+    const names = interviewerEmails
+      .map((email) => {
+        const ip = meetingObj.participants.find(
+          (p) => p && String(p.email || '').trim().toLowerCase() === email
+        );
+        if (!ip) return '';
+        return String(ip.name || '').trim() || email.split('@')[0];
+      })
+      .filter(Boolean);
+    if (!names.length) return '';
+    return `Interviewer(s) (expected): ${names.join(', ')}`;
   })();
 
   const multiCandidates = Array.isArray(meetingObj.interviewCandidates)

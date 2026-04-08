@@ -67,6 +67,18 @@
   border-color: rgba(255, 255, 255, 0.1);
 }
 
+.meeting-ui-badge--type-interview {
+  color: #c4b5fd;
+  background: rgba(99, 102, 241, 0.16);
+  border-color: rgba(129, 140, 248, 0.34);
+}
+
+.meeting-ui-badge--type-standard {
+  color: #bfdbfe;
+  background: rgba(37, 99, 235, 0.14);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
 .meeting-ui-badge__icon {
   flex-shrink: 0;
   opacity: 0.9;

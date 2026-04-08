@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { T } from '../config/terminology';
+import { FEATURE_INTERVIEW_UI } from '../config/featureFlags';
 import './MeetingSummary.css';
 import './MeetingInProgress.css';
 import './MeetingDetail.css';
@@ -525,7 +526,7 @@ const MeetingInProgress = () => {
   }
 
   const recordingLive = recording || isGlobalRecordingActive();
-  const isInterview = meeting?.summaryMode === 'interview';
+  const isInterview = FEATURE_INTERVIEW_UI && meeting?.summaryMode === 'interview';
   const meetingLocationTrimmed = meeting ? String(meeting.meetingRoom || '').trim() : '';
   const hasMeetingLocation = meetingLocationTrimmed.length > 0;
   const showLiveStatusChip =

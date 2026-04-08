@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './ClientAdmin.css';
+import { FEATURE_INTERVIEW_UI } from '../config/featureFlags';
 
 /** Stable row id for keys and toggles (handles string/ObjectId-shaped ids from JSON). */
 function stableMeetingRowId(meeting, rowIndex) {
@@ -55,7 +56,7 @@ function normalizeParticipantForDisplay(p, index) {
 function summaryStatusLabelForMeeting(meeting) {
   const status = meeting?.summaryStatus || '';
   if (!status) return '';
-  if (meeting?.summaryMode === 'interview') {
+  if (FEATURE_INTERVIEW_UI && meeting?.summaryMode === 'interview') {
     if (status === 'Sent' || status === 'Approved') return 'Finalized';
     if (status === 'Pending Approval') return 'Pending decision';
   }
@@ -77,6 +78,7 @@ const ClientAdmin = () => {
    * `meeting` is snapshotted for actions so handlers always have the row that was opened.
    */
   const [tableExpand, setTableExpand] = useState(null);
+  const meetingTableColSpan = FEATURE_INTERVIEW_UI ? 10 : 9;
   const [rescheduleMeeting, setRescheduleMeeting] = useState(null);
   const [rescheduleDate, setRescheduleDate] = useState('');
   const [rescheduleTime, setRescheduleTime] = useState('');
@@ -384,7 +386,7 @@ const ClientAdmin = () => {
               <thead>
                 <tr>
                   <th>Title</th>
-                  <th>Type</th>
+                  {FEATURE_INTERVIEW_UI ? <th>Type</th> : null}
                   <th>Room</th>
                   <th>Organizer</th>
                   <th>Date</th>
@@ -407,31 +409,33 @@ const ClientAdmin = () => {
                     <Fragment key={rowId}>
                       <tr>
                         <td>{meeting.title}</td>
-                        <td>
-                          <span
-                            style={{
-                              display: 'inline-block',
-                              padding: '2px 8px',
-                              borderRadius: '10px',
-                              fontSize: '11px',
-                              fontWeight: 600,
-                              background:
-                                meeting.summaryMode === 'interview'
-                                  ? 'rgba(79, 70, 229, 0.14)'
-                                  : 'rgba(255, 255, 255, 0.06)',
-                              color:
-                                meeting.summaryMode === 'interview'
-                                  ? '#c7d2fe'
-                                  : 'rgba(234, 240, 255, 0.82)',
-                              border:
-                                meeting.summaryMode === 'interview'
-                                  ? '1px solid rgba(79, 70, 229, 0.35)'
-                                  : '1px solid rgba(255, 255, 255, 0.12)',
-                            }}
-                          >
-                            {meeting.summaryMode === 'interview' ? 'Interview' : 'Meeting'}
-                          </span>
-                        </td>
+                        {FEATURE_INTERVIEW_UI ? (
+                          <td>
+                            <span
+                              style={{
+                                display: 'inline-block',
+                                padding: '2px 8px',
+                                borderRadius: '10px',
+                                fontSize: '11px',
+                                fontWeight: 600,
+                                background:
+                                  meeting.summaryMode === 'interview'
+                                    ? 'rgba(79, 70, 229, 0.14)'
+                                    : 'rgba(255, 255, 255, 0.06)',
+                                color:
+                                  meeting.summaryMode === 'interview'
+                                    ? '#c7d2fe'
+                                    : 'rgba(234, 240, 255, 0.82)',
+                                border:
+                                  meeting.summaryMode === 'interview'
+                                    ? '1px solid rgba(79, 70, 229, 0.35)'
+                                    : '1px solid rgba(255, 255, 255, 0.12)',
+                              }}
+                            >
+                              {meeting.summaryMode === 'interview' ? 'Interview' : 'Meeting'}
+                            </span>
+                          </td>
+                        ) : null}
                         <td>{meeting.meetingRoom || 'N/A'}</td>
                         <td>{meeting.organizer || 'N/A'}</td>
                         <td>{formatDate(meeting.startTime || meeting.scheduledTime)}</td>
@@ -536,7 +540,7 @@ const ClientAdmin = () => {
                       </tr>
                       {participantRows.length > 0 && participantsExpanded && (
                         <tr className="participants-inline-row" aria-live="polite">
-                          <td colSpan={10}>
+                          <td colSpan={meetingTableColSpan}>
                             <div
                               className="participants-inline-panel"
                               role="region"
@@ -562,7 +566,7 @@ const ClientAdmin = () => {
                       )}
                       {actionsExpanded && (
                         <tr className="actions-inline-row">
-                          <td colSpan={10}>
+                          <td colSpan={meetingTableColSpan}>
                             <div
                               id={`client-admin-actions-${rowId}`}
                               className="actions-inline-panel"

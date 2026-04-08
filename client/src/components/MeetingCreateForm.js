@@ -20,6 +20,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { isEducation } from '../config/product';
+import { FEATURE_INTERVIEW_UI } from '../config/featureFlags';
 import { getClassrooms } from '../utils/classroomsStorage';
 import {
   VOICE_ENROLLMENT_API_TEMPLATE,
@@ -62,6 +63,12 @@ function splitTitleAgenda(raw) {
   return { title: title || s, agenda };
 }
 
+function buildInterviewMeetingTitle(candidateName, role) {
+  const safeCandidate = String(candidateName || '').trim().slice(0, 200) || 'Candidate';
+  const safeRole = String(role || '').trim().slice(0, 200);
+  return `Interview- ${safeCandidate}${safeRole ? ` | Role: ${safeRole}` : ''}`.slice(0, 500);
+}
+
 function makeInterviewCandidateVoiceEmail() {
   try {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -97,7 +104,7 @@ function resetAllState(setters) {
   setters.setVoiceRecognitionEnabled(false);
   if (setters.setOptionalDetailsOpen) setters.setOptionalDetailsOpen(false);
   if (setters.setSummaryMode) setters.setSummaryMode('standard');
-  if (setters.setInterviewInterviewerEmail) setters.setInterviewInterviewerEmail('');
+  if (setters.setInterviewInterviewerEmails) setters.setInterviewInterviewerEmails([]);
   if (setters.setInterviewCandidates) {
     setters.setInterviewCandidates([createEmptyInterviewCandidate()]);
   }
@@ -141,10 +148,21 @@ export default function MeetingCreateForm({
   const participantDropdownRef = useRef(null);
   const [optionalDetailsOpen, setOptionalDetailsOpen] = useState(false);
   const [summaryMode, setSummaryMode] = useState('standard');
-  const [interviewInterviewerEmail, setInterviewInterviewerEmail] = useState('');
+  const [interviewInterviewerEmails, setInterviewInterviewerEmails] = useState([]);
   const [interviewCandidates, setInterviewCandidates] = useState(() => [
     createEmptyInterviewCandidate(),
   ]);
+
+  const summaryModeEffective = useMemo(
+    () => (FEATURE_INTERVIEW_UI && summaryMode === 'interview' ? 'interview' : 'standard'),
+    [summaryMode]
+  );
+
+  useEffect(() => {
+    if (!FEATURE_INTERVIEW_UI && summaryMode === 'interview') {
+      setSummaryMode('standard');
+    }
+  }, [FEATURE_INTERVIEW_UI, summaryMode]);
 
   const runReset = useCallback(() => {
     try {
@@ -172,7 +190,7 @@ export default function MeetingCreateForm({
       setVoiceRecognitionEnabled,
       setOptionalDetailsOpen,
       setSummaryMode,
-      setInterviewInterviewerEmail,
+      setInterviewInterviewerEmails,
       setInterviewCandidates,
     });
     setParticipantDropdownOpen(false);
@@ -223,9 +241,11 @@ export default function MeetingCreateForm({
       .map((p) => String(p.email || '').trim().toLowerCase())
       .filter(Boolean);
     const extra = [];
-    if (summaryMode === 'interview') {
-      const ie = String(interviewInterviewerEmail || '').trim().toLowerCase();
-      if (ie) extra.push(ie);
+    if (summaryModeEffective === 'interview') {
+      interviewInterviewerEmails.forEach((e) => {
+        const ie = String(e || '').trim().toLowerCase();
+        if (ie) extra.push(ie);
+      });
       interviewCandidates.forEach((c) => {
         const ve = String(c.voiceEmail || '').trim().toLowerCase();
         if (ve) extra.push(ve);
@@ -262,17 +282,17 @@ export default function MeetingCreateForm({
     active,
     participantBook,
     isEducation,
-    summaryMode,
-    interviewInterviewerEmail,
+    summaryModeEffective,
+    interviewInterviewerEmails,
     interviewCandidates,
   ]);
 
   useEffect(() => {
-    if (isEducation || summaryMode !== 'interview') return;
+    if (isEducation || summaryModeEffective !== 'interview') return;
     setInterviewCandidates((prev) =>
       prev.length === 0 ? [createEmptyInterviewCandidate()] : prev
     );
-  }, [summaryMode, isEducation]);
+  }, [summaryModeEffective, isEducation]);
 
   useEffect(() => {
     if (!participantDropdownOpen) return;
@@ -354,13 +374,16 @@ export default function MeetingCreateForm({
   const validateCommon = () => {
     if (!scheduledDate || !scheduledTime) return 'Meeting date and time are required.';
     if (!scheduledIso()) return 'Invalid date or time.';
-    if (!isEducation && summaryMode === 'interview') {
-      const intLower = String(interviewInterviewerEmail || '').trim().toLowerCase();
-      if (!intLower) {
-        return 'Select who is conducting the interview (interviewer from your selected people).';
+    if (!isEducation && summaryModeEffective === 'interview') {
+      const intEmails = Array.isArray(interviewInterviewerEmails)
+        ? interviewInterviewerEmails.map((e) => String(e || '').trim().toLowerCase()).filter(Boolean)
+        : [];
+      if (intEmails.length === 0) {
+        return 'Select at least one interviewer from your selected people.';
       }
-      if (!selectedBookEmails.includes(intLower)) {
-        return 'Interviewer must be one of the selected people from your book.';
+      const invalid = intEmails.find((e) => !selectedBookEmails.includes(e));
+      if (invalid) {
+        return 'Every interviewer must be one of the selected people from your book.';
       }
       const named = interviewCandidates.filter((c) => String(c.name || '').trim());
       if (named.length === 0) {
@@ -398,7 +421,17 @@ export default function MeetingCreateForm({
   const buildBody = (extra) => {
     const { title, agenda } = splitTitleAgenda(titleAgendaCombined);
     const fallback = `Session · ${scheduledDate} ${scheduledTime}`;
-    const effTitle = (title.trim() || fallback).slice(0, 500);
+    const primaryInterviewCandidate =
+      !isEducation && summaryModeEffective === 'interview'
+        ? interviewCandidates.find((c) => String(c.name || '').trim())
+        : null;
+    const effTitle =
+      !isEducation && summaryModeEffective === 'interview'
+        ? buildInterviewMeetingTitle(
+            String(primaryInterviewCandidate?.name || '').trim(),
+            String(primaryInterviewCandidate?.role || '').trim()
+          )
+        : (title.trim() || fallback).slice(0, 500);
     const effAgenda = (agenda.trim() || title.trim() || fallback).slice(0, 8000);
     const room = liveLocation.trim() || 'Live recording';
     return {
@@ -411,13 +444,19 @@ export default function MeetingCreateForm({
       authorizedEditorEmail: authorizedEditorEmail.trim() || undefined,
       transcriptionEnabled: true,
       meetingRoom: room,
-      summaryMode: isEducation ? 'standard' : summaryMode === 'interview' ? 'interview' : 'standard',
+      summaryMode: isEducation ? 'standard' : summaryModeEffective === 'interview' ? 'interview' : 'standard',
+      interviewInterviewerEmails:
+        !isEducation && summaryModeEffective === 'interview'
+          ? interviewInterviewerEmails
+              .map((e) => String(e || '').trim().toLowerCase())
+              .filter(Boolean)
+          : [],
       interviewInterviewerEmail:
-        !isEducation && summaryMode === 'interview'
-          ? String(interviewInterviewerEmail || '').trim().toLowerCase()
+        !isEducation && summaryModeEffective === 'interview'
+          ? String(interviewInterviewerEmails[0] || '').trim().toLowerCase()
           : '',
       interviewCandidates:
-        !isEducation && summaryMode === 'interview'
+        !isEducation && summaryModeEffective === 'interview'
           ? interviewCandidates
               .filter((c) => String(c.name || '').trim())
               .map((c) => ({
@@ -427,7 +466,7 @@ export default function MeetingCreateForm({
               }))
           : [],
       interviewCandidateName:
-        !isEducation && summaryMode === 'interview'
+        !isEducation && summaryModeEffective === 'interview'
           ? (
               interviewCandidates.find((c) => String(c.name || '').trim())?.name || ''
             )
@@ -435,7 +474,7 @@ export default function MeetingCreateForm({
               .slice(0, 200)
           : '',
       interviewRole:
-        !isEducation && summaryMode === 'interview'
+        !isEducation && summaryModeEffective === 'interview'
           ? (
               interviewCandidates.find((c) => String(c.name || '').trim())?.role || ''
             )
@@ -509,7 +548,7 @@ export default function MeetingCreateForm({
       let participantList = participantBook
         .filter((p) => p.email && String(p.email).trim())
         .map((p) => ({ name: p.name || '', email: String(p.email).trim() }));
-      if (summaryMode === 'interview') {
+      if (summaryModeEffective === 'interview') {
         interviewCandidates.forEach((c) => {
           const em = String(c.voiceEmail || '').trim();
           const nm = String(c.name || '').trim();
@@ -592,7 +631,7 @@ export default function MeetingCreateForm({
           <h2 id="start-meeting-title" className="start-meeting-modal__title">
             {isEducation
               ? 'Create lecture'
-              : summaryMode === 'interview'
+              : summaryModeEffective === 'interview'
                 ? 'Start interview'
                 : 'Create meeting'}
           </h2>
@@ -609,21 +648,27 @@ export default function MeetingCreateForm({
 
       <>
               <div className="meeting-create-primary-block">
-                <div className="start-meeting-field" style={{ marginTop: isEducation ? 4 : 0 }}>
-                  <FieldLabel htmlFor="sm-title-agenda" icon={FileText}>
-                    {isEducation ? 'Lecture title & notes' : 'Meeting title & agenda'}
-                  </FieldLabel>
-                  <textarea
-                    id="sm-title-agenda"
-                    className="meeting-create-title-agenda-single"
-                    value={titleAgendaCombined}
-                    onChange={(e) => setTitleAgendaCombined(e.target.value)}
-                    placeholder={`First line: title (e.g. Project review — ${companyName}).\nFollowing lines: agenda, topics, decisions…`}
-                    rows={3}
-                    autoComplete="off"
-                    disabled={formDisabled}
-                  />
-                </div>
+                {!(summaryModeEffective === 'interview' && !isEducation) ? (
+                  <div className="start-meeting-field" style={{ marginTop: isEducation ? 4 : 0 }}>
+                    <FieldLabel htmlFor="sm-title-agenda" icon={FileText}>
+                      {isEducation ? 'Lecture title & notes' : 'Meeting title & agenda'}
+                    </FieldLabel>
+                    <textarea
+                      id="sm-title-agenda"
+                      className="meeting-create-title-agenda-single"
+                      value={titleAgendaCombined}
+                      onChange={(e) => setTitleAgendaCombined(e.target.value)}
+                      placeholder={`First line: title (e.g. Project review — ${companyName}).\nFollowing lines: agenda, topics, decisions…`}
+                      rows={3}
+                      autoComplete="off"
+                      disabled={formDisabled}
+                    />
+                  </div>
+                ) : (
+                  <p className="meeting-create-interview-title-auto">
+                    Title is auto-generated from candidate and role.
+                  </p>
+                )}
 
                 {isEducation && (
                   <div className="start-meeting-field start-meeting-classroom">
@@ -849,7 +894,7 @@ export default function MeetingCreateForm({
 
                 {error && <div className="start-meeting-error">{error}</div>}
 
-                {!isEducation && (
+                {FEATURE_INTERVIEW_UI && !isEducation && (
                   <div className="meeting-create-mode-block" role="group" aria-label="Meeting mode">
                     <span className="meeting-create-mode-block__label">Meeting mode</span>
                     <div className="meeting-create-mode-segment">
@@ -858,7 +903,7 @@ export default function MeetingCreateForm({
                           type="radio"
                           name="portiq-summary-mode"
                           value="standard"
-                          checked={summaryMode === 'standard'}
+                          checked={summaryModeEffective === 'standard'}
                           onChange={() => setSummaryMode('standard')}
                           disabled={formDisabled}
                         />
@@ -869,49 +914,68 @@ export default function MeetingCreateForm({
                           type="radio"
                           name="portiq-summary-mode"
                           value="interview"
-                          checked={summaryMode === 'interview'}
+                          checked={summaryModeEffective === 'interview'}
                           onChange={() => setSummaryMode('interview')}
                           disabled={formDisabled}
                         />
                         <span>Interview</span>
                       </label>
                     </div>
-                    {summaryMode === 'interview' && (
+                    {summaryModeEffective === 'interview' && (
                       <div className="meeting-create-interview-panel">
                         <p className="meeting-create-interview-lead">
-                          Interviewer comes from your <strong>participant book</strong> (auto-added to selected people).
+                          Interviewers come from your <strong>participant book</strong> (auto-added to selected people).
                           Candidates are only for
                           this meeting — they are <strong>not</strong> added to your participant book. Configure voice
                           for the interviewer in <strong>Configure voice</strong> above when needed.
                         </p>
                         <div className="meeting-create-field-stack">
                           <label className="meeting-create-interview-label" htmlFor="sm-interviewer">
-                            Interviewer (conducting the interview)
+                            Interviewers (conducting the interview)
                           </label>
-                          <select
+                          <div
                             id="sm-interviewer"
-                            className="meeting-create-interview-select"
-                            value={interviewInterviewerEmail}
-                            onChange={(e) => {
-                              const em = String(e.target.value || '').trim().toLowerCase();
-                              setInterviewInterviewerEmail(em);
-                              if (em) {
-                                setSelectedBookEmails((prev) => (prev.includes(em) ? prev : [...prev, em]));
-                              }
-                            }}
-                            disabled={formDisabled || interviewerOptions.length === 0}
+                            className="meeting-create-interview-multi"
+                            role="group"
+                            aria-label="Select interviewers"
                           >
-                            <option value="">
-                              {interviewerOptions.length === 0
-                                ? 'No people in participant book yet'
-                                : 'Choose interviewer…'}
-                            </option>
-                            {interviewerOptions.map((opt) => (
-                              <option key={opt.email} value={opt.email}>
-                                {opt.label}
-                              </option>
-                            ))}
-                          </select>
+                            {interviewerOptions.length === 0 ? (
+                              <p className="meeting-create-interview-multi__empty">
+                                No people in participant book yet
+                              </p>
+                            ) : (
+                              interviewerOptions.map((opt) => {
+                                const checked = interviewInterviewerEmails.includes(opt.email);
+                                return (
+                                  <label
+                                    key={opt.email}
+                                    className={`meeting-create-interview-multi__item${
+                                      checked ? ' meeting-create-interview-multi__item--selected' : ''
+                                    }`}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      onChange={(e) => {
+                                        const on = !!e.target.checked;
+                                        setInterviewInterviewerEmails((prev) => {
+                                          if (on) return prev.includes(opt.email) ? prev : [...prev, opt.email];
+                                          return prev.filter((x) => x !== opt.email);
+                                        });
+                                        if (on) {
+                                          setSelectedBookEmails((prev) =>
+                                            prev.includes(opt.email) ? prev : [...prev, opt.email]
+                                          );
+                                        }
+                                      }}
+                                      disabled={formDisabled}
+                                    />
+                                    <span>{opt.label}</span>
+                                  </label>
+                                );
+                              })
+                            )}
+                          </div>
                         </div>
 
                         <div className="meeting-create-interview-candidates-head">
@@ -1052,11 +1116,11 @@ export default function MeetingCreateForm({
                     {loading ? (
                       <>
                         <span className="start-meeting-btn-spinner" aria-hidden />
-                        {isEducation ? 'Creating…' : summaryMode === 'interview' ? 'Starting…' : 'Creating…'}
+                        {isEducation ? 'Creating…' : summaryModeEffective === 'interview' ? 'Starting…' : 'Creating…'}
                       </>
                     ) : isEducation ? (
                       'Create lecture'
-                    ) : summaryMode === 'interview' ? (
+                    ) : summaryModeEffective === 'interview' ? (
                       'Start interview'
                     ) : (
                       'Create meeting'

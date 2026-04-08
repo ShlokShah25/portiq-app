@@ -97,6 +97,13 @@ const meetingSchema = new mongoose.Schema({
     default: '',
     trim: true,
   },
+  interviewInterviewerEmails: [
+    {
+      type: String,
+      default: '',
+      trim: true,
+    },
+  ],
   /** Candidates are not added to participants; voiceEmail is synthetic for VoiceProfile only */
   interviewCandidates: [
     {

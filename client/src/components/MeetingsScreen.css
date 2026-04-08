@@ -276,6 +276,10 @@
   margin-bottom: 8px;
 }
 
+.meeting-card-portiq .meeting-ui-badge {
+  margin-bottom: 8px;
+}
+
 .meeting-card-badge--completed {
   background: var(--dash-chip-bg);
   border-color: var(--border-color);

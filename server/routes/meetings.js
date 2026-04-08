@@ -113,6 +113,13 @@ const voiceUpload = multer({
   }
 });
 
+function buildInterviewMeetingTitle(candidateName, role) {
+  const safeCandidate = String(candidateName || '').trim().slice(0, 200) || 'Candidate';
+  const safeRole = String(role || '').trim().slice(0, 200);
+  const suffix = safeRole ? ` | Role: ${safeRole}` : '';
+  return `Interview- ${safeCandidate}${suffix}`.slice(0, 500);
+}
+
 // Helper to read admin (and thus plan) from bearer token, but keep routes usable
 // even if called from unauthenticated contexts.
 async function getAdminFromRequest(req) {
@@ -158,6 +165,7 @@ router.post('/', async (req, res) => {
       interviewCandidateName: interviewCandidateNameBody,
       interviewRole: interviewRoleBody,
       interviewInterviewerEmail: interviewInterviewerEmailBody,
+      interviewInterviewerEmails: interviewInterviewerEmailsBody,
       interviewCandidates: interviewCandidatesBody,
     } = req.body;
 
@@ -254,12 +262,23 @@ router.post('/', async (req, res) => {
     }
 
     let interviewInterviewerTrim = '';
+    let interviewInterviewerEmails = [];
     let interviewCandidatesNorm = [];
     if (summaryMode === 'interview') {
       interviewInterviewerTrim =
         interviewInterviewerEmailBody != null
           ? String(interviewInterviewerEmailBody).trim().toLowerCase()
           : '';
+      interviewInterviewerEmails = Array.isArray(interviewInterviewerEmailsBody)
+        ? interviewInterviewerEmailsBody
+            .map((e) => String(e || '').trim().toLowerCase())
+            .filter(Boolean)
+        : [];
+      if (interviewInterviewerTrim && !interviewInterviewerEmails.includes(interviewInterviewerTrim)) {
+        interviewInterviewerEmails.unshift(interviewInterviewerTrim);
+      }
+      interviewInterviewerEmails = [...new Set(interviewInterviewerEmails)];
+      interviewInterviewerTrim = interviewInterviewerEmails[0] || interviewInterviewerTrim;
       const rawCand = Array.isArray(interviewCandidatesBody) ? interviewCandidatesBody : [];
       interviewCandidatesNorm = rawCand
         .map((c) => ({
@@ -271,17 +290,18 @@ router.post('/', async (req, res) => {
     }
 
     if (admin && summaryMode === 'interview') {
-      if (!interviewInterviewerTrim) {
+      if (interviewInterviewerEmails.length === 0) {
         return res
           .status(400)
-          .json({ error: 'Select who is conducting the interview (interviewer).' });
+          .json({ error: 'Select at least one interviewer from the selected participants.' });
       }
-      const okInt = parts.some(
-        (p) => String(p.email).trim().toLowerCase() === interviewInterviewerTrim
+      const partEmailSet = new Set(
+        parts.map((p) => String(p.email || '').trim().toLowerCase()).filter(Boolean)
       );
-      if (!okInt) {
+      const invalidInterviewer = interviewInterviewerEmails.find((e) => !partEmailSet.has(e));
+      if (invalidInterviewer) {
         return res.status(400).json({
-          error: 'Interviewer must be one of the selected participants.',
+          error: 'Every interviewer must be one of the selected participants.',
         });
       }
       if (interviewCandidatesNorm.length === 0) {
@@ -302,11 +322,15 @@ router.post('/', async (req, res) => {
       interviewCandidateName = interviewCandidatesNorm[0].name || interviewCandidateName;
       interviewRole = interviewCandidatesNorm[0].role || interviewRole;
     }
+    const computedTitle =
+      summaryMode === 'interview'
+        ? buildInterviewMeetingTitle(interviewCandidateName, interviewRole)
+        : titleTrim;
 
     const meeting = new Meeting({
       adminId: admin ? admin._id : null,
       meetingRoom: roomTrim,
-      title: titleTrim,
+      title: computedTitle,
       organizer: organizerTrim,
       agenda: agendaTrim,
       participants: participants || [],
@@ -322,6 +346,7 @@ router.post('/', async (req, res) => {
       interviewCandidateName,
       interviewRole,
       interviewInterviewerEmail: summaryMode === 'interview' ? interviewInterviewerTrim : '',
+      interviewInterviewerEmails: summaryMode === 'interview' ? interviewInterviewerEmails : [],
       interviewCandidates: summaryMode === 'interview' ? interviewCandidatesNorm : [],
     });
 

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { T } from '../config/terminology';
 import { isEducation } from '../config/product';
+import { FEATURE_INTERVIEW_UI } from '../config/featureFlags';
 import { getSummaryEmptyBodyMessage } from '../utils/summaryEmptyReasonCopy';
 import {
   editorOtpHeaders,
@@ -140,7 +141,7 @@ const MeetingSummary = () => {
       : meeting.importantNotes || [];
 
   const summaryMode = meeting.summaryMode === 'interview' ? 'interview' : 'standard';
-  const isInterview = summaryMode === 'interview';
+  const isInterview = FEATURE_INTERVIEW_UI && summaryMode === 'interview';
   const hiringRecommendation = String(
     meeting.pendingHiringRecommendation || meeting.hiringRecommendation || ''
   ).trim();
@@ -157,7 +158,7 @@ const MeetingSummary = () => {
   );
 
   const hasInterviewHiring =
-    summaryMode === 'interview' &&
+    isInterview &&
     (hiringRecommendation ||
       hiringRecommendationReason ||
       (evaluationSignals &&
@@ -420,7 +421,7 @@ const MeetingSummary = () => {
                   type="text"
                   inputMode="numeric"
                   autoComplete="one-time-code"
-                  className="meeting-summary-language-select meeting-summary-editor-verify__input"
+                  className="meeting-summary-editor-verify__input"
                   placeholder="6-digit code"
                   value={otpInput}
                   onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, '').slice(0, 8))}
@@ -546,7 +547,7 @@ const MeetingSummary = () => {
               <div className="meeting-summary-edit">
                 <div className="meeting-summary-edit-field">
                   <label>
-                    {editableSummary.summaryMode === 'interview' || isEducation
+                    {(FEATURE_INTERVIEW_UI && editableSummary.summaryMode === 'interview') || isEducation
                       ? 'Summary'
                       : 'Minutes of the meeting'}
                   </label>
@@ -557,7 +558,7 @@ const MeetingSummary = () => {
                     className="meeting-summary-textarea"
                   />
                 </div>
-                {editableSummary.summaryMode === 'interview' && (
+                {FEATURE_INTERVIEW_UI && editableSummary.summaryMode === 'interview' && (
                   <>
                     <div className="meeting-summary-edit-field">
                       <label htmlFor="edit-hiring-rec">Final recommendation</label>
@@ -594,7 +595,7 @@ const MeetingSummary = () => {
                 )}
                 <div className="meeting-summary-edit-field">
                   <label>
-                    {editableSummary.summaryMode === 'interview'
+                    {FEATURE_INTERVIEW_UI && editableSummary.summaryMode === 'interview'
                       ? 'Key strengths (one per line)'
                       : 'Key Points (one per line)'}
                   </label>
@@ -668,7 +669,7 @@ const MeetingSummary = () => {
                 </div>
                 <div className="meeting-summary-edit-field">
                   <label>
-                    {editableSummary.summaryMode === 'interview'
+                    {FEATURE_INTERVIEW_UI && editableSummary.summaryMode === 'interview'
                       ? 'Concerns / red flags (one per line)'
                       : isEducation
                         ? 'Important Concepts (one per line)'
