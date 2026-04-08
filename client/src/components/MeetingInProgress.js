@@ -65,9 +65,16 @@ const MeetingInProgress = () => {
   }, []);
 
   useEffect(() => {
-    const emails = (meeting?.participants || [])
+    const fromParticipants = (meeting?.participants || [])
       .map((p) => (p.email && String(p.email).trim()) || '')
       .filter(Boolean);
+    const fromInterview =
+      meeting?.summaryMode === 'interview' && Array.isArray(meeting?.interviewCandidates)
+        ? meeting.interviewCandidates
+            .map((c) => (c && c.voiceEmail && String(c.voiceEmail).trim()) || '')
+            .filter(Boolean)
+        : [];
+    const emails = [...new Set([...fromParticipants, ...fromInterview])];
     if (emails.length === 0) {
       setVoiceProfiles({});
       return;
@@ -95,7 +102,7 @@ const MeetingInProgress = () => {
     return () => {
       cancelled = true;
     };
-  }, [meeting?.participants]);
+  }, [meeting?.participants, meeting?.summaryMode, meeting?.interviewCandidates]);
 
   // New route id: reset UI so we never reuse another meeting's state.
   useEffect(() => {

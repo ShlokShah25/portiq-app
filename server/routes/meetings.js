@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const express = require('express');
 const router = express.Router();
 const Meeting = require('../models/Meeting');
@@ -156,6 +157,8 @@ router.post('/', async (req, res) => {
       summaryMode: summaryModeBody,
       interviewCandidateName: interviewCandidateNameBody,
       interviewRole: interviewRoleBody,
+      interviewInterviewerEmail: interviewInterviewerEmailBody,
+      interviewCandidates: interviewCandidatesBody,
     } = req.body;
 
     const admin = await getAdminFromRequest(req);
@@ -189,14 +192,15 @@ router.post('/', async (req, res) => {
     const editorTrim =
       authorizedEditorEmail != null ? String(authorizedEditorEmail).trim().slice(0, 320) : '';
 
+    const parts = Array.isArray(participants)
+      ? participants.filter((p) => p && p.email && String(p.email).trim())
+      : [];
+
     if (admin) {
       const st = scheduledTime ? new Date(scheduledTime) : null;
       if (!st || Number.isNaN(st.getTime())) {
         return res.status(400).json({ error: 'Meeting date and time are required.' });
       }
-      const parts = Array.isArray(participants)
-        ? participants.filter((p) => p && p.email && String(p.email).trim())
-        : [];
       if (parts.length === 0) {
         return res.status(400).json({ error: 'At least one participant with an email is required.' });
       }
@@ -209,10 +213,6 @@ router.post('/', async (req, res) => {
       }
       if (!agendaTrim) {
         return res.status(400).json({ error: 'Agenda is required.' });
-      }
-      const orgProvided = organizer != null && String(organizer).trim();
-      if (!orgProvided) {
-        return res.status(400).json({ error: 'Organizer is required.' });
       }
       if (!joinUrlTrim) {
         const rawRoom = meetingRoom != null ? String(meetingRoom).trim() : '';
@@ -245,12 +245,63 @@ router.post('/', async (req, res) => {
     const modeRaw =
       summaryModeBody != null ? String(summaryModeBody).trim().toLowerCase() : 'standard';
     const summaryMode = modeRaw === 'interview' ? 'interview' : 'standard';
-    const interviewCandidateName =
+
+    const SYNTH_INTERVIEW_CANDIDATE_EMAIL = /^ivc-[a-f0-9]{8,64}@candidates\.portiq\.internal$/i;
+    function ensureInterviewCandidateVoiceEmail(raw) {
+      const t = raw != null ? String(raw).trim().toLowerCase() : '';
+      if (SYNTH_INTERVIEW_CANDIDATE_EMAIL.test(t)) return t;
+      return `ivc-${crypto.randomBytes(16).toString('hex')}@candidates.portiq.internal`;
+    }
+
+    let interviewInterviewerTrim = '';
+    let interviewCandidatesNorm = [];
+    if (summaryMode === 'interview') {
+      interviewInterviewerTrim =
+        interviewInterviewerEmailBody != null
+          ? String(interviewInterviewerEmailBody).trim().toLowerCase()
+          : '';
+      const rawCand = Array.isArray(interviewCandidatesBody) ? interviewCandidatesBody : [];
+      interviewCandidatesNorm = rawCand
+        .map((c) => ({
+          name: c && c.name != null ? String(c.name).trim().slice(0, 200) : '',
+          role: c && c.role != null ? String(c.role).trim().slice(0, 200) : '',
+          voiceEmail: ensureInterviewCandidateVoiceEmail(c && c.voiceEmail),
+        }))
+        .filter((c) => c.name);
+    }
+
+    if (admin && summaryMode === 'interview') {
+      if (!interviewInterviewerTrim) {
+        return res
+          .status(400)
+          .json({ error: 'Select who is conducting the interview (interviewer).' });
+      }
+      const okInt = parts.some(
+        (p) => String(p.email).trim().toLowerCase() === interviewInterviewerTrim
+      );
+      if (!okInt) {
+        return res.status(400).json({
+          error: 'Interviewer must be one of the selected participants.',
+        });
+      }
+      if (interviewCandidatesNorm.length === 0) {
+        return res.status(400).json({ error: 'Add at least one interview candidate.' });
+      }
+      if (interviewCandidatesNorm.length > 12) {
+        return res.status(400).json({ error: 'Too many interview candidates (max 12).' });
+      }
+    }
+
+    let interviewCandidateName =
       interviewCandidateNameBody != null
         ? String(interviewCandidateNameBody).trim().slice(0, 200)
         : '';
-    const interviewRole =
+    let interviewRole =
       interviewRoleBody != null ? String(interviewRoleBody).trim().slice(0, 200) : '';
+    if (summaryMode === 'interview' && interviewCandidatesNorm.length > 0) {
+      interviewCandidateName = interviewCandidatesNorm[0].name || interviewCandidateName;
+      interviewRole = interviewCandidatesNorm[0].role || interviewRole;
+    }
 
     const meeting = new Meeting({
       adminId: admin ? admin._id : null,
@@ -270,6 +321,8 @@ router.post('/', async (req, res) => {
       summaryMode,
       interviewCandidateName,
       interviewRole,
+      interviewInterviewerEmail: summaryMode === 'interview' ? interviewInterviewerTrim : '',
+      interviewCandidates: summaryMode === 'interview' ? interviewCandidatesNorm : [],
     });
 
     // Generate verification code for authorized editor if specified

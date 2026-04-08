@@ -16,6 +16,8 @@ import {
   Mail,
   ChevronDown,
   Search,
+  Plus,
+  Trash2,
 } from 'lucide-react';
 import { isEducation } from '../config/product';
 import { getClassrooms } from '../utils/classroomsStorage';
@@ -60,6 +62,24 @@ function splitTitleAgenda(raw) {
   return { title: title || s, agenda };
 }
 
+function makeInterviewCandidateVoiceEmail() {
+  try {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return `ivc-${crypto.randomUUID().replace(/-/g, '')}@candidates.portiq.internal`;
+    }
+  } catch (_) {}
+  return `ivc-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 14)}@candidates.portiq.internal`;
+}
+
+function createEmptyInterviewCandidate() {
+  return {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+    name: '',
+    role: '',
+    voiceEmail: makeInterviewCandidateVoiceEmail(),
+  };
+}
+
 function resetAllState(setters) {
   const d = defaultDateTimeLocal();
   setters.setTitleAgendaCombined('');
@@ -77,8 +97,10 @@ function resetAllState(setters) {
   setters.setVoiceRecognitionEnabled(false);
   if (setters.setOptionalDetailsOpen) setters.setOptionalDetailsOpen(false);
   if (setters.setSummaryMode) setters.setSummaryMode('standard');
-  if (setters.setInterviewCandidateName) setters.setInterviewCandidateName('');
-  if (setters.setInterviewRole) setters.setInterviewRole('');
+  if (setters.setInterviewInterviewerEmail) setters.setInterviewInterviewerEmail('');
+  if (setters.setInterviewCandidates) {
+    setters.setInterviewCandidates([createEmptyInterviewCandidate()]);
+  }
 }
 
 /**
@@ -119,8 +141,10 @@ export default function MeetingCreateForm({
   const participantDropdownRef = useRef(null);
   const [optionalDetailsOpen, setOptionalDetailsOpen] = useState(false);
   const [summaryMode, setSummaryMode] = useState('standard');
-  const [interviewCandidateName, setInterviewCandidateName] = useState('');
-  const [interviewRole, setInterviewRole] = useState('');
+  const [interviewInterviewerEmail, setInterviewInterviewerEmail] = useState('');
+  const [interviewCandidates, setInterviewCandidates] = useState(() => [
+    createEmptyInterviewCandidate(),
+  ]);
 
   const runReset = useCallback(() => {
     try {
@@ -148,8 +172,8 @@ export default function MeetingCreateForm({
       setVoiceRecognitionEnabled,
       setOptionalDetailsOpen,
       setSummaryMode,
-      setInterviewCandidateName,
-      setInterviewRole,
+      setInterviewInterviewerEmail,
+      setInterviewCandidates,
     });
     setParticipantDropdownOpen(false);
     setParticipantSearchQuery('');
@@ -195,14 +219,23 @@ export default function MeetingCreateForm({
       setVoiceProfiles({});
       return;
     }
-    if (!participantBook.length) {
+    const bookEmails = participantBook
+      .map((p) => String(p.email || '').trim().toLowerCase())
+      .filter(Boolean);
+    const extra = [];
+    if (summaryMode === 'interview') {
+      const ie = String(interviewInterviewerEmail || '').trim().toLowerCase();
+      if (ie) extra.push(ie);
+      interviewCandidates.forEach((c) => {
+        const ve = String(c.voiceEmail || '').trim().toLowerCase();
+        if (ve) extra.push(ve);
+      });
+    }
+    const emails = [...new Set([...bookEmails, ...extra])];
+    if (!emails.length) {
       setVoiceProfiles({});
       return;
     }
-    const emails = participantBook
-      .map((p) => String(p.email || '').trim().toLowerCase())
-      .filter(Boolean);
-    if (!emails.length) return;
     let cancelled = false;
     (async () => {
       try {
@@ -225,7 +258,21 @@ export default function MeetingCreateForm({
     return () => {
       cancelled = true;
     };
-  }, [active, participantBook, isEducation]);
+  }, [
+    active,
+    participantBook,
+    isEducation,
+    summaryMode,
+    interviewInterviewerEmail,
+    interviewCandidates,
+  ]);
+
+  useEffect(() => {
+    if (isEducation || summaryMode !== 'interview') return;
+    setInterviewCandidates((prev) =>
+      prev.length === 0 ? [createEmptyInterviewCandidate()] : prev
+    );
+  }, [summaryMode, isEducation]);
 
   useEffect(() => {
     if (!participantDropdownOpen) return;
@@ -292,7 +339,22 @@ export default function MeetingCreateForm({
   const validateCommon = () => {
     if (!scheduledDate || !scheduledTime) return 'Meeting date and time are required.';
     if (!scheduledIso()) return 'Invalid date or time.';
-    if (!organizer.trim()) return 'Organizer is required.';
+    if (!isEducation && summaryMode === 'interview') {
+      const intLower = String(interviewInterviewerEmail || '').trim().toLowerCase();
+      if (!intLower) {
+        return 'Select who is conducting the interview (interviewer from your selected people).';
+      }
+      if (!selectedBookEmails.includes(intLower)) {
+        return 'Interviewer must be one of the selected people from your book.';
+      }
+      const named = interviewCandidates.filter((c) => String(c.name || '').trim());
+      if (named.length === 0) {
+        return 'Add at least one interview candidate (name). Candidates are not saved to your participant book.';
+      }
+      if (named.length > 12) {
+        return 'Too many interview candidates (max 12).';
+      }
+    }
     const parts = payloadParticipants();
     if (parts.length === 0) {
       return isEducation
@@ -335,10 +397,36 @@ export default function MeetingCreateForm({
       transcriptionEnabled: true,
       meetingRoom: room,
       summaryMode: isEducation ? 'standard' : summaryMode === 'interview' ? 'interview' : 'standard',
+      interviewInterviewerEmail:
+        !isEducation && summaryMode === 'interview'
+          ? String(interviewInterviewerEmail || '').trim().toLowerCase()
+          : '',
+      interviewCandidates:
+        !isEducation && summaryMode === 'interview'
+          ? interviewCandidates
+              .filter((c) => String(c.name || '').trim())
+              .map((c) => ({
+                name: String(c.name || '').trim().slice(0, 200),
+                role: String(c.role || '').trim().slice(0, 200),
+                voiceEmail: String(c.voiceEmail || '').trim().toLowerCase(),
+              }))
+          : [],
       interviewCandidateName:
-        !isEducation && summaryMode === 'interview' ? interviewCandidateName.trim().slice(0, 200) : '',
+        !isEducation && summaryMode === 'interview'
+          ? (
+              interviewCandidates.find((c) => String(c.name || '').trim())?.name || ''
+            )
+              .trim()
+              .slice(0, 200)
+          : '',
       interviewRole:
-        !isEducation && summaryMode === 'interview' ? interviewRole.trim().slice(0, 200) : '',
+        !isEducation && summaryMode === 'interview'
+          ? (
+              interviewCandidates.find((c) => String(c.name || '').trim())?.role || ''
+            )
+              .trim()
+              .slice(0, 200)
+          : '',
       ...extra,
     };
   };
@@ -403,9 +491,16 @@ export default function MeetingCreateForm({
     try {
       setVoiceUploading(true);
       setError('');
-      const participantList = participantBook
+      let participantList = participantBook
         .filter((p) => p.email && String(p.email).trim())
         .map((p) => ({ name: p.name || '', email: String(p.email).trim() }));
+      if (summaryMode === 'interview') {
+        interviewCandidates.forEach((c) => {
+          const em = String(c.voiceEmail || '').trim();
+          const nm = String(c.name || '').trim();
+          if (em && nm) participantList.push({ name: nm, email: em });
+        });
+      }
       const formData = new FormData();
       const audioFile = new File([audioBlob], `voice-sample-${Date.now()}.webm`, {
         type: 'audio/webm',
@@ -760,25 +855,164 @@ export default function MeetingCreateForm({
                       </label>
                     </div>
                     {summaryMode === 'interview' && (
-                      <div className="meeting-create-interview-fields">
-                        <input
-                          type="text"
-                          className="meeting-create-interview-input"
-                          placeholder="Candidate name (optional)"
-                          value={interviewCandidateName}
-                          onChange={(e) => setInterviewCandidateName(e.target.value)}
-                          autoComplete="off"
-                          disabled={formDisabled}
-                        />
-                        <input
-                          type="text"
-                          className="meeting-create-interview-input"
-                          placeholder="Role (optional)"
-                          value={interviewRole}
-                          onChange={(e) => setInterviewRole(e.target.value)}
-                          autoComplete="off"
-                          disabled={formDisabled}
-                        />
+                      <div className="meeting-create-interview-panel">
+                        <p className="meeting-create-interview-lead">
+                          Interviewer comes from <strong>selected people</strong> (your book). Candidates are only for
+                          this meeting — they are <strong>not</strong> added to your participant book. Configure voice
+                          for the interviewer in <strong>Configure voice</strong> above when needed.
+                        </p>
+                        <div className="meeting-create-field-stack">
+                          <label className="meeting-create-interview-label" htmlFor="sm-interviewer">
+                            Interviewer (conducting the interview)
+                          </label>
+                          <select
+                            id="sm-interviewer"
+                            className="meeting-create-interview-select"
+                            value={interviewInterviewerEmail}
+                            onChange={(e) => setInterviewInterviewerEmail(e.target.value)}
+                            disabled={formDisabled || selectedBookEmails.length === 0}
+                          >
+                            <option value="">
+                              {selectedBookEmails.length === 0
+                                ? 'Select people from your book first'
+                                : 'Choose interviewer…'}
+                            </option>
+                            {selectedBookEmails.map((em) => {
+                              const p = participantBook.find(
+                                (x) => x.email && String(x.email).trim().toLowerCase() === em
+                              );
+                              return (
+                                <option key={em} value={em}>
+                                  {p?.name || em.split('@')[0]} ({em})
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
+
+                        <div className="meeting-create-interview-candidates-head">
+                          <span className="meeting-create-interview-label">Candidates (this meeting only)</span>
+                          <button
+                            type="button"
+                            className="meeting-create-interview-add-candidate"
+                            onClick={() =>
+                              setInterviewCandidates((rows) => [...rows, createEmptyInterviewCandidate()])
+                            }
+                            disabled={formDisabled || interviewCandidates.length >= 12}
+                          >
+                            <Plus size={16} strokeWidth={2} aria-hidden /> Add candidate
+                          </button>
+                        </div>
+
+                        <ul className="meeting-create-interview-candidate-list">
+                          {interviewCandidates.map((c) => {
+                            const ve = String(c.voiceEmail || '').trim().toLowerCase();
+                            const hasVoice = !!voiceProfiles[ve]?.hasProfile;
+                            const rec = recordingEmail === ve;
+                            const nm = String(c.name || '').trim() || 'Candidate';
+                            const participantPayload = { name: nm, email: ve };
+                            return (
+                              <li key={c.id} className="meeting-create-interview-candidate-card">
+                                <div
+                                  className={`meeting-create-interview-candidate-grid${
+                                    interviewCandidates.length > 1
+                                      ? ' meeting-create-interview-candidate-grid--many'
+                                      : ''
+                                  }`}
+                                >
+                                  <input
+                                    type="text"
+                                    className="meeting-create-interview-input"
+                                    placeholder="Candidate name"
+                                    value={c.name}
+                                    onChange={(e) => {
+                                      const v = e.target.value;
+                                      setInterviewCandidates((rows) =>
+                                        rows.map((row) => (row.id === c.id ? { ...row, name: v } : row))
+                                      );
+                                    }}
+                                    autoComplete="off"
+                                    disabled={formDisabled}
+                                  />
+                                  <input
+                                    type="text"
+                                    className="meeting-create-interview-input"
+                                    placeholder="Role (optional)"
+                                    value={c.role}
+                                    onChange={(e) => {
+                                      const v = e.target.value;
+                                      setInterviewCandidates((rows) =>
+                                        rows.map((row) => (row.id === c.id ? { ...row, role: v } : row))
+                                      );
+                                    }}
+                                    autoComplete="off"
+                                    disabled={formDisabled}
+                                  />
+                                  {interviewCandidates.length > 1 && (
+                                    <button
+                                      type="button"
+                                      className="meeting-create-interview-remove"
+                                      title="Remove candidate"
+                                      aria-label="Remove candidate"
+                                      onClick={() =>
+                                        setInterviewCandidates((rows) =>
+                                          rows.filter((row) => row.id !== c.id)
+                                        )
+                                      }
+                                      disabled={formDisabled}
+                                    >
+                                      <Trash2 size={18} strokeWidth={2} aria-hidden />
+                                    </button>
+                                  )}
+                                </div>
+                                <div className="meeting-create-interview-candidate-voice">
+                                  <div className="meeting-create-voice-row__head meeting-create-voice-row__head--compact">
+                                    <span className="meeting-create-voice-row__name">Voice (optional)</span>
+                                    {hasVoice ? (
+                                      <span className="meeting-create-voice-row__badge meeting-create-voice-row__badge--ok">
+                                        <Mic size={14} strokeWidth={2} aria-hidden /> Configured
+                                      </span>
+                                    ) : (
+                                      <span className="meeting-create-voice-row__badge">
+                                        <CircleDashed size={14} strokeWidth={2} aria-hidden /> Not configured
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="meeting-create-voice-row__phrase meeting-create-voice-row__phrase--compact">
+                                    {voiceEnrollmentSentenceForParticipant(nm)}
+                                  </p>
+                                  <div className="meeting-create-voice-row__actions">
+                                    {!rec ? (
+                                      <button
+                                        type="button"
+                                        className="start-meeting-btn start-meeting-btn--ghost meeting-create-voice-btn"
+                                        disabled={formDisabled || voiceUploading || !ve}
+                                        onClick={() => startVoiceRecording(participantPayload)}
+                                      >
+                                        <Mic size={16} aria-hidden />
+                                        {hasVoice ? 'Re-record' : 'Record sample'}
+                                      </button>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        className="start-meeting-btn start-meeting-btn--primary meeting-create-voice-btn"
+                                        onClick={stopVoiceRecording}
+                                        disabled={voiceUploading}
+                                      >
+                                        <Square size={14} aria-hidden />
+                                        Stop & upload
+                                      </button>
+                                    )}
+                                    {rec && <span className="meeting-create-voice-row__rec">Recording…</span>}
+                                    {voiceUploading && recordingEmail === ve && (
+                                      <span className="meeting-create-voice-row__rec">Uploading…</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
                       </div>
                     )}
                   </div>
@@ -863,14 +1097,13 @@ export default function MeetingCreateForm({
 
                       <div className="start-meeting-field">
                         <FieldLabel htmlFor="sm-organizer" icon={User}>
-                          Organizer
+                          Organizer (optional)
                         </FieldLabel>
                         <input
                           id="sm-organizer"
                           value={organizer}
                           onChange={(e) => setOrganizer(e.target.value)}
-                          placeholder="Name or email"
-                          required
+                          placeholder="Defaults to your account if empty"
                           autoComplete="off"
                           disabled={formDisabled}
                         />

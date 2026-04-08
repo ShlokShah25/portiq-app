@@ -46,7 +46,7 @@ const MeetingsScreen = () => {
 
   const mediaRecorderRef = useRef(null);
   const recordingFileInputRef = useRef(null);
-
+  
   // Approval workflow state
   const [verificationEmail, setVerificationEmail] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
@@ -675,17 +675,17 @@ const MeetingsScreen = () => {
                   <div className="meetings-subscription-banner-text">
                     <p>No active plan—you need one to start a meeting.</p>
                     <p className="meetings-subscription-banner-prices">{PORTIQ_PRICE_ROW}</p>
-                  </div>
+              </div>
                   <a className="meetings-subscription-banner-link" href={`${MARKETING_URL}#pricing`}>
                     See plans
                   </a>
-                </div>
-              )}
+                  </div>
+                )}
               {subscriptionGate === 'payment_pending' && (
                 <div className="meetings-subscription-banner meetings-subscription-banner--payment" role="alert">
                   <div className="meetings-subscription-banner-text">
                     <p>{'Almost there—finish checkout and you\'re in.'}</p>
-                  </div>
+                </div>
                   <a className="meetings-subscription-banner-link" href={`${MARKETING_URL}#pricing`}>
                     Finish payment
                   </a>
@@ -700,8 +700,8 @@ const MeetingsScreen = () => {
                   maxParticipantsPerMeeting={maxParticipantsPerMeeting}
                   onMeetingCreated={fetchMeetings}
                 />
-              </div>
-            </div>
+                                    </div>
+                </div>
 
             {false && selectedMeeting && (
               <div className="card">
@@ -997,7 +997,7 @@ const MeetingsScreen = () => {
                             onChange={(e) =>
                               setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 8))
                             }
-                            style={{
+                        style={{
                               width: '100%',
                               maxWidth: 280,
                               padding: '10px 12px',
@@ -1062,11 +1062,11 @@ const MeetingsScreen = () => {
                           <p style={{ marginBottom: 20, color: '#9ca3af', fontSize: 13 }}>
                             Open to review, edit if needed, add late participants, then approve and send.
                           </p>
-                          <button
+                      <button
                             type="button"
                             className="meeting-summary-btn meeting-summary-btn--primary"
                             style={{ width: '100%' }}
-                            onClick={() => {
+                        onClick={() => {
                               const sm =
                                 selectedMeeting.summaryMode === 'interview' ? 'interview' : 'standard';
                               const hiringRecommendation = String(
@@ -1084,46 +1084,46 @@ const MeetingsScreen = () => {
                                   ? selectedMeeting.pendingEvaluationSignals
                                   : selectedMeeting.evaluationSignals;
 
-                              const base = {
-                                summary:
-                                  selectedMeeting.pendingSummary ||
-                                  selectedMeeting.summary ||
-                                  '',
-                                keyPoints:
-                                  selectedMeeting.pendingKeyPoints?.length
-                                    ? selectedMeeting.pendingKeyPoints
-                                    : selectedMeeting.keyPoints || [],
-                                actionItems:
-                                  selectedMeeting.pendingActionItems?.length
-                                    ? selectedMeeting.pendingActionItems
-                                    : selectedMeeting.actionItems || [],
-                                decisions:
-                                  selectedMeeting.pendingDecisions?.length
-                                    ? selectedMeeting.pendingDecisions
-                                    : selectedMeeting.decisions || [],
-                                nextSteps:
-                                  selectedMeeting.pendingNextSteps?.length
-                                    ? selectedMeeting.pendingNextSteps
-                                    : selectedMeeting.nextSteps || [],
-                                importantNotes:
-                                  selectedMeeting.pendingImportantNotes?.length
-                                    ? selectedMeeting.pendingImportantNotes
+                          const base = {
+                            summary:
+                              selectedMeeting.pendingSummary ||
+                              selectedMeeting.summary ||
+                              '',
+                            keyPoints:
+                              selectedMeeting.pendingKeyPoints?.length
+                                ? selectedMeeting.pendingKeyPoints
+                                : selectedMeeting.keyPoints || [],
+                            actionItems:
+                              selectedMeeting.pendingActionItems?.length
+                                ? selectedMeeting.pendingActionItems
+                                : selectedMeeting.actionItems || [],
+                            decisions:
+                              selectedMeeting.pendingDecisions?.length
+                                ? selectedMeeting.pendingDecisions
+                                : selectedMeeting.decisions || [],
+                            nextSteps:
+                              selectedMeeting.pendingNextSteps?.length
+                                ? selectedMeeting.pendingNextSteps
+                                : selectedMeeting.nextSteps || [],
+                            importantNotes:
+                              selectedMeeting.pendingImportantNotes?.length
+                                ? selectedMeeting.pendingImportantNotes
                                     : selectedMeeting.importantNotes || [],
                                 summaryMode: sm,
                                 hiringRecommendation,
                                 hiringRecommendationReason,
                                 evaluationSignals: evaluationSignals || null,
-                              };
+                          };
 
-                              setEditableSummary(base);
+                          setEditableSummary(base);
                               setEditingSummary(true);
-                              setVerificationStep('edit');
-                              setError('');
-                              setAdditionalParticipants([{ name: '', email: '' }]);
-                            }}
+                          setVerificationStep('edit');
+                          setError('');
+                          setAdditionalParticipants([{ name: '', email: '' }]);
+                        }}
                           >
                             View &amp; Edit Summary
-                          </button>
+                      </button>
                         </>
                       )}
                     </div>
@@ -1142,7 +1142,7 @@ const MeetingsScreen = () => {
                       </svg>
                       {T.meetingSummary()}
                     </h3>
-
+                        
                         {editingSummary ? (
                           <div className="meeting-summary-edit">
                             <div className="meeting-summary-edit-field">
@@ -1305,7 +1305,7 @@ const MeetingsScreen = () => {
                               isEducation={isEducation}
                               onMeetingPatched={syncMeetingAfterActionItemPatch}
                             />
-
+                            
                             {/* Add Additional Participants Section - Only after summary is visible */}
                             <div style={{ 
                               background: 'rgba(255, 255, 255, 0.05)', 
@@ -1634,36 +1634,36 @@ const MeetingsScreen = () => {
                       const p = String(m.conferenceProvider || '').toLowerCase();
                       const when = m.scheduledTime || m.startTime || m.createdAt;
                       return (
-                      <div
-                        key={m._id}
-                        className={`meeting-item ${selectedMeeting && selectedMeeting._id === m._id ? 'active' : ''} ${m.summaryStatus === 'Pending Approval' && m.transcriptionStatus === 'Completed' ? 'needs-approval' : ''}`}
-                        onClick={() => navigate(`/meetings/${m._id}`)}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/meetings/${m._id}`); } }}
-                      >
-                        <div className="meeting-title">
-                          {m.title}
-                          {m.summaryStatus === 'Pending Approval' && m.transcriptionStatus === 'Completed' && (
-                            <span className="approval-badge" style={{
-                              display: 'inline-block',
-                              marginLeft: '8px',
-                              padding: '2px 8px',
-                              background: '#2563eb',
-                              color: 'white',
-                              borderRadius: '12px',
-                              fontSize: '11px',
-                              fontWeight: '600'
-                            }}>
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '4px' }}>
-                                <circle cx="12" cy="12" r="10"></circle>
-                                <line x1="12" y1="8" x2="12" y2="12"></line>
-                                <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                              </svg>
-                              Needs Approval
-                            </span>
-                          )}
-                        </div>
+                  <div
+                    key={m._id}
+                    className={`meeting-item ${selectedMeeting && selectedMeeting._id === m._id ? 'active' : ''} ${m.summaryStatus === 'Pending Approval' && m.transcriptionStatus === 'Completed' ? 'needs-approval' : ''}`}
+                    onClick={() => navigate(`/meetings/${m._id}`)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/meetings/${m._id}`); } }}
+                  >
+                    <div className="meeting-title">
+                      {m.title}
+                      {m.summaryStatus === 'Pending Approval' && m.transcriptionStatus === 'Completed' && (
+                        <span className="approval-badge" style={{
+                          display: 'inline-block',
+                          marginLeft: '8px',
+                          padding: '2px 8px',
+                          background: '#2563eb',
+                          color: 'white',
+                          borderRadius: '12px',
+                          fontSize: '11px',
+                          fontWeight: '600'
+                        }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '4px' }}>
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                          </svg>
+                          Needs Approval
+                        </span>
+                      )}
+                    </div>
                         <div className="meetings-list-badges-row">
                           {online ? (
                             <span className="meeting-ui-badge meeting-ui-badge--mode">
@@ -1684,10 +1684,10 @@ const MeetingsScreen = () => {
                           )}
                           <MeetingStatusBadge meeting={m} />
                         </div>
-                        <div className="meeting-meta">
+                    <div className="meeting-meta">
                           <span>{when ? new Date(when).toLocaleString() : '—'}</span>
-                        </div>
-                      </div>
+                    </div>
+                  </div>
                       );
                     })}
                   </>

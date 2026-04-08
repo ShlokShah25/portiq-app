@@ -114,40 +114,93 @@ function formatParticipantLinesForSummaryPrompt(participants) {
 /** Optional voice-profile hint for speaker attribution (shared by standard + interview summary paths). */
 async function buildTranscriptWithSpeakerHints(meetingObj, transcriptTextTrim) {
   let transcriptWithSpeakers = transcriptTextTrim;
-  if (!(meetingObj && meetingObj.participants && meetingObj.participants.length > 0)) {
+  if (!meetingObj) {
     return transcriptWithSpeakers;
   }
   try {
-    const participantEmails = meetingObj.participants
+    const participantEmails = (meetingObj.participants || [])
       .filter((p) => p && isValidEmailForLookup(p.email))
       .map((p) => p.email.trim().toLowerCase());
 
-    if (participantEmails.length > 0) {
-      const voiceProfiles = await VoiceProfile.find({
-        email: { $in: participantEmails },
-      });
+    const candidateVoiceEmails = Array.isArray(meetingObj.interviewCandidates)
+      ? meetingObj.interviewCandidates
+          .map((c) =>
+            c && c.voiceEmail ? String(c.voiceEmail).trim().toLowerCase() : ''
+          )
+          .filter((e) => isValidEmailForLookup(e))
+      : [];
 
-      if (voiceProfiles.length > 0) {
-        console.log(`✅ Found ${voiceProfiles.length} voice profile(s) for speaker identification`);
+    const allVoiceLookupEmails = [...new Set([...participantEmails, ...candidateVoiceEmails])];
 
-        const participantList = meetingObj.participants
-          .map((p, i) => {
-            const name = p && p.name ? String(p.name).trim() : '';
-            const email = p && p.email ? String(p.email).trim() : '';
-            if (!name && !email) return `Participant ${i + 1} (no email on file)`;
-            if (email) return `${name || email.split('@')[0]} (${email})`;
-            return name;
-          })
-          .join(', ');
-
-        transcriptWithSpeakers =
-          `Participants in this meeting: ${participantList}\n\n` +
-          `[Note: The following transcript may contain speech from multiple participants. ` +
-          `Only attribute statements to a named participant when confidence is high. ` +
-          `If uncertain, mark speaker as unknown instead of guessing.]\n\n` +
-          transcriptTextTrim;
-      }
+    if (allVoiceLookupEmails.length === 0) {
+      return transcriptWithSpeakers;
     }
+
+    const voiceProfiles = await VoiceProfile.find({
+      email: { $in: allVoiceLookupEmails },
+    });
+
+    if (voiceProfiles.length === 0) {
+      return transcriptWithSpeakers;
+    }
+
+    console.log(`✅ Found ${voiceProfiles.length} voice profile(s) for speaker identification`);
+
+    const participantList = (meetingObj.participants || [])
+      .map((p, i) => {
+        const name = p && p.name ? String(p.name).trim() : '';
+        const email = p && p.email ? String(p.email).trim() : '';
+        if (!name && !email) return `Participant ${i + 1} (no email on file)`;
+        if (email) return `${name || email.split('@')[0]} (${email})`;
+        return name;
+      })
+      .join(', ');
+
+    const intEmail = String(meetingObj.interviewInterviewerEmail || '')
+      .trim()
+      .toLowerCase();
+    const interviewerHint =
+      intEmail && Array.isArray(meetingObj.participants)
+        ? (() => {
+            const ip = meetingObj.participants.find(
+              (p) => p && String(p.email || '').trim().toLowerCase() === intEmail
+            );
+            if (!ip) return '';
+            const nm = String(ip.name || '').trim() || intEmail.split('@')[0];
+            return `Designated interviewer (from participant list): ${nm} (${intEmail})`;
+          })()
+        : '';
+
+    const candidateHints = Array.isArray(meetingObj.interviewCandidates)
+      ? meetingObj.interviewCandidates
+          .filter((c) => c && String(c.name || '').trim())
+          .map((c) => {
+            const n = String(c.name).trim();
+            const r = String(c.role || '').trim();
+            const ve = c.voiceEmail ? String(c.voiceEmail).trim() : '';
+            return `- Candidate: ${n}${r ? ` — role: ${r}` : ''}${ve ? ` (voice id: ${ve})` : ''}`;
+          })
+      : [];
+
+    let prefix = '';
+    if (interviewerHint || candidateHints.length) {
+      prefix =
+        `[Interview roster hints — use only when supported by the audio/transcript]\n` +
+        (interviewerHint ? `${interviewerHint}\n` : '') +
+        (candidateHints.length ? `${candidateHints.join('\n')}\n` : '') +
+        `\n`;
+    }
+
+    if (participantList) {
+      prefix += `Invited participants (may also speak): ${participantList}\n\n`;
+    }
+
+    transcriptWithSpeakers =
+      prefix +
+      `[Note: The following transcript may contain speech from multiple people. ` +
+      `Only attribute statements to a named person when confidence is high. ` +
+      `If uncertain, mark speaker as unknown instead of guessing.]\n\n` +
+      transcriptTextTrim;
   } catch (speakerErr) {
     console.warn('⚠️  Error processing speaker identification:', speakerErr.message);
     transcriptWithSpeakers = transcriptTextTrim;
@@ -174,11 +227,35 @@ async function generateInterviewMeetingSummaryFromTranscript(transcriptRaw, meet
   const maxRetries = OPENAI_PIPELINE_MAX_RETRIES;
   const transcriptWithSpeakers = await buildTranscriptWithSpeakerHints(meetingObj, transcriptTextTrim);
 
+  const intEmail = String(meetingObj.interviewInterviewerEmail || '').trim().toLowerCase();
+  const interviewerLine = (() => {
+    if (!intEmail || !Array.isArray(meetingObj.participants)) return '';
+    const ip = meetingObj.participants.find(
+      (p) => p && String(p.email || '').trim().toLowerCase() === intEmail
+    );
+    if (!ip) return '';
+    const nm = String(ip.name || '').trim() || intEmail.split('@')[0];
+    return `Interviewer (expected): ${nm}`;
+  })();
+
+  const multiCandidates = Array.isArray(meetingObj.interviewCandidates)
+    ? meetingObj.interviewCandidates
+        .filter((c) => c && String(c.name || '').trim())
+        .map((c) => {
+          const n = String(c.name).trim();
+          const r = String(c.role || '').trim();
+          return r ? `- ${n} (${r})` : `- ${n}`;
+        })
+    : [];
+
   const candidateName = String(meetingObj.interviewCandidateName || '').trim();
   const role = String(meetingObj.interviewRole || '').trim();
   const optionalContext = [
-    candidateName && `Expected candidate name (hint only): ${candidateName}`,
-    role && `Role / position (hint only): ${role}`,
+    interviewerLine,
+    multiCandidates.length
+      ? `Candidate(s) (hints only):\n${multiCandidates.join('\n')}`
+      : candidateName && `Expected candidate name (hint only): ${candidateName}`,
+    !multiCandidates.length && role && `Role / position (hint only): ${role}`,
   ]
     .filter(Boolean)
     .join('\n');
@@ -895,7 +972,7 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
     }
 
     mirrorMeetingAudioToPersistentDir(audioFilePath);
-
+    
     // Compress if needed
     let finalAudioPath = audioFilePath;
     if (stats.size > 25 * 1024 * 1024) {
@@ -951,7 +1028,7 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
       } catch (apiError) {
         lastError = apiError;
         const retryable = isRetryableOpenAiError(apiError);
-
+        
         if (retryable && attempt < maxRetries) {
           const waitTime = Math.pow(2, attempt) * 1000; // Exponential backoff: 2s, 4s, 8s
           console.warn(
@@ -1016,7 +1093,7 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
     console.error('   Error status:', error.status);
     console.error('   Error message:', error.message);
     console.error('   Error type:', error.type);
-
+    
     const wrap = (message) => {
       const e = new Error(message);
       if (error && typeof error === 'object') {
@@ -1044,7 +1121,7 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
         `We could not read this audio file. Use a supported format (for example mp3, wav, m4a, webm) and try again.`
       );
     }
-
+    
     throw error;
   }
 }

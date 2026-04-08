@@ -91,6 +91,20 @@ const meetingSchema = new mongoose.Schema({
     default: '',
     trim: true,
   },
+  /** Interviewer = one of participants (participant book); used for voice + summary hints */
+  interviewInterviewerEmail: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  /** Candidates are not added to participants; voiceEmail is synthetic for VoiceProfile only */
+  interviewCandidates: [
+    {
+      name: { type: String, default: '', trim: true },
+      role: { type: String, default: '', trim: true },
+      voiceEmail: { type: String, default: '', trim: true },
+    },
+  ],
   hiringRecommendation: {
     type: String,
     default: '',
