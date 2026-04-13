@@ -1560,14 +1560,22 @@
 }
 
 :root[data-theme='light'] .meeting-create-optional-toggle {
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-strong);
   background: var(--surface-input);
-  color: var(--text-secondary);
+  color: var(--text-primary);
+  font-weight: 600;
 }
 
 :root[data-theme='light'] .meeting-create-optional-toggle:hover {
-  background: rgba(15, 23, 42, 0.04);
-  border-color: var(--border-strong);
+  background: rgba(15, 23, 42, 0.05);
+  border-color: var(--accent-blue);
+  color: var(--text-primary);
+}
+
+:root[data-theme='light'] .meeting-create-optional-panel,
+:root[data-theme='light'] .meeting-create-optional-panel .start-meeting-field label,
+:root[data-theme='light'] .meeting-create-optional-panel .start-meeting-label-with-icon {
+  opacity: 1;
 }
 
 :root[data-theme='light'] .start-meeting-error {
