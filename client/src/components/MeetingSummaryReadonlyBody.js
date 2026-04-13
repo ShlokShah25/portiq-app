@@ -17,6 +17,7 @@ import {
 } from '../utils/meetingCalendarLinks';
 import './MeetingSummary.css';
 import { FEATURE_INTERVIEW_UI } from '../config/featureFlags';
+import { GoogleCalendarLogo, OutlookLogo } from './CalendarBrandIcons';
 
 /**
  * Read-only summary layout. Use includeSections to render only action items or everything except.
@@ -293,6 +294,7 @@ export default function MeetingSummaryReadonlyBody({
                           rel="noopener noreferrer"
                           title="Add to Google Calendar"
                         >
+                          <GoogleCalendarLogo size={16} className="meeting-action-link__calendar-icon" />
                           Google Calendar
                         </a>
                       )}
@@ -304,6 +306,7 @@ export default function MeetingSummaryReadonlyBody({
                           rel="noopener noreferrer"
                           title="Add to Outlook Calendar"
                         >
+                          <OutlookLogo size={16} className="meeting-action-link__calendar-icon" />
                           Outlook
                         </a>
                       )}

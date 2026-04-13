@@ -414,9 +414,6 @@ const Dashboard = () => {
                   </div>
                 </div>
                 <div className="dashboard-head-actions">
-                  <Link to="/meetings" state={{ showAllMeetings: true }} className="dashboard-section__link">
-                    Meetings
-                  </Link>
                   <button
                     type="button"
                     className="dashboard-section-hide"
@@ -467,9 +464,6 @@ const Dashboard = () => {
                   </p>
                 </div>
                 <div className="dashboard-head-actions">
-                  <Link to="/meetings" state={{ showAllMeetings: true }} className="dashboard-section__link">
-                    Meetings
-                  </Link>
                   <button
                     type="button"
                     className="dashboard-section-hide"

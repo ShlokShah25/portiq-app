@@ -5,6 +5,7 @@ import { Video, Mic, Bot } from 'lucide-react';
 import { T } from '../config/terminology';
 import { FEATURE_INTERVIEW_UI } from '../config/featureFlags';
 import MeetingStatusBadge from './MeetingStatusBadge';
+import { GoogleCalendarLogo, OutlookLogo } from './CalendarBrandIcons';
 import { isOnlineMeeting } from '../utils/meetingDisplayStatus';
 import { transcriptionFailureCopy } from '../utils/transcriptionFailureCopy';
 import './MeetingDetail.css';
@@ -153,8 +154,11 @@ const MeetingDetail = () => {
       await axios.post(`/meetings/${id}/start`);
       navigate(`/meetings/${id}/room`);
     } catch (err) {
+      const d = err.response?.data;
       setStartRoomError(
-        err.response?.data?.error || err.message || 'Could not open the live session. Try again.'
+        [d?.error, d?.details].filter(Boolean).join(' — ') ||
+          err.message ||
+          'Could not open the live session. Try again.'
       );
     } finally {
       setStartRoomLoading(false);
@@ -340,24 +344,21 @@ const MeetingDetail = () => {
             </div>
           )}
           {followCont && (
-            <div className="meeting-detail-continuation" style={{ borderColor: 'rgba(34, 197, 94, 0.35)', background: 'rgba(34, 197, 94, 0.06)' }}>
-              <p className="meeting-detail-continuation-title" style={{ color: '#86efac' }}>
-                Follow-up scheduled
-              </p>
-              <p style={{ margin: 0, fontSize: 14 }}>
+            <div className="meeting-detail-continuation meeting-detail-continuation--success">
+              <p className="meeting-detail-continuation-title">Follow-up scheduled</p>
+              <p className="meeting-detail-continuation-followup-line">
                 <strong>{followCont.title}</strong>
                 {followCont.scheduledTime && (
                   <> — {formatDate(followCont.scheduledTime)} {formatTime(followCont.scheduledTime)}</>
                 )}
               </p>
               <a
-                className="meeting-detail-continuation-link"
+                className="meeting-detail-continuation-link meeting-detail-continuation-link--block"
                 href={`/meetings/${followCont._id}`}
                 onClick={(e) => {
                   e.preventDefault();
                   navigate(`/meetings/${followCont._id}`);
                 }}
-                style={{ display: 'inline-block', marginTop: 10 }}
               >
                 Open follow-up →
               </a>
@@ -482,6 +483,7 @@ const MeetingDetail = () => {
                     rel="noopener noreferrer"
                     title="Add to Google Calendar"
                   >
+                    <GoogleCalendarLogo size={18} className="meeting-detail-calendar-icon" />
                     Add to Google Calendar
                   </a>
                 )}
@@ -493,6 +495,7 @@ const MeetingDetail = () => {
                     rel="noopener noreferrer"
                     title="Add to Outlook Calendar"
                   >
+                    <OutlookLogo size={18} className="meeting-detail-calendar-icon" />
                     Add to Outlook
                   </a>
                 )}

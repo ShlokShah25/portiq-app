@@ -201,7 +201,7 @@
   margin: 10px 0 0;
   font-size: 13px;
   line-height: 1.45;
-  color: rgba(156, 163, 175, 0.9);
+  color: var(--text-secondary);
 }
 
 .meetings-summary-polling-icon {
@@ -545,6 +545,18 @@
   margin: 0;
   letter-spacing: -0.01em;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+.meetings-right-card-header {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.meetings-right-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 /* Forms */

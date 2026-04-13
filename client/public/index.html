@@ -4,6 +4,11 @@
     <script>
       (function () {
         try {
+          var mig = 'portiq_light_default_v1';
+          if (!localStorage.getItem(mig)) {
+            localStorage.setItem(mig, '1');
+            localStorage.setItem('app-theme', 'light');
+          }
           var t = localStorage.getItem('app-theme');
           document.documentElement.setAttribute('data-theme', t === 'dark' ? 'dark' : 'light');
         } catch (e) {}

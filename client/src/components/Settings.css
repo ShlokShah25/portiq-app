@@ -303,6 +303,13 @@
   margin-top: 10px;
 }
 
+.settings-company-hint {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
 .settings-input {
   width: 100%;
   max-width: 400px;

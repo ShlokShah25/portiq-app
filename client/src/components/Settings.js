@@ -348,6 +348,19 @@ const Settings = () => {
                 <div className="settings-workspace-embed">
                   <ParticipantBookPanel embedded />
                 </div>
+
+                <div className="settings-divider" />
+
+                <div className="settings-panel-row settings-panel-row--stack">
+                  <div className="settings-panel-row__meta">
+                    <h3 className="settings-panel-row__title">{L('settings.generalCompanyTitle')}</h3>
+                    <p className="settings-panel-row__desc">{L('settings.generalCompanyDesc')}</p>
+                  </div>
+                  <div className="settings-panel-row__control">
+                    <input type="text" className="settings-input" placeholder={L('settings.companyPh')} />
+                    <p className="settings-company-hint">{L('settings.companyNameMeetingsHint')}</p>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -417,16 +430,6 @@ const Settings = () => {
 
                 <div className="settings-divider" />
 
-                <div className="settings-panel-row">
-                  <div className="settings-panel-row__meta">
-                    <h3 className="settings-panel-row__title">{L('settings.generalCompanyTitle')}</h3>
-                    <p className="settings-panel-row__desc">{L('settings.generalCompanyDesc')}</p>
-                  </div>
-                  <div className="settings-panel-row__control">
-                    <input type="text" className="settings-input" placeholder={L('settings.companyPh')} />
-                  </div>
-                </div>
-                <div className="settings-divider" />
                 <div className="settings-panel-row">
                   <div className="settings-panel-row__meta">
                     <h3 className="settings-panel-row__title">{L('settings.generalDurationTitle')}</h3>

@@ -1564,37 +1564,34 @@ const MeetingsScreen = () => {
 
           <div className="meetings-right">
             <div className="card">
-                  <div className="card-header">
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-                      <h2 style={{ margin: 0 }}>{T.meetings()}</h2>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <button
-                          type="button"
-                          className="btn btn-secondary"
-                          style={{
-                            padding: '8px 12px',
-                            borderRadius: '10px',
-                            opacity: rightTab === 'scheduled' ? 1 : 0.75,
-                            borderColor: rightTab === 'scheduled' ? '#2563eb' : undefined,
-                          }}
-                          onClick={() => setRightTab('scheduled')}
-                        >
-                          Scheduled
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-secondary"
-                          style={{
-                            padding: '8px 12px',
-                            borderRadius: '10px',
-                            opacity: rightTab === 'recent' ? 1 : 0.75,
-                            borderColor: rightTab === 'recent' ? '#2563eb' : undefined,
-                          }}
-                          onClick={() => setRightTab('recent')}
-                        >
-                          Recent
-                        </button>
-                      </div>
+                  <div className="card-header meetings-right-card-header">
+                    <div className="meetings-right-tabs">
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        style={{
+                          padding: '8px 12px',
+                          borderRadius: '10px',
+                          opacity: rightTab === 'scheduled' ? 1 : 0.75,
+                          borderColor: rightTab === 'scheduled' ? '#2563eb' : undefined,
+                        }}
+                        onClick={() => setRightTab('scheduled')}
+                      >
+                        Scheduled
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        style={{
+                          padding: '8px 12px',
+                          borderRadius: '10px',
+                          opacity: rightTab === 'recent' ? 1 : 0.75,
+                          borderColor: rightTab === 'recent' ? '#2563eb' : undefined,
+                        }}
+                        onClick={() => setRightTab('recent')}
+                      >
+                        Recent
+                      </button>
                     </div>
               </div>
               <div className="meetings-list">

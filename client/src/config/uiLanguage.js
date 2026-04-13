@@ -87,6 +87,7 @@ const STRINGS = {
     'settings.generalCompanyTitle': 'Company name',
     'settings.generalCompanyDesc': 'Shown in meeting defaults where applicable.',
     'settings.companyPh': 'Your Company',
+    'settings.companyNameMeetingsHint': 'Set company name to appear on meetings.',
     'settings.generalDurationTitle': 'Default meeting duration',
     'settings.generalDurationDesc': 'Suggested duration in minutes for new meetings.',
   },

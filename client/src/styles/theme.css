@@ -118,9 +118,10 @@
   --divider: rgba(15, 23, 42, 0.08);
 
   --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #64748b;
-  --text-label: #94a3b8;
+  /* Strong contrast on white (nav, labels, helper copy, cards) */
+  --text-secondary: #1e293b;
+  --text-muted: #1e293b;
+  --text-label: #1e293b;
 
   --accent-blue: #2563eb;
   --accent-primary-hover: #1d4ed8;

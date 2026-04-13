@@ -12,7 +12,7 @@
   font-size: 14px;
   font-weight: 500;
   line-height: 1.45;
-  color: #e2e8f0;
+  color: var(--text-primary);
   background: linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(16, 185, 129, 0.12) 100%);
   border: 1px solid rgba(52, 211, 153, 0.35);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
@@ -47,7 +47,7 @@
   margin: 4px 0 16px;
   font-size: 12px;
   line-height: 1.5;
-  color: var(--text-muted, rgba(148, 163, 184, 0.95));
+  color: var(--text-secondary);
   font-style: italic;
 }
 
@@ -84,7 +84,7 @@
 }
 
 .mip-status-chip--ready {
-  color: #93c5fd;
+  color: var(--accent-blue);
   background: rgba(59, 130, 246, 0.15);
   box-shadow: 0 0 20px rgba(59, 130, 246, 0.12);
 }
@@ -108,8 +108,8 @@
   padding: 12px 14px;
   border-radius: 14px;
   border: none;
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--text-primary, #f4f4f5);
+  background: var(--surface-input);
+  color: var(--text-primary);
   cursor: pointer;
   text-align: left;
   font: inherit;
@@ -129,14 +129,14 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--text-muted, #9ca3af);
+  color: var(--text-secondary);
 }
 
 .mip-session-details__teaser {
   flex: 1;
   min-width: 0;
   font-size: 13px;
-  color: var(--text-secondary, #cbd5e1);
+  color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -202,7 +202,7 @@
   min-width: min(100%, 280px);
   font-size: 11px;
   line-height: 1.45;
-  color: rgba(148, 163, 184, 0.85);
+  color: var(--text-secondary);
   font-style: normal;
   text-align: left;
 }
@@ -221,7 +221,7 @@
   gap: 12px 20px;
   margin-top: 20px;
   padding-top: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid var(--divider);
 }
 
 .mip-secondary-row__link {
@@ -231,14 +231,14 @@
   font: inherit;
   font-size: 13px;
   font-weight: 500;
-  color: #93c5fd;
+  color: var(--accent-blue);
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 3px;
 }
 
 .mip-secondary-row__link:hover {
-  color: #bfdbfe;
+  color: var(--accent-primary-hover);
 }
 
 .mip-recording-hero {
@@ -320,8 +320,8 @@
   gap: 12px 16px;
   padding: 18px 20px;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--surface-input);
+  border: 1px solid var(--border-color);
 }
 
 .mip-recording-hero__live-dot {
@@ -337,7 +337,7 @@
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #9ca3af;
+  background: var(--text-secondary);
   box-shadow: none;
   animation: none;
 }
@@ -363,7 +363,7 @@
 .mip-recording-hero__status-text {
   font-size: 18px;
   font-weight: 650;
-  color: #f9fafb;
+  color: var(--text-primary);
   letter-spacing: -0.02em;
 }
 
@@ -371,7 +371,7 @@
   font-family: ui-monospace, 'SF Mono', Menlo, Monaco, monospace;
   font-size: 22px;
   font-weight: 600;
-  color: #f3f4f6;
+  color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
 
@@ -401,8 +401,8 @@
   gap: 14px 28px;
   margin: 0;
   padding: 14px 0 6px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid var(--divider);
+  border-bottom: 1px solid var(--divider);
 }
 
 .mip-meta-chunk {
@@ -417,13 +417,13 @@
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #6b7280;
+  color: var(--text-secondary);
 }
 
 .mip-meta-v {
   font-size: 14px;
   font-weight: 600;
-  color: #e5e7eb;
+  color: var(--text-primary);
   line-height: 1.3;
 }
 
@@ -445,7 +445,7 @@
 .mip-ready-badge--neutral {
   background: rgba(31, 41, 55, 0.65);
   border-color: rgba(75, 85, 99, 0.5);
-  color: #9ca3af;
+  color: var(--text-secondary);
 }
 
 .mip-ready-badge__dot--neutral {
@@ -465,7 +465,7 @@
 .mip-continuation-parent-title {
   margin: 0 0 8px;
   font-weight: 600;
-  color: #f9fafb;
+  color: var(--text-primary);
   font-size: 15px;
 }
 
@@ -555,9 +555,9 @@
   gap: 12px;
   padding: 10px 18px;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: #111111;
-  color: #9ca3af;
+  border: 1px solid var(--border-color);
+  background: var(--surface-input);
+  color: var(--text-primary);
   font-size: 14px;
   font-weight: 600;
 }
@@ -565,7 +565,7 @@
 .mip-footer-actions {
   margin-top: 8px;
   padding-top: 20px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--divider);
 }
 
 .mip-btn-end-meeting {
@@ -627,14 +627,14 @@
 
 .meeting-status-badge span {
   font-weight: 500;
-  color: #e5e7eb;
+  color: var(--text-primary);
   font-size: 14px;
 }
 
 .meeting-title {
   font-size: 32px;
   font-weight: 600;
-  color: #f9fafb;
+  color: var(--text-primary);
   margin: 0 0 32px 0;
   line-height: 1.3;
 }
@@ -647,7 +647,7 @@
 }
 
 .meeting-detail-card {
-  background: #0b0b0b;
+  background: var(--surface-secondary);
   border-radius: 18px;
   padding: 20px;
   display: flex;
@@ -655,14 +655,14 @@
   gap: 18px;
   box-shadow: none;
   backdrop-filter: none;
-  border: 1px solid #1f2933;
+  border: 1px solid var(--border-color);
   transition: all 0.2s ease;
 }
 
 .meeting-detail-card:hover {
   transform: translateY(-2px);
   box-shadow: none;
-  border-color: #2563eb;
+  border-color: var(--accent-blue);
 }
 
 .detail-icon {
@@ -671,10 +671,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg-primary, #000000);
+  background: var(--surface-input);
   border-radius: 999px;
   flex-shrink: 0;
-  color: #93c5fd;
+  color: var(--accent-blue);
 }
 
 .detail-content {
@@ -684,7 +684,7 @@
 .detail-label {
   font-size: 13px;
   font-weight: 600;
-  color: #6b7280;
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 8px;
@@ -693,23 +693,23 @@
 .detail-value {
   font-size: 18px;
   font-weight: 600;
-  color: #e5e7eb;
+  color: var(--text-primary);
 }
 
 .duration-value {
   font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
   font-size: 24px;
-  color: #60a5fa;
+  color: var(--accent-blue);
 }
 
 .participants-list {
-  background: #0b0b0b;
+  background: var(--surface-secondary);
   border-radius: 18px;
   padding: 28px;
   margin-bottom: 32px;
   box-shadow: none;
   backdrop-filter: none;
-  border: 1px solid #1f2933;
+  border: 1px solid var(--border-color);
 }
 
 .participants-list--room {
@@ -721,7 +721,7 @@
 .participants-list h3 {
   font-size: 20px;
   font-weight: 700;
-  color: #f9fafb;
+  color: var(--text-primary);
   margin: 0 0 24px 0;
 }
 
@@ -747,7 +747,7 @@
   padding: 10px 0;
   background: transparent;
   border: none;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--divider);
   border-radius: 0;
   box-sizing: border-box;
 }
@@ -764,17 +764,17 @@
   border-radius: 50%;
   overflow: hidden;
   flex-shrink: 0;
-  background: #111827;
+  background: var(--surface-input);
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border-color);
 }
 
 .mip-participant-initials {
   font-size: 18px;
   font-weight: 700;
-  color: #93c5fd;
+  color: var(--accent-blue);
   line-height: 1;
   user-select: none;
 }
@@ -788,13 +788,13 @@
 .mip-participant-name {
   font-weight: 600;
   font-size: 15px;
-  color: #f9fafb;
+  color: var(--text-primary);
   margin: 0;
 }
 
 .mip-participant-email {
   font-size: 13px;
-  color: #9ca3af;
+  color: var(--text-secondary);
   margin: 4px 0 0;
   word-break: break-word;
 }
@@ -809,13 +809,13 @@
 }
 
 .participant-chip {
-  background: var(--bg-primary, #000000);
+  background: var(--surface-input);
   color: white;
   padding: 10px 18px;
   border-radius: 999px;
   font-size: 13px;
   box-shadow: none;
-  border: 1px solid #374151;
+  border: 1px solid var(--border-strong);
 }
 
 .participant-name {
@@ -837,13 +837,13 @@
 .btn-record,
 .btn-stop,
 .btn-pause {
-  background: var(--bg-primary, #000000);
-  border: 1px solid #1f2933;
+  background: var(--surface-input);
+  border: 1px solid var(--border-color);
   padding: 14px 28px;
   border-radius: 999px;
   font-size: 15px;
   font-weight: 600;
-  color: #e5e7eb;
+  color: var(--text-primary);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -882,7 +882,7 @@
 .stop-icon {
   width: 16px;
   height: 16px;
-  background: #1a1a1a;
+  background: var(--surface-input);
   border-radius: 4px;
   display: inline-block;
 }
@@ -891,19 +891,19 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  background: var(--bg-primary, #000000);
+  background: var(--surface-input);
   padding: 14px 28px;
   border-radius: 999px;
-  color: #e5e7eb;
-  border: 1px solid #1f2933;
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
   font-weight: 600;
 }
 
 .upload-spinner {
   width: 20px;
   height: 20px;
-  border: 3px solid rgba(102, 126, 234, 0.2);
-  border-top-color: #667eea;
+  border: 3px solid var(--accent-blue-dim);
+  border-top-color: var(--accent-blue);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -926,8 +926,8 @@
 
 .btn-end-meeting--secondary {
   background: transparent;
-  color: #e5e7eb;
-  border: 2px solid #3b82f6;
+  color: var(--text-primary);
+  border: 2px solid var(--accent-blue);
   box-shadow: none;
 }
 
@@ -962,12 +962,12 @@
 }
 
 .error-message {
-  background: rgba(239, 68, 68, 0.1);
-  color: white;
+  background: var(--message-error-bg);
+  color: var(--message-error-text);
   padding: 16px 24px;
   border-radius: 12px;
   margin-bottom: 24px;
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  border: 1px solid var(--message-error-border);
   text-align: center;
 }
 
@@ -978,15 +978,15 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: var(--bg-primary, #000000);
-  color: #e5e7eb;
+  background: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 .loading-spinner {
   width: 50px;
   height: 50px;
   border: 4px solid rgba(148, 163, 184, 0.4);
-  border-top-color: #60a5fa;
+  border-top-color: var(--accent-blue);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin-bottom: 20px;
@@ -1003,7 +1003,7 @@
 
 .meeting-status-badge--ended {
   background: rgba(31, 41, 55, 0.95);
-  color: #9ca3af;
+  color: var(--text-secondary);
 }
 
 .status-indicator--ended {
@@ -1013,7 +1013,7 @@
 
 .meeting-ended-message {
   font-size: 16px;
-  color: #9ca3af;
+  color: var(--text-secondary);
   margin: 12px 0 28px;
   max-width: 420px;
 }
@@ -1042,8 +1042,8 @@
 
 .meeting-in-progress-back-text {
   background: transparent;
-  border: 1px solid #374151;
-  color: #9ca3af;
+  border: 1px solid var(--border-strong);
+  color: var(--text-secondary);
   padding: 10px 18px;
   border-radius: 10px;
   font-size: 14px;
@@ -1053,7 +1053,7 @@
 
 .meeting-in-progress-back-text:hover {
   border-color: #4b5563;
-  color: #e5e7eb;
+  color: var(--text-primary);
 }
 
 @media (max-width: 768px) {
