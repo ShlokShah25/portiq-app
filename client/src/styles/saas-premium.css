@@ -67,7 +67,7 @@ body {
 :root[data-theme='dark'] .insights-top-bar,
 :root[data-theme='dark'] .meetings-top-bar,
 :root[data-theme='dark'] .client-admin-header {
-  background: rgba(11, 16, 32, 0.88);
+  background: var(--nav-surface);
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 

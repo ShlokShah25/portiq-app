@@ -7,16 +7,16 @@
   --font-primary: var(--font-sans);
   --sidebar-width: 260px;
 
-  /* Option A — matte indigo (consumer, logo-aligned) */
-  --bg-primary: #0b1020;
-  --bg-elevated: #0e1630;
-  --surface-secondary: #101a33;
-  --surface-card: #101a33;
-  --surface-input: #0e1630;
+  /* Charcoal neutral shell (no indigo wash) */
+  --bg-primary: #1c1c1e;
+  --bg-elevated: #252526;
+  --surface-secondary: #2a2a2c;
+  --surface-card: #2a2a2c;
+  --surface-input: #323234;
   /* Frosted panels (cards, strips) */
-  --surface-glass: rgba(16, 26, 51, 0.92);
+  --surface-glass: rgba(42, 42, 44, 0.94);
 
-  --border-color: rgba(255, 255, 255, 0.1);
+  --border-color: rgba(255, 255, 255, 0.09);
   --border-strong: rgba(255, 255, 255, 0.12);
   --divider: rgba(255, 255, 255, 0.08);
 
@@ -43,11 +43,11 @@
   --badge-text: #a5b4fc;
   --pill-muted-bg: rgba(255, 255, 255, 0.05);
 
-  --skeleton: #1a222c;
-  --skeleton-shine: #243040;
+  --skeleton: #353538;
+  --skeleton-shine: #3f3f42;
 
-  /* Matte page wash — single soft indigo lift (no purple neon) */
-  --page-ambient-gradient: radial-gradient(ellipse 100% 70% at 50% -15%, rgba(79, 70, 229, 0.07), transparent 52%);
+  /* Subtle neutral lift (charcoal, not tinted) */
+  --page-ambient-gradient: radial-gradient(ellipse 90% 55% at 50% -18%, rgba(255, 255, 255, 0.04), transparent 55%);
   /* Solid primary for CTAs (no rainbow gradient) */
   --gradient-accent: linear-gradient(180deg, #4f46e5 0%, #4f46e5 100%);
   --shadow-glow-blue: 0 1px 0 rgba(255, 255, 255, 0.06), 0 6px 28px rgba(0, 0, 0, 0.38);
@@ -64,28 +64,28 @@
 
   --shadow-soft-sm: 0 2px 20px rgba(0, 0, 0, 0.25);
   --shadow-soft-lg: 0 12px 48px rgba(0, 0, 0, 0.35);
-  --dash-card-bg: rgba(16, 26, 51, 0.55);
+  --dash-card-bg: rgba(42, 42, 44, 0.65);
   --dash-chip-bg: rgba(255, 255, 255, 0.04);
   --dash-chip-hover-bg: rgba(255, 255, 255, 0.07);
   --dash-row-bg: transparent;
-  --dash-row-hover-bg: rgba(79, 70, 229, 0.06);
-  --dash-metric-tile-hover: rgba(79, 70, 229, 0.08);
+  --dash-row-hover-bg: rgba(255, 255, 255, 0.05);
+  --dash-metric-tile-hover: rgba(255, 255, 255, 0.06);
   --dash-subtle-hover: rgba(255, 255, 255, 0.04);
-  --dash-link-row-hover: rgba(79, 70, 229, 0.07);
-  --dash-chip-icon-bg: rgba(79, 70, 229, 0.14);
+  --dash-link-row-hover: rgba(255, 255, 255, 0.06);
+  --dash-chip-icon-bg: rgba(37, 99, 235, 0.16);
   --dash-row-border: transparent;
-  --dash-row-border-hover: rgba(79, 70, 229, 0.2);
+  --dash-row-border-hover: rgba(37, 99, 235, 0.22);
   --dash-divider-list: rgba(255, 255, 255, 0.06);
-  --scrollbar-thumb: #2d3748;
-  --scrollbar-thumb-hover: #3d4a5c;
+  --scrollbar-thumb: #3d3d40;
+  --scrollbar-thumb-hover: #4a4a4e;
 
-  --nav-surface: rgba(11, 16, 32, 0.88);
+  --nav-surface: rgba(28, 28, 30, 0.92);
   --nav-hover-bg: rgba(255, 255, 255, 0.06);
-  --nav-active-bg: rgba(79, 70, 229, 0.14);
-  --nav-logout-bg: rgba(17, 22, 29, 0.95);
+  --nav-active-bg: rgba(37, 99, 235, 0.14);
+  --nav-logout-bg: rgba(30, 30, 32, 0.96);
   --nav-shadow: 0 1px 0 rgba(255, 255, 255, 0.04), 0 8px 32px rgba(0, 0, 0, 0.35);
 
-  --sidebar-active-bg: rgba(79, 70, 229, 0.18);
+  --sidebar-active-bg: rgba(37, 99, 235, 0.2);
   --sidebar-active-fg: #f8fafc;
   --sidebar-hover-bg: rgba(255, 255, 255, 0.05);
   --sidebar-border: var(--border-color);

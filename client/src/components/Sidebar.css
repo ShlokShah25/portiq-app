@@ -21,7 +21,7 @@
 }
 
 :root[data-theme='dark'] .sidebar {
-  background: rgba(11, 16, 32, 0.96);
+  background: var(--surface-secondary);
   box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.06);
 }
 
