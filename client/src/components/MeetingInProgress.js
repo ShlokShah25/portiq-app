@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { T } from '../config/terminology';
 import { FEATURE_INTERVIEW_UI } from '../config/featureFlags';
+import { formatApiError } from '../utils/apiErrorMessage';
 import './MeetingSummary.css';
 import './MeetingInProgress.css';
 import './MeetingDetail.css';
@@ -42,6 +43,7 @@ const MeetingInProgress = () => {
   const [followUpSubmitting, setFollowUpSubmitting] = useState(false);
   const [followUpError, setFollowUpError] = useState('');
   const [firstMeetingToast, setFirstMeetingToast] = useState(false);
+  const [uploadNotice, setUploadNotice] = useState('');
   const [voiceProfiles, setVoiceProfiles] = useState({});
   const mediaRecorderRef = React.useRef(null);
   const streamRef = React.useRef(null);
@@ -221,7 +223,7 @@ const MeetingInProgress = () => {
       setLoading(false);
     } catch (err) {
       console.error('Error fetching meeting:', err);
-      setError('Failed to load meeting details');
+      setError(formatApiError(err, 'Failed to load meeting details'));
       setMeeting(null);
       setLoading(false);
     }
@@ -283,9 +285,10 @@ const MeetingInProgress = () => {
       if (isMountedRef.current) {
         setError(
           typeof st === 'number' && st >= 400
-            ? err.response?.data?.error ||
-                err.message ||
+            ? formatApiError(
+                err,
                 'Could not start recording on the server. Try again or open the meeting from Meetings.'
+              )
             : 'Unable to access microphone. Please check browser permissions.'
         );
       }
@@ -321,7 +324,14 @@ const MeetingInProgress = () => {
 
   const uploadAudio = async (blob, uploadMeetingId) => {
     if (!uploadMeetingId) return;
-    if (isMountedRef.current) setUploading(true);
+    if (isMountedRef.current) {
+      setUploading(true);
+      setUploadNotice(
+        blob.size > 25 * 1024 * 1024
+          ? 'Large recording — uploading, then we optimize it on the server before transcription.'
+          : ''
+      );
+    }
     try {
       const fileToSend = new File([blob], 'meeting-audio.webm', { type: 'audio/webm' });
       const data = new FormData();
@@ -332,6 +342,7 @@ const MeetingInProgress = () => {
       if (isMountedRef.current) {
         setMeeting(res.data.meeting);
         setUploading(false);
+        setUploadNotice('');
         if (res.data?.celebrateFirstMeeting) setFirstMeetingToast(true);
       }
       if (pendingEndUpload) {
@@ -345,8 +356,9 @@ const MeetingInProgress = () => {
         pendingEndUpload = null;
       }
       if (isMountedRef.current) {
-        setError('Failed to upload audio');
+        setError(formatApiError(err, 'Failed to upload audio'));
         setUploading(false);
+        setUploadNotice('');
       }
     }
   };
@@ -389,10 +401,7 @@ const MeetingInProgress = () => {
     } catch (err) {
       console.error('Error ending meeting:', err);
       if (isMountedRef.current) {
-        const d = err.response?.data;
-        setError(
-          [d?.error, d?.details].filter(Boolean).join(' — ') || 'Failed to end meeting'
-        );
+        setError(formatApiError(err, 'Failed to end meeting'));
       }
     }
   };
@@ -625,9 +634,16 @@ const MeetingInProgress = () => {
               {meeting.transcriptionEnabled && (
                 <div className="mip-recording-hero mip-recording-hero--primary">
                   {!recordingLive && !uploading && (
-                    <button type="button" className="mip-recording-hero__start" onClick={startRecording}>
-                      Start Recording
-                    </button>
+                    <>
+                      <p className="mip-recording-consent" role="note">
+                        By starting recording, you confirm participants are aware audio is captured for transcription
+                        and summary. Use Chrome or Edge for the most reliable in-browser capture. Recordings over 25 MB
+                        are compressed on our servers before sending to transcription.
+                      </p>
+                      <button type="button" className="mip-recording-hero__start" onClick={startRecording}>
+                        Start Recording
+                      </button>
+                    </>
                   )}
                   {recordingLive && !uploading && (
                     <div className="mip-recording-hero__active">
@@ -673,7 +689,14 @@ const MeetingInProgress = () => {
                   {uploading && (
                     <div className="mip-uploading-status mip-uploading-status--hero">
                       <div className="upload-spinner" />
-                      <span>Uploading audio…</span>
+                      <div className="mip-uploading-status__text">
+                        <span>Uploading audio…</span>
+                        {uploadNotice ? (
+                          <span className="mip-uploading-status__hint" role="status">
+                            {uploadNotice}
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
                   )}
                 </div>

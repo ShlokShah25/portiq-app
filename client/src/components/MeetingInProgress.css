@@ -255,6 +255,15 @@
   margin-bottom: 22px;
 }
 
+.mip-recording-consent {
+  margin: 0;
+  max-width: 440px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
 .mip-recording-hero__start {
   display: inline-flex;
   align-items: center;
@@ -392,6 +401,7 @@
 
 .mip-uploading-status--hero {
   margin: 0 auto;
+  align-items: flex-start;
 }
 
 .mip-meta-strip {
@@ -560,6 +570,22 @@
   color: var(--text-primary);
   font-size: 14px;
   font-weight: 600;
+}
+
+.mip-uploading-status__text {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.mip-uploading-status__hint {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  max-width: 280px;
 }
 
 .mip-footer-actions {

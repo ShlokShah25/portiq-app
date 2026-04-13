@@ -77,7 +77,7 @@ const voiceStorage = multer.diskStorage({
   }
 });
 
-const upload = multer({ 
+const upload = multer({
   storage: storage,
   limits: { fileSize: 100 * 1024 * 1024 }, // 100MB limit
   fileFilter: (req, file, cb) => {
@@ -100,6 +100,32 @@ const upload = multer({
     cb(new Error(`Only audio files are allowed. Received: ${file.mimetype || 'unknown'} (${ext || 'no extension'})`), false);
   }
 });
+
+/** Multer wrapper so LIMIT_FILE_SIZE and filter errors return JSON { error, details }. */
+function withMeetingAudioUpload(req, res, next) {
+  upload.single('audio')(req, res, (err) => {
+    if (!err) return next();
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({
+          error: 'Recording file is too large.',
+          details:
+            'Maximum upload size is 100 MB. For long meetings, end the session sooner or split across meetings. Recordings over 25 MB are compressed on the server before transcription when ffmpeg is installed.',
+        });
+      }
+      return res.status(400).json({
+        error: 'Upload did not complete.',
+        details: err.message || 'Try again with a supported audio file.',
+      });
+    }
+    return res.status(400).json({
+      error: 'Upload failed.',
+      details:
+        err.message ||
+        'Use a supported audio format (for example WebM, MP3, WAV, M4A).',
+    });
+  });
+}
 
 const voiceUpload = multer({
   storage: voiceStorage,
@@ -714,7 +740,7 @@ router.post('/:id/start-recording', async (req, res) => {
 /**
  * End meeting and process transcription
  */
-router.post('/:id/end', upload.single('audio'), async (req, res) => {
+router.post('/:id/end', withMeetingAudioUpload, async (req, res) => {
   try {
     const meeting = await Meeting.findById(req.params.id);
     if (!meeting) return res.status(404).json({ error: 'Meeting not found' });

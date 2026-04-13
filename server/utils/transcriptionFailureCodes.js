@@ -35,6 +35,7 @@ function classifyTranscriptionError(err) {
 
   if (status === 401) return TRANSCRIPTION_FAILURE_CODES.AI_CONFIG;
   if (status === 429) return TRANSCRIPTION_FAILURE_CODES.AI_RATE_LIMIT;
+  if (status === 413) return TRANSCRIPTION_FAILURE_CODES.INPUT_AUDIO_INVALID;
   if (status === 408) return TRANSCRIPTION_FAILURE_CODES.AI_TIMEOUT;
   if (status === 500 || status === 502 || status === 503) {
     return TRANSCRIPTION_FAILURE_CODES.AI_UNAVAILABLE;
@@ -68,6 +69,12 @@ function classifyTranscriptionError(err) {
     return TRANSCRIPTION_FAILURE_CODES.INPUT_FILE_MISSING;
   }
   if (/audio file error|valid audio format|compress|too large/i.test(msg)) {
+    return TRANSCRIPTION_FAILURE_CODES.INPUT_AUDIO_INVALID;
+  }
+  if (/install ffmpeg|compress automatically|whisper accepts up to 25 mb/i.test(msg)) {
+    return TRANSCRIPTION_FAILURE_CODES.INPUT_AUDIO_INVALID;
+  }
+  if (/too long to fit under the 25 mb|could not compress audio below 25 mb/i.test(msg)) {
     return TRANSCRIPTION_FAILURE_CODES.INPUT_AUDIO_INVALID;
   }
 

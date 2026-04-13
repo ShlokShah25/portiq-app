@@ -12,6 +12,7 @@ import {
 } from '../utils/meetingEditorOtp';
 import './MeetingSummary.css';
 import MeetingSummaryReadonlyBody from './MeetingSummaryReadonlyBody';
+import { formatApiError } from '../utils/apiErrorMessage';
 
 const MeetingSummary = () => {
   const { id } = useParams();
@@ -45,10 +46,7 @@ const MeetingSummary = () => {
         setMeeting(res.data.meeting);
         setError('');
       } catch (err) {
-        const d = err.response?.data;
-        setError(
-          [d?.error, d?.details].filter(Boolean).join(' ') || 'Meeting not found'
-        );
+        setError(formatApiError(err, 'Meeting not found'));
         setMeeting(null);
       } finally {
         if (!silent) setLoading(false);
@@ -244,9 +242,7 @@ const MeetingSummary = () => {
       await fetchMeeting({ silent: true });
     } catch (err) {
       const d = err.response?.data;
-      setRetryError(
-        [d?.error, d?.details].filter(Boolean).join(' ') || 'Failed to retry transcription.'
-      );
+      setRetryError(formatApiError(err, 'Failed to retry transcription.'));
     } finally {
       setRetryBusy(false);
     }
@@ -323,8 +319,10 @@ const MeetingSummary = () => {
     } catch (err) {
       const d = err.response?.data;
       setActionError(
-        [d?.error, d?.details].filter(Boolean).join(' ') ||
-          (isInterview ? 'Failed to finalize decision.' : 'Failed to save or send summary.')
+        formatApiError(
+          err,
+          isInterview ? 'Failed to finalize decision.' : 'Failed to save or send summary.'
+        )
       );
     } finally {
       setSaving(false);
@@ -710,6 +708,35 @@ const MeetingSummary = () => {
 
           {!!hasContent && !editingSummary && !meeting.editorVerificationRequired && (
             <>
+              {!isInterview &&
+                (decisionsDisplay.length > 0 || nextSteps.length > 0) && (
+                  <section
+                    className="meeting-summary-outcomes-strip"
+                    aria-label="Decisions and next steps"
+                  >
+                    <p className="meeting-summary-outcomes-strip__eyebrow">Outcomes</p>
+                    {decisionsDisplay.length > 0 && (
+                      <div className="meeting-summary-outcomes-strip__block">
+                        <h3 className="meeting-summary-outcomes-strip__label">Decisions</h3>
+                        <ul className="meeting-summary-outcomes-strip__list">
+                          {decisionsDisplay.slice(0, 6).map((d, i) => (
+                            <li key={`dec-${i}`}>{String(d || '').trim()}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {nextSteps.length > 0 && (
+                      <div className="meeting-summary-outcomes-strip__block">
+                        <h3 className="meeting-summary-outcomes-strip__label">Next steps</h3>
+                        <ul className="meeting-summary-outcomes-strip__list">
+                          {nextSteps.slice(0, 6).map((s, i) => (
+                            <li key={`ns-${i}`}>{String(s || '').trim()}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </section>
+                )}
               <div
                 className={
                   actionItems.length > 0 ? 'meeting-summary-secondary-block' : undefined

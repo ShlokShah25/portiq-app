@@ -20,6 +20,7 @@ const {
   mapInterviewToPipelinePayload,
   buildInterviewUserJsonInstructions,
 } = require('./meetingSummaryModes');
+const { ensureWhisperSizedAudio, WHISPER_MAX_BYTES } = require('./audioCompressForWhisper');
 
 /**
  * Save Whisper output to MongoDB before summarization so GPT failures or deploys never wipe recoverable text.
@@ -924,75 +925,7 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
 
   const summaryChatModel = getSummaryChatModel();
 
-  // Helper function to compress audio file if needed
-  const compressAudioIfNeeded = async (inputPath) => {
-    const stats = fs.statSync(inputPath);
-    const fileSizeMB = stats.size / (1024 * 1024);
-    
-    // If file is under 25MB, no compression needed
-    if (fileSizeMB <= 25) {
-      return inputPath;
-    }
-    
-    // If ffmpeg not available, throw error with instructions
-    if (!ffmpeg) {
-      throw new Error(
-        `Audio file too large: ${fileSizeMB.toFixed(2)} MB (max 25 MB for Whisper API). ` +
-        `Please install ffmpeg for automatic compression: brew install ffmpeg (macOS) or apt-get install ffmpeg (Linux). ` +
-        `Alternatively, compress manually using CloudConvert or Audacity.`
-      );
-    }
-    
-    console.log(`📦 Compressing audio file (${fileSizeMB.toFixed(2)} MB → target: <25 MB)...`);
-    
-    const outputPath = inputPath.replace(/\.[^.]+$/, '_compressed.mp3');
-    
-    return new Promise((resolve, reject) => {
-      // Calculate target bitrate to get under 25MB
-      // Rough estimate: for a 1-hour meeting, 64kbps ≈ 30MB, so we'll use 48kbps for safety
-      const targetBitrate = '48k';
-      
-      ffmpeg(inputPath)
-        .audioBitrate(targetBitrate)
-        .audioCodec('libmp3lame')
-        .format('mp3')
-        .on('end', () => {
-          const compressedStats = fs.statSync(outputPath);
-          const compressedSizeMB = compressedStats.size / (1024 * 1024);
-          console.log(`✅ Compression complete: ${compressedSizeMB.toFixed(2)} MB`);
-          
-          if (compressedSizeMB > 25) {
-            // Still too large, try even lower bitrate
-            console.log(`⚠️  Still too large, trying lower bitrate...`);
-            const lowerBitrate = '32k';
-            const finalPath = inputPath.replace(/\.[^.]+$/, '_compressed_final.mp3');
-            
-            ffmpeg(inputPath)
-              .audioBitrate(lowerBitrate)
-              .audioCodec('libmp3lame')
-              .format('mp3')
-              .on('end', () => {
-                const finalStats = fs.statSync(finalPath);
-                const finalSizeMB = finalStats.size / (1024 * 1024);
-                console.log(`✅ Final compression: ${finalSizeMB.toFixed(2)} MB`);
-                resolve(finalPath);
-              })
-              .on('error', (err) => {
-                console.error('❌ Compression error:', err);
-                reject(new Error(`Failed to compress audio: ${err.message}`));
-              })
-              .save(finalPath);
-          } else {
-            resolve(outputPath);
-          }
-        })
-        .on('error', (err) => {
-          console.error('❌ Compression error:', err);
-          reject(new Error(`Failed to compress audio: ${err.message}. Please compress manually.`));
-        })
-        .save(outputPath);
-    });
-  };
+  let whisperTempPaths = [];
 
   try {
     // Validate file before processing
@@ -1001,22 +934,19 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
     console.log(`🎙️  Starting transcription...`);
     console.log(`   File: ${audioFilePath}`);
     console.log(`   Size: ${fileSizeMB} MB`);
-    
+    if (stats.size > WHISPER_MAX_BYTES) {
+      console.log(`   File exceeds Whisper ${WHISPER_MAX_BYTES / (1024 * 1024)} MB limit — will compress when ffmpeg is available`);
+    }
+
     if (stats.size === 0) {
       throw new Error('Audio file is empty (0 bytes)');
     }
 
     mirrorMeetingAudioToPersistentDir(audioFilePath);
-    
-    // Compress if needed
-    let finalAudioPath = audioFilePath;
-    if (stats.size > 25 * 1024 * 1024) {
-      try {
-        finalAudioPath = await compressAudioIfNeeded(audioFilePath);
-      } catch (compressError) {
-        throw compressError; // Re-throw compression errors
-      }
-    }
+
+    const ensured = await ensureWhisperSizedAudio(audioFilePath, ffmpeg);
+    const finalAudioPath = ensured.path;
+    whisperTempPaths = Array.isArray(ensured.pathsToCleanup) ? ensured.pathsToCleanup : [];
 
     // Retry logic for OpenAI API calls (transient 5xx / rate limit / network)
     const maxRetries = OPENAI_PIPELINE_MAX_RETRIES;
@@ -1095,7 +1025,8 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
     await checkpointTranscriptionToDb(meetingObj._id, transcriptText);
 
     let summaryResult;
-    for (let sumAttempt = 1; sumAttempt <= 2; sumAttempt++) {
+    const maxSummaryAttempts = 3;
+    for (let sumAttempt = 1; sumAttempt <= maxSummaryAttempts; sumAttempt++) {
       try {
         summaryResult = await generateMeetingSummaryFromTranscript(transcriptText, meetingObj, {
           ...options,
@@ -1103,22 +1034,19 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
         });
         break;
       } catch (sumErr) {
-        if (sumAttempt < 2) {
-          console.warn('⚠️ Summarization failed; retrying once after 2s:', sumErr.message);
-          await new Promise((r) => setTimeout(r, 2000));
-          continue;
+        if (sumAttempt >= maxSummaryAttempts) {
+          throw sumErr;
         }
-        throw sumErr;
-      }
-    }
-
-    // Clean up compressed file if it was created
-    if (finalAudioPath !== audioFilePath && fs.existsSync(finalAudioPath)) {
-      try {
-        fs.unlinkSync(finalAudioPath);
-        console.log('🧹 Cleaned up compressed audio file');
-      } catch (cleanupErr) {
-        console.warn('⚠️  Failed to cleanup compressed file:', cleanupErr.message);
+        const retryable = isRetryableOpenAiError(sumErr);
+        if (!retryable && sumAttempt >= 2) {
+          throw sumErr;
+        }
+        const waitTime = retryable ? Math.pow(2, sumAttempt) * 1000 : 2000;
+        console.warn(
+          `⚠️ Summarization failed (${sumErr.status || sumErr.code || 'unknown'}); attempt ${sumAttempt}/${maxSummaryAttempts}, waiting ${waitTime / 1000}s:`,
+          sumErr.message
+        );
+        await new Promise((r) => setTimeout(r, waitTime));
       }
     }
 
@@ -1151,13 +1079,40 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
     if (error.status === 429) {
       throw wrap('Our AI provider is busy (rate limited). Please wait a moment and try again.');
     }
-    if (error.message && error.message.includes('file')) {
+    if (error.status === 413) {
       throw wrap(
-        `We could not read this audio file. Use a supported format (for example mp3, wav, m4a, webm) and try again.`
+        'The audio is still too large for our transcription provider after compression. Try a shorter recording or split the meeting.'
       );
     }
-    
+    const msg = String((error && error.message) || '');
+    const code = error && error.code;
+
+    if (code === 'FFMPEG_REQUIRED' || code === 'AUDIO_TOO_LARGE') {
+      throw wrap(msg);
+    }
+
+    if (
+      msg &&
+      /invalid file format|could not open|invalid data found|not a valid/i.test(msg) &&
+      !/Whisper accepts|compress/i.test(msg)
+    ) {
+      throw wrap(
+        'We could not read this audio file. Use a supported format (for example mp3, wav, m4a, webm) and try again.'
+      );
+    }
+
     throw error;
+  } finally {
+    for (const p of whisperTempPaths) {
+      if (p && p !== audioFilePath && fs.existsSync(p)) {
+        try {
+          fs.unlinkSync(p);
+          console.log('🧹 Cleaned up temporary Whisper-sized audio file');
+        } catch (cleanupErr) {
+          console.warn('⚠️  Failed to cleanup temp audio file:', cleanupErr.message);
+        }
+      }
+    }
   }
 }
 
