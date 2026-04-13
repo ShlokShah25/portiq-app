@@ -3,6 +3,7 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const { sendEmail, isEmailConfigured, getDefaultFrom } = require('../utils/emailService');
 const Admin = require('../models/Admin');
+const { trialMeetingsRemaining } = require('../utils/subscriptionGate');
 
 function jwtSecret() {
   return process.env.JWT_SECRET || 'your_secret_key';
@@ -24,12 +25,30 @@ function issuePortiqAccessToken(admin) {
 }
 
 function userPayload(admin) {
+  const trialRemaining = trialMeetingsRemaining(admin);
+  const legacy = String(admin.username || '').toLowerCase() === 'admin';
+  const trialing =
+    !legacy &&
+    !admin.hasActiveSubscription &&
+    !admin.complimentaryAccess &&
+    trialRemaining != null &&
+    trialRemaining > 0;
+  const trialExhausted =
+    !legacy &&
+    !admin.hasActiveSubscription &&
+    !admin.complimentaryAccess &&
+    trialRemaining === 0;
+
   return {
     email: admin.email || '',
     username: admin.username,
     plan: (admin.plan || 'starter').toLowerCase(),
     productType: (admin.productType || 'workplace').toLowerCase(),
     hasActiveSubscription: !!admin.hasActiveSubscription,
+    trialMeetingsUsed: Number(admin.trialMeetingsUsed) || 0,
+    trialMeetingsRemaining: trialRemaining,
+    isTrialing: trialing,
+    trialExhausted,
   };
 }
 
