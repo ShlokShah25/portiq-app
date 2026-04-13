@@ -1,4 +1,4 @@
-/* PortIQ — dark default. Optional light: data-theme="light" (Settings). */
+/* PortIQ — light default (matches marketing site). Optional dark: data-theme="dark" (Settings). */
 @import url('https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
@@ -105,27 +105,28 @@
 }
 
 :root[data-theme="light"] {
-  --bg-primary: #edf0f6;
+  /* Aligned with marketing-site (marketing-markup.css) */
+  --bg-primary: #ffffff;
   --bg-elevated: #ffffff;
   --surface-secondary: #ffffff;
   --surface-card: #ffffff;
   --surface-input: #f8fafc;
-  --surface-glass: rgba(255, 255, 255, 0.88);
+  --surface-glass: rgba(255, 255, 255, 0.92);
 
-  --border-color: #e4e8f1;
-  --border-strong: #cdd5e4;
-  --divider: #e8ecf4;
+  --border-color: rgba(15, 23, 42, 0.1);
+  --border-strong: rgba(15, 23, 42, 0.14);
+  --divider: rgba(15, 23, 42, 0.08);
 
   --text-primary: #0f172a;
-  --text-secondary: #64748b;
-  --text-muted: #94a3b8;
-  --text-label: #64748b;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --text-label: #94a3b8;
 
-  --accent-blue: #4f46e5;
-  --accent-primary-hover: #4338ca;
-  --accent-hover: #4338ca;
-  --accent-blue-dim: rgba(79, 70, 229, 0.1);
-  --accent-purple: #6366f1;
+  --accent-blue: #2563eb;
+  --accent-primary-hover: #1d4ed8;
+  --accent-hover: #1d4ed8;
+  --accent-blue-dim: rgba(37, 99, 235, 0.1);
+  --accent-purple: #1d4ed8;
 
   --success-green: #16a34a;
   --success-pulse: #22c55e;
