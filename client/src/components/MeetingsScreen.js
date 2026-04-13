@@ -219,7 +219,7 @@ const MeetingsScreen = () => {
     };
   }, [fetchMeetings]);
 
-  // Open "All meetings" card gallery when linked from meeting summary (View All Meetings)
+  // Open "All meetings" card gallery when linked from dashboard (showAllMeetings)
   useEffect(() => {
     if (!location.state?.showAllMeetings) return;
     setShowAllMeetings(true);

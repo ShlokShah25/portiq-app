@@ -8,7 +8,7 @@
 
 .meeting-summary-editor-verify__email {
   font-weight: 600;
-  color: #e5e7eb;
+  color: var(--text-primary, #e5e7eb);
   word-break: break-all;
 }
 
@@ -71,7 +71,7 @@
   justify-content: center;
   min-height: 60vh;
   gap: 20px;
-  color: #9ca3af;
+  color: var(--text-muted, #9ca3af);
   position: relative;
 }
 
@@ -109,8 +109,8 @@
   z-index: 1;
   width: 40px;
   height: 40px;
-  border: 3px solid #1f2937;
-  border-top-color: #4f46e5;
+  border: 3px solid var(--divider, #1f2937);
+  border-top-color: var(--accent-blue, #4f46e5);
   border-radius: 50%;
   animation: meeting-summary-spin 0.8s linear infinite;
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.35);
@@ -182,7 +182,7 @@
 .meeting-summary-page-title {
   font-size: 22px;
   font-weight: 600;
-  color: #f9fafb;
+  color: var(--text-primary, #f9fafb);
   margin: 0 0 4px;
   letter-spacing: -0.02em;
 }
@@ -1216,7 +1216,7 @@
   margin: 0;
   font-size: 15px;
   font-weight: 500;
-  color: #d1d5db;
+  color: var(--text-secondary, #d1d5db);
   display: inline-flex;
   align-items: baseline;
   gap: 2px;
@@ -1236,7 +1236,7 @@
 }
 
 .meeting-summary-thinking--muted {
-  color: #9ca3af;
+  color: var(--text-muted, #9ca3af);
   font-size: 14px;
   font-weight: 400;
 }

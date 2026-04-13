@@ -364,18 +364,6 @@ const MeetingSummary = () => {
 
           <p className="meeting-summary-subtitle">{T.meetingSummary()}</p>
 
-          <div className="meeting-summary-see-all-row">
-            <button
-              type="button"
-              className="meeting-summary-btn meeting-summary-btn--secondary meeting-summary-btn--see-all"
-              onClick={() =>
-                navigate('/meetings', { state: { showAllMeetings: true } })
-              }
-            >
-              View All Meetings
-            </button>
-          </div>
-
           {meeting.editorVerificationRequired && (
             <div
               className="meeting-summary-editor-verify"

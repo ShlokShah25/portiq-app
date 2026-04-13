@@ -1391,3 +1391,88 @@
   font-size: 12px;
   margin-bottom: 8px;
 }
+
+/* Light theme: participant picker matches app shell (tokens) */
+:root[data-theme='light'] .meeting-create-participant-dd__trigger {
+  border: 1px solid var(--border-color);
+  background: var(--surface-input);
+  color: var(--text-primary);
+}
+
+:root[data-theme='light'] .meeting-create-participant-dd__trigger:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--surface-input);
+}
+
+:root[data-theme='light'] .meeting-create-participant-dd__chev {
+  color: var(--text-muted);
+}
+
+:root[data-theme='light'] .meeting-create-participant-dd__chev--open {
+  color: var(--accent-blue);
+}
+
+:root[data-theme='light'] .meeting-create-participant-dd__panel {
+  border: 1px solid var(--border-color);
+  background: var(--bg-elevated);
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.12);
+}
+
+:root[data-theme='light'] .meeting-create-participant-dd__search-wrap {
+  border-bottom: 1px solid var(--divider);
+  background: var(--surface-input);
+}
+
+:root[data-theme='light'] .meeting-create-participant-dd__search-icon {
+  color: var(--text-muted);
+}
+
+:root[data-theme='light'] .meeting-create-participant-dd__search {
+  color: var(--text-primary);
+}
+
+:root[data-theme='light'] .meeting-create-participant-dd__search::placeholder {
+  color: var(--text-label);
+}
+
+:root[data-theme='light'] .meeting-create-participant-dd__empty {
+  color: var(--text-muted);
+}
+
+:root[data-theme='light'] .meeting-create-participant-dd__item {
+  color: var(--text-primary);
+}
+
+:root[data-theme='light'] .meeting-create-participant-dd__item:hover {
+  background: var(--surface-input);
+}
+
+:root[data-theme='light'] .meeting-create-participant-dd__item--selected {
+  background: rgba(37, 99, 235, 0.08);
+}
+
+:root[data-theme='light'] .meeting-create-participant-dd__item--selected:hover {
+  background: rgba(37, 99, 235, 0.12);
+}
+
+:root[data-theme='light'] .meeting-create-participant-dd__check {
+  border-color: var(--border-strong);
+}
+
+:root[data-theme='light'] .meeting-create-participant-dd__check--on {
+  border-color: var(--accent-blue);
+  background: var(--accent-blue);
+  box-shadow: inset 0 0 0 2px var(--bg-elevated);
+}
+
+:root[data-theme='light'] .meeting-create-participant-dd__name {
+  color: var(--text-primary);
+}
+
+:root[data-theme='light'] .meeting-create-participant-dd__email {
+  color: var(--text-muted);
+}
+
+:root[data-theme='light'] .meeting-create-participant-dd__voice-status {
+  color: var(--text-muted);
+}

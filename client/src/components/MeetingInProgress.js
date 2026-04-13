@@ -569,15 +569,6 @@ const MeetingInProgress = () => {
               <p className="meeting-summary-subtitle">
                 {isInterview ? 'Session ended — next, review AI recommendations' : 'Session ended'}
               </p>
-              <div className="meeting-summary-see-all-row">
-                <button
-                  type="button"
-                  className="meeting-summary-btn meeting-summary-btn--secondary meeting-summary-btn--see-all"
-                  onClick={() => navigate('/meetings', { state: { showAllMeetings: true } })}
-                >
-                  View All Meetings
-                </button>
-              </div>
               <p className="mip-ai-disclaimer">
                 {isInterview ? (
                   <>
