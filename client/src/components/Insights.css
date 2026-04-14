@@ -14,6 +14,14 @@
   font-family: var(--font-sans, "Inter", system-ui, sans-serif);
 }
 
+/* Softer than flat white in light theme */
+:root[data-theme="light"] .insights-screen {
+  background-image:
+    radial-gradient(ellipse 120% 70% at 50% -35%, rgba(37, 99, 235, 0.09), transparent 55%),
+    radial-gradient(ellipse 90% 55% at 100% 0%, rgba(99, 102, 241, 0.07), transparent 45%),
+    radial-gradient(ellipse 70% 45% at 0% 20%, rgba(14, 165, 233, 0.05), transparent 50%);
+}
+
 .insights-wrapper {
   margin-top: 0;
   flex: 1;
@@ -74,10 +82,14 @@
   padding: 24px;
   text-align: center;
   cursor: pointer;
+  box-shadow: var(--shadow-soft-sm, 0 1px 2px rgba(15, 23, 42, 0.05));
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .insight-stat-card:hover {
-  border-color: rgba(10, 132, 255, 0.35);
+  border-color: rgba(37, 99, 235, 0.35);
+  box-shadow: var(--shadow-card-hover, 0 10px 32px rgba(15, 23, 42, 0.08));
+  transform: translateY(-1px);
 }
 
 .insight-stat-icon {
@@ -87,7 +99,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-secondary);
+  color: var(--accent-blue);
+  background: var(--accent-blue-dim, rgba(37, 99, 235, 0.1));
+  border-radius: 12px;
+  border: 1px solid rgba(37, 99, 235, 0.18);
 }
 
 .insight-stat-icon svg {
@@ -103,7 +118,9 @@
 }
 
 .insight-stat-icon--warn {
-  color: #fbbf24;
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.28);
 }
 
 .insights-section-title-row {
@@ -119,13 +136,15 @@
 
 .insights-section-title-icon {
   display: flex;
-  color: var(--text-secondary);
+  color: var(--accent-blue);
+  opacity: 0.92;
 }
 
 .insights-action-overview-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
+  align-items: start;
 }
 
 @media (max-width: 960px) {
@@ -135,15 +154,72 @@
 }
 
 .insights-overview-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   background: var(--surface-secondary);
   border: 1px solid var(--border-color);
   border-radius: 14px;
   padding: 20px;
-  transition: border-color 150ms ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+  box-shadow: var(--shadow-soft-sm, 0 1px 2px rgba(15, 23, 42, 0.05));
 }
 
 .insights-overview-card:hover {
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: var(--border-strong, rgba(15, 23, 42, 0.22));
+  box-shadow: var(--shadow-card-hover, 0 8px 28px rgba(15, 23, 42, 0.08));
+  transform: translateY(-1px);
+}
+
+/* Accent variants: top edge + soft wash (works in light + dark) */
+.insights-overview-card--pending {
+  border-top: 3px solid var(--accent-blue);
+  background: linear-gradient(
+    180deg,
+    var(--accent-blue-dim, rgba(37, 99, 235, 0.1)) 0%,
+    var(--surface-secondary) 38%
+  );
+}
+
+.insights-overview-card--pending .insights-overview-card-title {
+  color: var(--accent-hover, var(--accent-blue));
+}
+
+.insights-overview-card--due {
+  border-top: 3px solid var(--warning-orange, #ea580c);
+  background: linear-gradient(
+    180deg,
+    rgba(234, 88, 12, 0.1) 0%,
+    var(--surface-secondary) 40%
+  );
+}
+
+.insights-overview-card--due .insights-overview-card-title {
+  color: var(--warning-orange, #c2410c);
+}
+
+:root[data-theme="dark"] .insights-overview-card--due .insights-overview-card-title {
+  color: #fb923c;
+}
+
+.insights-overview-card--no-actions {
+  border-top: 3px solid #6366f1;
+  background: linear-gradient(
+    180deg,
+    rgba(99, 102, 241, 0.12) 0%,
+    var(--surface-secondary) 42%
+  );
+}
+
+.insights-overview-card--no-actions .insights-overview-card-title {
+  color: #6366f1;
+}
+
+:root[data-theme="dark"] .insights-overview-card--no-actions .insights-overview-card-title {
+  color: #a5b4fc;
 }
 
 .insights-overview-card-title {
@@ -159,9 +235,23 @@
   margin: 0;
   font-size: 32px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--accent-blue);
   letter-spacing: -0.02em;
   line-height: 1;
+}
+
+.insights-overview-card--no-actions .insights-overview-count {
+  background: linear-gradient(135deg, var(--accent-blue) 0%, #6366f1 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@supports not (background-clip: text) {
+  .insights-overview-card--no-actions .insights-overview-count {
+    color: var(--accent-blue);
+    background: none;
+  }
 }
 
 .insights-overview-count-label {
@@ -202,17 +292,30 @@
   margin: 0;
   border: 1px solid var(--border-color);
   border-radius: 10px;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--dash-chip-bg, var(--surface-nested, rgba(0, 0, 0, 0.2)));
   color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: border-color 150ms ease, background 150ms ease;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 
-.insights-overview-row:hover {
-  border-color: rgba(10, 132, 255, 0.35);
+.insights-overview-card--pending .insights-overview-row:hover {
+  border-color: rgba(37, 99, 235, 0.45);
   background: var(--bg-primary);
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.12);
+}
+
+.insights-overview-card--due .insights-overview-row:hover {
+  border-color: rgba(234, 88, 12, 0.4);
+  background: var(--bg-primary);
+  box-shadow: 0 0 0 1px rgba(234, 88, 12, 0.1);
+}
+
+.insights-overview-card--no-actions .insights-overview-row:hover {
+  border-color: rgba(99, 102, 241, 0.45);
+  background: var(--bg-primary);
+  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.12);
 }
 
 .insights-overview-task {
@@ -235,6 +338,11 @@
   height: 14px;
   flex-shrink: 0;
   opacity: 0.85;
+}
+
+.insights-overview-card--no-actions .insights-overview-inline-icon {
+  color: #6366f1;
+  opacity: 1;
 }
 
 .insight-stat-value {

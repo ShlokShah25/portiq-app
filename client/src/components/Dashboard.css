@@ -838,10 +838,6 @@
   text-align: left;
 }
 
-.dashboard-tip-strip .dashboard-section-hide {
-  margin-left: auto;
-}
-
 .dashboard-tip-strip__ic {
   flex-shrink: 0;
   width: 14px;

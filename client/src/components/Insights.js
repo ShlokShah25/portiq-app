@@ -191,7 +191,7 @@ const Insights = () => {
               Action Overview
             </h2>
             <div className="insights-action-overview-grid">
-              <div className="insights-overview-card">
+              <div className="insights-overview-card insights-overview-card--pending">
                 <h3 className="insights-overview-card-title">Top Pending Tasks</h3>
                 {actionOverview.topPending.length === 0 ? (
                   <p className="insights-overview-empty">No pending tasks.</p>
@@ -217,7 +217,7 @@ const Insights = () => {
                 )}
               </div>
 
-              <div className="insights-overview-card">
+              <div className="insights-overview-card insights-overview-card--due">
                 <h3 className="insights-overview-card-title">Tasks Due Soon</h3>
                 {actionOverview.dueSoon.length === 0 ? (
                   <p className="insights-overview-empty">Nothing due in the next 7 days.</p>
@@ -248,7 +248,7 @@ const Insights = () => {
                 )}
               </div>
 
-              <div className="insights-overview-card">
+              <div className="insights-overview-card insights-overview-card--no-actions">
                 <h3 className="insights-overview-card-title">Meetings Without Action Items</h3>
                 <p className="insights-overview-count">{meetingsNoActionCount}</p>
                 <p className="insights-overview-count-label">

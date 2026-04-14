@@ -298,3 +298,149 @@
   color: #6b7280;
 }
 
+/* —— Light theme (Settings embeds these classes; base file is dark-oriented) —— */
+:root[data-theme='light'] .profile-avatar-ring {
+  background: linear-gradient(155deg, #eff6ff 0%, #dbeafe 55%, #e0e7ff 100%);
+  border: 2px solid rgba(37, 99, 235, 0.35);
+  box-shadow:
+    0 2px 8px rgba(15, 23, 42, 0.06),
+    0 8px 24px rgba(37, 99, 235, 0.1);
+}
+
+:root[data-theme='light'] .profile-avatar-initials {
+  color: #1d4ed8;
+}
+
+:root[data-theme='light'] .profile-display-name {
+  color: var(--text-primary);
+}
+
+:root[data-theme='light'] .profile-display-email {
+  color: var(--text-label);
+}
+
+:root[data-theme='light'] .profile-display-tagline {
+  color: var(--text-muted);
+}
+
+:root[data-theme='light'] .profile-manage-btn {
+  margin-top: 12px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: 1.5px solid var(--accent-blue);
+  background: #ffffff;
+  color: #1d4ed8;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+:root[data-theme='light'] .profile-manage-btn:hover {
+  background: var(--accent-blue-dim);
+  border-color: var(--accent-primary-hover);
+  color: var(--accent-primary-hover);
+}
+
+:root[data-theme='light'] .profile-save-password-btn {
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: 1px solid var(--accent-blue);
+  background: var(--accent-blue);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+:root[data-theme='light'] .profile-save-password-btn:hover:not(:disabled) {
+  filter: brightness(1.05);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+}
+
+:root[data-theme='light'] .profile-field-group label {
+  color: var(--text-label);
+  font-weight: 500;
+}
+
+:root[data-theme='light'] .profile-field-group input {
+  border: 1px solid var(--border-color);
+  background: var(--surface-input);
+  color: var(--text-primary);
+}
+
+:root[data-theme='light'] .profile-field-group input:focus {
+  border-color: var(--accent-blue);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-blue-dim);
+}
+
+:root[data-theme='light'] .profile-password-error {
+  color: var(--error-red);
+}
+
+:root[data-theme='light'] .profile-password-success {
+  color: var(--success-green);
+}
+
+:root[data-theme='light'] .status-pill.status-active {
+  background: rgba(22, 163, 74, 0.12);
+  color: #166534;
+  border: 1px solid rgba(22, 163, 74, 0.28);
+}
+
+:root[data-theme='light'] .status-pill.status-inactive {
+  background: var(--pill-muted-bg);
+  color: var(--text-label);
+  border: 1px solid var(--border-color);
+}
+
+:root[data-theme='light'] .profile-cancel-sub-btn {
+  border-color: rgba(220, 38, 38, 0.35);
+  color: #b91c1c;
+}
+
+:root[data-theme='light'] .profile-cancel-sub-btn:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.08);
+  border-color: #dc2626;
+}
+
+:root[data-theme='light'] .profile-cancel-msg {
+  color: #15803d;
+}
+
+:root[data-theme='light'] .profile-cancel-err {
+  color: #b91c1c;
+}
+
+:root[data-theme='light'] .profile-language-select {
+  background-color: var(--surface-input);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  color: var(--text-primary);
+  font-size: 14px;
+  padding: 12px 16px;
+  padding-right: 2.5rem;
+  min-height: 44px;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.15s ease;
+}
+
+:root[data-theme='light'] .profile-language-select:hover {
+  border-color: var(--border-strong);
+  background-color: #ffffff;
+}
+
+:root[data-theme='light'] .profile-language-select:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 3px var(--accent-blue-dim);
+  background-color: #ffffff;
+}
+
+:root[data-theme='light'] .profile-language-hint {
+  color: var(--text-label);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
