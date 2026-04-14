@@ -31,6 +31,26 @@ if (process.env.CORS_EXTRA_ORIGINS) {
     .forEach((o) => allowedOrigins.push(o));
 }
 
+/** Browser origins allowed to call this API with credentials (split-hosting, dev, etc.). */
+function addAllowedOriginFromUrl(urlStr, list) {
+  if (!urlStr || typeof urlStr !== 'string') return;
+  const t = urlStr.trim();
+  if (!t) return;
+  try {
+    const u = new URL(t.includes('://') ? t : `https://${t}`);
+    if (u.origin && u.origin !== 'null' && !list.includes(u.origin)) {
+      list.push(u.origin);
+    }
+  } catch (_) {
+    // ignore bad URLs
+  }
+}
+
+// Same canonical URLs used for OAuth redirects — keeps CORS aligned when app and API differ.
+['APP_PUBLIC_URL', 'APP_BASE_URL', 'CLIENT_URL', 'PUBLIC_APP_URL'].forEach((key) => {
+  addAllowedOriginFromUrl(process.env[key], allowedOrigins);
+});
+
 // Add local network IPs (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
 const os = require('os');
 const interfaces = os.networkInterfaces();
