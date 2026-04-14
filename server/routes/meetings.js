@@ -8,6 +8,7 @@ const {
   generateMeetingSummaryFromTranscript,
   sendMeetingSummary,
   getMailTransporter,
+  transcribeLiveChunkFile,
 } = require('../utils/meetingTranscription');
 const { getPlanConstraints } = require('../utils/planConstraints');
 const { resolveUploadPath } = require('../utils/resolveUploadPath');
@@ -734,6 +735,57 @@ router.post('/:id/start-recording', async (req, res) => {
   } catch (error) {
     console.error('Error starting recording:', error);
     res.status(500).json({ error: 'Failed to start recording' });
+  }
+});
+
+/**
+ * Transcribe a short in-session audio chunk (Whisper) for live preview only.
+ */
+router.post('/:id/live-transcribe-chunk', withMeetingAudioUpload, async (req, res) => {
+  let filePath = null;
+  try {
+    const meeting = await Meeting.findById(req.params.id);
+    if (!meeting) return res.status(404).json({ error: 'Meeting not found', details: '' });
+    const admin = await getAdminFromRequest(req);
+    if (!canAccessMeeting(meeting, admin)) return res.status(404).json({ error: 'Meeting not found', details: '' });
+    if (meeting.status !== 'In Progress') {
+      return res.status(400).json({
+        error: 'Meeting is not in progress.',
+        details: 'Live transcription is only available while the session is active.',
+      });
+    }
+    if (!meeting.transcriptionEnabled) {
+      return res.status(400).json({
+        error: 'Transcription is disabled for this meeting.',
+        details: 'Enable transcription to use live preview.',
+      });
+    }
+    if (!req.file || !req.file.path) {
+      return res.status(400).json({
+        error: 'No audio received.',
+        details: 'Send a short segment as multipart field "audio".',
+      });
+    }
+    filePath = req.file.path;
+    const text = await transcribeLiveChunkFile(filePath);
+    res.json({ text: text || '' });
+  } catch (error) {
+    console.warn('live-transcribe-chunk:', error.message);
+    const details =
+      error?.response?.data?.error?.message ||
+      error?.response?.data?.message ||
+      (typeof error?.error === 'string' ? error.error : '') ||
+      '';
+    res.status(500).json({
+      error: error.message || 'Transcription failed.',
+      details: String(details || ''),
+    });
+  } finally {
+    if (filePath) {
+      try {
+        fs.unlinkSync(filePath);
+      } catch (_) {}
+    }
   }
 });
 

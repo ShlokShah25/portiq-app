@@ -45,6 +45,8 @@ const MeetingInProgress = () => {
   const [firstMeetingToast, setFirstMeetingToast] = useState(false);
   const [uploadNotice, setUploadNotice] = useState('');
   const [voiceProfiles, setVoiceProfiles] = useState({});
+  const [liveTranscript, setLiveTranscript] = useState('');
+  const [liveTranscriptError, setLiveTranscriptError] = useState('');
   const mediaRecorderRef = React.useRef(null);
   const streamRef = React.useRef(null);
   const isMountedRef = useRef(true);
@@ -127,6 +129,8 @@ const MeetingInProgress = () => {
     setMeetingEnded(false);
     setUploading(false);
     setElapsedTime(0);
+    setLiveTranscript('');
+    setLiveTranscriptError('');
 
     // If the user switches to a different meeting while a global recorder is active,
     // stop it so we don't cross-contaminate audio between meetings.
@@ -254,10 +258,61 @@ const MeetingInProgress = () => {
       globalMediaRecorder = mediaRecorder;
       globalActiveMeetingId = String(meetingId);
       const chunks = [];
+      const LIVE_CHUNK_MS = 5000;
+      const MIN_LIVE_CHUNK_BYTES = 2800;
+
+      let liveFlushBusy = false;
+      const liveQueue = [];
+
+      async function flushLiveTranscriptQueue() {
+        if (liveFlushBusy) return;
+        liveFlushBusy = true;
+        try {
+          while (liveQueue.length > 0) {
+            const blob = liveQueue.shift();
+            if (!blob || blob.size < MIN_LIVE_CHUNK_BYTES) continue;
+            try {
+              const fd = new FormData();
+              fd.append(
+                'audio',
+                new File([blob], 'chunk.webm', { type: blob.type || 'audio/webm' })
+              );
+              const res = await axios.post(`/meetings/${String(meetingId)}/live-transcribe-chunk`, fd, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+              });
+              const piece = String(res.data?.text || '').trim();
+              if (piece && isMountedRef.current) {
+                setLiveTranscriptError('');
+                setLiveTranscript((prev) => (prev ? `${prev} ${piece}` : piece));
+              }
+            } catch (err) {
+              if (isMountedRef.current) {
+                setLiveTranscriptError(
+                  formatApiError(err, 'Live segment could not be transcribed')
+                );
+              }
+            }
+          }
+        } finally {
+          liveFlushBusy = false;
+          if (liveQueue.length > 0) {
+            void flushLiveTranscriptQueue();
+          }
+        }
+      }
+
+      function enqueueLiveTranscriptChunk(blob) {
+        liveQueue.push(blob);
+        void flushLiveTranscriptQueue();
+      }
 
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           chunks.push(event.data);
+          const rec = globalMediaRecorder;
+          if (rec && rec.state === 'recording') {
+            enqueueLiveTranscriptChunk(event.data);
+          }
         }
       };
 
@@ -273,7 +328,11 @@ const MeetingInProgress = () => {
       };
 
       mediaRecorderRef.current = mediaRecorder;
-      mediaRecorder.start();
+      if (isMountedRef.current) {
+        setLiveTranscript('');
+        setLiveTranscriptError('');
+      }
+      mediaRecorder.start(LIVE_CHUNK_MS);
       if (isMountedRef.current) {
         setRecording(true);
         setPaused(false);
@@ -318,6 +377,8 @@ const MeetingInProgress = () => {
       if (isMountedRef.current) {
         setRecording(false);
         setPaused(false);
+        setLiveTranscript('');
+        setLiveTranscriptError('');
       }
     }
   };
@@ -376,6 +437,8 @@ const MeetingInProgress = () => {
         if (isMountedRef.current) {
           setRecording(false);
           setPaused(false);
+          setLiveTranscript('');
+          setLiveTranscriptError('');
         }
       } catch (e) {
         pendingEndUpload = null;
@@ -632,6 +695,7 @@ const MeetingInProgress = () => {
               </header>
 
               {meeting.transcriptionEnabled && (
+                <>
                 <div className="mip-recording-hero mip-recording-hero--primary">
                   {!recordingLive && !uploading && (
                     <>
@@ -700,6 +764,43 @@ const MeetingInProgress = () => {
                     </div>
                   )}
                 </div>
+                {recordingLive && !uploading && (
+                  <section
+                    className={`mip-live-transcript${paused ? ' mip-live-transcript--paused' : ''}`}
+                    aria-label="Live transcription preview"
+                  >
+                    <div className="mip-live-transcript__chrome">
+                      <span className="mip-live-transcript__badge">
+                        <span className="mip-live-transcript__badge-dot" aria-hidden />
+                        Live transcript
+                      </span>
+                      <span className="mip-live-transcript__hint">Preview · may differ from final</span>
+                    </div>
+                    {paused ? (
+                      <p className="mip-live-transcript__paused-msg">
+                        Paused — preview resumes when you resume recording.
+                      </p>
+                    ) : (
+                      <>
+                        {liveTranscriptError ? (
+                          <div className="mip-live-transcript__err" role="alert">
+                            {liveTranscriptError}
+                          </div>
+                        ) : null}
+                        <div className="mip-live-transcript__body" aria-live="polite">
+                          {liveTranscript ? (
+                            <p className="mip-live-transcript__text">{liveTranscript}</p>
+                          ) : (
+                            <p className="mip-live-transcript__placeholder">
+                              Listening… text appears every few seconds as we process short audio segments.
+                            </p>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </section>
+                )}
+                </>
               )}
 
               {meeting.parentContinuation && (

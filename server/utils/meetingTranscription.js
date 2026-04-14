@@ -1559,9 +1559,37 @@ function getMailTransporter() {
   return getTransporter();
 }
 
+/**
+ * Transcribe a short audio chunk with Whisper (live preview during recording).
+ * Not used for the final stored transcript — full meeting audio is transcribed on /end.
+ */
+async function transcribeLiveChunkFile(audioPath) {
+  if (!openai) {
+    const err = new Error('OpenAI transcription is not configured');
+    err.code = 'OPENAI_NOT_CONFIGURED';
+    throw err;
+  }
+  if (!audioPath || !fs.existsSync(audioPath)) {
+    throw new Error('Audio file missing');
+  }
+  const st = fs.statSync(audioPath);
+  if (st.size < 800) {
+    return '';
+  }
+  const transcription = await openai.audio.transcriptions.create({
+    file: fs.createReadStream(audioPath),
+    model: process.env.OPENAI_TRANSCRIPTION_MODEL || 'whisper-1',
+    temperature: 0,
+    response_format: 'json',
+  });
+  const text = transcription && transcription.text ? String(transcription.text) : '';
+  return text.trim();
+}
+
 module.exports = {
   transcribeAndSummarize,
   generateMeetingSummaryFromTranscript,
   sendMeetingSummary,
-  getMailTransporter
+  getMailTransporter,
+  transcribeLiveChunkFile,
 };
