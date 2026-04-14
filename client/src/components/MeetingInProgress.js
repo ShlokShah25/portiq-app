@@ -57,6 +57,7 @@ const MeetingInProgress = () => {
   const [uploadNotice, setUploadNotice] = useState('');
   const [voiceProfiles, setVoiceProfiles] = useState({});
   const [liveTranscript, setLiveTranscript] = useState('');
+  const [liveTranscriptEntries, setLiveTranscriptEntries] = useState([]);
   const [liveTranscriptError, setLiveTranscriptError] = useState('');
   const mediaRecorderRef = React.useRef(null);
   const streamRef = React.useRef(null);
@@ -141,6 +142,7 @@ const MeetingInProgress = () => {
     setUploading(false);
     setElapsedTime(0);
     setLiveTranscript('');
+    setLiveTranscriptEntries([]);
     setLiveTranscriptError('');
 
     // If the user switches to a different meeting while a global recorder is active,
@@ -299,6 +301,21 @@ const MeetingInProgress = () => {
               const piece = String(res.data?.text || '').trim();
               if (piece && isMountedRef.current) {
                 setLiveTranscriptError('');
+                const speakerName = String(res.data?.speaker?.name || '').trim();
+                const confidence = Number(res.data?.speaker?.confidence || 0);
+                const speakerLabel = speakerName || 'Speaker';
+                setLiveTranscriptEntries((prev) => {
+                  const next = [
+                    ...prev,
+                    {
+                      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                      speaker: speakerLabel,
+                      confidence,
+                      text: piece,
+                    },
+                  ];
+                  return next.length > 40 ? next.slice(next.length - 40) : next;
+                });
                 setLiveTranscript((prev) => (prev ? `${prev} ${piece}` : piece));
               }
               liveFailStreak = 0;
@@ -349,6 +366,7 @@ const MeetingInProgress = () => {
       mediaRecorderRef.current = mediaRecorder;
       if (isMountedRef.current) {
         setLiveTranscript('');
+        setLiveTranscriptEntries([]);
         setLiveTranscriptError('');
       }
       mediaRecorder.start(LIVE_CHUNK_MS);
@@ -397,6 +415,7 @@ const MeetingInProgress = () => {
         setRecording(false);
         setPaused(false);
         setLiveTranscript('');
+        setLiveTranscriptEntries([]);
         setLiveTranscriptError('');
       }
     }
@@ -457,6 +476,7 @@ const MeetingInProgress = () => {
           setRecording(false);
           setPaused(false);
           setLiveTranscript('');
+          setLiveTranscriptEntries([]);
           setLiveTranscriptError('');
         }
       } catch (e) {
@@ -807,7 +827,23 @@ const MeetingInProgress = () => {
                           </div>
                         ) : null}
                         <div className="mip-live-transcript__body" aria-live="polite">
-                          {liveTranscript ? (
+                          {liveTranscriptEntries.length > 0 ? (
+                            <div className="mip-live-transcript__list">
+                              {liveTranscriptEntries.map((entry) => (
+                                <div key={entry.id} className="mip-live-transcript__line">
+                                  <span className="mip-live-transcript__speaker">
+                                    {entry.speaker}
+                                    {entry.confidence >= 0.01 ? (
+                                      <span className="mip-live-transcript__speaker-conf">
+                                        {` (${Math.round(entry.confidence * 100)}%)`}
+                                      </span>
+                                    ) : null}
+                                  </span>
+                                  <span className="mip-live-transcript__line-text">{entry.text}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : liveTranscript ? (
                             <p className="mip-live-transcript__text">{liveTranscript}</p>
                           ) : (
                             <p className="mip-live-transcript__placeholder">

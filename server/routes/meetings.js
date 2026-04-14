@@ -19,7 +19,7 @@ const {
 } = require('../utils/subscriptionGate');
 const jwt = require('jsonwebtoken');
 const Admin = require('../models/Admin');
-const { generateVoiceEmbedding } = require('../utils/voiceRecognition');
+const { generateVoiceEmbedding, identifySpeaker } = require('../utils/voiceRecognition');
 const { sendEmail, isEmailConfigured, getDefaultFrom } = require('../utils/emailService');
 const {
   buildGoogleCalendarUrlForMeeting,
@@ -768,7 +768,41 @@ router.post('/:id/live-transcribe-chunk', withMeetingAudioUpload, async (req, re
     }
     filePath = req.file.path;
     const text = await transcribeLiveChunkFile(filePath);
-    res.json({ text: text || '' });
+    let speaker = null;
+    try {
+      const participantEmails = Array.isArray(meeting.participants)
+        ? meeting.participants
+            .map((p) => (p && p.email ? String(p.email).trim().toLowerCase() : ''))
+            .filter(Boolean)
+        : [];
+      const interviewEmails =
+        meeting.summaryMode === 'interview' && Array.isArray(meeting.interviewCandidates)
+          ? meeting.interviewCandidates
+              .map((c) => (c && c.voiceEmail ? String(c.voiceEmail).trim().toLowerCase() : ''))
+              .filter(Boolean)
+          : [];
+      const emails = [...new Set([...participantEmails, ...interviewEmails])];
+      if (emails.length > 0) {
+        const profiles = await VoiceProfile.find({ email: { $in: emails } }).select(
+          'email name voiceVector lastUsed'
+        );
+        const match = await identifySpeaker(filePath, profiles);
+        if (match && match.profile) {
+          speaker = {
+            email: match.profile.email,
+            name: match.profile.name || match.profile.email,
+            confidence: Number(match.confidence || 0),
+          };
+          VoiceProfile.updateOne(
+            { _id: match.profile._id },
+            { $set: { lastUsed: new Date() } }
+          ).catch(() => {});
+        }
+      }
+    } catch (speakerErr) {
+      console.warn('live-transcribe-chunk speaker attribution:', speakerErr.message);
+    }
+    res.json({ text: text || '', speaker });
   } catch (error) {
     console.warn('live-transcribe-chunk:', error.message);
     const details =

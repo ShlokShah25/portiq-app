@@ -1193,6 +1193,48 @@
   word-break: break-word;
 }
 
+.mip-live-transcript__list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mip-live-transcript__line {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--divider);
+}
+
+.mip-live-transcript__line:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.mip-live-transcript__speaker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--accent-hover, #60a5fa);
+}
+
+.mip-live-transcript__speaker-conf {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.mip-live-transcript__line-text {
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
 .mip-live-transcript__placeholder {
   margin: 0;
   font-size: 14px;
