@@ -95,6 +95,18 @@
   box-shadow: 0 0 24px rgba(239, 68, 68, 0.2);
 }
 
+/* Light theme: previous styles read as washed-out pink on white */
+:root[data-theme='light'] .mip-status-chip--live {
+  color: #ffffff;
+  background: linear-gradient(145deg, #ef4444 0%, #dc2626 48%, #b91c1c 100%);
+  border: 1px solid rgba(153, 27, 27, 0.45);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.22) inset,
+    0 6px 18px rgba(220, 38, 38, 0.35),
+    0 0 0 1px rgba(220, 38, 38, 0.12);
+  letter-spacing: 0.14em;
+}
+
 .mip-session-details {
   margin: 12px 0 0;
 }
@@ -557,6 +569,19 @@
   background: rgba(239, 68, 68, 0.12);
   border-color: rgba(248, 113, 113, 0.85);
   color: #fef2f2;
+}
+
+/* Light theme: pale pink text on white was unreadable */
+:root[data-theme='light'] .meeting-summary-btn.mip-btn-stop-upload {
+  color: #b91c1c !important;
+  border-color: rgba(220, 38, 38, 0.5) !important;
+  background: rgba(254, 242, 242, 0.95);
+}
+
+:root[data-theme='light'] .meeting-summary-btn.mip-btn-stop-upload:hover:not(:disabled) {
+  color: #991b1b !important;
+  border-color: #dc2626 !important;
+  background: rgba(254, 226, 226, 0.98);
 }
 
 .mip-uploading-status {

@@ -1576,12 +1576,23 @@ async function transcribeLiveChunkFile(audioPath) {
   if (st.size < 800) {
     return '';
   }
-  const transcription = await openai.audio.transcriptions.create({
+  // Lock language for chunked preview: noisy rooms often mis-trigger Whisper as non-English.
+  // Full meeting /end pipeline stays auto-detect. Set OPENAI_LIVE_TRANSCRIPTION_LANGUAGE=auto to omit.
+  const liveLangRaw = process.env.OPENAI_LIVE_TRANSCRIPTION_LANGUAGE;
+  const liveLang =
+    liveLangRaw === undefined || liveLangRaw === ''
+      ? 'en'
+      : String(liveLangRaw).trim().toLowerCase();
+  const createParams = {
     file: fs.createReadStream(audioPath),
     model: process.env.OPENAI_TRANSCRIPTION_MODEL || 'whisper-1',
     temperature: 0,
     response_format: 'json',
-  });
+  };
+  if (liveLang && liveLang !== 'auto') {
+    createParams.language = liveLang;
+  }
+  const transcription = await openai.audio.transcriptions.create(createParams);
   const text = transcription && transcription.text ? String(transcription.text) : '';
   return text.trim();
 }
