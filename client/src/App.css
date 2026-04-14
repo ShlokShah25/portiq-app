@@ -1,16 +1,15 @@
 :root {
-  /* Legacy aliases — prefer theme.css tokens */
-  --primary-color: #121212;
-  --secondary-color: #1c1c1e;
-  --accent-color: var(--accent-blue, #4f46e5);
-  --highlight-color: var(--accent-purple, #5e5ce6);
-  --background-color: var(--bg-primary, #000000);
-  --text-color: var(--text-primary, #f5f5f7);
-  --border-color: var(--divider, rgba(255, 255, 255, 0.08));
-  --success-color: var(--success-green, #22c55e);
-  --error-color: var(--error-red, #ef4444);
-  --warning-color: var(--warning-orange, #f59e0b);
-  --info-color: var(--accent-blue, #4f46e5);
+  /* Legacy aliases — map to theme.css; never override --border-color (theme owns it). */
+  --primary-color: var(--bg-primary);
+  --secondary-color: var(--surface-secondary);
+  --accent-color: var(--accent-blue);
+  --highlight-color: var(--accent-purple);
+  --background-color: var(--bg-primary);
+  --text-color: var(--text-primary);
+  --success-color: var(--success-green);
+  --error-color: var(--error-red);
+  --warning-color: var(--warning-orange);
+  --info-color: var(--accent-blue);
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.12);
   --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.16);

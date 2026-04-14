@@ -14,7 +14,7 @@ const Admin = require('../models/Admin');
 const mongoUri =
   process.env.MONGODB_URI || 'mongodb://localhost:27017/workplace_visitor_management';
 
-const PLANS = ['starter', 'professional', 'business'];
+const PLANS = ['starter', 'professional', 'business', 'institutional'];
 
 async function main() {
   const rest = process.argv.slice(2);

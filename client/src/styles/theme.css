@@ -13,8 +13,15 @@
   --surface-secondary: #2a2a2c;
   --surface-card: #2a2a2c;
   --surface-input: #323234;
+  /* Nested panels inside modals / popovers */
+  --surface-nested: rgba(255, 255, 255, 0.04);
+  --popover-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
   /* Frosted panels (cards, strips) */
   --surface-glass: rgba(42, 42, 44, 0.94);
+  /* Modals / dialogs — darker than cards for focus */
+  --surface-modal: #18181a;
+  --modal-overlay-scrim: rgba(0, 0, 0, 0.65);
+  --modal-shadow: 0 24px 48px rgba(0, 0, 0, 0.55);
 
   --border-color: rgba(255, 255, 255, 0.09);
   --border-strong: rgba(255, 255, 255, 0.12);
@@ -111,7 +118,12 @@
   --surface-secondary: #ffffff;
   --surface-card: #ffffff;
   --surface-input: #f8fafc;
+  --surface-nested: #f1f5f9;
+  --popover-shadow: 0 16px 40px rgba(15, 23, 42, 0.14);
   --surface-glass: rgba(255, 255, 255, 0.92);
+  --surface-modal: #ffffff;
+  --modal-overlay-scrim: rgba(15, 23, 42, 0.45);
+  --modal-shadow: 0 24px 48px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(15, 23, 42, 0.06);
 
   /* Stronger edges on white so cards and inputs read clearly */
   --border-color: rgba(15, 23, 42, 0.16);
@@ -119,10 +131,9 @@
   --divider: rgba(15, 23, 42, 0.12);
 
   --text-primary: #0f172a;
-  /* Strong contrast on white (nav, labels, helper copy, cards) */
-  --text-secondary: #1e293b;
-  --text-muted: #1e293b;
-  --text-label: #1e293b;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+  --text-label: #475569;
 
   --accent-blue: #2563eb;
   --accent-primary-hover: #1d4ed8;

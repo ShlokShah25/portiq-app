@@ -62,7 +62,7 @@
 }
 
 .settings-sidebar__link:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--dash-subtle-hover);
   color: var(--text-primary);
 }
 
