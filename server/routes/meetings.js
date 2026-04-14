@@ -776,7 +776,9 @@ router.post('/:id/live-transcribe-chunk', withMeetingAudioUpload, async (req, re
       error?.response?.data?.message ||
       (typeof error?.error === 'string' ? error.error : '') ||
       '';
-    res.status(500).json({
+    const upstreamStatus = Number(error?.status || error?.response?.status || 0);
+    const statusCode = upstreamStatus >= 400 ? upstreamStatus : 500;
+    res.status(statusCode).json({
       error: error.message || 'Transcription failed.',
       details: String(details || ''),
     });

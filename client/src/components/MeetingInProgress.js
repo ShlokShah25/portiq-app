@@ -22,6 +22,17 @@ function isGlobalRecordingActive() {
   return !!(rec && rec.state !== 'inactive');
 }
 
+function getLiveTranscriptUiError(err) {
+  const status = Number(err?.response?.status || 0);
+  if (status === 429 || status === 503 || status === 504) {
+    return 'Live transcription is temporarily busy. We will keep trying in the background.';
+  }
+  if (status >= 500) {
+    return 'Live transcription is temporarily unavailable. Recording continues and final transcript is unaffected.';
+  }
+  return formatApiError(err, 'Live segment could not be transcribed');
+}
+
 const MeetingInProgress = () => {
   const { id: meetingId } = useParams();
   const navigate = useNavigate();
@@ -263,12 +274,17 @@ const MeetingInProgress = () => {
 
       let liveFlushBusy = false;
       const liveQueue = [];
+      let liveFailStreak = 0;
+      let liveRetryAfterMs = 0;
 
       async function flushLiveTranscriptQueue() {
         if (liveFlushBusy) return;
         liveFlushBusy = true;
         try {
           while (liveQueue.length > 0) {
+            if (liveRetryAfterMs > Date.now()) {
+              await new Promise((r) => setTimeout(r, liveRetryAfterMs - Date.now()));
+            }
             const blob = liveQueue.shift();
             if (!blob || blob.size < MIN_LIVE_CHUNK_BYTES) continue;
             try {
@@ -285,11 +301,14 @@ const MeetingInProgress = () => {
                 setLiveTranscriptError('');
                 setLiveTranscript((prev) => (prev ? `${prev} ${piece}` : piece));
               }
+              liveFailStreak = 0;
+              liveRetryAfterMs = 0;
             } catch (err) {
+              liveFailStreak += 1;
+              const cooldownMs = Math.min(20000, 2500 * liveFailStreak);
+              liveRetryAfterMs = Date.now() + cooldownMs;
               if (isMountedRef.current) {
-                setLiveTranscriptError(
-                  formatApiError(err, 'Live segment could not be transcribed')
-                );
+                setLiveTranscriptError(getLiveTranscriptUiError(err));
               }
             }
           }

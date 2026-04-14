@@ -660,14 +660,14 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
 
   const transcriptWithSpeakers = await buildTranscriptWithSpeakerHints(meetingObj, transcriptTextTrim);
 
-  let durationMinutes = null;
-  if (meetingObj && meetingObj.startTime && meetingObj.endTime) {
-    const start = new Date(meetingObj.startTime);
-    const end = new Date(meetingObj.endTime);
-    if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && end > start) {
-      durationMinutes = Math.max(1, Math.round((end.getTime() - start.getTime()) / 60000));
+    let durationMinutes = null;
+    if (meetingObj && meetingObj.startTime && meetingObj.endTime) {
+      const start = new Date(meetingObj.startTime);
+      const end = new Date(meetingObj.endTime);
+      if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && end > start) {
+        durationMinutes = Math.max(1, Math.round((end.getTime() - start.getTime()) / 60000));
+      }
     }
-  }
 
   const anchorRef =
     meetingObj && (meetingObj.endTime || meetingObj.scheduledTime || meetingObj.startTime)
@@ -723,32 +723,32 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
       `- If the instructor named terms, keep those terms and the gist of each definition as stated.\n`
     : '';
 
-  let summaryResponse = null;
-  let summaryError = null;
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
+    let summaryResponse = null;
+    let summaryError = null;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
       console.log(
         `   Generating summary (attempt ${attempt}/${maxRetries})… model=${summaryChatModel} mode=${isEducation ? 'education' : 'workplace'}`
       );
-      summaryResponse = await openai.chat.completions.create({
+        summaryResponse = await openai.chat.completions.create({
         model: summaryChatModel,
-        messages: [
-          {
-            role: 'system',
-            content:
+          messages: [
+        {
+          role: 'system',
+          content:
               systemRole +
               systemEducationFocus +
               systemElaborationDepth +
               'The transcript may contain multiple languages including English, Hindi, Gujarati, and Hinglish. ' +
-              'Accurately understand all languages present, but provide your output only in professional English. ' +
+            'Accurately understand all languages present, but provide your output only in professional English. ' +
               'Prioritize completeness over brevity: include every relevant discussion point, decision, risk, and commitment. ' +
               (isEducation
                 ? 'Use clear teaching-friendly language; do not invent facts or examples not grounded in the transcript. '
                 : 'Use professional business language, do not invent information, and only include decisions or actions that are clearly mentioned. ') +
               'NEVER infer the subject of the meeting from the calendar/booking title—titles are often placeholders (e.g. "Test", "Retest", "Quick call"). Substance must come only from the transcript. ' +
               'Output must follow the requested JSON structure only. ' +
-              'CRITICAL: Base your summary ONLY on the current transcript. Do NOT bring in information or topics from any past meetings. ' +
+            'CRITICAL: Base your summary ONLY on the current transcript. Do NOT bring in information or topics from any past meetings. ' +
               'The executive summary must capture ALL the major themes of the session ' +
               (isEducation
                 ? '(topics taught, concepts compared, practice discussed, open questions). '
@@ -756,37 +756,37 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
               'Highlight the most important concrete points such as names, topics, numbers, and deadlines. ' +
               'IMPORTANT: Attribute statements to specific participants only when clear evidence exists in the transcript. ' +
               'If uncertain, avoid guessing names and keep the point unattributed.',
-          },
-          {
-            role: 'user',
-            content:
-              `Analyze the following SINGLE meeting transcript and generate a structured summary strictly about this meeting only.\n\n` +
+        },
+        {
+          role: 'user',
+          content:
+            `Analyze the following SINGLE meeting transcript and generate a structured summary strictly about this meeting only.\n\n` +
               `Calendar / booking title (may be wrong or unrelated—do NOT treat as agenda or topic): ${meetingTitle}\n\n` +
               `Meeting time anchor (use for relative deadlines; local calendar dates are in the server timezone): ` +
               `ISO ${anchorRef.toISOString()} · "today/tonight/this evening/EOD" → dueDate ${anchorLocalYmd} · "tomorrow" → ${anchorTomorrowYmd}.\n\n` +
               `Detected primary transcription language: ${detectedLanguage}\n\n` +
-              (durationMinutes
-                ? `Approximate meeting duration: ${durationMinutes} minutes.\n\n`
-                : '') +
-              (meetingObj.participants && meetingObj.participants.length > 0
+            (durationMinutes
+              ? `Approximate meeting duration: ${durationMinutes} minutes.\n\n`
+              : '') +
+            (meetingObj.participants && meetingObj.participants.length > 0
                 ? `IMPORTANT: The following people are expected participants (some may be unnamed or guests). When names appear in the transcript, prefer the spellings below when they match:\n` +
                   formatParticipantLinesForSummaryPrompt(meetingObj.participants) +
                   `\n\nEnsure names in the summary and action items match the transcript; do not invent people who did not speak.\n\n`
-                : '') +
-              `Transcript:\n\n${transcriptWithSpeakers}\n\n` +
-              `Follow these rules strictly:\n` +
-              `- Focus ONLY on what is actually discussed in this transcript.\n` +
+              : '') +
+            `Transcript:\n\n${transcriptWithSpeakers}\n\n` +
+            `Follow these rules strictly:\n` +
+            `- Focus ONLY on what is actually discussed in this transcript.\n` +
               `- Do NOT invent themes from the calendar title. If the title is generic but the audio is about travel, family, logistics, health, etc., write about what was spoken.\n` +
-              `- Do NOT talk about the AI or summarization itself unless it is explicitly discussed.\n` +
-              `- The executive summary must cover the full picture of the meeting: why it was held, what was discussed across all topics, key concerns, and overall outcome.\n` +
+            `- Do NOT talk about the AI or summarization itself unless it is explicitly discussed.\n` +
+            `- The executive summary must cover the full picture of the meeting: why it was held, what was discussed across all topics, key concerns, and overall outcome.\n` +
               `- Coverage is mandatory: include ALL relevant points that materially affect outcomes, responsibilities, risks, timelines, or scope.\n` +
               `- Do not collapse multiple distinct points into a vague sentence; keep distinct points separate and explicit.\n` +
               `- Avoid generic filler like "align on next steps", "confirm preparations", or "follow up" unless that wording/commitment exists in the transcript.\n` +
-              `- Explicitly mention important specifics such as names, topics, projects, events, numbers, dates, and deadlines when they are clearly mentioned.\n` +
+            `- Explicitly mention important specifics such as names, topics, projects, events, numbers, dates, and deadlines when they are clearly mentioned.\n` +
               userElaborationRules +
               userEducationRules +
               `- CRITICAL: In keyPoints, include who said what only when speaker identity is clear. Format as: "[Speaker Name]: [what they said]". If speaker cannot be identified with confidence, do not guess names.\n` +
-              `- In actionItems, each task must be a specific, actionable task tied to what people actually said (no generic or invented tasks). Include the assignee name if mentioned.\n` +
+            `- In actionItems, each task must be a specific, actionable task tied to what people actually said (no generic or invented tasks). Include the assignee name if mentioned.\n` +
               `- If there are no explicit action items in the transcript, set actionItems to []. Do not infer.\n` +
               `- For actionItems, set dueDate to YYYY-MM-DD only when a calendar deadline is clearly tied to THAT specific task.\n` +
               `- Map relative language using the meeting anchor above: "tonight", "today", "this evening", "EOD", "by end of day", Romanized Hindi/Hinglish like "aaj raat", "aaj sham/shaam" → ${anchorLocalYmd}. "tomorrow" / "kal" (when meaning next day) → ${anchorTomorrowYmd}.\n` +
@@ -795,17 +795,17 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
               `- In decisions, include who made or proposed the decision only when identifiable. If there are no explicit decisions, set decisions to []. Do not infer.\n` +
               `- In nextSteps, include concrete follow-ups that logically continue from explicit next actions in the transcript. If none exist, set nextSteps to []. Do not infer.\n` +
               `- In importantNotes, include risks, blockers, dependencies, unresolved questions, and critical assumptions if discussed. If none exist, set importantNotes to []. Do not infer.\n` +
-              `- Do not hallucinate information that was not discussed.\n` +
-              `- Only include decisions or actions that are clearly mentioned.\n` +
-              `- If a section has no information, set it to "Not specified".\n` +
-              `- When participant names are mentioned in the transcript, use them to attribute statements. Match names from the participant list provided.\n\n` +
-              `Return ONLY a JSON object with the following structure:\n` +
-              `{\n` +
+            `- Do not hallucinate information that was not discussed.\n` +
+            `- Only include decisions or actions that are clearly mentioned.\n` +
+            `- If a section has no information, set it to "Not specified".\n` +
+            `- When participant names are mentioned in the transcript, use them to attribute statements. Match names from the participant list provided.\n\n` +
+            `Return ONLY a JSON object with the following structure:\n` +
+            `{\n` +
               `  ${summarySchemaHint}\n` +
               `  ${keyPointsSchemaHint}\n` +
-              `  "actionItems": [\n` +
+            `  "actionItems": [\n` +
               `    {"task": "task description", "assignee": "person name if mentioned", "dueDate": "YYYY-MM-DD or null", "notes": "extra detail if needed"}\n` +
-              `  ],\n` +
+            `  ],\n` +
               `  "decisions": ["Decision 1 (with owner/context when known)", "Decision 2"],\n` +
               `  "nextSteps": ["Specific follow-up 1", "Specific follow-up 2"],\n` +
               `  "importantNotes": ["Risk/blocker/assumption/open-question 1", "item 2"]\n` +
@@ -814,29 +814,29 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
         ],
         temperature: 0.15,
         response_format: { type: 'json_object' },
-      });
-      console.log('✅ Summary generation completed successfully');
+        });
+        console.log('✅ Summary generation completed successfully');
       break;
-    } catch (apiError) {
-      summaryError = apiError;
+      } catch (apiError) {
+        summaryError = apiError;
       const retryable = isRetryableOpenAiError(apiError);
-
+        
       if (retryable && attempt < maxRetries) {
-        const waitTime = Math.pow(2, attempt) * 1000;
+          const waitTime = Math.pow(2, attempt) * 1000;
         console.warn(
           `⚠️  OpenAI API error during summary (${apiError.status || apiError.code || 'unknown'}), retrying in ${waitTime / 1000}s...`
         );
         await new Promise((resolve) => setTimeout(resolve, waitTime));
-        continue;
-      } else {
-        throw apiError;
+          continue;
+        } else {
+          throw apiError;
+        }
       }
     }
-  }
-
-  if (!summaryResponse) {
-    throw summaryError || new Error('Summary generation failed after all retries');
-  }
+    
+    if (!summaryResponse) {
+      throw summaryError || new Error('Summary generation failed after all retries');
+    }
 
   const rawContent = summaryResponse.choices[0].message.content || '';
   let summaryData = tryParseModelJsonObject(rawContent);
@@ -844,12 +844,12 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
     console.warn('⚠️ Empty or unparseable model JSON; applying transcript safeguards.');
   }
 
-  if (typeof summaryData.summary !== 'string') summaryData.summary = '';
-  if (!Array.isArray(summaryData.keyPoints)) summaryData.keyPoints = [];
-  if (!Array.isArray(summaryData.actionItems)) summaryData.actionItems = [];
-  if (!Array.isArray(summaryData.decisions)) summaryData.decisions = [];
-  if (!Array.isArray(summaryData.nextSteps)) summaryData.nextSteps = [];
-  if (!Array.isArray(summaryData.importantNotes)) summaryData.importantNotes = [];
+    if (typeof summaryData.summary !== 'string') summaryData.summary = '';
+    if (!Array.isArray(summaryData.keyPoints)) summaryData.keyPoints = [];
+    if (!Array.isArray(summaryData.actionItems)) summaryData.actionItems = [];
+    if (!Array.isArray(summaryData.decisions)) summaryData.decisions = [];
+    if (!Array.isArray(summaryData.nextSteps)) summaryData.nextSteps = [];
+    if (!Array.isArray(summaryData.importantNotes)) summaryData.importantNotes = [];
 
   const preFilter = deepCopySummaryPayload(summaryData);
   const transcriptLower = transcriptTextTrim.toLowerCase();
@@ -873,13 +873,13 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
 
   console.log('✅ Summary generated (from stored transcript)');
 
-  return {
+    return {
     transcription: transcriptTextTrim,
-    summary: summaryData.summary || '',
-    keyPoints: summaryData.keyPoints || [],
-    actionItems: summaryData.actionItems || [],
-    decisions: summaryData.decisions || [],
-    nextSteps: summaryData.nextSteps || [],
+      summary: summaryData.summary || '',
+      keyPoints: summaryData.keyPoints || [],
+      actionItems: summaryData.actionItems || [],
+      decisions: summaryData.decisions || [],
+      nextSteps: summaryData.nextSteps || [],
     importantNotes: summaryData.importantNotes || [],
     hiringRecommendation: '',
     hiringRecommendationReason: '',
@@ -1100,7 +1100,7 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
         'We could not read this audio file. Use a supported format (for example mp3, wav, m4a, webm) and try again.'
       );
     }
-
+    
     throw error;
   } finally {
     for (const p of whisperTempPaths) {
