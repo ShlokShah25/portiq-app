@@ -9,11 +9,15 @@ const PRODUCT_KEY = 'portiq_product';
 const AdminLogin = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [authMode, setAuthMode] = useState('signin');
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
+  const [signupEmail, setSignupEmail] = useState('');
+  const [signupOrg, setSignupOrg] = useState('');
   const [productType, setProductType] = useState('workplace');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const syncWebsiteSession = async () => {
     try {
@@ -71,10 +75,47 @@ const AdminLogin = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
     setLoading(true);
 
     try {
-        // Accept either email or username; backend always expects "username"
+      if (authMode === 'signup') {
+        const username = identifier.trim();
+        const email = signupEmail.trim().toLowerCase();
+        const organizationName = signupOrg.trim();
+        if (!username || !email || !organizationName) {
+          throw new Error('Username, email, and organization are required.');
+        }
+        const signupRes = await axios.post('/saas/signup', {
+          username,
+          email,
+          password,
+          organizationName,
+          productType,
+        });
+        const token = signupRes.data?.token;
+        const serverUser = signupRes.data?.user || {};
+        if (!token) {
+          throw new Error('Signup succeeded but login token was not returned.');
+        }
+        const serverProduct = String(serverUser.productType || productType || 'workplace').toLowerCase();
+        const prevProduct = window.localStorage.getItem(PRODUCT_KEY) || 'workplace';
+        window.localStorage.setItem(PRODUCT_KEY, serverProduct);
+        window.localStorage.setItem('clientAdminToken', token);
+        const subscribed =
+          !!serverUser.hasActiveSubscription || !!serverUser.complimentaryAccess;
+        window.localStorage.setItem('portiq_has_subscription', subscribed ? 'true' : 'false');
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        await syncWebsiteSession();
+        setSuccess('Account created. Starting your trial…');
+        if (prevProduct !== serverProduct) {
+          window.location.replace('/dashboard');
+          return;
+        }
+        navigate('/dashboard', { replace: true });
+        return;
+      }
+      // Accept either email or username; backend always expects "username"
         const trimmed = identifier.trim();
         const payload = trimmed ? { username: trimmed, password } : { password };
 
@@ -143,6 +184,35 @@ const AdminLogin = () => {
         </div>
 
         <form className="admin-login-form" onSubmit={handleSubmit}>
+          <div className="admin-login-auth-toggle" role="tablist" aria-label="Authentication mode">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={authMode === 'signin'}
+              className={authMode === 'signin' ? 'admin-login-auth-option active' : 'admin-login-auth-option'}
+              onClick={() => {
+                setAuthMode('signin');
+                setError('');
+                setSuccess('');
+              }}
+            >
+              Sign in
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={authMode === 'signup'}
+              className={authMode === 'signup' ? 'admin-login-auth-option active' : 'admin-login-auth-option'}
+              onClick={() => {
+                setAuthMode('signup');
+                setError('');
+                setSuccess('');
+              }}
+            >
+              Create account
+            </button>
+          </div>
+
           <div className="admin-login-product-toggle">
             <span className="admin-login-product-label">Product</span>
             <div className="admin-login-product-options">
@@ -172,16 +242,43 @@ const AdminLogin = () => {
           </div>
 
           <label className="admin-login-label">
-            Email or Username
+            {authMode === 'signup' ? 'Username' : 'Email or Username'}
             <input
               type="text"
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
               className="admin-login-input"
-              placeholder="you@company.com or admin"
+              placeholder={authMode === 'signup' ? 'Choose a username' : 'you@company.com or admin'}
               required
             />
           </label>
+
+          {authMode === 'signup' && (
+            <>
+              <label className="admin-login-label">
+                Email
+                <input
+                  type="email"
+                  value={signupEmail}
+                  onChange={(e) => setSignupEmail(e.target.value)}
+                  className="admin-login-input"
+                  placeholder="you@school.edu"
+                  required
+                />
+              </label>
+              <label className="admin-login-label">
+                Organization / School
+                <input
+                  type="text"
+                  value={signupOrg}
+                  onChange={(e) => setSignupOrg(e.target.value)}
+                  className="admin-login-input"
+                  placeholder="Your school name"
+                  required
+                />
+              </label>
+            </>
+          )}
 
           <label className="admin-login-label">
             Password
@@ -190,65 +287,80 @@ const AdminLogin = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="admin-login-input"
-              placeholder="Enter admin password"
+              placeholder={authMode === 'signup' ? 'Create password (min 6 chars)' : 'Enter admin password'}
               required
             />
           </label>
 
           {error && <div className="admin-login-error">{error}</div>}
+          {success && <div className="admin-login-success">{success}</div>}
 
           <button
             type="submit"
             className="admin-login-button"
             disabled={loading}
           >
-            {loading ? 'Signing in…' : 'Sign In'}
+            {loading
+              ? authMode === 'signup'
+                ? 'Creating account…'
+                : 'Signing in…'
+              : authMode === 'signup'
+                ? 'Create account'
+                : 'Sign In'}
           </button>
 
-          <div className="admin-login-footer">
-            <button
-              type="button"
-              className="admin-login-link"
-              onClick={() => {
-                const base =
-                  process.env.REACT_APP_MARKETING_URL ||
-                  'https://www.portiqtechnologies.com';
-                window.location.href = `${base}#pricing`;
-              }}
-            >
-              Get a subscription
-            </button>
-            <button
-              type="button"
-              className="admin-login-link"
-              onClick={async () => {
-                const identifierValue = identifier.trim();
-                if (!identifierValue) {
-                  setError('Enter your email / username above first.');
-                  return;
-                }
-                try {
-                  setLoading(true);
-                  setError('');
-                  await axios.post('/auth/forgot', {
-                    username: identifierValue,
-                  });
-                  setError(
-                    'If an account exists, a reset link has been sent to your email.'
-                  );
-                } catch (err) {
-                  console.error('Forgot password error', err);
-                  setError(
-                    'Unable to start password reset. Please try again in a moment.'
-                  );
-                } finally {
-                  setLoading(false);
-                }
-              }}
-            >
-              Forgot password?
-            </button>
-          </div>
+          {authMode === 'signin' ? (
+            <div className="admin-login-footer">
+              <button
+                type="button"
+                className="admin-login-link"
+                onClick={() => {
+                  const base =
+                    process.env.REACT_APP_MARKETING_URL ||
+                    'https://www.portiqtechnologies.com';
+                  window.location.href = `${base}#pricing`;
+                }}
+              >
+                Get a subscription
+              </button>
+              <button
+                type="button"
+                className="admin-login-link"
+                onClick={async () => {
+                  const identifierValue = identifier.trim();
+                  if (!identifierValue) {
+                    setError('Enter your email / username above first.');
+                    return;
+                  }
+                  try {
+                    setLoading(true);
+                    setError('');
+                    await axios.post('/auth/forgot', {
+                      username: identifierValue,
+                    });
+                    setError(
+                      'If an account exists, a reset link has been sent to your email.'
+                    );
+                  } catch (err) {
+                    console.error('Forgot password error', err);
+                    setError(
+                      'Unable to start password reset. Please try again in a moment.'
+                    );
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+              >
+                Forgot password?
+              </button>
+            </div>
+          ) : (
+            <div className="admin-login-footer admin-login-footer--single">
+              <span className="admin-login-muted-copy">
+                Free trial starts immediately after account creation.
+              </span>
+            </div>
+          )}
 
           <div className="admin-login-divider">
             <span>or</span>

@@ -75,6 +75,31 @@
   gap: 14px;
 }
 
+.admin-login-auth-toggle {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--surface-input);
+  border: 1px solid var(--border-color);
+}
+
+.admin-login-auth-option {
+  border: none;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.admin-login-auth-option.active {
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+}
+
 .admin-login-product-toggle {
   display: flex;
   flex-direction: column;
@@ -191,6 +216,15 @@
 
 .admin-login-link:hover {
   color: var(--accent-primary-hover);
+}
+
+.admin-login-footer--single {
+  justify-content: flex-start;
+}
+
+.admin-login-muted-copy {
+  font-size: 12px;
+  color: var(--text-secondary);
 }
 
 .admin-login-divider {
