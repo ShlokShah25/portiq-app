@@ -271,7 +271,9 @@ const MeetingsScreen = () => {
 
     if (!candidate) {
       setError(
-        'No meeting with transcription is available. Create a meeting first, then upload a recording from its details.'
+        isEducation
+          ? 'No lecture with transcription is available. Create a lecture first, then upload a recording from its details.'
+          : 'No meeting with transcription is available. Create a meeting first, then upload a recording from its details.'
       );
       return;
     }
@@ -362,7 +364,7 @@ const MeetingsScreen = () => {
 
   const companyName = config?.companyName || 'Your Company';
   const isInterviewMeeting = (m) => FEATURE_INTERVIEW_UI && m?.summaryMode === 'interview';
-  const meetingTypeLabel = (m) => (isInterviewMeeting(m) ? 'Interview' : 'Meeting');
+  const meetingTypeLabel = (m) => (isInterviewMeeting(m) ? 'Interview' : isEducation ? 'Lecture' : 'Meeting');
   const interviewStatusLabel = (status) => {
     if (status === 'Sent' || status === 'Approved') return 'Finalized';
     if (status === 'Pending Approval') return 'Pending decision';
@@ -423,7 +425,7 @@ const MeetingsScreen = () => {
     }
     if (status === 'Scheduled') {
       return {
-        label: 'View meeting',
+        label: isEducation ? 'View lecture' : 'View meeting',
         path: `/meetings/${m._id}`,
       };
     }
@@ -439,7 +441,7 @@ const MeetingsScreen = () => {
     const end = new Date(meeting.endTime);
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) return '';
     const minutes = Math.max(1, Math.round((end.getTime() - start.getTime()) / 60000));
-    return `Meeting duration: ${minutes} minutes`;
+    return `${isEducation ? 'Lecture' : 'Meeting'} duration: ${minutes} minutes`;
   };
 
   const uploadAudio = async (fileOrBlob) => {
@@ -479,7 +481,7 @@ const MeetingsScreen = () => {
 
   const startRecording = async () => {
     if (!selectedMeeting) {
-      setError('Please select or create a meeting first.');
+      setError(isEducation ? 'Please select or create a lecture first.' : 'Please select or create a meeting first.');
       return;
     }
     try {
@@ -539,7 +541,13 @@ const MeetingsScreen = () => {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
             >
-              {showAllMeetings ? 'Hide meetings' : 'View All Meetings'}
+              {showAllMeetings
+                ? isEducation
+                  ? 'Hide lectures'
+                  : 'Hide meetings'
+                : isEducation
+                  ? 'View All Lectures'
+                  : 'View All Meetings'}
             </button>
             {false && selectedMeeting && (
               <button
@@ -563,17 +571,23 @@ const MeetingsScreen = () => {
         {error && <div className="error-message">{error}</div>}
 
         {showAllMeetings && (
-          <section className="meetings-all-panel" aria-label="All meetings">
+          <section className="meetings-all-panel" aria-label={isEducation ? 'All lectures' : 'All meetings'}>
             <div className="meetings-all-panel-head">
-              <h2 className="meetings-all-panel-title">All meetings</h2>
+              <h2 className="meetings-all-panel-title">{isEducation ? 'All lectures' : 'All meetings'}</h2>
               <p className="meetings-all-panel-sub">
-                Browse every meeting with date, time, and participants at a glance.
+                {isEducation
+                  ? 'Browse every lecture with date, time, and student count at a glance.'
+                  : 'Browse every meeting with date, time, and participants at a glance.'}
               </p>
             </div>
             {allMeetingsSorted.length === 0 ? (
               <div className="meetings-all-empty-block">
-                <p className="info-text meetings-all-empty">No meetings yet. Start your first session.</p>
-                <p className="meetings-all-empty-sub">Create a meeting to see it here.</p>
+                <p className="info-text meetings-all-empty">
+                  {isEducation ? 'No lectures yet. Start your first class.' : 'No meetings yet. Start your first session.'}
+                </p>
+                <p className="meetings-all-empty-sub">
+                  {isEducation ? 'Create a lecture to see it here.' : 'Create a meeting to see it here.'}
+                </p>
               </div>
             ) : (
               <div className="meetings-all-grid">
@@ -627,7 +641,9 @@ const MeetingsScreen = () => {
                             <span className="meeting-card-portiq-value">{timeStr}</span>
                           </div>
                           <div className="meeting-card-portiq-meta-cell">
-                            <span className="meeting-card-portiq-label">PARTICIPANTS</span>
+                            <span className="meeting-card-portiq-label">
+                              {isEducation ? 'STUDENTS' : 'PARTICIPANTS'}
+                            </span>
                             <span className="meeting-card-portiq-value">{participantCount}</span>
                           </div>
                         </div>
@@ -666,7 +682,9 @@ const MeetingsScreen = () => {
               <div className="summaries-quick-grid">
                 <div className="summaries-quick-block">
                   <h3 className="summaries-quick-block-title">Your summary is ready</h3>
-                  <p className="summaries-quick-block-desc">Review it and send to participants.</p>
+                  <p className="summaries-quick-block-desc">
+                    {isEducation ? 'Review it and send to students.' : 'Review it and send to participants.'}
+                  </p>
                   <ul className="summaries-quick-list">
                     {needsApproval.slice(0, 5).map(m => (
                       <li key={m._id}>
@@ -694,7 +712,11 @@ const MeetingsScreen = () => {
               {subscriptionGate === 'inactive' && (
                 <div className="meetings-subscription-banner meetings-subscription-banner--inactive" role="alert">
                   <div className="meetings-subscription-banner-text">
-                    <p>No active plan—you need one to start a meeting.</p>
+                    <p>
+                      {isEducation
+                        ? 'No active plan - you need one to start a lecture.'
+                        : 'No active plan—you need one to start a meeting.'}
+                    </p>
                     <p className="meetings-subscription-banner-prices">{PORTIQ_PRICE_ROW}</p>
               </div>
                   <a className="meetings-subscription-banner-link" href={`${MARKETING_URL}#pricing`}>
@@ -715,7 +737,11 @@ const MeetingsScreen = () => {
               {subscriptionGate === 'trial_exhausted' && (
                 <div className="meetings-subscription-banner meetings-subscription-banner--inactive" role="alert">
                   <div className="meetings-subscription-banner-text">
-                    <p>You’ve reached your free meeting allowance. Upgrade when you’re ready to create more.</p>
+                    <p>
+                      {isEducation
+                        ? 'You have reached your free lecture allowance. Upgrade when you are ready to create more.'
+                        : 'You’ve reached your free meeting allowance. Upgrade when you’re ready to create more.'}
+                    </p>
                   </div>
                   <a className="meetings-subscription-banner-link" href={`${MARKETING_URL}#pricing`}>
                     See plans
@@ -928,7 +954,9 @@ const MeetingsScreen = () => {
                     <p style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: '15px' }}>
                       {isInterviewMeeting(selectedMeeting)
                         ? 'The interview recommendation has been finalized and saved internally.'
-                        : 'The meeting summary has been approved and sent to all participants.'}
+                        : isEducation
+                          ? 'The lecture summary has been approved and sent to all students.'
+                          : 'The meeting summary has been approved and sent to all participants.'}
                     </p>
                   </div>
                 )}
@@ -1094,7 +1122,9 @@ const MeetingsScreen = () => {
                           <p className="meeting-summary-body" style={{ marginBottom: 12 }}>
                             {isInterviewMeeting(selectedMeeting)
                               ? 'The interview summary and recommendation are generated. Finalize the decision when you are ready.'
-                              : 'The summary is generated and can be emailed to participants once you approve it.'}
+                              : isEducation
+                                ? 'The summary is generated and can be emailed to students once you approve it.'
+                                : 'The summary is generated and can be emailed to participants once you approve it.'}
                           </p>
                           <p style={{ marginBottom: 20, color: '#9ca3af', fontSize: 13 }}>
                             {isInterviewMeeting(selectedMeeting)
@@ -1499,7 +1529,9 @@ const MeetingsScreen = () => {
                               (isInterviewMeeting(selectedMeeting)
                                 ? 'Decision finalized and saved.'
                                 : res.data.emailSent
-                                  ? 'Summary approved and sent to all participants!'
+                                  ? isEducation
+                                    ? 'Summary approved and sent to all students!'
+                                    : 'Summary approved and sent to all participants!'
                                   : 'Summary approved and saved. Emails could not be sent (check mail configuration).');
                             alert(msg);
                             setTimeout(() => navigate('/meetings'), 2000);
@@ -1577,7 +1609,7 @@ const MeetingsScreen = () => {
                         }}
                         onClick={() => setRightTab('scheduled')}
                       >
-                        Scheduled
+                        {isEducation ? 'Scheduled lectures' : 'Scheduled'}
                       </button>
                       <button
                         type="button"
@@ -1590,7 +1622,7 @@ const MeetingsScreen = () => {
                         }}
                         onClick={() => setRightTab('recent')}
                       >
-                        Recent
+                        {isEducation ? 'Recent lectures' : 'Recent'}
                       </button>
                     </div>
               </div>
@@ -1599,8 +1631,14 @@ const MeetingsScreen = () => {
                   <>
                     {scheduledMeetings.length === 0 ? (
                       <div className="meetings-list-empty">
-                        <p className="info-text">No meetings yet. Start your first session.</p>
-                        <p className="meetings-list-empty-sub">Use Start session to create one.</p>
+                        <p className="info-text">
+                          {isEducation
+                            ? 'No lectures yet. Start your first class.'
+                            : 'No meetings yet. Start your first session.'}
+                        </p>
+                        <p className="meetings-list-empty-sub">
+                          {isEducation ? 'Use Start class to create one.' : 'Use Start session to create one.'}
+                        </p>
                       </div>
                     ) : (
                       scheduledMeetings.map(m => {
@@ -1667,10 +1705,14 @@ const MeetingsScreen = () => {
                             }}
                             title={
                               online
-                                ? 'Open meeting'
+                                ? isEducation
+                                  ? 'Open lecture'
+                                  : 'Open meeting'
                                 : isInterviewMeeting(m)
                                   ? 'Start interview'
-                                  : 'Start meeting'
+                                  : isEducation
+                                    ? 'Start lecture'
+                                    : 'Start meeting'
                             }
                           >
                             {online ? 'Open' : isInterviewMeeting(m) ? 'Start interview' : 'Start'}
@@ -1686,7 +1728,11 @@ const MeetingsScreen = () => {
                   <>
                     {recentMeetings.length === 0 && (
                       <div className="meetings-list-empty">
-                        <p className="info-text">No meetings yet. Start your first session.</p>
+                        <p className="info-text">
+                          {isEducation
+                            ? 'No lectures yet. Start your first class.'
+                            : 'No meetings yet. Start your first session.'}
+                        </p>
               </div>
                     )}
                     {recentMeetings.map(m => {

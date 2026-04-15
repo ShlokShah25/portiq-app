@@ -7,11 +7,11 @@ import './styles/saas-premium-overrides.css';
 
 // Lazy load components for better performance
 const Dashboard = lazy(() => import('./components/Dashboard'));
-const DashboardTasksPage = lazy(() => import('./components/DashboardTasksPage'));
 const MeetingsScreen = lazy(() => import('./components/MeetingsScreen'));
 const Transcripts = lazy(() => import('./components/Transcripts'));
 const Participants = lazy(() => import('./components/Participants'));
 const Insights = lazy(() => import('./components/Insights'));
+const ClassesPage = lazy(() => import('./components/ClassesPage'));
 const Settings = lazy(() => import('./components/Settings'));
 const MeetingInProgress = lazy(() => import('./components/MeetingInProgress'));
 const MeetingDetail = lazy(() => import('./components/MeetingDetail'));
@@ -116,7 +116,7 @@ function App() {
             <Route path="/" element={<ProtectedLayout config={config} />}>
               <Route index element={<Dashboard />} />
               <Route path="dashboard" element={<Dashboard />} />
-              <Route path="dashboard/tasks/:bucket" element={<DashboardTasksPage />} />
+              <Route path="dashboard/tasks/:bucket" element={<Navigate to="/insights" replace />} />
               <Route path="meetings" element={<MeetingsScreen />} />
               <Route path="meetings/:id/summary" element={<MeetingSummary />} />
               <Route path="meetings/:id/room" element={<MeetingInProgress />} />
@@ -124,6 +124,7 @@ function App() {
               <Route path="transcripts" element={<Transcripts />} />
               <Route path="participants" element={<Participants />} />
               <Route path="insights" element={<Insights />} />
+              <Route path="classes" element={<ClassesPage />} />
               <Route path="settings" element={<Settings />} />
               <Route path="profile" element={<Navigate to="/settings" replace />} />
               <Route path="admin" element={<ClientAdmin />} />

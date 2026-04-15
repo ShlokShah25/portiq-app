@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useLocation, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { useTheme } from '../contexts/ThemeContext';
 import { ParticipantBookPanel } from './Participants';
 import { L, SUPPORTED_UI_LANGUAGES, getUiLanguage, setUiLanguage } from '../config/uiLanguage';
+import { isEducation } from '../config/product';
 import './Settings.css';
 import './Profile.css';
 
@@ -59,7 +60,7 @@ const Settings = () => {
   const navItems = useMemo(
     () => [
       { id: 'account', labelKey: 'settings.tabAccount' },
-      { id: 'workspace', labelKey: 'settings.tabWorkspace' },
+      { id: 'workspace', labelKey: 'settings.tabWorkspace', customLabel: isEducation ? 'Classrooms' : null },
       { id: 'preferences', labelKey: 'settings.sectionPreferences' },
       { id: 'notifications', labelKey: 'settings.tabNotifications' },
     ],
@@ -200,7 +201,7 @@ const Settings = () => {
                 className={`settings-sidebar__link${activeSection === item.id ? ' settings-sidebar__link--active' : ''}`}
                 onClick={() => setSection(item.id)}
               >
-                {L(item.labelKey)}
+                {item.customLabel || L(item.labelKey)}
               </button>
             ))}
           </nav>
@@ -352,24 +353,58 @@ const Settings = () => {
               <div className="settings-panel" role="tabpanel" id="settings-participant-book">
                 <div className="settings-panel-row settings-panel-row--stack">
                   <div className="settings-panel-row__meta">
-                    <h3 className="settings-panel-row__title">{L('settings.workspaceTitle')}</h3>
-                    <p className="settings-panel-row__desc">{L('settings.workspaceDesc')}</p>
+                    <h3 className="settings-panel-row__title">
+                      {isEducation ? 'Classrooms & students' : L('settings.workspaceTitle')}
+                    </h3>
+                    <p className="settings-panel-row__desc">
+                      {isEducation
+                        ? 'Create classrooms, add students, and keep lecture subjects organized for each class.'
+                        : L('settings.workspaceDesc')}
+                    </p>
                   </div>
                 </div>
-                <div className="settings-workspace-embed">
-                  <ParticipantBookPanel embedded />
-                </div>
-
-                <div className="settings-divider" />
+                {isEducation ? (
+                  <>
+                    <div className="settings-actions-inline">
+                      <Link to="/classes" className="profile-manage-btn">
+                        Open Classrooms
+                      </Link>
+                    </div>
+                    <p className="settings-company-hint">
+                      Teachers manage students inside each classroom. Subject cap stays at 7 per classroom.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="settings-workspace-embed">
+                      <ParticipantBookPanel embedded />
+                    </div>
+                    <div className="settings-divider" />
+                  </>
+                )}
 
                 <div className="settings-panel-row settings-panel-row--stack">
                   <div className="settings-panel-row__meta">
-                    <h3 className="settings-panel-row__title">{L('settings.generalCompanyTitle')}</h3>
-                    <p className="settings-panel-row__desc">{L('settings.generalCompanyDesc')}</p>
+                    <h3 className="settings-panel-row__title">
+                      {isEducation ? 'School name' : L('settings.generalCompanyTitle')}
+                    </h3>
+                    <p className="settings-panel-row__desc">
+                      {isEducation
+                        ? 'Shown in lecture defaults where applicable.'
+                        : L('settings.generalCompanyDesc')}
+                    </p>
                   </div>
                   <div className="settings-panel-row__control">
-                    <input type="text" className="settings-input" placeholder={L('settings.companyPh')} />
-                    <p className="settings-company-hint">{L('settings.companyNameMeetingsHint')}</p>
+                    <input
+                      type="text"
+                      className="settings-input"
+                      placeholder={isEducation ? 'Your School' : L('settings.companyPh')}
+                    />
+                    <p className="settings-company-hint">
+                      {isEducation
+                        ? 'Set school name to appear on lectures.'
+                        : L('settings.companyNameMeetingsHint')}
+                    </p>
                   </div>
                 </div>
               </div>

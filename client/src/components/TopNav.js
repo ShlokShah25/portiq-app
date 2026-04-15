@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { T } from '../config/terminology';
 import { L } from '../config/uiLanguage';
+import { isEducation } from '../config/product';
 import './TopNav.css';
 
 const TopNav = () => {
@@ -24,16 +25,25 @@ const TopNav = () => {
       path: '/dashboard'
     },
     {
-      id: 'tasks',
-      labelKey: 'nav.tasks',
+      id: isEducation ? 'classrooms' : 'insights',
+      labelKey: isEducation ? '' : 'nav.insights',
       icon: (
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-          <line x1="18" y1="20" x2="18" y2="10"></line>
-          <line x1="12" y1="20" x2="12" y2="4"></line>
-          <line x1="6" y1="20" x2="6" y2="14"></line>
+          {isEducation ? (
+            <>
+              <path d="M3 7.5L12 3l9 4.5-9 4.5-9-4.5z"></path>
+              <path d="M7 10.5V15c0 1.8 2.2 3.2 5 3.2s5-1.4 5-3.2v-4.5"></path>
+            </>
+          ) : (
+            <>
+              <line x1="18" y1="20" x2="18" y2="10"></line>
+              <line x1="12" y1="20" x2="12" y2="4"></line>
+              <line x1="6" y1="20" x2="6" y2="14"></line>
+            </>
+          )}
         </svg>
       ),
-      path: '/insights'
+      path: isEducation ? '/classes' : '/insights'
     }
   ];
 
@@ -67,7 +77,7 @@ const TopNav = () => {
               onClick={() => navigate(item.path)}
             >
               {item.icon}
-              <span>{L(item.labelKey)}</span>
+              <span>{isEducation && item.id === 'classrooms' ? 'Classrooms' : L(item.labelKey)}</span>
             </button>
           ))}
         </div>

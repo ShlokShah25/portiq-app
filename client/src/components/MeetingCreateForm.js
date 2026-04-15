@@ -87,6 +87,13 @@ function createEmptyInterviewCandidate() {
   };
 }
 
+function getTitleAgendaPlaceholder(companyName) {
+  if (isEducation) {
+    return 'First line: lecture title (e.g. Algebra Revision - Grade 10).\nFollowing lines: lesson goals, topics, assignments...';
+  }
+  return `First line: title (e.g. Project review - ${companyName}).\nFollowing lines: agenda, topics, decisions…`;
+}
+
 function resetAllState(setters) {
   const d = defaultDateTimeLocal();
   setters.setTitleAgendaCombined('');
@@ -377,7 +384,9 @@ export default function MeetingCreateForm({
   }, [selectedClassroomId]);
 
   const validateCommon = () => {
-    if (!scheduledDate || !scheduledTime) return 'Meeting date and time are required.';
+    if (!scheduledDate || !scheduledTime) {
+      return isEducation ? 'Lecture date and time are required.' : 'Meeting date and time are required.';
+    }
     if (!scheduledIso()) return 'Invalid date or time.';
     if (!isEducation && summaryModeEffective === 'interview') {
       const intEmails = Array.isArray(interviewInterviewerEmails)
@@ -401,18 +410,22 @@ export default function MeetingCreateForm({
     const parts = payloadParticipants();
     if (parts.length === 0) {
       return isEducation
-        ? 'Add at least one participant with an email.'
+        ? 'Add at least one student with an email.'
         : 'Select at least one participant from your participant book.';
     }
     if (maxParticipantsPerMeeting != null && parts.length > maxParticipantsPerMeeting) {
-      return `Your plan allows up to ${maxParticipantsPerMeeting} participants per meeting.`;
+      return isEducation
+        ? `Your plan allows up to ${maxParticipantsPerMeeting} students per lecture.`
+        : `Your plan allows up to ${maxParticipantsPerMeeting} participants per meeting.`;
     }
     const editorTrim = authorizedEditorEmail.trim();
     if (editorTrim) {
       const editorLower = editorTrim.toLowerCase();
       const emails = parts.map((p) => p.email.toLowerCase());
       if (!emails.includes(editorLower)) {
-        return 'Authorized editor must be one of the selected participants.';
+        return isEducation
+          ? 'Authorized reviewer must be one of the selected students.'
+          : 'Authorized editor must be one of the selected participants.';
       }
     }
     if (isEducation && !selectedClassroomId) return 'Select a classroom.';
@@ -502,8 +515,12 @@ export default function MeetingCreateForm({
     ) {
       setError(
         subscriptionGate === 'trial_exhausted'
-          ? 'You’ve reached your free meeting allowance. Upgrade when you’re ready to create more.'
-          : 'Subscription required to create a meeting.'
+          ? isEducation
+            ? 'You have reached your free lecture allowance. Upgrade when you are ready to create more.'
+            : 'You’ve reached your free meeting allowance. Upgrade when you’re ready to create more.'
+          : isEducation
+            ? 'Subscription required to create a lecture.'
+            : 'Subscription required to create a meeting.'
       );
       return;
     }
@@ -521,7 +538,11 @@ export default function MeetingCreateForm({
       const id = raw?._id ?? raw?.id;
       const idStr = id != null ? String(id) : '';
       if (!idStr) {
-        setError('Meeting was created but the app did not receive a meeting id. Open it from the Scheduled list.');
+        setError(
+          isEducation
+            ? 'Lecture was created but the app did not receive an id. Open it from Scheduled lectures.'
+            : 'Meeting was created but the app did not receive a meeting id. Open it from the Scheduled list.'
+        );
         return;
       }
       navigate(`/meetings/${idStr}`);
@@ -539,7 +560,7 @@ export default function MeetingCreateForm({
       setError(
         [d?.error, d?.details].filter(Boolean).join(' — ') ||
           err.message ||
-          'Could not create meeting.'
+          (isEducation ? 'Could not create lecture.' : 'Could not create meeting.')
       );
     } finally {
       setLoading(false);
@@ -559,10 +580,18 @@ export default function MeetingCreateForm({
       let next = [...prev, em];
       if (maxParticipantsPerMeeting != null && next.length > maxParticipantsPerMeeting) {
         next = next.slice(0, maxParticipantsPerMeeting);
-        setError(`Your plan allows up to ${maxParticipantsPerMeeting} participants per meeting.`);
+        setError(
+          isEducation
+            ? `Your plan allows up to ${maxParticipantsPerMeeting} students per lecture.`
+            : `Your plan allows up to ${maxParticipantsPerMeeting} participants per meeting.`
+        );
       } else {
         setError((cur) =>
-          /^Your plan allows up to \d+ participants per meeting\.$/.test(String(cur)) ? '' : cur
+          /^Your plan allows up to \d+ (participants per meeting|students per lecture)\.$/.test(
+            String(cur)
+          )
+            ? ''
+            : cur
         );
       }
       return next;
@@ -689,7 +718,7 @@ export default function MeetingCreateForm({
                       className="meeting-create-title-agenda-single"
                       value={titleAgendaCombined}
                       onChange={(e) => setTitleAgendaCombined(e.target.value)}
-                      placeholder={`First line: title (e.g. Project review — ${companyName}).\nFollowing lines: agenda, topics, decisions…`}
+                      placeholder={getTitleAgendaPlaceholder(companyName)}
                       rows={3}
                       autoComplete="off"
                       disabled={formDisabled}
@@ -1183,7 +1212,11 @@ export default function MeetingCreateForm({
                   aria-expanded={optionalDetailsOpen}
                   aria-controls="meeting-create-details-region"
                 >
-                  {optionalDetailsOpen ? '− Hide optional details' : '+ Add details (optional)'}
+                  {optionalDetailsOpen
+                    ? '− Hide optional details'
+                    : isEducation
+                      ? '+ Add lecture details (optional)'
+                      : '+ Add details (optional)'}
                 </button>
                 <div
                   id="meeting-create-details-region"
@@ -1223,7 +1256,7 @@ export default function MeetingCreateForm({
 
                       <div className="start-meeting-field">
                         <FieldLabel htmlFor="sm-organizer" icon={User}>
-                          Organizer (optional)
+                          {isEducation ? 'Teacher (optional)' : 'Organizer (optional)'}
                         </FieldLabel>
                         <input
                           id="sm-organizer"
@@ -1237,20 +1270,24 @@ export default function MeetingCreateForm({
 
                       <div className="start-meeting-field">
                         <FieldLabel htmlFor="sm-location" icon={MapPin}>
-                          Location
+                          {isEducation ? 'Classroom location' : 'Location'}
                         </FieldLabel>
                         <input
                           id="sm-location"
                           value={liveLocation}
                           onChange={(e) => setLiveLocation(e.target.value)}
-                          placeholder="e.g. Conference Room A (optional — defaults to live recording)"
+                          placeholder={
+                            isEducation
+                              ? 'e.g. Room 203 (optional - defaults to live recording)'
+                              : 'e.g. Conference Room A (optional - defaults to live recording)'
+                          }
                           disabled={formDisabled}
                         />
                       </div>
 
                       <div className="start-meeting-field" style={{ marginTop: 4 }}>
                         <FieldLabel htmlFor="sm-editor" icon={UserCheck}>
-                          Authorized editor (optional)
+                          {isEducation ? 'Authorized reviewer (optional)' : 'Authorized editor (optional)'}
                         </FieldLabel>
                         <select
                           id="sm-editor"
@@ -1258,7 +1295,9 @@ export default function MeetingCreateForm({
                           onChange={(e) => setAuthorizedEditorEmail(e.target.value)}
                           disabled={formDisabled}
                         >
-                          <option value="">No authorized editor</option>
+                          <option value="">
+                            {isEducation ? 'No authorized reviewer' : 'No authorized editor'}
+                          </option>
                           {editorOptions.map((p) => (
                             <option key={p.email} value={p.email}>
                               {(p.name || p.email) + ` (${p.email})`}
@@ -1266,8 +1305,9 @@ export default function MeetingCreateForm({
                           ))}
                         </select>
                         <p className="start-meeting-field-hint">
-                          Leave blank or pick someone from the participant list. If you pick someone, they must be a
-                          selected participant.
+                          {isEducation
+                            ? 'Leave blank or pick someone from the student list. If you pick someone, they must be selected for this lecture.'
+                            : 'Leave blank or pick someone from the participant list. If you pick someone, they must be a selected participant.'}
                         </p>
                       </div>
 
@@ -1279,7 +1319,11 @@ export default function MeetingCreateForm({
                           onChange={(e) => setSendNotification(e.target.checked)}
                           disabled={formDisabled}
                         />
-                        <span>Send email notification to participants when the meeting is created</span>
+                        <span>
+                          {isEducation
+                            ? 'Send email notification to students when the lecture is created'
+                            : 'Send email notification to participants when the meeting is created'}
+                        </span>
                       </label>
                     </div>
                   </div>

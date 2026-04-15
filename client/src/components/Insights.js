@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Calendar, CheckSquare, AlertTriangle, ListTodo, FolderX } from 'lucide-react';
+import { isEducation } from '../config/product';
 import './Insights.css';
 
 function itemsFromMeeting(meeting) {
@@ -143,15 +144,40 @@ const Insights = () => {
     stats?.meetingsWithoutActionItems != null
       ? stats.meetingsWithoutActionItems
       : actionOverview.meetingsWithoutActions.length;
+  const topTitle = isEducation ? 'Lecture Insights' : 'Insights';
+  const topSubtitle = isEducation
+    ? 'Track assignment signals, due dates, and lecture follow-through across classrooms.'
+    : 'Task intelligence and meeting execution signals across your workspace.';
+  const meetingsLabel = isEducation ? 'Lectures This Week' : 'Meetings This Week';
+  const dueLabel = isEducation ? 'Assignments Due Soon' : 'Tasks Due Tomorrow';
+  const overdueLabel = isEducation ? 'Overdue Assignments' : 'Overdue Tasks';
+  const actionOverviewLabel = isEducation ? 'Classroom Action Overview' : 'Action Overview';
+  const topPendingLabel = isEducation ? 'Top Pending Assignments' : 'Top Pending Tasks';
+  const topPendingEmptyLabel = isEducation ? 'No pending assignments.' : 'No pending tasks.';
+  const dueSoonLabel = isEducation ? 'Assignments Due Soon' : 'Tasks Due Soon';
+  const noActionsLabel = isEducation
+    ? 'Lectures Without Assignment Signals'
+    : 'Meetings Without Action Items';
+  const noActionsCountLabel =
+    meetingsNoActionCount === 1
+      ? isEducation
+        ? 'lecture has no extracted assignment signals'
+        : 'meeting has no extracted tasks'
+      : isEducation
+        ? 'lectures have no extracted assignment signals'
+        : 'meetings have no extracted tasks';
+  const noActionsEmptyLabel = isEducation
+    ? 'All lectures include at least one assignment signal.'
+    : 'All meetings include at least one task.';
 
   return (
     <div className="insights-screen">
       <div className="insights-wrapper">
         <div className="insights-top-bar">
           <div>
-            <h1 className="insights-title">Insights</h1>
+            <h1 className="insights-title">{topTitle}</h1>
             <p className="insights-subtitle">
-              Task intelligence and meeting execution signals across your workspace.
+              {topSubtitle}
             </p>
           </div>
         </div>
@@ -163,7 +189,7 @@ const Insights = () => {
                 <Calendar className="insight-lucide" strokeWidth={1.5} aria-hidden />
               </div>
               <div className="insight-stat-value">{stats?.meetingsThisWeek ?? 0}</div>
-              <div className="insight-stat-label">Meetings This Week</div>
+              <div className="insight-stat-label">{meetingsLabel}</div>
             </div>
 
             <div className="insight-stat-card" onClick={() => navigate('/dashboard')}>
@@ -171,7 +197,7 @@ const Insights = () => {
                 <CheckSquare className="insight-lucide" strokeWidth={1.5} aria-hidden />
               </div>
               <div className="insight-stat-value">{stats?.tasksDueTomorrow ?? 0}</div>
-              <div className="insight-stat-label">Tasks Due Tomorrow</div>
+              <div className="insight-stat-label">{dueLabel}</div>
             </div>
 
             <div className="insight-stat-card" onClick={() => navigate('/dashboard')}>
@@ -179,7 +205,7 @@ const Insights = () => {
                 <AlertTriangle className="insight-lucide" strokeWidth={1.5} aria-hidden />
               </div>
               <div className="insight-stat-value">{stats?.overdueTasks ?? 0}</div>
-              <div className="insight-stat-label">Overdue Tasks</div>
+              <div className="insight-stat-label">{overdueLabel}</div>
             </div>
           </div>
 
@@ -188,13 +214,13 @@ const Insights = () => {
               <span className="insights-section-title-icon" aria-hidden>
                 <ListTodo className="insight-lucide" strokeWidth={1.5} />
               </span>
-              Action Overview
+              {actionOverviewLabel}
             </h2>
             <div className="insights-action-overview-grid">
               <div className="insights-overview-card insights-overview-card--pending">
-                <h3 className="insights-overview-card-title">Top Pending Tasks</h3>
+                <h3 className="insights-overview-card-title">{topPendingLabel}</h3>
                 {actionOverview.topPending.length === 0 ? (
-                  <p className="insights-overview-empty">No pending tasks.</p>
+                  <p className="insights-overview-empty">{topPendingEmptyLabel}</p>
                 ) : (
                   <ul className="insights-overview-list">
                     {actionOverview.topPending.map((item, idx) => (
@@ -218,7 +244,7 @@ const Insights = () => {
               </div>
 
               <div className="insights-overview-card insights-overview-card--due">
-                <h3 className="insights-overview-card-title">Tasks Due Soon</h3>
+                <h3 className="insights-overview-card-title">{dueSoonLabel}</h3>
                 {actionOverview.dueSoon.length === 0 ? (
                   <p className="insights-overview-empty">Nothing due in the next 7 days.</p>
                 ) : (
@@ -249,13 +275,11 @@ const Insights = () => {
               </div>
 
               <div className="insights-overview-card insights-overview-card--no-actions">
-                <h3 className="insights-overview-card-title">Meetings Without Action Items</h3>
+                <h3 className="insights-overview-card-title">{noActionsLabel}</h3>
                 <p className="insights-overview-count">{meetingsNoActionCount}</p>
-                <p className="insights-overview-count-label">
-                  {meetingsNoActionCount === 1 ? 'meeting has no extracted tasks' : 'meetings have no extracted tasks'}
-                </p>
+                <p className="insights-overview-count-label">{noActionsCountLabel}</p>
                 {actionOverview.meetingsWithoutActions.length === 0 ? (
-                  <p className="insights-overview-empty subtle">All meetings include at least one task.</p>
+                  <p className="insights-overview-empty subtle">{noActionsEmptyLabel}</p>
                 ) : (
                   <ul className="insights-overview-list insights-overview-list--titles">
                     {actionOverview.meetingsWithoutActions.slice(0, 5).map((m) => (

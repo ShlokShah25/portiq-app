@@ -694,7 +694,7 @@ const Dashboard = () => {
             aria-label="Meeting and task summary"
           >
             <Link
-              to="/dashboard/tasks/meetings-week"
+              to={isEducation ? '/meetings' : '/insights'}
               className="dashboard-stat-chip dashboard-stat-chip--tile"
             >
               <div className="dashboard-stat-chip__icon" aria-hidden>
@@ -708,7 +708,7 @@ const Dashboard = () => {
             </Link>
 
             <Link
-              to="/dashboard/tasks/due-tomorrow"
+              to="/insights"
               className="dashboard-stat-chip dashboard-stat-chip--tile"
             >
               <div className="dashboard-stat-chip__icon" aria-hidden>
@@ -722,7 +722,7 @@ const Dashboard = () => {
             </Link>
 
             <Link
-              to="/dashboard/tasks/overdue"
+              to="/insights"
               className="dashboard-stat-chip dashboard-stat-chip--tile dashboard-stat-chip--warn"
             >
               <div className="dashboard-stat-chip__icon dashboard-stat-chip__icon--warn" aria-hidden>
@@ -737,7 +737,7 @@ const Dashboard = () => {
           </div>
           ) : null}
 
-          {!isHidden(DASHBOARD_SECTION_KEYS.recentTasks) ? (
+          {!isEducation && !isHidden(DASHBOARD_SECTION_KEYS.recentTasks) ? (
           <section
             className="dashboard-section dashboard-section--minimal ux-dashboard-stagger dashboard-section--reveal"
             style={{ animationDelay: '130ms' }}
