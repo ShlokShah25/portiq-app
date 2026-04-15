@@ -371,6 +371,11 @@ export default function MeetingCreateForm({
     });
   };
 
+  const selectedClassroom = useMemo(() => {
+    if (!isEducation || !selectedClassroomId) return null;
+    return getClassrooms().find((c) => c.id === selectedClassroomId) || null;
+  }, [selectedClassroomId]);
+
   const validateCommon = () => {
     if (!scheduledDate || !scheduledTime) return 'Meeting date and time are required.';
     if (!scheduledIso()) return 'Invalid date or time.';
@@ -411,6 +416,9 @@ export default function MeetingCreateForm({
       }
     }
     if (isEducation && !selectedClassroomId) return 'Select a classroom.';
+    if (isEducation && selectedClassroom && Array.isArray(selectedClassroom.subjects) && selectedClassroom.subjects.length > 7) {
+      return 'This classroom exceeds the current subject cap (7). Edit classroom subjects first.';
+    }
     return '';
   };
 
@@ -712,6 +720,11 @@ export default function MeetingCreateForm({
                         </option>
                       ))}
                     </select>
+                    {selectedClassroom && Array.isArray(selectedClassroom.subjects) && selectedClassroom.subjects.length > 0 ? (
+                      <p className="start-meeting-field-hint">
+                        Subjects: {selectedClassroom.subjects.slice(0, 7).join(', ')}
+                      </p>
+                    ) : null}
                   </div>
                 )}
 

@@ -1,5 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { getClassrooms, createClassroom, updateClassroom, deleteClassroom } from '../utils/classroomsStorage';
+import {
+  getClassrooms,
+  createClassroom,
+  updateClassroom,
+  deleteClassroom,
+  MAX_SUBJECTS_PER_CLASSROOM,
+} from '../utils/classroomsStorage';
 import './ClassesPage.css';
 
 const ClassesPage = () => {
@@ -7,7 +13,7 @@ const ClassesPage = () => {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({
     className: '',
-    subject: '',
+    subjectsStr: '',
     teacher: '',
     studentEmailsStr: ''
   });
@@ -19,7 +25,7 @@ const ClassesPage = () => {
   }, []);
 
   const resetForm = () => {
-    setForm({ className: '', subject: '', teacher: '', studentEmailsStr: '' });
+    setForm({ className: '', subjectsStr: '', teacher: '', studentEmailsStr: '' });
     setEditing(null);
   };
 
@@ -29,20 +35,29 @@ const ClassesPage = () => {
       .map((e) => e.trim().toLowerCase())
       .filter(Boolean);
 
+  const subjectsFromStr = (str) =>
+    str
+      .split(/[\n,;]+/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .filter((s, i, arr) => arr.findIndex((x) => x.toLowerCase() === s.toLowerCase()) === i)
+      .slice(0, MAX_SUBJECTS_PER_CLASSROOM);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     const studentEmails = studentEmailsFromStr(form.studentEmailsStr);
+    const subjects = subjectsFromStr(form.subjectsStr);
     if (editing) {
       updateClassroom(editing.id, {
         className: form.className.trim(),
-        subject: form.subject.trim(),
+        subjects,
         teacher: form.teacher.trim(),
         studentEmails
       });
     } else {
       createClassroom({
         className: form.className.trim(),
-        subject: form.subject.trim(),
+        subjects,
         teacher: form.teacher.trim(),
         studentEmails
       });
@@ -55,7 +70,7 @@ const ClassesPage = () => {
     setEditing(c);
     setForm({
       className: c.className || '',
-      subject: c.subject || '',
+      subjectsStr: Array.isArray(c.subjects) ? c.subjects.join(', ') : c.subject || '',
       teacher: c.teacher || '',
       studentEmailsStr: (c.studentEmails || []).join('\n')
     });
@@ -89,11 +104,11 @@ const ClassesPage = () => {
               />
             </label>
             <label>
-              Subject
+              Subjects (max {MAX_SUBJECTS_PER_CLASSROOM})
               <input
-                value={form.subject}
-                onChange={(e) => setForm({ ...form, subject: e.target.value })}
-                placeholder="e.g. Mathematics"
+                value={form.subjectsStr}
+                onChange={(e) => setForm({ ...form, subjectsStr: e.target.value })}
+                placeholder="e.g. Mathematics, Physics, Chemistry"
               />
             </label>
             <label>
@@ -105,6 +120,9 @@ const ClassesPage = () => {
               />
             </label>
           </div>
+          <p className="classes-subject-cap-note">
+            Custom subjects allowed. You can add up to {MAX_SUBJECTS_PER_CLASSROOM} subjects per classroom.
+          </p>
           <label className="classes-form-full">
             Student Emails (one per line or comma-separated)
             <textarea
@@ -135,7 +153,7 @@ const ClassesPage = () => {
               <thead>
                 <tr>
                   <th>Class Name</th>
-                  <th>Subject</th>
+                  <th>Subjects</th>
                   <th>Teacher</th>
                   <th>Students</th>
                   <th>Actions</th>
@@ -145,7 +163,7 @@ const ClassesPage = () => {
                 {classrooms.map((c) => (
                   <tr key={c.id}>
                     <td>{c.className}</td>
-                    <td>{c.subject || '—'}</td>
+                    <td>{Array.isArray(c.subjects) && c.subjects.length ? c.subjects.join(', ') : '—'}</td>
                     <td>{c.teacher || '—'}</td>
                     <td>{(c.studentEmails || []).length}</td>
                     <td>

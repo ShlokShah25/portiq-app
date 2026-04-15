@@ -698,7 +698,7 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
     : 'You are an AI meeting assistant for professional, high-fidelity minutes. ';
 
   const systemEducationFocus = isEducation
-    ? 'This output should help someone review before class or an exam: preserve learning goals when stated, definitions and distinctions as spoken, examples walked through, lists or taxonomies the speaker used, formulas or steps if verbalized, caveats and misconceptions addressed, and questions raised by learners. '
+    ? 'This output is for teaching and learning outcomes: help teachers teach better and help students revise effectively. Preserve learning goals when stated, definitions and distinctions as spoken, examples walked through, lists or taxonomies the speaker used, formulas or steps if verbalized, caveats and misconceptions addressed, and questions raised by learners. '
     : '';
 
   const systemElaborationDepth = isEducation
@@ -720,7 +720,9 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
 
   const userEducationRules = isEducation
     ? `- Education mode: structure bullets like study notes where the transcript supports it (e.g. types of X, steps, criteria).\n` +
-      `- If the instructor named terms, keep those terms and the gist of each definition as stated.\n`
+      `- If the instructor named terms, keep those terms and the gist of each definition as stated.\n` +
+      `- If assignments, presentations, quizzes, homework, submissions, or project work are mentioned, ensure they appear as concrete action items with due dates when stated.\n` +
+      `- Keep wording classroom-friendly and instructional, not corporate.\n`
     : '';
 
     let summaryResponse = null;

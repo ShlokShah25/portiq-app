@@ -68,6 +68,12 @@
   margin-bottom: 16px;
 }
 
+.classes-subject-cap-note {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: var(--text-secondary, #9ca3af);
+}
+
 .classes-form-actions {
   display: flex;
   gap: 12px;
