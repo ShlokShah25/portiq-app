@@ -133,6 +133,11 @@
   background: #022c22;
   color: #6ee7b7;
 }
+.status-pill.status-trial {
+  background: rgba(37, 99, 235, 0.16);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.38);
+}
 .status-pill.status-inactive {
   background: #1f2937;
   color: #9ca3af;
@@ -383,6 +388,12 @@
   background: rgba(22, 163, 74, 0.12);
   color: #166534;
   border: 1px solid rgba(22, 163, 74, 0.28);
+}
+
+:root[data-theme='light'] .status-pill.status-trial {
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+  border: 1px solid rgba(37, 99, 235, 0.28);
 }
 
 :root[data-theme='light'] .status-pill.status-inactive {

@@ -231,7 +231,14 @@ const Dashboard = () => {
 
   const pendingSummaryMeetings = useMemo(() => {
     return meetings
-      .filter((m) => String(m.pendingSummary || '').trim().length > 0)
+      .filter((m) => {
+        const hasPendingText = String(m.pendingSummary || '').trim().length > 0;
+        if (!hasPendingText) return false;
+        const status = String(m.summaryStatus || '').trim();
+        // Only show summaries that still need review.
+        // Legacy rows can have pendingSummary text but no summaryStatus yet.
+        return status === '' || status === 'Pending Approval';
+      })
       .filter((m) => !FEATURE_INTERVIEW_UI || m.summaryMode !== 'interview')
       .sort((a, b) => {
         const ta = new Date(a.updatedAt || a.endTime || a.startTime || 0).getTime();

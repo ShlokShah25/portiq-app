@@ -36,6 +36,8 @@ const Settings = () => {
   const [planLabel, setPlanLabel] = useState('Starter');
   const [paidSubscription, setPaidSubscription] = useState(false);
   const [complimentaryAccess, setComplimentaryAccess] = useState(false);
+  const [trialing, setTrialing] = useState(false);
+  const [trialMeetingsRemaining, setTrialMeetingsRemaining] = useState(null);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -94,6 +96,10 @@ const Settings = () => {
         setPlanLabel(planText);
         setPaidSubscription(!!admin.hasActiveSubscription);
         setComplimentaryAccess(!!admin.complimentaryAccess);
+        setTrialing(!!admin.isTrialing);
+        setTrialMeetingsRemaining(
+          admin.trialMeetingsRemaining != null ? Number(admin.trialMeetingsRemaining) : null
+        );
       } catch (e) {
         const product =
           (typeof window !== 'undefined' && window.localStorage.getItem('portiq_product')) || 'workplace';
@@ -169,6 +175,17 @@ const Settings = () => {
       window.location.reload();
     }
   };
+
+  const statusKind = complimentaryAccess || paidSubscription ? 'active' : trialing ? 'trial' : 'inactive';
+  const statusLabel = complimentaryAccess && !paidSubscription
+    ? L('settings.statusComplimentary')
+    : paidSubscription
+      ? L('settings.statusActive')
+      : trialing
+        ? trialMeetingsRemaining != null
+          ? `Free trial (${trialMeetingsRemaining} left)`
+          : 'Free trial'
+        : L('settings.statusInactive');
 
   return (
     <div className="settings-screen">
@@ -295,15 +312,9 @@ const Settings = () => {
                       <div className="settings-readonly-row">
                         <span className="settings-readonly-label">{L('settings.labelStatus')}</span>
                         <span
-                          className={`settings-readonly-value status-pill status-${
-                            complimentaryAccess || paidSubscription ? 'active' : 'inactive'
-                          }`}
+                          className={`settings-readonly-value status-pill status-${statusKind}`}
                         >
-                          {complimentaryAccess && !paidSubscription
-                            ? L('settings.statusComplimentary')
-                            : paidSubscription
-                              ? L('settings.statusActive')
-                              : L('settings.statusInactive')}
+                          {statusLabel}
                         </span>
                       </div>
                     </div>

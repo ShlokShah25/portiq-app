@@ -1592,9 +1592,24 @@ async function transcribeLiveChunkFile(audioPath) {
   if (liveLang && liveLang !== 'auto') {
     createParams.language = liveLang;
   }
-  const transcription = await openai.audio.transcriptions.create(createParams);
-  const text = transcription && transcription.text ? String(transcription.text) : '';
-  return text.trim();
+  try {
+    const transcription = await openai.audio.transcriptions.create(createParams);
+    const text = transcription && transcription.text ? String(transcription.text) : '';
+    return text.trim();
+  } catch (err) {
+    const msg = String(err?.message || '').toLowerCase();
+    // Live chunking can intermittently produce tiny/corrupt segments (especially around pause/resume
+    // or browser recorder boundaries). Skip these instead of surfacing noisy 400 errors in UI.
+    if (
+      msg.includes('invalid file format') ||
+      msg.includes('could not decode') ||
+      msg.includes('file appears to be empty') ||
+      msg.includes('audio could not be decoded')
+    ) {
+      return '';
+    }
+    throw err;
+  }
 }
 
 module.exports = {

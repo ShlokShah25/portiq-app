@@ -720,7 +720,7 @@ const MeetingsScreen = () => {
                   <a className="meetings-subscription-banner-link" href={`${MARKETING_URL}#pricing`}>
                     See plans
                   </a>
-                </div>
+                                    </div>
               )}
               <div ref={newMeetingFormRef} className="meetings-new-meeting-form-wrap">
                 <MeetingCreateForm
@@ -731,7 +731,7 @@ const MeetingsScreen = () => {
                   maxParticipantsPerMeeting={maxParticipantsPerMeeting}
                   onMeetingCreated={fetchMeetings}
                 />
-                                    </div>
+                      </div>
                 </div>
 
             {false && selectedMeeting && (
@@ -1652,11 +1652,11 @@ const MeetingsScreen = () => {
                                 <span className="meeting-ui-badge meeting-ui-badge--platform-teams">Teams</span>
                               )}
                               <MeetingStatusBadge meeting={m} />
-                            </div>
+                  </div>
                             <div className="meeting-meta">
                               <span>{m.scheduledTime ? new Date(m.scheduledTime).toLocaleString() : 'No time set'}</span>
-                            </div>
-                          </div>
+              </div>
+          </div>
                           <button
                             type="button"
                             className="btn btn-primary meeting-item-action-btn"
@@ -1687,7 +1687,7 @@ const MeetingsScreen = () => {
                     {recentMeetings.length === 0 && (
                       <div className="meetings-list-empty">
                         <p className="info-text">No meetings yet. Start your first session.</p>
-                      </div>
+              </div>
                     )}
                     {recentMeetings.map(m => {
                       const online = isOnlineMeeting(m);
@@ -1757,7 +1757,7 @@ const MeetingsScreen = () => {
                             <span className="meeting-ui-badge meeting-ui-badge--platform-teams">Teams</span>
                           )}
                           <MeetingStatusBadge meeting={m} />
-                        </div>
+                    </div>
                     <div className="meeting-meta">
                           <span>{when ? new Date(when).toLocaleString() : '—'}</span>
                     </div>
