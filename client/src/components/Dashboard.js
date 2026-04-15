@@ -9,10 +9,13 @@ import {
   Lightbulb,
   FileText,
   Users,
+  GraduationCap,
 } from 'lucide-react';
 import './Dashboard.css';
 import { FEATURE_INTERVIEW_UI } from '../config/featureFlags';
 import { useTrialExperience } from './TrialExperienceProvider';
+import { isEducation } from '../config/product';
+import { getClassrooms } from '../utils/classroomsStorage';
 
 function buildRecentTasks(stats) {
   if (!stats) return [];
@@ -71,6 +74,12 @@ const DASHBOARD_TIPS_ALL = [
 const DASHBOARD_TIPS = FEATURE_INTERVIEW_UI
   ? DASHBOARD_TIPS_ALL
   : DASHBOARD_TIPS_ALL.filter((t) => !t.includes('Interview'));
+const DASHBOARD_TIPS_EDUCATION = [
+  'Tip: Create classrooms first, then add students directly inside each classroom.',
+  'Tip: Mention assignments and presentation deadlines clearly so reminders trigger correctly.',
+  'Tip: Use specific lesson titles to keep revision notes easy for students.',
+  'Tip: Review lesson notes before sharing with students.',
+];
 
 const DASHBOARD_SECTION_KEYS = {
   pendingSummaries: 'pendingSummaries',
@@ -149,12 +158,13 @@ function isInterviewDecisionPending(m) {
 function pickDashboardTipIndex() {
   try {
     const k = 'portiq_dashboard_tip_idx';
+    const tips = isEducation ? DASHBOARD_TIPS_EDUCATION : DASHBOARD_TIPS;
     const raw = sessionStorage.getItem(k);
     if (raw != null) {
       const n = parseInt(raw, 10);
-      if (!Number.isNaN(n)) return n % DASHBOARD_TIPS.length;
+      if (!Number.isNaN(n)) return n % tips.length;
     }
-    const idx = Math.floor(Math.random() * DASHBOARD_TIPS.length);
+    const idx = Math.floor(Math.random() * tips.length);
     sessionStorage.setItem(k, String(idx));
     return idx;
   } catch {
@@ -196,8 +206,9 @@ const Dashboard = () => {
   }, [trial?.refreshProfile]);
 
   useEffect(() => {
+    const tips = isEducation ? DASHBOARD_TIPS_EDUCATION : DASHBOARD_TIPS;
     const id = window.setInterval(() => {
-      setTipIndex((i) => (i + 1) % DASHBOARD_TIPS.length);
+      setTipIndex((i) => (i + 1) % tips.length);
     }, 6500);
     return () => window.clearInterval(id);
   }, []);
@@ -218,6 +229,29 @@ const Dashboard = () => {
   };
 
   const recentTasks = useMemo(() => buildRecentTasks(stats), [stats]);
+  const educationClassrooms = useMemo(() => (isEducation ? getClassrooms() : []), []);
+  const educationStudentCount = useMemo(
+    () =>
+      educationClassrooms.reduce(
+        (sum, c) => sum + (Array.isArray(c.studentEmails) ? c.studentEmails.length : 0),
+        0
+      ),
+    [educationClassrooms]
+  );
+  const educationSubjectsCount = useMemo(
+    () =>
+      educationClassrooms.reduce(
+        (sum, c) =>
+          sum +
+          (Array.isArray(c.subjects) && c.subjects.length > 0
+            ? c.subjects.length
+            : String(c.subject || '').trim()
+              ? 1
+              : 0),
+        0
+      ),
+    [educationClassrooms]
+  );
 
   const inProgressMeetings = useMemo(() => {
     return meetings
@@ -320,7 +354,9 @@ const Dashboard = () => {
           >
             <h1 className="dashboard-title">Dashboard</h1>
             <p className="dashboard-subtitle">
-              Run meetings. Capture outcomes. Stay aligned.
+              {isEducation
+                ? 'Run lessons. Capture outcomes. Help students revise clearly.'
+                : 'Run meetings. Capture outcomes. Stay aligned.'}
             </p>
           </header>
 
@@ -354,24 +390,50 @@ const Dashboard = () => {
             style={{ animationDelay: '45ms' }}
             id="dashboard-meetings"
           >
-            <h2 className="dashboard-start-meeting__title">Start a meeting</h2>
+            <h2 className="dashboard-start-meeting__title">{isEducation ? 'Start a lesson' : 'Start a meeting'}</h2>
             <div className="dashboard-start-meeting__actions">
               <Link
                 to="/meetings"
                 state={{ openStartModal: true }}
                 className="dashboard-btn-primary dashboard-btn-primary--hero dashboard-btn-micro"
               >
-                New Meeting
+                {isEducation ? 'New lesson' : 'New Meeting'}
               </Link>
               <Link
                 to="/meetings"
                 state={{ showAllMeetings: true }}
                 className="dashboard-btn-secondary dashboard-btn-micro"
               >
-                View Meetings
+                {isEducation ? 'View Lessons' : 'View Meetings'}
               </Link>
             </div>
           </div>
+
+          {isEducation ? (
+            <section className="dashboard-education-strip ux-dashboard-stagger" style={{ animationDelay: '56ms' }}>
+              <div className="dashboard-education-strip__title-row">
+                <GraduationCap className="dashboard-stat-chip__lucide" strokeWidth={1.5} />
+                <h2>Education workspace</h2>
+              </div>
+              <div className="dashboard-education-strip__grid">
+                <div className="dashboard-education-pill">
+                  <span className="dashboard-education-pill__k">Classrooms</span>
+                  <span className="dashboard-education-pill__v">{educationClassrooms.length}</span>
+                </div>
+                <div className="dashboard-education-pill">
+                  <span className="dashboard-education-pill__k">Students</span>
+                  <span className="dashboard-education-pill__v">{educationStudentCount}</span>
+                </div>
+                <div className="dashboard-education-pill">
+                  <span className="dashboard-education-pill__k">Subjects</span>
+                  <span className="dashboard-education-pill__v">{educationSubjectsCount}</span>
+                </div>
+              </div>
+              <p className="dashboard-education-strip__hint">
+                Students are managed inside classrooms. Subject cap is currently 7 per classroom.
+              </p>
+            </section>
+          ) : null}
 
           {hiddenCount > 0 ? (
             <div className="dashboard-section-tools">
@@ -388,7 +450,7 @@ const Dashboard = () => {
           <div className="dashboard-tip-strip" role="status" aria-live="polite">
             <Lightbulb className="dashboard-tip-strip__ic" strokeWidth={1.5} aria-hidden />
             <span key={tipIndex} className="dashboard-tip-strip__text ux-dashboard-tip-fade">
-              {DASHBOARD_TIPS[tipIndex]}
+              {(isEducation ? DASHBOARD_TIPS_EDUCATION : DASHBOARD_TIPS)[tipIndex]}
             </span>
           </div>
 
@@ -405,10 +467,12 @@ const Dashboard = () => {
                   </span>
                   <div>
                     <h2 id="dash-pending-summaries" className="dashboard-pending-summaries__title">
-                      Pending summaries
+                      {isEducation ? 'Pending lesson notes' : 'Pending summaries'}
                     </h2>
                     <p className="dashboard-pending-summaries__sub">
-                      Review and approve before they go to participants.
+                      {isEducation
+                        ? 'Review and approve before they go to students.'
+                        : 'Review and approve before they go to participants.'}
                     </p>
                   </div>
                 </div>
@@ -637,7 +701,7 @@ const Dashboard = () => {
                 <Calendar className="dashboard-stat-chip__lucide" strokeWidth={1.5} />
               </div>
               <div className="dashboard-stat-chip__body">
-                <span className="dashboard-stat-chip__label">Meetings this week</span>
+                <span className="dashboard-stat-chip__label">{isEducation ? 'Lessons this week' : 'Meetings this week'}</span>
                 <span className="dashboard-stat-chip__value">{nMeetWeek}</span>
               </div>
               <ChevronRight className="dashboard-stat-chip__chev" strokeWidth={2} aria-hidden />
@@ -651,7 +715,7 @@ const Dashboard = () => {
                 <CheckSquare className="dashboard-stat-chip__lucide" strokeWidth={1.5} />
               </div>
               <div className="dashboard-stat-chip__body">
-                <span className="dashboard-stat-chip__label">Tasks due</span>
+                <span className="dashboard-stat-chip__label">{isEducation ? 'Assignments due' : 'Tasks due'}</span>
                 <span className="dashboard-stat-chip__value">{nDueTom}</span>
               </div>
               <ChevronRight className="dashboard-stat-chip__chev" strokeWidth={2} aria-hidden />
@@ -665,7 +729,7 @@ const Dashboard = () => {
                 <AlertTriangle className="dashboard-stat-chip__lucide" strokeWidth={1.5} />
               </div>
               <div className="dashboard-stat-chip__body">
-                <span className="dashboard-stat-chip__label">Overdue tasks</span>
+                <span className="dashboard-stat-chip__label">{isEducation ? 'Overdue assignments' : 'Overdue tasks'}</span>
                 <span className="dashboard-stat-chip__value">{nOverdue}</span>
               </div>
               <ChevronRight className="dashboard-stat-chip__chev" strokeWidth={2} aria-hidden />

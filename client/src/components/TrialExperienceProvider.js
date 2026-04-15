@@ -15,6 +15,7 @@ const TrialExperienceContext = createContext(null);
 
 const ONBOARDING_KEY = 'portiq_onboarding_v1_done';
 const WELCOME_KEY = 'portiq_trial_welcome_v1_done';
+const PRODUCT_KEY = 'portiq_product';
 
 export function useTrialExperience() {
   return useContext(TrialExperienceContext);
@@ -31,7 +32,18 @@ export default function TrialExperienceProvider({ children }) {
   const refreshProfile = useCallback(async () => {
     try {
       const res = await axios.get('/admin/profile');
-      setProfile(res.data?.admin || null);
+      const admin = res.data?.admin || null;
+      setProfile(admin);
+      if (admin && typeof window !== 'undefined') {
+        const serverProduct = String(admin.productType || 'workplace').toLowerCase();
+        const localProduct = window.localStorage.getItem(PRODUCT_KEY) || 'workplace';
+        if (serverProduct && localProduct !== serverProduct) {
+          window.localStorage.setItem(PRODUCT_KEY, serverProduct);
+          // Product shell is decided at bootstrap; one reload applies mode-specific UI.
+          window.location.reload();
+          return;
+        }
+      }
     } catch {
       setProfile(null);
     } finally {

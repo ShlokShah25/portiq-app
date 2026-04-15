@@ -4,6 +4,7 @@ import axios from 'axios';
 import './AdminLogin.css';
 
 const WEBSITE_URL = process.env.REACT_APP_WEBSITE_URL || 'https://portiqtechnologies.com';
+const PRODUCT_KEY = 'portiq_product';
 
 const AdminLogin = () => {
   const navigate = useNavigate();
@@ -49,7 +50,21 @@ const AdminLogin = () => {
     if (urlToken) {
       window.localStorage.setItem('clientAdminToken', urlToken);
       axios.defaults.headers.common['Authorization'] = `Bearer ${urlToken}`;
-      navigate(next, { replace: true });
+      (async () => {
+        try {
+          const profileRes = await axios.get('/admin/profile');
+          const serverProduct = String(profileRes.data?.admin?.productType || 'workplace').toLowerCase();
+          const prev = window.localStorage.getItem(PRODUCT_KEY) || 'workplace';
+          window.localStorage.setItem(PRODUCT_KEY, serverProduct);
+          if (prev !== serverProduct) {
+            window.location.replace(next);
+            return;
+          }
+        } catch (_) {
+          // best effort only
+        }
+        navigate(next, { replace: true });
+      })();
     }
   }, [location, navigate]);
 
@@ -71,8 +86,8 @@ const AdminLogin = () => {
       }
 
       // Use server productType (Education/Workplace) so signup choice is respected.
-      // Do NOT trigger a hard reload during login flow.
       const serverProduct = (serverAdmin.productType || 'workplace').toLowerCase();
+      const prevProduct = window.localStorage.getItem(PRODUCT_KEY) || 'workplace';
       window.localStorage.setItem('portiq_product', serverProduct);
 
       window.localStorage.setItem('clientAdminToken', token);
@@ -83,6 +98,11 @@ const AdminLogin = () => {
       await syncWebsiteSession();
       if (!window.localStorage.getItem('clientAdminToken')) {
         window.location.href = WEBSITE_URL + '/#pricing';
+        return;
+      }
+      if (prevProduct !== serverProduct) {
+        // Product mode is read at app bootstrap; reload so the correct app shell mounts.
+        window.location.replace('/dashboard');
         return;
       }
       navigate('/dashboard', { replace: true });
