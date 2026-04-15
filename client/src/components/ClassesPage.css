@@ -143,3 +143,92 @@
   color: #f87171;
   border-color: #7f1d1d;
 }
+
+:root[data-theme='light'] .classes-page {
+  background:
+    radial-gradient(1200px 540px at 0% -10%, rgba(37, 99, 235, 0.08), transparent 55%),
+    radial-gradient(1000px 420px at 95% 0%, rgba(20, 184, 166, 0.07), transparent 58%),
+    #f8fafc;
+  color: #0f172a;
+}
+
+:root[data-theme='light'] .classes-header p {
+  color: #64748b;
+}
+
+:root[data-theme='light'] .classes-form {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  border: 1px solid #dbe6f3;
+  box-shadow: 0 16px 34px -28px rgba(15, 23, 42, 0.35);
+}
+
+:root[data-theme='light'] .classes-form label {
+  color: #334155;
+  font-weight: 600;
+}
+
+:root[data-theme='light'] .classes-form input,
+:root[data-theme='light'] .classes-form textarea {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+:root[data-theme='light'] .classes-form input::placeholder,
+:root[data-theme='light'] .classes-form textarea::placeholder {
+  color: #94a3b8;
+}
+
+:root[data-theme='light'] .classes-form input:focus,
+:root[data-theme='light'] .classes-form textarea:focus {
+  border-color: #2563eb;
+  box-shadow:
+    0 0 0 3px rgba(37, 99, 235, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  outline: none;
+}
+
+:root[data-theme='light'] .classes-subject-cap-note {
+  color: #64748b;
+}
+
+:root[data-theme='light'] .classes-btn-primary {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  box-shadow: 0 10px 18px -12px rgba(37, 99, 235, 0.6);
+}
+
+:root[data-theme='light'] .classes-btn-primary:hover {
+  filter: brightness(1.02);
+}
+
+:root[data-theme='light'] .classes-btn-secondary {
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+}
+
+:root[data-theme='light'] .classes-empty {
+  color: #64748b;
+}
+
+:root[data-theme='light'] .classes-table th,
+:root[data-theme='light'] .classes-table td {
+  border-bottom: 1px solid #e2e8f0;
+}
+
+:root[data-theme='light'] .classes-table th {
+  color: #64748b;
+}
+
+:root[data-theme='light'] .classes-btn-sm {
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+  background: #eff6ff;
+}
+
+:root[data-theme='light'] .classes-btn-danger {
+  color: #b91c1c;
+  border-color: #fecaca;
+  background: #fff1f2;
+}
