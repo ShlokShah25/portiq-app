@@ -16,6 +16,7 @@ const TrialExperienceContext = createContext(null);
 const ONBOARDING_KEY = 'portiq_onboarding_v1_done';
 const WELCOME_KEY = 'portiq_trial_welcome_v1_done';
 const PRODUCT_KEY = 'portiq_product';
+const PRODUCT_SYNC_FLAG_KEY = 'portiq_product_sync_once';
 
 export function useTrialExperience() {
   return useContext(TrialExperienceContext);
@@ -36,12 +37,36 @@ export default function TrialExperienceProvider({ children }) {
       setProfile(admin);
       if (admin && typeof window !== 'undefined') {
         const serverProduct = String(admin.productType || 'workplace').toLowerCase();
-        const localProduct = window.localStorage.getItem(PRODUCT_KEY) || 'workplace';
+        let localProduct = 'workplace';
+        try {
+          localProduct = window.localStorage.getItem(PRODUCT_KEY) || 'workplace';
+        } catch (_) {
+          localProduct = 'workplace';
+        }
         if (serverProduct && localProduct !== serverProduct) {
-          window.localStorage.setItem(PRODUCT_KEY, serverProduct);
-          // Product shell is decided at bootstrap; one reload applies mode-specific UI.
-          window.location.reload();
-          return;
+          try {
+            window.localStorage.setItem(PRODUCT_KEY, serverProduct);
+          } catch (_) {
+            // ignore write failures and continue without a hard reload
+          }
+          try {
+            const marker = `${localProduct}->${serverProduct}`;
+            const seen = window.sessionStorage.getItem(PRODUCT_SYNC_FLAG_KEY);
+            if (seen !== marker) {
+              window.sessionStorage.setItem(PRODUCT_SYNC_FLAG_KEY, marker);
+              // Product shell is decided at bootstrap; one guarded reload applies mode-specific UI.
+              window.location.reload();
+              return;
+            }
+          } catch (_) {
+            // If session storage is unavailable, avoid repeated reload attempts.
+          }
+        } else {
+          try {
+            window.sessionStorage.removeItem(PRODUCT_SYNC_FLAG_KEY);
+          } catch (_) {
+            // ignore
+          }
         }
       }
     } catch {

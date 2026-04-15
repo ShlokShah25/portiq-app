@@ -5,6 +5,7 @@ import './AdminLogin.css';
 
 const WEBSITE_URL = process.env.REACT_APP_WEBSITE_URL || 'https://portiqtechnologies.com';
 const PRODUCT_KEY = 'portiq_product';
+const PRODUCT_SYNC_FLAG_KEY = 'portiq_product_sync_once';
 
 const AdminLogin = () => {
   const navigate = useNavigate();
@@ -18,6 +19,24 @@ const AdminLogin = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  const syncProductAndMaybeReload = (nextPath, serverProduct) => {
+    const prevProduct = window.localStorage.getItem(PRODUCT_KEY) || 'workplace';
+    window.localStorage.setItem(PRODUCT_KEY, serverProduct);
+    if (prevProduct === serverProduct) return false;
+    try {
+      const marker = `${prevProduct}->${serverProduct}`;
+      const seen = window.sessionStorage.getItem(PRODUCT_SYNC_FLAG_KEY);
+      if (seen === marker) {
+        return false;
+      }
+      window.sessionStorage.setItem(PRODUCT_SYNC_FLAG_KEY, marker);
+    } catch (_) {
+      // If sessionStorage is unavailable, continue with a single best-effort hard nav.
+    }
+    window.location.replace(nextPath);
+    return true;
+  };
 
   const syncWebsiteSession = async () => {
     try {
@@ -58,10 +77,7 @@ const AdminLogin = () => {
         try {
           const profileRes = await axios.get('/admin/profile');
           const serverProduct = String(profileRes.data?.admin?.productType || 'workplace').toLowerCase();
-          const prev = window.localStorage.getItem(PRODUCT_KEY) || 'workplace';
-          window.localStorage.setItem(PRODUCT_KEY, serverProduct);
-          if (prev !== serverProduct) {
-            window.location.replace(next);
+          if (syncProductAndMaybeReload(next, serverProduct)) {
             return;
           }
         } catch (_) {
@@ -99,19 +115,15 @@ const AdminLogin = () => {
           throw new Error('Signup succeeded but login token was not returned.');
         }
         const serverProduct = String(serverUser.productType || productType || 'workplace').toLowerCase();
-        const prevProduct = window.localStorage.getItem(PRODUCT_KEY) || 'workplace';
-        window.localStorage.setItem(PRODUCT_KEY, serverProduct);
         window.localStorage.setItem('clientAdminToken', token);
         const subscribed =
           !!serverUser.hasActiveSubscription || !!serverUser.complimentaryAccess;
         window.localStorage.setItem('portiq_has_subscription', subscribed ? 'true' : 'false');
         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        const didHardNav = syncProductAndMaybeReload('/dashboard', serverProduct);
+        if (didHardNav) return;
         await syncWebsiteSession();
         setSuccess('Account created. Starting your trial…');
-        if (prevProduct !== serverProduct) {
-          window.location.replace('/dashboard');
-          return;
-        }
         navigate('/dashboard', { replace: true });
         return;
       }
@@ -128,22 +140,16 @@ const AdminLogin = () => {
 
       // Use server productType (Education/Workplace) so signup choice is respected.
       const serverProduct = (serverAdmin.productType || 'workplace').toLowerCase();
-      const prevProduct = window.localStorage.getItem(PRODUCT_KEY) || 'workplace';
-      window.localStorage.setItem('portiq_product', serverProduct);
-
       window.localStorage.setItem('clientAdminToken', token);
       const subscribed =
         !!serverAdmin.hasActiveSubscription || !!serverAdmin.complimentaryAccess;
       window.localStorage.setItem('portiq_has_subscription', subscribed ? 'true' : 'false');
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      const didHardNav = syncProductAndMaybeReload('/dashboard', serverProduct);
+      if (didHardNav) return;
       await syncWebsiteSession();
       if (!window.localStorage.getItem('clientAdminToken')) {
         window.location.href = WEBSITE_URL + '/#pricing';
-        return;
-      }
-      if (prevProduct !== serverProduct) {
-        // Product mode is read at app bootstrap; reload so the correct app shell mounts.
-        window.location.replace('/dashboard');
         return;
       }
       navigate('/dashboard', { replace: true });
