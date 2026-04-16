@@ -101,6 +101,7 @@ function resetAllState(setters) {
   setters.setScheduledTime(d.time);
   setters.setLiveLocation('');
   setters.setSelectedClassroomId('');
+  if (setters.setSelectedSubject) setters.setSelectedSubject('');
   setters.setSelectedBookEmails([]);
   setters.setParticipantBook([]);
   setters.setParticipantBookError('');
@@ -138,6 +139,7 @@ export default function MeetingCreateForm({
   const [organizer, setOrganizer] = useState('');
   const [liveLocation, setLiveLocation] = useState('');
   const [selectedClassroomId, setSelectedClassroomId] = useState('');
+  const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedBookEmails, setSelectedBookEmails] = useState([]);
   const [participantBook, setParticipantBook] = useState([]);
   const [participantBookError, setParticipantBookError] = useState('');
@@ -187,6 +189,7 @@ export default function MeetingCreateForm({
       setScheduledTime,
       setLiveLocation,
       setSelectedClassroomId,
+      setSelectedSubject,
       setSelectedBookEmails,
       setParticipantBook,
       setParticipantBookError,
@@ -359,11 +362,24 @@ export default function MeetingCreateForm({
   const payloadParticipants = () => {
     if (isEducation && selectedClassroomId) {
       const classroom = getClassrooms().find((c) => c.id === selectedClassroomId);
-      return (classroom?.studentEmails || []).map((email) => ({
+      const students = (classroom?.studentEmails || []).map((email) => ({
         name: email.split('@')[0],
         email: email.trim(),
         role: 'participant',
       }));
+      const assignments = Array.isArray(classroom?.subjectAssignments)
+        ? classroom.subjectAssignments
+        : [];
+      const activeAssignment = assignments.find((x) => String(x.subject || '') === selectedSubject);
+      const teacherEmail = String(activeAssignment?.teacherEmail || '').trim().toLowerCase();
+      if (teacherEmail && !students.some((p) => p.email.toLowerCase() === teacherEmail)) {
+        students.unshift({
+          name: String(activeAssignment?.teacherName || '').trim() || teacherEmail.split('@')[0],
+          email: teacherEmail,
+          role: 'teacher',
+        });
+      }
+      return students;
     }
     return selectedBookEmails.map((email) => {
       const em = String(email).trim().toLowerCase();
@@ -382,6 +398,32 @@ export default function MeetingCreateForm({
     if (!isEducation || !selectedClassroomId) return null;
     return getClassrooms().find((c) => c.id === selectedClassroomId) || null;
   }, [selectedClassroomId]);
+
+  const selectedClassroomAssignments = useMemo(() => {
+    if (!selectedClassroom) return [];
+    if (Array.isArray(selectedClassroom.subjectAssignments) && selectedClassroom.subjectAssignments.length) {
+      return selectedClassroom.subjectAssignments;
+    }
+    const legacy = Array.isArray(selectedClassroom.subjects) ? selectedClassroom.subjects : [];
+    return legacy.map((s) => ({ subject: s, teacherName: '', teacherEmail: '' }));
+  }, [selectedClassroom]);
+
+  const selectedSubjectAssignment = useMemo(
+    () =>
+      selectedClassroomAssignments.find((x) => String(x.subject || '') === String(selectedSubject || '')) || null,
+    [selectedClassroomAssignments, selectedSubject]
+  );
+
+  useEffect(() => {
+    if (!isEducation || !selectedClassroomId) return;
+    if (!selectedClassroomAssignments.length) {
+      setSelectedSubject('');
+      return;
+    }
+    if (!selectedClassroomAssignments.some((x) => x.subject === selectedSubject)) {
+      setSelectedSubject(selectedClassroomAssignments[0].subject);
+    }
+  }, [isEducation, selectedClassroomId, selectedClassroomAssignments, selectedSubject]);
 
   const validateCommon = () => {
     if (!scheduledDate || !scheduledTime) {
@@ -429,6 +471,10 @@ export default function MeetingCreateForm({
       }
     }
     if (isEducation && !selectedClassroomId) return 'Select a classroom.';
+    if (isEducation && !selectedSubject) return 'Select a subject.';
+    if (isEducation && !selectedSubjectAssignment?.teacherEmail) {
+      return 'Selected subject is missing teacher email. Update classroom mapping first.';
+    }
     if (isEducation && selectedClassroom && Array.isArray(selectedClassroom.subjects) && selectedClassroom.subjects.length > 7) {
       return 'This classroom exceeds the current subject cap (7). Edit classroom subjects first.';
     }
@@ -465,6 +511,15 @@ export default function MeetingCreateForm({
       authorizedEditorEmail: authorizedEditorEmail.trim() || undefined,
       transcriptionEnabled: true,
       meetingRoom: room,
+      educationClassroomId: isEducation ? selectedClassroomId : undefined,
+      educationClassroomName: isEducation ? String(selectedClassroom?.className || '').trim() : undefined,
+      educationSubject: isEducation ? selectedSubject : undefined,
+      educationTeacherName: isEducation
+        ? String(selectedSubjectAssignment?.teacherName || '').trim()
+        : undefined,
+      educationTeacherEmail: isEducation
+        ? String(selectedSubjectAssignment?.teacherEmail || '').trim().toLowerCase()
+        : undefined,
       summaryMode: isEducation ? 'standard' : summaryModeEffective === 'interview' ? 'interview' : 'standard',
       interviewInterviewerEmails:
         !isEducation && summaryModeEffective === 'interview'
@@ -753,6 +808,33 @@ export default function MeetingCreateForm({
                       <p className="start-meeting-field-hint">
                         Subjects: {selectedClassroom.subjects.slice(0, 7).join(', ')}
                       </p>
+                    ) : null}
+                    {selectedClassroomAssignments.length > 0 ? (
+                      <>
+                        <FieldLabel htmlFor="sm-subject" icon={FileText}>
+                          Subject
+                        </FieldLabel>
+                        <select
+                          id="sm-subject"
+                          value={selectedSubject}
+                          onChange={(e) => setSelectedSubject(e.target.value)}
+                          required
+                          disabled={formDisabled}
+                        >
+                          <option value="">Select subject</option>
+                          {selectedClassroomAssignments.map((row) => (
+                            <option key={row.subject} value={row.subject}>
+                              {row.subject}
+                            </option>
+                          ))}
+                        </select>
+                        {selectedSubjectAssignment ? (
+                          <p className="start-meeting-field-hint">
+                            Teacher: {selectedSubjectAssignment.teacherName || 'Assigned teacher'} (
+                            {selectedSubjectAssignment.teacherEmail || 'no email'})
+                          </p>
+                        ) : null}
+                      </>
                     ) : null}
                   </div>
                 )}

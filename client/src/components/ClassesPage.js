@@ -8,15 +8,19 @@ import {
 } from '../utils/classroomsStorage';
 import './ClassesPage.css';
 
+function emptyAssignment() {
+  return { subject: '', teacherName: '', teacherEmail: '' };
+}
+
 const ClassesPage = () => {
   const [classrooms, setClassrooms] = useState([]);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({
     className: '',
-    subjectsStr: '',
-    teacher: '',
+    subjectAssignments: [emptyAssignment()],
     studentEmailsStr: ''
   });
+  const [error, setError] = useState('');
 
   const load = () => setClassrooms(getClassrooms());
 
@@ -25,7 +29,8 @@ const ClassesPage = () => {
   }, []);
 
   const resetForm = () => {
-    setForm({ className: '', subjectsStr: '', teacher: '', studentEmailsStr: '' });
+    setForm({ className: '', subjectAssignments: [emptyAssignment()], studentEmailsStr: '' });
+    setError('');
     setEditing(null);
   };
 
@@ -35,30 +40,58 @@ const ClassesPage = () => {
       .map((e) => e.trim().toLowerCase())
       .filter(Boolean);
 
-  const subjectsFromStr = (str) =>
-    str
-      .split(/[\n,;]+/)
-      .map((s) => s.trim())
-      .filter(Boolean)
-      .filter((s, i, arr) => arr.findIndex((x) => x.toLowerCase() === s.toLowerCase()) === i)
-      .slice(0, MAX_SUBJECTS_PER_CLASSROOM);
+  const normalizeAssignments = (rows) => {
+    const out = [];
+    const seen = new Set();
+    for (const row of Array.isArray(rows) ? rows : []) {
+      const subject = String(row?.subject || '').trim();
+      const teacherName = String(row?.teacherName || '').trim();
+      const teacherEmail = String(row?.teacherEmail || '').trim().toLowerCase();
+      if (!subject && !teacherName && !teacherEmail) continue;
+      const key = subject.toLowerCase();
+      if (!subject || seen.has(key)) continue;
+      seen.add(key);
+      out.push({ subject, teacherName, teacherEmail });
+      if (out.length >= MAX_SUBJECTS_PER_CLASSROOM) break;
+    }
+    return out;
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    setError('');
     const studentEmails = studentEmailsFromStr(form.studentEmailsStr);
-    const subjects = subjectsFromStr(form.subjectsStr);
+    const subjectAssignments = normalizeAssignments(form.subjectAssignments);
+    if (subjectAssignments.length === 0) {
+      setError('Add at least one subject-teacher mapping.');
+      return;
+    }
+    const missingTeacherEmail = subjectAssignments.find((x) => !x.teacherEmail);
+    if (missingTeacherEmail) {
+      setError(`Add teacher email for "${missingTeacherEmail.subject}".`);
+      return;
+    }
+    const emailInvalid = subjectAssignments.find(
+      (x) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(x.teacherEmail || ''))
+    );
+    if (emailInvalid) {
+      setError(`Enter a valid teacher email for "${emailInvalid.subject}".`);
+      return;
+    }
     if (editing) {
       updateClassroom(editing.id, {
         className: form.className.trim(),
-        subjects,
-        teacher: form.teacher.trim(),
+        subjectAssignments,
+        subjects: subjectAssignments.map((x) => x.subject),
+        teacher: '',
         studentEmails
       });
     } else {
       createClassroom({
         className: form.className.trim(),
-        subjects,
-        teacher: form.teacher.trim(),
+        subjectAssignments,
+        subjects: subjectAssignments.map((x) => x.subject),
+        teacher: '',
         studentEmails
       });
     }
@@ -67,11 +100,19 @@ const ClassesPage = () => {
   };
 
   const handleEdit = (c) => {
+    const rows =
+      Array.isArray(c.subjectAssignments) && c.subjectAssignments.length > 0
+        ? c.subjectAssignments
+        : (Array.isArray(c.subjects) ? c.subjects : [])
+            .map((subject) => ({
+              subject,
+              teacherName: c.teacher || '',
+              teacherEmail: '',
+            }));
     setEditing(c);
     setForm({
       className: c.className || '',
-      subjectsStr: Array.isArray(c.subjects) ? c.subjects.join(', ') : c.subject || '',
-      teacher: c.teacher || '',
+      subjectAssignments: rows.length ? rows : [emptyAssignment()],
       studentEmailsStr: (c.studentEmails || []).join('\n')
     });
   };
@@ -82,6 +123,29 @@ const ClassesPage = () => {
       load();
       resetForm();
     }
+  };
+
+  const updateAssignment = (index, field, value) => {
+    setForm((prev) => ({
+      ...prev,
+      subjectAssignments: prev.subjectAssignments.map((row, i) =>
+        i === index ? { ...row, [field]: value } : row
+      ),
+    }));
+  };
+
+  const addAssignment = () => {
+    setForm((prev) => {
+      if (prev.subjectAssignments.length >= MAX_SUBJECTS_PER_CLASSROOM) return prev;
+      return { ...prev, subjectAssignments: [...prev.subjectAssignments, emptyAssignment()] };
+    });
+  };
+
+  const removeAssignment = (index) => {
+    setForm((prev) => {
+      const next = prev.subjectAssignments.filter((_, i) => i !== index);
+      return { ...prev, subjectAssignments: next.length ? next : [emptyAssignment()] };
+    });
   };
 
   return (
@@ -103,26 +167,63 @@ const ClassesPage = () => {
                 required
               />
             </label>
-            <label>
-              Subjects (max {MAX_SUBJECTS_PER_CLASSROOM})
-              <input
-                value={form.subjectsStr}
-                onChange={(e) => setForm({ ...form, subjectsStr: e.target.value })}
-                placeholder="e.g. Mathematics, Physics, Chemistry"
-              />
-            </label>
-            <label>
-              Teacher
-              <input
-                value={form.teacher}
-                onChange={(e) => setForm({ ...form, teacher: e.target.value })}
-                placeholder="Teacher name or email"
-              />
-            </label>
+          </div>
+          <div className="classes-assignments-head">
+            <h3>Subjects & teachers (max {MAX_SUBJECTS_PER_CLASSROOM})</h3>
+            <button
+              type="button"
+              className="classes-btn-secondary"
+              onClick={addAssignment}
+              disabled={form.subjectAssignments.length >= MAX_SUBJECTS_PER_CLASSROOM}
+            >
+              Add subject
+            </button>
+          </div>
+          <div className="classes-assignments-list">
+            {form.subjectAssignments.map((row, index) => (
+              <div className="classes-assignment-row" key={`${index}-${row.subject}`}>
+                <label>
+                  Subject
+                  <input
+                    value={row.subject}
+                    onChange={(e) => updateAssignment(index, 'subject', e.target.value)}
+                    placeholder="e.g. Mathematics"
+                    required
+                  />
+                </label>
+                <label>
+                  Teacher Name
+                  <input
+                    value={row.teacherName}
+                    onChange={(e) => updateAssignment(index, 'teacherName', e.target.value)}
+                    placeholder="e.g. Ms. Sarah"
+                  />
+                </label>
+                <label>
+                  Teacher Email
+                  <input
+                    type="email"
+                    value={row.teacherEmail}
+                    onChange={(e) => updateAssignment(index, 'teacherEmail', e.target.value)}
+                    placeholder="teacher@school.edu"
+                    required
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="classes-btn-sm classes-btn-danger"
+                  onClick={() => removeAssignment(index)}
+                  disabled={form.subjectAssignments.length === 1}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
           </div>
           <p className="classes-subject-cap-note">
-            Custom subjects allowed. You can add up to {MAX_SUBJECTS_PER_CLASSROOM} subjects per classroom.
+            Each subject maps to one teacher. Teacher email is used for lecture tracking and notifications.
           </p>
+          {error ? <p className="classes-error">{error}</p> : null}
           <label className="classes-form-full">
             Student Emails (one per line or comma-separated)
             <textarea
@@ -153,8 +254,7 @@ const ClassesPage = () => {
               <thead>
                 <tr>
                   <th>Class Name</th>
-                  <th>Subjects</th>
-                  <th>Teacher</th>
+                  <th>Subject Mappings</th>
                   <th>Students</th>
                   <th>Actions</th>
                 </tr>
@@ -163,8 +263,19 @@ const ClassesPage = () => {
                 {classrooms.map((c) => (
                   <tr key={c.id}>
                     <td>{c.className}</td>
-                    <td>{Array.isArray(c.subjects) && c.subjects.length ? c.subjects.join(', ') : '—'}</td>
-                    <td>{c.teacher || '—'}</td>
+                    <td>
+                      {Array.isArray(c.subjectAssignments) && c.subjectAssignments.length ? (
+                        <div className="classes-table-mappings">
+                          {c.subjectAssignments.map((row) => (
+                            <span key={`${c.id}-${row.subject}`} className="classes-mapping-pill">
+                              {row.subject}: {row.teacherName || 'Teacher'} ({row.teacherEmail || '—'})
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
                     <td>{(c.studentEmails || []).length}</td>
                     <td>
                       <button type="button" className="classes-btn-sm" onClick={() => handleEdit(c)}>

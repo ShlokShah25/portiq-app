@@ -1,5 +1,7 @@
 .env
 node_modules
+client/node_modules/
+admin/node_modules/
 uploads
 *.webm
 *.mp4

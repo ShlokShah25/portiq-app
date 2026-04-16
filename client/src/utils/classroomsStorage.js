@@ -21,13 +21,43 @@ function normalizeSubjects(input) {
   return out;
 }
 
+function normalizeSubjectAssignments(input, fallbackTeacher = '') {
+  const arr = Array.isArray(input) ? input : [];
+  const out = [];
+  const seen = new Set();
+  for (const raw of arr) {
+    const subject = String(raw?.subject || raw?.name || '').trim();
+    if (!subject) continue;
+    const key = subject.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      subject,
+      teacherName: String(raw?.teacherName || raw?.teacher || fallbackTeacher || '').trim(),
+      teacherEmail: String(raw?.teacherEmail || '').trim().toLowerCase(),
+    });
+    if (out.length >= MAX_SUBJECTS_PER_CLASSROOM) break;
+  }
+  return out;
+}
+
 function normalizeClassroomShape(c) {
-  const subjects =
+  const legacySubjects =
     Array.isArray(c?.subjects) && c.subjects.length > 0
       ? normalizeSubjects(c.subjects)
       : normalizeSubjects(c?.subject || '');
+  let subjectAssignments = normalizeSubjectAssignments(c?.subjectAssignments, c?.teacher);
+  if (subjectAssignments.length === 0 && legacySubjects.length > 0) {
+    subjectAssignments = legacySubjects.map((s) => ({
+      subject: s,
+      teacherName: String(c?.teacher || '').trim(),
+      teacherEmail: '',
+    }));
+  }
+  const subjects = subjectAssignments.map((x) => x.subject);
   return {
     ...c,
+    subjectAssignments,
     subjects,
     // Keep legacy single subject field for backward compatibility in older UI paths.
     subject: subjects[0] || '',
@@ -56,6 +86,7 @@ export function createClassroom(classroom) {
   const newOne = normalizeClassroomShape({
     id,
     ...classroom,
+    subjectAssignments: classroom?.subjectAssignments ?? [],
     subjects: classroom?.subjects ?? classroom?.subject ?? [],
     studentEmails: classroom?.studentEmails || [],
   });
@@ -71,6 +102,10 @@ export function updateClassroom(id, updates) {
   list[idx] = normalizeClassroomShape({
     ...list[idx],
     ...updates,
+    subjectAssignments:
+      updates?.subjectAssignments !== undefined
+        ? updates?.subjectAssignments
+        : list[idx].subjectAssignments,
     subjects:
       updates?.subjects !== undefined || updates?.subject !== undefined
         ? updates?.subjects ?? updates?.subject
