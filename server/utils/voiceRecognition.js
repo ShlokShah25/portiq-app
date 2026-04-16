@@ -19,6 +19,13 @@ const execPromise = util.promisify(exec);
  * Tune via env: VOICE_MATCH_STRICT, VOICE_PYANNOTE_MIN, VOICE_FFT_MIN, VOICE_MATCH_MARGIN,
  * VOICE_SINGLE_PYANNOTE_MIN, VOICE_SINGLE_FFT_MIN, VOICE_FFT_CONFIRM_MIN,
  * VOICE_SINGLE_PYANNOTE_RELAXED, VOICE_SINGLE_FFT_RELAXED, VOICE_ENROLL_MIN_SECONDS, VOICE_ENROLL_MIN_RMS.
+ * Identification uses the same band-limit + dynaudnorm chain as enrollment when
+ * VOICE_IDENTIFICATION_CLEAN_AUDIO is true (default), so live chunks match stored embeddings.
+ * VOICE_VAD_TRIM_SILENCE_DB (35–55, default 50): silenceremove threshold in dB — higher = only trim very quiet silence.
+ * 3+ enrolled: VOICE_MULTI_CONFIDENT_MIN (default 0.75) accepts best match; below that VOICE_MULTI_CLOSEST_FLOOR
+ * (default 0.5) picks closest embedding — avoids “all unidentified” when scores are weak but ordered.
+ * 2 enrolled: VOICE_CONFIDENT_PICK_MIN (default 0.75) picks best py/fft top-1 when the dual-speaker block did not
+ * already choose (keeps single-speaker labels; pooled [A/B] in text stays rare).
  *
  * Identification: pyannote first when available; if confidence/margin fails, FFT can confirm the same
  * person (same email top-1 on both) or fall back to FFT-only scoring when enrollments are FFT-sized.
@@ -53,12 +60,19 @@ async function preprocessAudioForEmbedding(audioFilePath) {
   if (!ffmpeg) return audioFilePath;
 
   const outputPath = audioFilePath.replace(/\.[^.]+$/, '_trimmed_for_vad.wav');
+  // Quieter than -40dB: laptop mics often sit around -45…-50dB RMS; treat only true silence as silence.
+  const db = Math.min(
+    55,
+    Math.max(35, parseInt(process.env.VOICE_VAD_TRIM_SILENCE_DB || '50', 10) || 50)
+  );
 
   return new Promise((resolve, reject) => {
     // Use silenceremove to trim silence at beginning and end
     // Threshold and duration are conservative to avoid cutting speech.
     ffmpeg(audioFilePath)
-      .audioFilters('silenceremove=start_periods=1:start_silence=0.3:start_threshold=-40dB:stop_periods=1:stop_silence=0.5:stop_threshold=-40dB')
+      .audioFilters(
+        `silenceremove=start_periods=1:start_silence=0.3:start_threshold=-${db}dB:stop_periods=1:stop_silence=0.5:stop_threshold=-${db}dB`
+      )
       .outputOptions(['-ac', '1', '-ar', '16000'])
       .on('end', () => {
         resolve(outputPath);
@@ -72,17 +86,26 @@ async function preprocessAudioForEmbedding(audioFilePath) {
 }
 
 /**
- * Extra ffmpeg pass for enrollment: speech band + gentle dynamics (helps noisy mics / room hum).
- * Returns a temp .wav path or null to use input unchanged.
+ * Speech band + gentle dynamics — same chain for enrollment samples and meeting chunks
+ * so pyannote/FFT scores are comparable to stored profiles (especially quiet laptop mics).
+ * @param {'enrollment'|'identification'} mode
+ * @returns temp .wav path or null
  */
-function tryFfmpegCleanVoiceEnrollmentSync(inputPath) {
+function tryFfmpegNormalizeVoiceAudioSync(inputPath, mode) {
   if (!inputPath || !fs.existsSync(inputPath)) return null;
-  if (String(process.env.VOICE_ENROLLMENT_CLEAN_AUDIO || 'true').toLowerCase() === 'false') {
+  const envForMode =
+    mode === 'enrollment'
+      ? process.env.VOICE_ENROLLMENT_CLEAN_AUDIO
+      : process.env.VOICE_IDENTIFICATION_CLEAN_AUDIO != null
+        ? process.env.VOICE_IDENTIFICATION_CLEAN_AUDIO
+        : process.env.VOICE_ENROLLMENT_CLEAN_AUDIO;
+  if (String(envForMode || 'true').toLowerCase() === 'false') {
     return null;
   }
+  const prefix = mode === 'enrollment' ? 'portiq_enroll_norm' : 'portiq_ident_norm';
   const out = path.join(
     os.tmpdir(),
-    `portiq_enroll_clean_${Date.now()}_${Math.random().toString(36).slice(2, 10)}.wav`
+    `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}.wav`
   );
   try {
     execFileSync(
@@ -112,7 +135,10 @@ function tryFfmpegCleanVoiceEnrollmentSync(inputPath) {
     }
     return out;
   } catch (e) {
-    console.warn('⚠️  Voice enrollment clean step failed, using VAD-trimmed audio:', e.message || e);
+    console.warn(
+      `⚠️  Voice ${mode} normalize step failed, using previous stage:`,
+      e.message || e
+    );
     try {
       if (fs.existsSync(out)) fs.unlinkSync(out);
     } catch (_) {
@@ -120,6 +146,11 @@ function tryFfmpegCleanVoiceEnrollmentSync(inputPath) {
     }
     return null;
   }
+}
+
+/** @deprecated use tryFfmpegNormalizeVoiceAudioSync(path, 'enrollment') */
+function tryFfmpegCleanVoiceEnrollmentSync(inputPath) {
+  return tryFfmpegNormalizeVoiceAudioSync(inputPath, 'enrollment');
 }
 
 /**
@@ -193,7 +224,7 @@ async function generateVoiceEmbedding(audioFilePath) {
     processedPath = await preprocessAudioForEmbedding(audioFilePath);
 
     // Crystal-clear chain: band-limit + dynamics on top of trim (temp file cleaned up below)
-    cleanPath = tryFfmpegCleanVoiceEnrollmentSync(processedPath);
+    cleanPath = tryFfmpegNormalizeVoiceAudioSync(processedPath, 'enrollment');
     const embeddingPath = cleanPath || processedPath;
 
     const py = await tryPyannoteEmbedding(embeddingPath);
@@ -833,6 +864,20 @@ function updateSessionCentroid(ctx, email, embedding) {
   c.n += 1;
 }
 
+/** Best of pyannote vs FFT top-1 (for multi-speaker fallbacks). */
+function pickBestMergedScoredCandidate(scoredPy, scoredFft) {
+  const cands = [];
+  if (scoredPy && scoredPy[0]) {
+    cands.push({ profile: scoredPy[0].profile, score: scoredPy[0].score, kind: 'pyannote' });
+  }
+  if (scoredFft && scoredFft[0]) {
+    cands.push({ profile: scoredFft[0].profile, score: scoredFft[0].score, kind: 'fft' });
+  }
+  if (!cands.length) return null;
+  cands.sort((a, b) => b.score - a.score);
+  return cands[0];
+}
+
 function maxStoredProfileSimilarity(scored) {
   let maxSim = 0;
   for (let i = 0; i < scored.length; i++) {
@@ -943,16 +988,21 @@ function resolveSimilarVoicesWithSession(
  * Default strict = true (workspace-safe). Set VOICE_MATCH_STRICT=false for legacy looser behavior.
  */
 async function identifySpeaker(audioFilePath, voiceProfiles, sessionContext = null) {
+  let processedPath = null;
+  let cleanPath = null;
   try {
     if (!fs.existsSync(audioFilePath)) {
       throw new Error('Audio file not found');
     }
 
-    const processedPath = await preprocessAudioForEmbedding(audioFilePath);
-    const pyEmb = await tryPyannoteEmbedding(processedPath);
+    processedPath = await preprocessAudioForEmbedding(audioFilePath);
+    cleanPath = tryFfmpegNormalizeVoiceAudioSync(processedPath, 'identification');
+    const embeddingPath = cleanPath || processedPath;
+
+    const pyEmb = await tryPyannoteEmbedding(embeddingPath);
     let fftEmb = null;
     try {
-      fftEmb = await generateFftMelVoiceEmbedding(processedPath);
+      fftEmb = await generateFftMelVoiceEmbedding(embeddingPath);
     } catch (fftErr) {
       console.warn('⚠️  FFT embedding for speaker match failed:', fftErr.message || fftErr);
     }
@@ -1132,11 +1182,10 @@ async function identifySpeaker(audioFilePath, voiceProfiles, sessionContext = nu
       }
     }
 
-    // Small groups (2-4 enrolled voices): prefer closest match instead of giving up,
-    // using slightly relaxed minimums and optional FFT confirmation when both agree.
-    if (!chosen && profiles.length >= 2 && profiles.length <= 4) {
-      const smallPyMin = parseThresholdEnv('VOICE_SMALL_GROUP_PY_MIN', 0.8, 0.68, 0.98);
-      const smallFftMin = parseThresholdEnv('VOICE_SMALL_GROUP_FFT_MIN', 0.78, 0.62, 0.96);
+    // Exactly two enrolled: prefer a single label at ≥75% when scores support it (aligned with VOICE_CONFIDENT_PICK_MIN).
+    if (!chosen && profiles.length === 2) {
+      const smallPyMin = parseThresholdEnv('VOICE_SMALL_GROUP_PY_MIN', 0.75, 0.65, 0.98);
+      const smallFftMin = parseThresholdEnv('VOICE_SMALL_GROUP_FFT_MIN', 0.75, 0.6, 0.96);
 
       const bestPy = scoredPy[0];
       const bestFft = scoredFft[0];
@@ -1175,6 +1224,54 @@ async function identifySpeaker(audioFilePath, voiceProfiles, sessionContext = nu
       }
     }
 
+    if (!chosen && profiles.length === 2) {
+      const merged = pickBestMergedScoredCandidate(scoredPy, scoredFft);
+      const confPick = parseThresholdEnv('VOICE_CONFIDENT_PICK_MIN', 0.75, 0.6, 0.92);
+      if (merged && merged.score >= confPick) {
+        const emb = merged.kind === 'pyannote' ? pyEmb : fftEmb;
+        if (emb) {
+          chosen = {
+            profile: merged.profile,
+            confidence: merged.score,
+            tieBreak: 'dual_confident_pick',
+          };
+          embeddingForSession = emb;
+          embeddingKind = merged.kind;
+        }
+      }
+    }
+
+    // Three or more enrolled: never leave the chunk unidentified if we have any ranked score —
+    // use ≥75% as high confidence; else pick closest above a floor (embedding “nearest neighbour”).
+    if (!chosen && profiles.length >= 3) {
+      const merged = pickBestMergedScoredCandidate(scoredPy, scoredFft);
+      const confMin = parseThresholdEnv('VOICE_MULTI_CONFIDENT_MIN', 0.75, 0.55, 0.92);
+      const closestFloor = parseThresholdEnv('VOICE_MULTI_CLOSEST_FLOOR', 0.5, 0.35, 0.72);
+      if (merged && merged.score >= confMin) {
+        const emb = merged.kind === 'pyannote' ? pyEmb : fftEmb;
+        if (emb) {
+          chosen = {
+            profile: merged.profile,
+            confidence: merged.score,
+            tieBreak: 'multi_three_plus_confident',
+          };
+          embeddingForSession = emb;
+          embeddingKind = merged.kind;
+        }
+      } else if (merged && merged.score >= closestFloor) {
+        const emb = merged.kind === 'pyannote' ? pyEmb : fftEmb;
+        if (emb) {
+          chosen = {
+            profile: merged.profile,
+            confidence: merged.score,
+            tieBreak: 'multi_three_plus_closest',
+          };
+          embeddingForSession = emb;
+          embeddingKind = merged.kind;
+        }
+      }
+    }
+
     if (!chosen) return null;
 
     applySession(chosen, embeddingForSession, embeddingKind);
@@ -1184,6 +1281,19 @@ async function identifySpeaker(audioFilePath, voiceProfiles, sessionContext = nu
   } catch (error) {
     console.error('Error identifying speaker:', error);
     return null;
+  } finally {
+    try {
+      if (cleanPath && fs.existsSync(cleanPath)) fs.unlinkSync(cleanPath);
+    } catch (_) {
+      /* ignore */
+    }
+    try {
+      if (processedPath && processedPath !== audioFilePath && fs.existsSync(processedPath)) {
+        fs.unlinkSync(processedPath);
+      }
+    } catch (_) {
+      /* ignore */
+    }
   }
 }
 

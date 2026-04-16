@@ -1202,6 +1202,135 @@ function truncateVoiceEvidenceForPrompt(text, maxChars) {
   return `${t.slice(0, half)}\n\n[... omitted middle of voice timeline ...]\n\n${t.slice(-half)}`;
 }
 
+/** True when every invited participant (valid email on the meeting) has a VoiceProfile row. */
+async function allMeetingParticipantsHaveVoiceProfiles(meetingObj) {
+  if (!meetingObj) return { ok: false, profiles: [] };
+  try {
+    const emails = [
+      ...new Set(
+        (meetingObj.participants || [])
+          .filter((p) => p && isValidEmailForLookup(p.email))
+          .map((p) => String(p.email).trim().toLowerCase())
+      ),
+    ];
+    if (!emails.length) return { ok: false, profiles: [] };
+    const profiles = await VoiceProfile.find({ email: { $in: emails } }).select('name email').lean();
+    const byEmail = new Map(profiles.map((p) => [String(p.email).toLowerCase(), p]));
+    const ok = emails.every((e) => byEmail.has(e));
+    return {
+      ok,
+      profiles: ok ? emails.map((e) => byEmail.get(e)).filter(Boolean) : [],
+    };
+  } catch (e) {
+    console.warn('⚠️ allMeetingParticipantsHaveVoiceProfiles:', e.message || e);
+    return { ok: false, profiles: [] };
+  }
+}
+
+/**
+ * Most common concrete [Name] in the voice timeline for 2+ participants. Returns null on tie or no signal
+ * so the caller may keep a rare [A / B] pooled label only when the timeline doesn’t favor one person.
+ */
+function dominantSpeakerNameFromVoiceEvidence(voiceEvidenceText, participantProfiles) {
+  const t = String(voiceEvidenceText || '');
+  if (!t || !participantProfiles || participantProfiles.length < 2) return null;
+  const displayByLower = new Map();
+  for (const p of participantProfiles) {
+    const display = String(p.name || '').trim() || String(p.email || '').trim();
+    if (!display) continue;
+    displayByLower.set(display.toLowerCase(), display);
+  }
+  if (!displayByLower.size) return null;
+  const counts = new Map();
+  const re = /\[(.+?)\]/g;
+  let m;
+  while ((m = re.exec(t))) {
+    const inner = String(m[1] || '').trim();
+    if (!inner || /^unidentified speaker$/i.test(inner) || /^speaker\s*\d+$/i.test(inner)) continue;
+    const low = inner.toLowerCase();
+    if (displayByLower.has(low)) {
+      const disp = displayByLower.get(low);
+      counts.set(disp, (counts.get(disp) || 0) + 1);
+    } else {
+      for (const [lowName, disp] of displayByLower) {
+        if (low.includes(lowName) || lowName.includes(low)) {
+          counts.set(disp, (counts.get(disp) || 0) + 1);
+          break;
+        }
+      }
+    }
+  }
+  const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+  if (!ranked.length) return null;
+  if (ranked.length > 1 && ranked[0][1] === ranked[1][1]) return null;
+  return ranked[0][0];
+}
+
+function bracketLabelForFullParticipantVoiceScrub(profiles, opts = {}) {
+  const names = (profiles || [])
+    .map((p) => String(p.name || '').trim() || (p.email ? String(p.email).trim() : ''))
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
+  if (!names.length) return null;
+  if (names.length === 1) return `[${names[0]}]`;
+  if (names.length === 2) {
+    const dom =
+      (opts.dominantName && String(opts.dominantName).trim()) ||
+      (opts.voiceEvidenceText
+        ? dominantSpeakerNameFromVoiceEvidence(opts.voiceEvidenceText, profiles)
+        : null);
+    if (dom) return `[${dom}]`;
+    return `[${names[0]} / ${names[1]}]`;
+  }
+  const dom =
+    (opts.dominantName && String(opts.dominantName).trim()) ||
+    (opts.voiceEvidenceText
+      ? dominantSpeakerNameFromVoiceEvidence(opts.voiceEvidenceText, profiles)
+      : null);
+  if (dom) return `[${dom}]`;
+  return `[${names[0]}]`;
+}
+
+function applySpeakerPlaceholdersScrubToSummaryPayload(payload, bracketLabel) {
+  if (!payload || !bracketLabel) return payload;
+  const replaceLabel = (s) =>
+    typeof s === 'string'
+      ? s
+          .replace(/\[Unidentified speaker\]/gi, bracketLabel)
+          .replace(/\[Speaker\s*1\]/gi, bracketLabel)
+          .replace(/\[Speaker\s*2\]/gi, bracketLabel)
+      : s;
+
+  payload.summary = replaceLabel(payload.summary);
+  payload.keyPoints = (payload.keyPoints || []).map((kp) => replaceLabel(kp));
+  payload.decisions = (payload.decisions || []).map((d) => replaceLabel(d));
+  payload.nextSteps = (payload.nextSteps || []).map((n) => replaceLabel(n));
+  payload.importantNotes = (payload.importantNotes || []).map((n) => replaceLabel(n));
+  payload.actionItems = (payload.actionItems || []).map((ai) => ({
+    ...ai,
+    task: replaceLabel(ai.task),
+    notes: replaceLabel(ai.notes),
+  }));
+  return payload;
+}
+
+/**
+ * When every participant with an email has enrolled voice, [Unidentified speaker] is not allowed in the UI.
+ * For 3+ speakers, pass voiceEvidenceText so scrub uses the most common timeline label (closest to “dominant”).
+ */
+async function scrubUnidentifiedWhenAllParticipantsVoiceEnrolled(meetingObj, payload, opts = {}) {
+  if (!meetingObj || !payload) return payload;
+  const { ok, profiles } = await allMeetingParticipantsHaveVoiceProfiles(meetingObj);
+  if (!ok || !profiles.length) return payload;
+  const label = bracketLabelForFullParticipantVoiceScrub(profiles, {
+    voiceEvidenceText: opts.voiceEvidenceText,
+    dominantName: opts.dominantName,
+  });
+  if (!label) return payload;
+  applySpeakerPlaceholdersScrubToSummaryPayload(payload, label);
+  return payload;
+}
+
 /**
  * Second pass: reconcile structured summary with voice-backed timeline (higher-confidence names).
  */
@@ -1253,19 +1382,32 @@ async function reauditStructuredSummaryWithVoice(summaryResult, voiceEvidenceTra
 
   const evidence = truncateVoiceEvidenceForPrompt(voiceEvidenceTranscript, 14000);
 
+  let participantRosterFullyEnrolled = false;
+  try {
+    participantRosterFullyEnrolled = (await allMeetingParticipantsHaveVoiceProfiles(meetingObj)).ok;
+  } catch (_) {
+    participantRosterFullyEnrolled = false;
+  }
+
   const userContent =
     `You reconcile speaker labels in a meeting summary using:\n` +
     `(1) FIRST-PASS structured JSON from the transcript, and\n` +
     `(2) a VOICE TIMELINE from the same recording (biometric matches; same order as the meeting).\n\n` +
-    `Enrolled voice profiles (recorded samples in our system — prefer these names when fixing labels): ${enrolledRosterLine}\n\n` +
+    `Enrolled voice profiles (recorded samples — use names when fixing labels): ${enrolledRosterLine}\n\n` +
+    (participantRosterFullyEnrolled
+      ? `HARD RULE: Every invited participant (with an email on this meeting) has a voice profile. You MUST NOT leave or introduce [Unidentified speaker]. Use a specific [Name] from the timeline or transcript. If there are only two enrolled speakers and separation is unclear, [Name1 / Name2] is allowed. If there are three or more enrolled speakers and separation is unclear, use the single most likely speaker name from the timeline — do not list three or more names in one bracket.\n\n`
+      : '') +
     `Rules:\n` +
-    `- Use the voice timeline to replace [Unidentified speaker] or generic labels with a real [Name] ONLY when the summary point could plausibly come from that time range and the name is in the voice timeline or participant roster.\n` +
-    `- If EXACTLY ONE enrolled profile exists above and the voice timeline is mostly [Unidentified speaker] due to low volume or noise, still replace [Unidentified speaker] in the summary with [that person's exact name] when the meeting is clearly a single-speaker or primary-host scenario — do not leave [Unidentified speaker] when one enrolled speaker is the only plausible voice source.\n` +
-    `- If multiple enrolled profiles exist, do not guess from enrollment alone; use the voice timeline and transcript content.\n` +
-    `- If voice says [Unidentified speaker] for a span, you may still replace it when the single-enrolled rule above applies; otherwise keep Unidentified unless the transcript alone identifies the speaker.\n` +
+    `- Use the voice timeline to replace [Unidentified speaker] or generic labels with a real [Name] when the summary point aligns with that time range and the name appears in the timeline or roster.\n` +
+    `- If EXACTLY ONE enrolled profile exists above and the timeline is mostly [Unidentified speaker] (e.g. low volume), you may replace [Unidentified speaker] with [that person’s name] when the meeting is plausibly one primary speaker.\n` +
+    `- If multiple enrolled profiles exist, rely on the timeline and transcript — do not invent who said what.\n` +
+    (participantRosterFullyEnrolled
+      ? `- The hard rule above overrides: never output [Unidentified speaker] for this meeting.\n`
+      : `- If voice says [Unidentified speaker] for a span, keep it unless the transcript clearly identifies the speaker.\n`) +
     `- Do NOT invent facts, decisions, quotes, or tasks. Do NOT add new content.\n` +
     `- Only adjust speaker prefixes / light grammar to match label changes.\n` +
-    `- If unsure (multiple plausible live speakers with no timeline signal), keep the original speaker label.\n\n` +
+    (participantRosterFullyEnrolled ? `- If unsure who spoke, use the pooled participant-names label; never [Unidentified speaker].\n` : `- If unsure, keep the original speaker label.\n`) +
+    `\n` +
     `Meeting title (calendar; may be wrong): ${meetingTitle}\n\n` +
     `FIRST-PASS JSON:\n${payload}\n\n` +
     `VOICE TIMELINE:\n${evidence}\n\n` +
@@ -1289,6 +1431,11 @@ async function reauditStructuredSummaryWithVoice(summaryResult, voiceEvidenceTra
   const parsed = tryParseModelJsonObject(raw);
   if (!parsed || typeof parsed.summary !== 'string') {
     console.warn('⚠️ Voice re-audit: could not parse model JSON; keeping first-pass summary.');
+    try {
+      await scrubUnidentifiedWhenAllParticipantsVoiceEnrolled(meetingObj, summaryResult, {});
+    } catch (_) {
+      /* ignore */
+    }
     return summaryResult;
   }
 
@@ -1302,50 +1449,12 @@ async function reauditStructuredSummaryWithVoice(summaryResult, voiceEvidenceTra
     importantNotes: Array.isArray(parsed.importantNotes) ? parsed.importantNotes : summaryResult.importantNotes,
   };
 
-  // Deterministic single-voice fallback: if the voice timeline only ever shows ONE
-  // concrete name label, aggressively replace generic/unidentified prefixes with it.
+  // Deterministic fallback: timeline shows exactly one concrete name → apply everywhere.
   if (singleVoiceName) {
-    const label = `[${singleVoiceName}]`;
-    const replaceLabel = (s) =>
-      typeof s === 'string'
-        ? s
-            .replace(/\[Unidentified speaker\]/gi, label)
-            .replace(/\[Speaker\s*1\]/gi, label)
-            .replace(/\[Speaker\s*2\]/gi, label)
-        : s;
-
-    out.summary = replaceLabel(out.summary);
-    out.keyPoints = (out.keyPoints || []).map((kp) => replaceLabel(kp));
-    out.decisions = (out.decisions || []).map((d) => replaceLabel(d));
-    out.nextSteps = (out.nextSteps || []).map((n) => replaceLabel(n));
-    out.importantNotes = (out.importantNotes || []).map((n) => replaceLabel(n));
-    out.actionItems = (out.actionItems || []).map((ai) => ({
-      ...ai,
-      task: replaceLabel(ai.task),
-      notes: replaceLabel(ai.notes),
-    }));
+    applySpeakerPlaceholdersScrubToSummaryPayload(out, `[${singleVoiceName}]`);
   } else if (singleEnrolledDisplayName) {
-    // Timeline had 0 or 2+ distinct concrete names (often all [Unidentified speaker] when mic is low),
-    // but exactly one VoiceProfile exists for this meeting — map generic labels to that person.
-    const label = `[${singleEnrolledDisplayName}]`;
-    const replaceLabel = (s) =>
-      typeof s === 'string'
-        ? s
-            .replace(/\[Unidentified speaker\]/gi, label)
-            .replace(/\[Speaker\s*1\]/gi, label)
-            .replace(/\[Speaker\s*2\]/gi, label)
-        : s;
-
-    out.summary = replaceLabel(out.summary);
-    out.keyPoints = (out.keyPoints || []).map((kp) => replaceLabel(kp));
-    out.decisions = (out.decisions || []).map((d) => replaceLabel(d));
-    out.nextSteps = (out.nextSteps || []).map((n) => replaceLabel(n));
-    out.importantNotes = (out.importantNotes || []).map((n) => replaceLabel(n));
-    out.actionItems = (out.actionItems || []).map((ai) => ({
-      ...ai,
-      task: replaceLabel(ai.task),
-      notes: replaceLabel(ai.notes),
-    }));
+    // Only one VoiceProfile on the broader lookup set (participants + admin + interview emails).
+    applySpeakerPlaceholdersScrubToSummaryPayload(out, `[${singleEnrolledDisplayName}]`);
   }
 
   const tTrim = String(transcriptTextTrim || '').trim();
@@ -1362,6 +1471,14 @@ async function reauditStructuredSummaryWithVoice(summaryResult, voiceEvidenceTra
     if (!summaryPayloadHasDisplayableContent(out)) {
       applyTranscriptExcerptFallbackSummary(out, tTrim);
     }
+  }
+
+  try {
+    await scrubUnidentifiedWhenAllParticipantsVoiceEnrolled(meetingObj, out, {
+      voiceEvidenceText: voiceEvidenceTranscript,
+    });
+  } catch (e) {
+    console.warn('⚠️ Full-participant voice scrub failed:', e.message || e);
   }
 
   console.log('✅ Voice re-audit pass applied to structured summary');
@@ -1534,6 +1651,7 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
     const summaryMode = String(meetingObj.summaryMode || SUMMARY_MODES.STANDARD || '').toLowerCase();
     const reauditOn = String(process.env.VOICE_REAUDIT_ENABLED || 'true').toLowerCase() !== 'false';
 
+    let voiceEvidenceForScrub = null;
     if (
       reauditOn &&
       summaryResult &&
@@ -1552,6 +1670,9 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
           finalAudioPath,
           transcription.segments
         );
+        if (ev && ev.transcript) {
+          voiceEvidenceForScrub = ev.transcript;
+        }
         if (ev && ev.transcript && ev.transcript.length > 400) {
           console.log(
             `🔄 Voice re-audit: ${ev.lines} timeline chunks, ${ev.transcript.length} chars evidence`
@@ -1566,6 +1687,16 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
         }
       } catch (reauditErr) {
         console.warn('⚠️ Voice re-audit skipped:', reauditErr.message || reauditErr);
+      }
+    }
+
+    if (summaryResult && summaryMode !== 'interview') {
+      try {
+        await scrubUnidentifiedWhenAllParticipantsVoiceEnrolled(meetingObj, summaryResult, {
+          voiceEvidenceText: voiceEvidenceForScrub || undefined,
+        });
+      } catch (e) {
+        console.warn('⚠️ Full-participant voice scrub skipped:', e.message || e);
       }
     }
 
