@@ -14,6 +14,7 @@ import {
 import './Dashboard.css';
 import { FEATURE_INTERVIEW_UI } from '../config/featureFlags';
 import { useTrialExperience } from './TrialExperienceProvider';
+import TeacherDashboard from './TeacherDashboard';
 import { isEducation } from '../config/product';
 import { getClassrooms } from '../utils/classroomsStorage';
 
@@ -304,6 +305,10 @@ const Dashboard = () => {
       .slice(0, 6);
   }, [meetings]);
 
+  if (isEducation && trial?.profile?.role === 'faculty') {
+    return <TeacherDashboard />;
+  }
+
   if (loading) {
     return (
       <div className="dashboard-screen">
@@ -382,7 +387,7 @@ const Dashboard = () => {
               {lastFreeMeeting && (
                 <p className="dashboard-trial-banner__hint">This is your last free meeting</p>
               )}
-            </div>
+          </div>
           )}
 
           <div
@@ -399,13 +404,13 @@ const Dashboard = () => {
               >
                 {isEducation ? 'New lesson' : 'New Meeting'}
               </Link>
-              <Link
-                to="/meetings"
+            <Link 
+              to="/meetings"
                 state={{ showAllMeetings: true }}
                 className="dashboard-btn-secondary dashboard-btn-micro"
               >
                 {isEducation ? 'View Lessons' : 'View Meetings'}
-              </Link>
+            </Link>
             </div>
           </div>
 
@@ -452,7 +457,7 @@ const Dashboard = () => {
             <span key={tipIndex} className="dashboard-tip-strip__text ux-dashboard-tip-fade">
               {(isEducation ? DASHBOARD_TIPS_EDUCATION : DASHBOARD_TIPS)[tipIndex]}
             </span>
-          </div>
+            </div>
 
           {pendingSummaryMeetings.length > 0 && !isHidden(DASHBOARD_SECTION_KEYS.pendingSummaries) ? (
             <section
@@ -525,7 +530,7 @@ const Dashboard = () => {
                   <p className="dashboard-interview-pipeline__sub">
                     Finalize hiring decisions and keep recent outcomes visible.
                   </p>
-                </div>
+            </div>
                 <div className="dashboard-head-actions">
                   <button
                     type="button"
@@ -624,7 +629,7 @@ const Dashboard = () => {
                       );
                     })}
                   </ul>
-                </div>
+            </div>
               ) : null}
             </section>
           ) : null}
@@ -731,7 +736,7 @@ const Dashboard = () => {
               <div className="dashboard-stat-chip__body">
                 <span className="dashboard-stat-chip__label">{isEducation ? 'Overdue assignments' : 'Overdue tasks'}</span>
                 <span className="dashboard-stat-chip__value">{nOverdue}</span>
-              </div>
+            </div>
               <ChevronRight className="dashboard-stat-chip__chev" strokeWidth={2} aria-hidden />
             </Link>
           </div>
