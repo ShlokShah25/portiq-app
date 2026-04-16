@@ -5,6 +5,18 @@ const { exec, execFileSync } = require('child_process');
 const util = require('util');
 const execPromise = util.promisify(exec);
 
+/**
+ * Speaker identification — accuracy expectations
+ * ------------------------------------------------------------
+ * - Target “workspace safe” labels (wrong name ~never): use pyannote embeddings (HF_TOKEN + Python)
+ *   and strict matching (default). FFT/mel fallback is noisier; still uses conservative thresholds.
+ * - Reject ambiguous matches: best score must be clearly above the runner-up (margin).
+ * - Enrollment: require enough speech at healthy volume so stored vectors are stable.
+ *
+ * Tune via env: VOICE_MATCH_STRICT, VOICE_PYANNOTE_MIN, VOICE_FFT_MIN, VOICE_MATCH_MARGIN,
+ * VOICE_SINGLE_PYANNOTE_MIN, VOICE_SINGLE_FFT_MIN, VOICE_ENROLL_MIN_SECONDS, VOICE_ENROLL_MIN_RMS.
+ */
+
 /** Fallback speaker embedding size (mel static + mel delta); must match stored vectors from this path. */
 const FFT_VOICE_EMBEDDING_DIM = 128;
 const FFT_FRAME_SIZE = 512;
@@ -165,6 +177,73 @@ function ffmpegDecodeToMonoS16le16k(audioPath) {
       /* ignore */
     }
   }
+}
+
+/**
+ * Enrollment quality (quiet room, long enough sample, audible level) — reduces bad stored vectors.
+ */
+function validateVoiceEnrollmentQuality(audioPath) {
+  let pcm;
+  try {
+    pcm = ffmpegDecodeToMonoS16le16k(audioPath);
+  } catch (e) {
+    return {
+      ok: false,
+      code: 'decode',
+      reason: 'Could not decode audio. Use a supported format (WAV, MP3, M4A) and try again.',
+      details: e.message || String(e),
+    };
+  }
+  const sampleCount = Math.floor(pcm.length / 2);
+  if (sampleCount < 2) {
+    return { ok: false, code: 'empty', reason: 'Recording appears empty.', details: '' };
+  }
+  const durationSec = sampleCount / 16000;
+  const minSec = Math.min(
+    60,
+    Math.max(2, parseFloat(process.env.VOICE_ENROLL_MIN_SECONDS || '4', 10) || 4)
+  );
+  if (durationSec < minSec) {
+    return {
+      ok: false,
+      code: 'too_short',
+      reason: `Recording is too short (${durationSec.toFixed(1)}s). In a quiet place, speak clearly for at least ${minSec} seconds (follow the on-screen script).`,
+      details: '',
+    };
+  }
+  let sumSq = 0;
+  for (let i = 0; i < sampleCount; i++) {
+    const v = pcm.readInt16LE(i * 2) / 32768;
+    sumSq += v * v;
+  }
+  const rms = Math.sqrt(sumSq / sampleCount);
+  const minRms = Math.min(
+    0.5,
+    Math.max(0.004, parseFloat(process.env.VOICE_ENROLL_MIN_RMS || '0.012', 10) || 0.012)
+  );
+  const maxRms = Math.min(
+    1,
+    Math.max(0.2, parseFloat(process.env.VOICE_ENROLL_MAX_RMS || '0.98', 10) || 0.98)
+  );
+  if (rms < minRms) {
+    return {
+      ok: false,
+      code: 'too_quiet',
+      reason:
+        'Volume is too low for a reliable voiceprint. Move closer to the microphone and speak at a normal level.',
+      details: `Measured RMS ${rms.toFixed(4)} (minimum ${minRms}).`,
+    };
+  }
+  if (rms > maxRms) {
+    return {
+      ok: false,
+      code: 'too_loud',
+      reason:
+        'Audio may be too loud or clipped. Reduce input gain and try again.',
+      details: `Measured RMS ${rms.toFixed(4)}.`,
+    };
+  }
+  return { ok: true, durationSec, rms, code: 'ok' };
 }
 
 function int16leBufferToFloatFrame(buf, offset, frameSize) {
@@ -341,43 +420,75 @@ function compareEmbeddings(embedding1, embedding2) {
   return dotProduct / (norm1 * norm2);
 }
 
+function parseThresholdEnv(key, def, min, max) {
+  const v = parseFloat(process.env[key] || '', 10);
+  if (Number.isNaN(v)) return def;
+  return Math.min(max, Math.max(min, v));
+}
+
 /**
- * Find best matching voice profile for an audio segment
+ * High-confidence speaker match: absolute threshold + margin vs runner-up (avoids wrong-person labels).
+ * Default strict = true (workspace-safe). Set VOICE_MATCH_STRICT=false for legacy looser behavior.
  */
 async function identifySpeaker(audioFilePath, voiceProfiles) {
   try {
-    // Generate embedding for the audio segment
     const segmentEmbedding = await generateVoiceEmbedding(audioFilePath);
-
-    let bestMatch = null;
-    let bestScore = 0;
     const isFftFallback =
       Array.isArray(segmentEmbedding) && segmentEmbedding.length === FFT_VOICE_EMBEDDING_DIM;
-    const threshold = isFftFallback
-      ? Math.min(
-          0.92,
-          Math.max(0.4, parseFloat(process.env.VOICE_FFT_MATCH_THRESHOLD || '0.58', 10) || 0.58)
-        )
-      : Math.min(
-          0.95,
-          Math.max(0.5, parseFloat(process.env.VOICE_MATCH_THRESHOLD || '0.72', 10) || 0.72)
-        );
+    const strict = String(process.env.VOICE_MATCH_STRICT || 'true').toLowerCase() !== 'false';
 
-    // Compare with all stored voice profiles (same vector length only — pyannote vs FFT are incompatible)
+    if (!strict) {
+      const threshold = isFftFallback
+        ? parseThresholdEnv('VOICE_FFT_MATCH_THRESHOLD', 0.58, 0.4, 0.92)
+        : parseThresholdEnv('VOICE_MATCH_THRESHOLD', 0.72, 0.5, 0.95);
+      let bestMatch = null;
+      let bestScore = 0;
+      for (const profile of voiceProfiles) {
+        const pv = profile && profile.voiceVector;
+        if (!Array.isArray(pv) || pv.length !== segmentEmbedding.length) continue;
+        const similarity = compareEmbeddings(segmentEmbedding, pv);
+        if (similarity > bestScore && similarity >= threshold) {
+          bestScore = similarity;
+          bestMatch = profile;
+        }
+      }
+      return bestMatch ? { profile: bestMatch, confidence: bestScore } : null;
+    }
+
+    const pyMin = parseThresholdEnv('VOICE_PYANNOTE_MIN', 0.9, 0.75, 0.99);
+    const fftMin = parseThresholdEnv('VOICE_FFT_MIN', 0.84, 0.65, 0.95);
+    const singlePy = parseThresholdEnv('VOICE_SINGLE_PYANNOTE_MIN', 0.92, 0.78, 0.995);
+    const singleFft = parseThresholdEnv('VOICE_SINGLE_FFT_MIN', 0.86, 0.68, 0.97);
+    const margin = parseThresholdEnv('VOICE_MATCH_MARGIN', 0.1, 0.02, 0.35);
+
+    const minConf = isFftFallback ? fftMin : pyMin;
+    const minSingle = isFftFallback ? singleFft : singlePy;
+
+    const scored = [];
     for (const profile of voiceProfiles) {
       const pv = profile && profile.voiceVector;
       if (!Array.isArray(pv) || pv.length !== segmentEmbedding.length) continue;
       const similarity = compareEmbeddings(segmentEmbedding, pv);
-      if (similarity > bestScore && similarity >= threshold) {
-        bestScore = similarity;
-        bestMatch = profile;
-      }
+      scored.push({ profile, score: similarity });
     }
-    
-    return bestMatch ? {
-      profile: bestMatch,
-      confidence: bestScore
-    } : null;
+    scored.sort((a, b) => b.score - a.score);
+
+    if (scored.length === 0) return null;
+
+    const best = scored[0];
+    const second = scored[1];
+
+    if (scored.length === 1) {
+      if (best.score >= minSingle) {
+        return { profile: best.profile, confidence: best.score };
+      }
+      return null;
+    }
+
+    if (best.score < minConf) return null;
+    if (second && best.score - second.score < margin) return null;
+
+    return { profile: best.profile, confidence: best.score };
   } catch (error) {
     console.error('Error identifying speaker:', error);
     return null;
@@ -390,4 +501,5 @@ module.exports = {
   identifySpeaker,
   generateFftMelVoiceEmbedding,
   FFT_VOICE_EMBEDDING_DIM,
+  validateVoiceEnrollmentQuality,
 };
