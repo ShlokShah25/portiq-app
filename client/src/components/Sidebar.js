@@ -3,11 +3,15 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { T } from '../config/terminology';
 import { isEducation } from '../config/product';
+import { useTrialExperience } from './TrialExperienceProvider';
 import './Sidebar.css';
 
 const Sidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const trial = useTrialExperience();
+  const role = String(trial?.profile?.role || '').toLowerCase();
+  const isEducationAdmin = isEducation && role !== 'faculty';
 
   const menuItems = [
     {
@@ -57,6 +61,23 @@ const Sidebar = () => {
       ),
       path: isEducation ? '/classes' : '/insights',
     },
+    ...(isEducationAdmin
+      ? [
+          {
+            id: 'teachers',
+            label: 'Teachers',
+            icon: (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="8.5" cy="7" r="4" />
+                <path d="M20 8v6" />
+                <path d="M23 11h-6" />
+              </svg>
+            ),
+            path: '/teachers',
+          },
+        ]
+      : []),
     {
       id: 'settings',
       label: 'Settings',
@@ -122,14 +143,16 @@ const Sidebar = () => {
       </nav>
 
       <div className="sidebar__footer">
-        <button type="button" className="sidebar-footer-btn" onClick={() => navigate('/admin')}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path d="M12 2L2 7l10 5 10-5-10-5z" />
-            <path d="M2 17l10 5 10-5" />
-            <path d="M2 12l10 5 10-5" />
-          </svg>
-          Admin
-        </button>
+        {role !== 'faculty' && (
+          <button type="button" className="sidebar-footer-btn" onClick={() => navigate('/admin')}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M12 2L2 7l10 5 10-5-10-5z" />
+              <path d="M2 17l10 5 10-5" />
+              <path d="M2 12l10 5 10-5" />
+            </svg>
+            Admin
+          </button>
+        )}
         <button type="button" className="sidebar-footer-btn sidebar-footer-btn--logout" onClick={logout}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />

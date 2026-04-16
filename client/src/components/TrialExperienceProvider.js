@@ -29,6 +29,11 @@ export default function TrialExperienceProvider({ children }) {
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [welcomeOpen, setWelcomeOpen] = useState(false);
   const [limitModalOpen, setLimitModalOpen] = useState(false);
+  const [forcePasswordOpen, setForcePasswordOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [passwordBusy, setPasswordBusy] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
 
   const refreshProfile = useCallback(async () => {
     try {
@@ -123,6 +128,17 @@ export default function TrialExperienceProvider({ children }) {
     }
   }, [profile?.trialExhausted]);
 
+  useEffect(() => {
+    const mustChange = !!profile?.mustChangePassword;
+    setForcePasswordOpen(mustChange);
+    if (!mustChange) {
+      setCurrentPassword('');
+      setNewPassword('');
+      setPasswordError('');
+      setPasswordBusy(false);
+    }
+  }, [profile?.mustChangePassword]);
+
   const completeOnboarding = useCallback(() => {
     try {
       window.localStorage.setItem(ONBOARDING_KEY, '1');
@@ -159,6 +175,36 @@ export default function TrialExperienceProvider({ children }) {
   const dismissLimitModal = useCallback(() => {
     setLimitModalOpen(false);
   }, []);
+
+  const submitForcedPasswordChange = useCallback(async () => {
+    setPasswordError('');
+    const curr = String(currentPassword || '').trim();
+    const next = String(newPassword || '').trim();
+    if (!curr || !next) {
+      setPasswordError('Current password and new password are required.');
+      return;
+    }
+    if (next.length < 8) {
+      setPasswordError('New password must be at least 8 characters.');
+      return;
+    }
+    setPasswordBusy(true);
+    try {
+      await axios.put('/admin/password', { currentPassword: curr, newPassword: next });
+      await refreshProfile();
+      setCurrentPassword('');
+      setNewPassword('');
+      setForcePasswordOpen(false);
+    } catch (err) {
+      const d = err.response?.data;
+      setPasswordError(
+        [d?.error, d?.details].filter(Boolean).join(' — ') ||
+          'Unable to update password. Please try again.'
+      );
+    } finally {
+      setPasswordBusy(false);
+    }
+  }, [currentPassword, newPassword, refreshProfile]);
 
   const value = useMemo(
     () => ({
@@ -348,6 +394,55 @@ export default function TrialExperienceProvider({ children }) {
                 onClick={dismissLimitModal}
               >
                 Not now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {forcePasswordOpen && (
+        <div
+          className="portiq-trial-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="portiq-force-password-title"
+        >
+          <div className="portiq-trial-modal">
+            <h2 className="portiq-trial-modal__title" id="portiq-force-password-title">
+              Change your temporary password
+            </h2>
+            <p className="portiq-trial-modal__body">
+              For security, you must set a new password before continuing.
+            </p>
+            <label className="portiq-trial-modal__body" style={{ display: 'block', marginBottom: 10 }}>
+              Current password
+              <input
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                style={{ width: '100%', marginTop: 6 }}
+              />
+            </label>
+            <label className="portiq-trial-modal__body" style={{ display: 'block' }}>
+              New password
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                style={{ width: '100%', marginTop: 6 }}
+              />
+            </label>
+            {passwordError ? (
+              <p style={{ marginTop: 10, color: '#fca5a5', fontSize: 13 }}>{passwordError}</p>
+            ) : null}
+            <div className="portiq-trial-modal__actions">
+              <button
+                type="button"
+                className="portiq-trial-modal__btn portiq-trial-modal__btn--primary"
+                onClick={submitForcedPasswordChange}
+                disabled={passwordBusy}
+              >
+                {passwordBusy ? 'Updating…' : 'Update password'}
               </button>
             </div>
           </div>

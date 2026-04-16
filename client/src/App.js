@@ -12,6 +12,7 @@ const Transcripts = lazy(() => import('./components/Transcripts'));
 const Participants = lazy(() => import('./components/Participants'));
 const Insights = lazy(() => import('./components/Insights'));
 const ClassesPage = lazy(() => import('./components/ClassesPage'));
+const TeachersPage = lazy(() => import('./components/TeachersPage'));
 const Settings = lazy(() => import('./components/Settings'));
 const MeetingInProgress = lazy(() => import('./components/MeetingInProgress'));
 const MeetingDetail = lazy(() => import('./components/MeetingDetail'));
@@ -125,6 +126,7 @@ function App() {
               <Route path="participants" element={<Participants />} />
               <Route path="insights" element={<Insights />} />
               <Route path="classes" element={<ClassesPage />} />
+              <Route path="teachers" element={<TeachersPage />} />
               <Route path="settings" element={<Settings />} />
               <Route path="profile" element={<Navigate to="/settings" replace />} />
               <Route path="admin" element={<ClientAdmin />} />

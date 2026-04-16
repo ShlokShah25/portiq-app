@@ -34,6 +34,14 @@ function meetingFilterForAdmin(admin) {
   return admin && admin.username !== 'admin' ? { adminId: admin._id } : {};
 }
 
+function canManageEducationTeachers(admin) {
+  if (!admin) return false;
+  const product = String(admin.productType || '').toLowerCase();
+  const role = String(admin.role || '').toLowerCase();
+  if (product !== 'education') return false;
+  return role === 'admin' || role === 'super_admin';
+}
+
 function actionItemsForMeetingDoc(m) {
   let items = Array.isArray(m.actionItems) && m.actionItems.length ? m.actionItems : [];
   if (!items.length && Array.isArray(m.pendingActionItems) && m.pendingActionItems.length) {
@@ -137,6 +145,7 @@ router.post('/login', async (req, res) => {
         role: admin.role,
         productType: admin.productType || 'workplace',
         plan: admin.plan || 'starter',
+        mustChangePassword: !!admin.mustChangePassword,
         hasActiveSubscription: !!admin.hasActiveSubscription,
         complimentaryAccess: !!admin.complimentaryAccess,
         hasDashboardAccess: hasDashboardAccess(admin),
@@ -178,6 +187,7 @@ router.get('/profile', authenticateAdmin, async (req, res) => {
       lastLogin: req.admin.lastLogin,
       productType: req.admin.productType,
       plan: req.admin.plan,
+      mustChangePassword: !!admin.mustChangePassword,
       hasActiveSubscription: !!admin.hasActiveSubscription,
       complimentaryAccess: !!admin.complimentaryAccess,
       hasDashboardAccess: dash,
@@ -215,6 +225,104 @@ router.get('/profile', authenticateAdmin, async (req, res) => {
       },
     }
   });
+});
+
+/**
+ * Education admin: list teacher users created under this org/admin.
+ */
+router.get('/teachers', authenticateAdmin, async (req, res) => {
+  try {
+    if (!canManageEducationTeachers(req.admin)) {
+      return res.status(403).json({
+        error: 'Only education admins can access teachers.',
+        details: 'Sign in with an education admin account.',
+      });
+    }
+
+    const query = { productType: 'education', role: 'faculty' };
+    if (String(req.admin.role || '').toLowerCase() !== 'super_admin') {
+      query.managedByAdminId = req.admin._id;
+    }
+    const teachers = await Admin.find(query)
+      .select('username email role productType mustChangePassword managedByAdminId createdAt lastLogin')
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json({ teachers });
+  } catch (error) {
+    console.error('Error listing teachers:', error);
+    res.status(500).json({ error: 'Failed to fetch teachers.' });
+  }
+});
+
+/**
+ * Education admin: create teacher login with temporary password.
+ */
+router.post('/teachers', authenticateAdmin, async (req, res) => {
+  try {
+    if (!canManageEducationTeachers(req.admin)) {
+      return res.status(403).json({
+        error: 'Only education admins can create teachers.',
+        details: 'Sign in with an education admin account.',
+      });
+    }
+
+    const username = String(req.body?.username || '').trim();
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    const password = String(req.body?.password || '').trim();
+    if (!username || !email || !password) {
+      return res.status(400).json({
+        error: 'username, email, and password are required.',
+        details: 'Provide all required fields to create a teacher user.',
+      });
+    }
+    if (password.length < 8) {
+      return res.status(400).json({
+        error: 'Password must be at least 8 characters.',
+        details: 'Use a stronger temporary password for first login.',
+      });
+    }
+    const existing = await Admin.findOne({
+      $or: [{ username }, { email }],
+    }).lean();
+    if (existing) {
+      return res.status(409).json({
+        error: 'A user with this username or email already exists.',
+        details: 'Use a different username/email.',
+      });
+    }
+
+    const teacher = new Admin({
+      username,
+      email,
+      password,
+      role: 'faculty',
+      productType: 'education',
+      plan: 'institutional',
+      complimentaryAccess: true,
+      hasActiveSubscription: true,
+      mustChangePassword: true,
+      managedByAdminId:
+        String(req.admin.role || '').toLowerCase() === 'super_admin'
+          ? null
+          : req.admin._id,
+    });
+    await teacher.save();
+
+    res.status(201).json({
+      success: true,
+      teacher: {
+        id: teacher._id,
+        username: teacher.username,
+        email: teacher.email,
+        role: teacher.role,
+        mustChangePassword: !!teacher.mustChangePassword,
+        createdAt: teacher.createdAt,
+      },
+    });
+  } catch (error) {
+    console.error('Error creating teacher:', error);
+    res.status(500).json({ error: 'Failed to create teacher user.' });
+  }
 });
 
 /**
@@ -366,6 +474,7 @@ router.put('/password', authenticateAdmin, async (req, res) => {
     }
 
     admin.password = newPassword;
+    admin.mustChangePassword = false;
     await admin.save();
 
     return res.json({ success: true, message: 'Password updated successfully.' });

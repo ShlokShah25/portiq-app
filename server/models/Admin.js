@@ -23,6 +23,15 @@ const adminSchema = new mongoose.Schema({
     enum: ['super_admin', 'admin', 'faculty'],
     default: 'admin'
   },
+  mustChangePassword: {
+    type: Boolean,
+    default: false,
+  },
+  managedByAdminId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Admin',
+    default: null,
+  },
   lastLogin: {
     type: Date,
     default: null

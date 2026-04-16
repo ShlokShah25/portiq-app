@@ -1,43 +1,15 @@
-import React, { useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { GraduationCap, Users, BookOpenCheck } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import axios from 'axios';
+import { GraduationCap, Users } from 'lucide-react';
 import { getClassrooms } from '../utils/classroomsStorage';
 import { useTrialExperience } from './TrialExperienceProvider';
 
-function collectTeacherRows(classrooms) {
-  const map = new Map();
-  classrooms.forEach((c) => {
-    const className = String(c.className || '').trim() || 'Classroom';
-    const rows = Array.isArray(c.subjectAssignments) ? c.subjectAssignments : [];
-    rows.forEach((row) => {
-      const email = String(row.teacherEmail || '').trim().toLowerCase();
-      if (!email) return;
-      const key = email;
-      const existing = map.get(key) || {
-        email,
-        teacherName: String(row.teacherName || '').trim() || email.split('@')[0],
-        subjects: new Set(),
-        classrooms: new Set(),
-      };
-      if (row.subject) existing.subjects.add(String(row.subject).trim());
-      existing.classrooms.add(className);
-      map.set(key, existing);
-    });
-  });
-  return [...map.values()]
-    .map((x) => ({
-      ...x,
-      subjects: [...x.subjects],
-      classrooms: [...x.classrooms],
-    }))
-    .sort((a, b) => a.teacherName.localeCompare(b.teacherName));
-}
-
 export default function EducationAdminDashboard() {
-  const navigate = useNavigate();
   const trial = useTrialExperience();
   const profile = trial?.profile;
   const classrooms = useMemo(() => getClassrooms(), []);
+  const [teachers, setTeachers] = useState([]);
 
   const studentsCount = useMemo(
     () =>
@@ -61,7 +33,23 @@ export default function EducationAdminDashboard() {
     [classrooms]
   );
 
-  const teachers = useMemo(() => collectTeacherRows(classrooms), [classrooms]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await axios.get('/admin/teachers');
+        if (!cancelled) {
+          const list = Array.isArray(res.data?.teachers) ? res.data.teachers : [];
+          setTeachers(list);
+        }
+      } catch (_) {
+        if (!cancelled) setTeachers([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const adminName =
     String(profile?.username || '').trim() || String(profile?.email || '').trim() || 'Admin';
 
@@ -120,45 +108,24 @@ export default function EducationAdminDashboard() {
               </div>
               {teachers.length > 0 ? (
                 <ul className="dashboard-education-admin-list">
-                  {teachers.slice(0, 6).map((t) => (
-                    <li key={t.email}>
-                      <span>{t.teacherName}</span>
+                  {teachers.slice(0, 3).map((t) => (
+                    <li key={String(t._id || t.id || t.email)}>
+                      <span>{t.username || t.email?.split('@')[0] || 'Teacher'}</span>
                       <small>{t.email}</small>
                     </li>
                   ))}
                 </ul>
               ) : (
                 <p className="dashboard-education-admin-card__hint">
-                  No teacher mappings yet. Add subject-teacher rows inside classrooms.
+                  No teachers yet. Create one from the teachers page.
                 </p>
               )}
+              <div className="dashboard-start-meeting__actions" style={{ marginTop: 10 }}>
+                <Link className="dashboard-btn-secondary dashboard-btn-micro" to="/teachers">
+                  View all teachers
+                </Link>
+              </div>
             </article>
-          </section>
-
-          <section className="dashboard-education-admin-card">
-            <div className="dashboard-education-admin-card__head">
-              <BookOpenCheck size={18} strokeWidth={1.75} />
-              <h2>Lecture records</h2>
-            </div>
-            <p className="dashboard-education-admin-card__hint">
-              Admins can review lecture records and summaries; teachers start and run lectures.
-            </p>
-            <div className="dashboard-start-meeting__actions">
-              <button
-                type="button"
-                className="dashboard-btn-secondary dashboard-btn-micro"
-                onClick={() => navigate('/admin')}
-              >
-                Open Records
-              </button>
-              <button
-                type="button"
-                className="dashboard-btn-secondary dashboard-btn-micro"
-                onClick={() => navigate('/settings')}
-              >
-                Open Settings
-              </button>
-            </div>
           </section>
         </div>
       </div>

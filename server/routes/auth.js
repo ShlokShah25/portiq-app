@@ -88,6 +88,7 @@ router.post('/reset', async (req, res) => {
     admin.password = password;
     admin.resetToken = null;
     admin.resetTokenExpires = null;
+    admin.mustChangePassword = false;
     await admin.save();
 
     return res.json({ success: true });

@@ -248,6 +248,29 @@
   color: var(--text-secondary);
 }
 
+.dashboard-education-admin-form {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.dashboard-education-admin-form input {
+  width: 100%;
+  min-height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: var(--dash-chip-bg, var(--surface-input));
+  color: var(--text-primary);
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+.dashboard-education-admin-form input:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+}
+
 /* Pending summaries — high-visibility strip */
 .dashboard-pending-summaries {
   margin-bottom: 36px;
@@ -1659,6 +1682,10 @@
   }
 
   .dashboard-education-admin-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-education-admin-form {
     grid-template-columns: 1fr;
   }
 
