@@ -84,7 +84,11 @@ export default function SpeakerPoolResolveBanner({
         poolBracket: pool.bracket,
         chosenParticipantEmail: String(participant.email).trim(),
       });
-      const msg = res.data?.message || 'Saved.';
+      const msg =
+        res.data?.message ||
+        (res.data?.morePooledLabelsRemain
+          ? 'Updated that line. Choose again if the same two-name label appears elsewhere.'
+          : 'Updated that line.');
       setNotice(msg);
       if (onMeetingPatched && res.data?.meeting) {
         onMeetingPatched(res.data.meeting);
@@ -110,8 +114,8 @@ export default function SpeakerPoolResolveBanner({
           <span>Speaker wasn’t fully identified</span>
         </div>
         <p className="meeting-summary-speaker-pool__hint">
-          This line used a shared label (<strong>{pool.bracket}</strong>). Tap who was actually speaking so we
-          remember for next time and the summary updates everywhere.
+          The <strong>next place</strong> that still shows (<strong>{pool.bracket}</strong>): tap who was
+          actually speaking — we update that sentence only, then you can fix another if it appears again.
         </p>
         <div className="meeting-summary-speaker-pool__actions">
           <button

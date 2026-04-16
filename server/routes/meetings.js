@@ -69,44 +69,90 @@ function matchParticipantByPoolFragment(participants, fragment) {
   return null;
 }
 
-function replaceLiteralInAllSummaryFields(meeting, fromLiteral, toLiteral) {
-  if (!fromLiteral || fromLiteral === toLiteral) return 0;
-  let replacements = 0;
-  const rep = (s) => {
-    if (typeof s !== 'string' || !s.includes(fromLiteral)) return s;
-    const parts = s.split(fromLiteral);
-    replacements += parts.length - 1;
-    return parts.join(toLiteral);
+function replaceFirstOccurrenceInString(str, fromLiteral, toLiteral) {
+  if (typeof str !== 'string' || !fromLiteral || fromLiteral === toLiteral) return { next: str, replaced: 0 };
+  const i = str.indexOf(fromLiteral);
+  if (i === -1) return { next: str, replaced: 0 };
+  return {
+    next: str.slice(0, i) + toLiteral + str.slice(i + fromLiteral.length),
+    replaced: 1,
   };
-  for (const k of ['summary', 'pendingSummary']) {
-    if (typeof meeting[k] === 'string') meeting[k] = rep(meeting[k]);
-  }
-  for (const k of [
-    'keyPoints',
-    'pendingKeyPoints',
-    'decisions',
-    'pendingDecisions',
-    'nextSteps',
-    'pendingNextSteps',
-    'importantNotes',
-    'pendingImportantNotes',
-  ]) {
-    if (Array.isArray(meeting[k])) {
-      meeting[k] = meeting[k].map((s) => rep(typeof s === 'string' ? s : String(s)));
+}
+
+/**
+ * Replace only the **first** occurrence of fromLiteral in reading order (one line/paragraph at a time).
+ */
+function replaceFirstLiteralInSummaryFields(meeting, fromLiteral, toLiteral) {
+  if (!fromLiteral || fromLiteral === toLiteral) return 0;
+
+  const tryStr = (key) => {
+    if (typeof meeting[key] !== 'string' || !meeting[key].includes(fromLiteral)) return false;
+    const { next, replaced } = replaceFirstOccurrenceInString(meeting[key], fromLiteral, toLiteral);
+    if (replaced) {
+      meeting[key] = next;
+      return true;
     }
-  }
-  for (const k of ['actionItems', 'pendingActionItems']) {
-    if (!Array.isArray(meeting[k])) continue;
-    meeting[k] = meeting[k].map((item) => {
+    return false;
+  };
+
+  const tryArr = (key) => {
+    if (!Array.isArray(meeting[key])) return false;
+    for (let i = 0; i < meeting[key].length; i++) {
+      const raw = meeting[key][i];
+      const s = typeof raw === 'string' ? raw : String(raw);
+      if (!s.includes(fromLiteral)) continue;
+      const { next, replaced } = replaceFirstOccurrenceInString(s, fromLiteral, toLiteral);
+      if (replaced) {
+        meeting[key][i] = next;
+        return true;
+      }
+    }
+    return false;
+  };
+
+  const tryActionItems = (key) => {
+    if (!Array.isArray(meeting[key])) return false;
+    for (let i = 0; i < meeting[key].length; i++) {
+      const item = meeting[key][i];
       const base = item && typeof item.toObject === 'function' ? item.toObject() : { ...(item || {}) };
-      return {
-        ...base,
-        task: rep(base.task != null ? String(base.task) : ''),
-        notes: rep(base.notes != null ? String(base.notes) : ''),
-      };
-    });
+      const taskS = base.task != null ? String(base.task) : '';
+      if (taskS.includes(fromLiteral)) {
+        const { next, replaced } = replaceFirstOccurrenceInString(taskS, fromLiteral, toLiteral);
+        if (replaced) {
+          meeting[key][i] = { ...base, task: next };
+          return true;
+        }
+      }
+      const notesS = base.notes != null ? String(base.notes) : '';
+      if (notesS.includes(fromLiteral)) {
+        const { next, replaced } = replaceFirstOccurrenceInString(notesS, fromLiteral, toLiteral);
+        if (replaced) {
+          meeting[key][i] = { ...base, notes: next };
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  const steps = [
+    () => tryStr('pendingSummary'),
+    () => tryStr('summary'),
+    () => tryArr('pendingKeyPoints'),
+    () => tryArr('keyPoints'),
+    () => tryArr('pendingDecisions'),
+    () => tryArr('decisions'),
+    () => tryArr('pendingNextSteps'),
+    () => tryArr('nextSteps'),
+    () => tryArr('pendingImportantNotes'),
+    () => tryArr('importantNotes'),
+    () => tryActionItems('pendingActionItems'),
+    () => tryActionItems('actionItems'),
+  ];
+  for (const fn of steps) {
+    if (fn()) return 1;
   }
-  return replacements;
+  return 0;
 }
 const { sendEmail, isEmailConfigured, getDefaultFrom } = require('../utils/emailService');
 const {
@@ -1799,7 +1845,7 @@ router.post('/:id/resolve-speaker-pool', async (req, res) => {
       chosenParticipantEmail.split('@')[0];
     const replacementBracket = `[${display}]`;
 
-    const n = replaceLiteralInAllSummaryFields(meeting, poolBracket, replacementBracket);
+    const n = replaceFirstLiteralInSummaryFields(meeting, poolBracket, replacementBracket);
     if (n === 0) {
       return res.status(400).json({ error: 'No replacements were made', details: 'Bracket text may have changed.' });
     }
@@ -1827,11 +1873,33 @@ router.post('/:id/resolve-speaker-pool', async (req, res) => {
     }
 
     await meeting.save();
+
+    const restBlob = [
+      meeting.summary,
+      meeting.pendingSummary,
+      ...(meeting.keyPoints || []),
+      ...(meeting.pendingKeyPoints || []),
+      ...(meeting.decisions || []),
+      ...(meeting.pendingDecisions || []),
+      ...(meeting.nextSteps || []),
+      ...(meeting.pendingNextSteps || []),
+      ...(meeting.importantNotes || []),
+      ...(meeting.pendingImportantNotes || []),
+      ...(meeting.actionItems || []).map((i) => [i && i.task, i && i.notes]),
+      ...(meeting.pendingActionItems || []).map((i) => [i && i.task, i && i.notes]),
+    ]
+      .flat()
+      .filter(Boolean)
+      .join('\n');
+    const moreRemain = restBlob.includes(poolBracket);
+
     res.json({
       success: true,
-      message:
-        'Saved. We’ll use this preference to improve speaker hints over time; this meeting’s text is updated.',
+      message: moreRemain
+        ? `Updated that line to [${display}]. If the same “${poolBracket}” label appears elsewhere, choose again.`
+        : `Updated that line to [${display}].`,
       replacements: n,
+      morePooledLabelsRemain: moreRemain,
       meeting,
     });
   } catch (error) {
