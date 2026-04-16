@@ -28,6 +28,9 @@ import {
 } from '../utils/voiceEnrollment';
 import './StartMeetingModal.css';
 
+/** Education: do not email students on lecture create unless the teacher opts in. */
+const DEFAULT_SEND_NOTIFICATION_ON_CREATE = !isEducation;
+
 function FieldLabel({ htmlFor, icon: Icon, children }) {
   return (
     <label className="start-meeting-label-with-icon" htmlFor={htmlFor}>
@@ -106,7 +109,7 @@ function resetAllState(setters) {
   setters.setParticipantBook([]);
   setters.setParticipantBookError('');
   setters.setAuthorizedEditorEmail('');
-  setters.setSendNotification(true);
+  setters.setSendNotification(DEFAULT_SEND_NOTIFICATION_ON_CREATE);
   setters.setError('');
   setters.setLoading(false);
   setters.setVoiceRecognitionEnabled(false);
@@ -144,7 +147,7 @@ export default function MeetingCreateForm({
   const [participantBook, setParticipantBook] = useState([]);
   const [participantBookError, setParticipantBookError] = useState('');
   const [authorizedEditorEmail, setAuthorizedEditorEmail] = useState('');
-  const [sendNotification, setSendNotification] = useState(true);
+  const [sendNotification, setSendNotification] = useState(DEFAULT_SEND_NOTIFICATION_ON_CREATE);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [voiceProfiles, setVoiceProfiles] = useState({});
