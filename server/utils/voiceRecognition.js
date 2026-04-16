@@ -13,6 +13,9 @@ const execPromise = util.promisify(exec);
  * - Reject ambiguous matches: best score must be clearly above the runner-up (margin).
  * - Enrollment: require enough speech at healthy volume so stored vectors are stable.
  *
+ * Enrollment: VOICE_ENROLLMENT_CLEAN_AUDIO (default true) runs ffmpeg band-limit + dynaudnorm
+ * before embeddings for clearer samples. Set VOICE_ENROLLMENT_CLEAN_AUDIO=false to disable.
+ *
  * Tune via env: VOICE_MATCH_STRICT, VOICE_PYANNOTE_MIN, VOICE_FFT_MIN, VOICE_MATCH_MARGIN,
  * VOICE_SINGLE_PYANNOTE_MIN, VOICE_SINGLE_FFT_MIN, VOICE_FFT_CONFIRM_MIN,
  * VOICE_SINGLE_PYANNOTE_RELAXED, VOICE_SINGLE_FFT_RELAXED, VOICE_ENROLL_MIN_SECONDS, VOICE_ENROLL_MIN_RMS.
@@ -66,6 +69,57 @@ async function preprocessAudioForEmbedding(audioFilePath) {
       })
       .save(outputPath);
   });
+}
+
+/**
+ * Extra ffmpeg pass for enrollment: speech band + gentle dynamics (helps noisy mics / room hum).
+ * Returns a temp .wav path or null to use input unchanged.
+ */
+function tryFfmpegCleanVoiceEnrollmentSync(inputPath) {
+  if (!inputPath || !fs.existsSync(inputPath)) return null;
+  if (String(process.env.VOICE_ENROLLMENT_CLEAN_AUDIO || 'true').toLowerCase() === 'false') {
+    return null;
+  }
+  const out = path.join(
+    os.tmpdir(),
+    `portiq_enroll_clean_${Date.now()}_${Math.random().toString(36).slice(2, 10)}.wav`
+  );
+  try {
+    execFileSync(
+      'ffmpeg',
+      [
+        '-nostdin',
+        '-y',
+        '-i',
+        inputPath,
+        '-af',
+        'highpass=f=80,lowpass=f=7500,dynaudnorm=f=200:g=17',
+        '-ac',
+        '1',
+        '-ar',
+        '16000',
+        out,
+      ],
+      { stdio: ['ignore', 'ignore', 'pipe'], maxBuffer: 25 * 1024 * 1024, timeout: 120000 }
+    );
+    if (!fs.existsSync(out) || fs.statSync(out).size < 256) {
+      try {
+        if (fs.existsSync(out)) fs.unlinkSync(out);
+      } catch (_) {
+        /* ignore */
+      }
+      return null;
+    }
+    return out;
+  } catch (e) {
+    console.warn('⚠️  Voice enrollment clean step failed, using VAD-trimmed audio:', e.message || e);
+    try {
+      if (fs.existsSync(out)) fs.unlinkSync(out);
+    } catch (_) {
+      /* ignore */
+    }
+    return null;
+  }
 }
 
 /**
@@ -127,6 +181,8 @@ async function tryPyannoteEmbedding(processedPath) {
 }
 
 async function generateVoiceEmbedding(audioFilePath) {
+  let processedPath = null;
+  let cleanPath = null;
   try {
     // Read audio file
     if (!fs.existsSync(audioFilePath)) {
@@ -134,9 +190,13 @@ async function generateVoiceEmbedding(audioFilePath) {
     }
 
     // Preprocess with simple VAD to trim silence where possible
-    const processedPath = await preprocessAudioForEmbedding(audioFilePath);
+    processedPath = await preprocessAudioForEmbedding(audioFilePath);
 
-    const py = await tryPyannoteEmbedding(processedPath);
+    // Crystal-clear chain: band-limit + dynamics on top of trim (temp file cleaned up below)
+    cleanPath = tryFfmpegCleanVoiceEnrollmentSync(processedPath);
+    const embeddingPath = cleanPath || processedPath;
+
+    const py = await tryPyannoteEmbedding(embeddingPath);
     if (py) return py;
 
     // Fallback: simplified embedding when pyannote/Python/HF is not available.
@@ -154,11 +214,26 @@ async function generateVoiceEmbedding(audioFilePath) {
     console.warn(
       '⚠️  Voice embedding: using FFT / mel-spectral fallback (set HF_TOKEN + pyannote for production-grade embeddings)'
     );
-    const embedding = await generateFftMelVoiceEmbedding(processedPath);
+    const embedding = await generateFftMelVoiceEmbedding(embeddingPath);
     return embedding;
   } catch (error) {
     console.error('Error generating voice embedding:', error);
     throw error;
+  } finally {
+    if (cleanPath && fs.existsSync(cleanPath)) {
+      try {
+        fs.unlinkSync(cleanPath);
+      } catch (_) {
+        /* ignore */
+      }
+    }
+    if (processedPath && processedPath !== audioFilePath && fs.existsSync(processedPath)) {
+      try {
+        fs.unlinkSync(processedPath);
+      } catch (_) {
+        /* ignore */
+      }
+    }
   }
 }
 

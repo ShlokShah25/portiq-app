@@ -39,6 +39,7 @@ function getLiveVoiceSessionContext(meetingId) {
     liveVoiceSessionByMeetingId.set(id, {
       lastEmbedding: null,
       lastEmail: null,
+      lastEmbeddingKind: null,
       centroids: new Map(),
     });
   }
@@ -1970,7 +1971,7 @@ router.post('/voice/register', voiceUpload.single('audio'), async (req, res) => 
       });
     }
 
-    // Generate voice embedding
+    // Generate voice embedding (server cleans audio: VAD trim + ffmpeg band-limit/normalize for enrollment)
     const voiceVector = await generateVoiceEmbedding(req.file.path);
 
     // Check if profile already exists
@@ -1979,6 +1980,7 @@ router.post('/voice/register', voiceUpload.single('audio'), async (req, res) => 
     const newSampleRel = `/uploads/voice-samples/${req.file.filename}`;
     if (voiceProfile) {
       const previousSampleRel = voiceProfile.voiceSampleFile;
+      // Re-record: replace stored embedding entirely — old vector is discarded (not averaged with the new one).
       voiceProfile.voiceVector = voiceVector;
       voiceProfile.voiceSampleFile = newSampleRel;
       voiceProfile.standardSentence = standardSentence || voiceProfile.standardSentence;
