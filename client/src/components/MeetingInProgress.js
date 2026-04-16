@@ -17,6 +17,141 @@ let globalStream = null;
 /** Set when End Meeting must await POST /end with audio (avoid double /end). */
 let pendingEndUpload = null;
 
+/** Pause-based live segmentation (Web Audio RMS + accumulated MediaRecorder slices). */
+let globalLiveVad = null;
+
+/**
+ * Small MediaRecorder timeslices + accumulate until silence or max length, then enqueue one blob.
+ */
+function startLiveUtteranceSegmentation(stream, enqueueBlob) {
+  const MEDIA_SLICE_MS = 400;
+  const MIN_LIVE_CHUNK_BYTES = 800;
+  const PAUSE_SILENCE_MS = 520;
+  const MAX_LIVE_SEGMENT_MS = 12000;
+  const MIN_UTTERANCE_MS = 320;
+  const SILENCE_RMS = 0.017;
+
+  const state = {
+    pendingChunks: [],
+    pendingStartedAt: null,
+    silenceMs: 0,
+    lastTick: performance.now(),
+    rafId: 0,
+    audioCtx: null,
+    stopped: false,
+    data: null,
+  };
+
+  function flushPending() {
+    if (state.pendingChunks.length === 0) return;
+    const blob = new Blob(state.pendingChunks, { type: 'audio/webm' });
+    state.pendingChunks = [];
+    state.pendingStartedAt = null;
+    state.silenceMs = 0;
+    if (blob.size >= MIN_LIVE_CHUNK_BYTES) {
+      enqueueBlob(blob);
+    }
+  }
+
+  let audioCtx;
+  try {
+    audioCtx = new AudioContext();
+  } catch (e) {
+    console.warn('Live VAD: AudioContext not available', e);
+    return null;
+  }
+  state.audioCtx = audioCtx;
+  audioCtx.resume().catch(() => {});
+
+  const source = audioCtx.createMediaStreamSource(stream);
+  const analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 2048;
+  source.connect(analyser);
+  state.data = new Float32Array(analyser.fftSize);
+
+  function tick() {
+    if (state.stopped) return;
+    const rec = globalMediaRecorder;
+    if (!rec || rec.state !== 'recording') {
+      state.rafId = requestAnimationFrame(tick);
+      return;
+    }
+
+    analyser.getFloatTimeDomainData(state.data);
+    let sum = 0;
+    for (let i = 0; i < state.data.length; i += 1) {
+      sum += state.data[i] * state.data[i];
+    }
+    const rms = Math.sqrt(sum / state.data.length);
+    const now = performance.now();
+    const dt = Math.min(now - state.lastTick, 120);
+    state.lastTick = now;
+
+    if (rms < SILENCE_RMS) {
+      state.silenceMs += dt;
+    } else {
+      state.silenceMs = 0;
+    }
+
+    const pendingDur =
+      state.pendingStartedAt != null ? now - state.pendingStartedAt : 0;
+    const pauseAfterSpeech =
+      state.pendingChunks.length > 0 &&
+      state.silenceMs >= PAUSE_SILENCE_MS &&
+      pendingDur >= MIN_UTTERANCE_MS;
+    const maxLen = state.pendingChunks.length > 0 && pendingDur >= MAX_LIVE_SEGMENT_MS;
+
+    if (pauseAfterSpeech || maxLen) {
+      flushPending();
+    }
+
+    state.rafId = requestAnimationFrame(tick);
+  }
+
+  state.rafId = requestAnimationFrame(tick);
+  state.flushPending = flushPending;
+  state.dispose = () => {
+    state.stopped = true;
+    try {
+      cancelAnimationFrame(state.rafId);
+    } catch (_) {
+      /* ignore */
+    }
+    if (state.audioCtx && state.audioCtx.state !== 'closed') {
+      state.audioCtx.close().catch(() => {});
+    }
+  };
+  state.onRecorderData = (data) => {
+    if (state.stopped) return;
+    state.pendingChunks.push(data);
+    if (state.pendingStartedAt == null) {
+      state.pendingStartedAt = performance.now();
+    }
+  };
+  state.resetAfterResume = () => {
+    state.silenceMs = 0;
+    state.lastTick = performance.now();
+  };
+
+  state.sliceMs = MEDIA_SLICE_MS;
+  return state;
+}
+
+function disposeGlobalLiveVad() {
+  if (!globalLiveVad) return;
+  try {
+    globalLiveVad.flushPending();
+  } catch (_) {
+    /* ignore */
+  }
+  try {
+    globalLiveVad.dispose();
+  } catch (_) {
+    /* ignore */
+  }
+  globalLiveVad = null;
+}
+
 function isGlobalRecordingActive() {
   const rec = globalMediaRecorder;
   return !!(rec && rec.state !== 'inactive');
@@ -271,8 +406,9 @@ const MeetingInProgress = () => {
       globalMediaRecorder = mediaRecorder;
       globalActiveMeetingId = String(meetingId);
       const chunks = [];
-      const LIVE_CHUNK_MS = 5000;
-      const MIN_LIVE_CHUNK_BYTES = 2800;
+      /** Aligned with server live chunk minimum; utterance segments can be shorter than old 5s blobs. */
+      const MIN_LIVE_CHUNK_BYTES = 800;
+      const FALLBACK_LIVE_SLICE_MS = 2500;
 
       let liveFlushBusy = false;
       const liveQueue = [];
@@ -342,17 +478,26 @@ const MeetingInProgress = () => {
         void flushLiveTranscriptQueue();
       }
 
+      disposeGlobalLiveVad();
+      globalLiveVad = startLiveUtteranceSegmentation(stream, enqueueLiveTranscriptChunk);
+      const liveSliceMs = globalLiveVad ? globalLiveVad.sliceMs : FALLBACK_LIVE_SLICE_MS;
+
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           chunks.push(event.data);
           const rec = globalMediaRecorder;
           if (rec && rec.state === 'recording') {
-            enqueueLiveTranscriptChunk(event.data);
+            if (globalLiveVad) {
+              globalLiveVad.onRecorderData(event.data);
+            } else {
+              enqueueLiveTranscriptChunk(event.data);
+            }
           }
         }
       };
 
       mediaRecorder.onstop = async () => {
+        disposeGlobalLiveVad();
         const blob = new Blob(chunks, { type: 'audio/webm' });
         if (globalStream) {
           globalStream.getTracks().forEach((t) => t.stop());
@@ -369,7 +514,7 @@ const MeetingInProgress = () => {
         setLiveTranscriptEntries([]);
         setLiveTranscriptError('');
       }
-      mediaRecorder.start(LIVE_CHUNK_MS);
+      mediaRecorder.start(liveSliceMs);
       if (isMountedRef.current) {
         setRecording(true);
         setPaused(false);
@@ -394,6 +539,9 @@ const MeetingInProgress = () => {
   const pauseRecording = () => {
     const recorder = globalMediaRecorder || mediaRecorderRef.current;
     if (recorder && recorder.state === 'recording') {
+      if (globalLiveVad) {
+        globalLiveVad.flushPending();
+      }
       recorder.pause();
       if (isMountedRef.current) setPaused(true);
     }
@@ -402,6 +550,9 @@ const MeetingInProgress = () => {
   const resumeRecording = () => {
     const recorder = globalMediaRecorder || mediaRecorderRef.current;
     if (recorder && recorder.state === 'paused') {
+      if (globalLiveVad) {
+        globalLiveVad.resetAfterResume();
+      }
       recorder.resume();
       if (isMountedRef.current) setPaused(false);
     }
@@ -410,6 +561,9 @@ const MeetingInProgress = () => {
   const stopRecording = () => {
     const recorder = globalMediaRecorder || mediaRecorderRef.current;
     if (recorder && recorder.state !== 'inactive') {
+      if (globalLiveVad) {
+        globalLiveVad.flushPending();
+      }
       recorder.stop();
       if (isMountedRef.current) {
         setRecording(false);
@@ -847,7 +1001,7 @@ const MeetingInProgress = () => {
                             <p className="mip-live-transcript__text">{liveTranscript}</p>
                           ) : (
                             <p className="mip-live-transcript__placeholder">
-                              Listening… text appears every few seconds as we process short audio segments.
+                              Listening… text updates after short phrases (we split on natural pauses).
                             </p>
                           )}
                         </div>
