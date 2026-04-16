@@ -1,8 +1,15 @@
 const fs = require('fs');
 const path = require('path');
-const { exec } = require('child_process');
+const os = require('os');
+const { exec, execFileSync } = require('child_process');
 const util = require('util');
 const execPromise = util.promisify(exec);
+
+/** Fallback speaker embedding size (mel static + mel delta); must match stored vectors from this path. */
+const FFT_VOICE_EMBEDDING_DIM = 128;
+const FFT_FRAME_SIZE = 512;
+const FFT_HOP = 256;
+const FFT_MEL_BANDS = 64;
 
 // Optional: use ffmpeg to apply simple voice-activity-based trimming
 let ffmpeg = null;
@@ -118,11 +125,9 @@ async function generateVoiceEmbedding(audioFilePath) {
       );
     }
     console.warn(
-      '⚠️  Voice embedding: using simplified fallback (set HF_TOKEN + pyannote for accurate speaker vectors, or VOICE_EMBEDDING_STRICT=true to require ML)'
+      '⚠️  Voice embedding: using FFT / mel-spectral fallback (set HF_TOKEN + pyannote for production-grade embeddings)'
     );
-    const audioStats = await getAudioStats(processedPath);
-    const embedding = createEmbeddingFromStats(audioStats);
-    
+    const embedding = await generateFftMelVoiceEmbedding(processedPath);
     return embedding;
   } catch (error) {
     console.error('Error generating voice embedding:', error);
@@ -130,32 +135,182 @@ async function generateVoiceEmbedding(audioFilePath) {
   }
 }
 
-/**
- * Get basic audio statistics (fallback method)
- */
-async function getAudioStats(audioFilePath) {
-  const stats = fs.statSync(audioFilePath);
-  return {
-    size: stats.size,
-    duration: 0,
-    sampleRate: 16000
-  };
+function hzToMel(hz) {
+  return 2595 * Math.log10(1 + Math.max(0, hz) / 700);
+}
+
+function melToHz(m) {
+  return 700 * (Math.pow(10, m / 2595) - 1);
 }
 
 /**
- * Create embedding from audio stats (fallback - NOT production-ready)
- * This is a placeholder. Use pyannote.audio for actual voice recognition.
+ * Decode arbitrary audio to mono s16le @ 16 kHz via ffmpeg (required for spectral path).
  */
-function createEmbeddingFromStats(stats) {
-  // Simple hash-based embedding (NOT production-ready)
-  // Only use this for testing. Install pyannote.audio for real voice recognition.
-  const embedding = new Array(128).fill(0);
-  const hash = stats.size % 1000000;
-  for (let i = 0; i < 128; i++) {
-    embedding[i] = (hash * (i + 1)) % 1000 / 1000;
+function ffmpegDecodeToMonoS16le16k(audioPath) {
+  const out = path.join(
+    os.tmpdir(),
+    `portiq_pcm_${Date.now()}_${Math.random().toString(36).slice(2, 10)}.raw`
+  );
+  try {
+    execFileSync(
+      'ffmpeg',
+      ['-nostdin', '-y', '-i', audioPath, '-ac', '1', '-ar', '16000', '-f', 's16le', out],
+      { stdio: ['ignore', 'ignore', 'pipe'], maxBuffer: 25 * 1024 * 1024, timeout: 120000 }
+    );
+    return fs.readFileSync(out);
+  } finally {
+    try {
+      if (fs.existsSync(out)) fs.unlinkSync(out);
+    } catch (_) {
+      /* ignore */
+    }
   }
-  
-  return embedding;
+}
+
+function int16leBufferToFloatFrame(buf, offset, frameSize) {
+  const frame = new Float64Array(frameSize);
+  const n = Math.min(frameSize, (buf.length - offset) >> 1);
+  for (let i = 0; i < n; i++) {
+    const v = buf.readInt16LE(offset + i * 2);
+    frame[i] = v / 32768;
+  }
+  return frame;
+}
+
+/** Real-input DFT magnitude spectrum (one bin per k); n is power of 2, uses O(n^2) — fine for n=512. */
+function dftMagnitudesReal(signal) {
+  const n = signal.length;
+  const half = n / 2;
+  const mag = new Float64Array(half + 1);
+  for (let k = 0; k <= half; k++) {
+    let re = 0;
+    let im = 0;
+    for (let t = 0; t < n; t++) {
+      const angle = (-2 * Math.PI * k * t) / n;
+      re += signal[t] * Math.cos(angle);
+      im += signal[t] * Math.sin(angle);
+    }
+    mag[k] = Math.sqrt(re * re + im * im);
+  }
+  return mag;
+}
+
+function buildMelFilterbank(sr, nFft, nMels, fMin, fMax) {
+  const nBins = nFft / 2 + 1;
+  const fftHz = (k) => (k * sr) / nFft;
+  const melMin = hzToMel(fMin);
+  const melMax = hzToMel(fMax);
+  const mels = [];
+  for (let i = 0; i <= nMels + 1; i++) {
+    const m = melMin + (i * (melMax - melMin)) / (nMels + 1);
+    mels.push(melToHz(m));
+  }
+  const fb = [];
+  for (let m = 0; m < nMels; m++) {
+    const fLo = mels[m];
+    const fMid = mels[m + 1];
+    const fHi = mels[m + 2];
+    const weights = new Float64Array(nBins);
+    for (let k = 0; k < nBins; k++) {
+      const f = fftHz(k);
+      let w = 0;
+      if (f >= fLo && f <= fHi) {
+        if (f <= fMid && fMid > fLo) w = (f - fLo) / (fMid - fLo);
+        else if (fMid < fHi) w = (fHi - f) / (fHi - fMid);
+      }
+      weights[k] = w;
+    }
+    fb.push(weights);
+  }
+  return fb;
+}
+
+function l2Normalize(vec) {
+  let s = 0;
+  for (let i = 0; i < vec.length; i++) s += vec[i] * vec[i];
+  const n = Math.sqrt(s) || 1;
+  return vec.map((x) => x / n);
+}
+
+/**
+ * Lightweight spectral "embedding" from short audio: log-mel energy + temporal deltas.
+ * Uses explicit DFT (FFT-sized windows) — no ML runtime; pairs with same-length stored vectors only.
+ */
+async function generateFftMelVoiceEmbedding(audioFilePath) {
+  const sr = 16000;
+  let pcm;
+  try {
+    pcm = ffmpegDecodeToMonoS16le16k(audioFilePath);
+  } catch (e) {
+    console.warn('⚠️  ffmpeg decode for FFT embedding failed:', e.message);
+    throw new Error(
+      'Could not decode audio for speaker fingerprint (ffmpeg required on server for FFT fallback).'
+    );
+  }
+  if (!pcm || pcm.length < 256) {
+    throw new Error('Audio too short for spectral embedding');
+  }
+
+  const melFb = buildMelFilterbank(sr, FFT_FRAME_SIZE, FFT_MEL_BANDS, 80, 7600);
+  const frameFeats = [];
+
+  for (let start = 0; start + FFT_FRAME_SIZE <= pcm.length; start += FFT_HOP) {
+    const frame = int16leBufferToFloatFrame(pcm, start, FFT_FRAME_SIZE);
+    for (let i = 0; i < FFT_FRAME_SIZE; i++) {
+      frame[i] *= 0.5 * (1 - Math.cos((2 * Math.PI * i) / (FFT_FRAME_SIZE - 1)));
+    }
+    const mag = dftMagnitudesReal(frame);
+    const mel = new Float64Array(FFT_MEL_BANDS);
+    for (let m = 0; m < FFT_MEL_BANDS; m++) {
+      let e = 0;
+      const w = melFb[m];
+      for (let k = 0; k < mag.length; k++) e += mag[k] * w[k];
+      mel[m] = Math.log(1 + Math.max(e, 1e-10));
+    }
+    frameFeats.push(mel);
+  }
+
+  if (frameFeats.length === 0) {
+    const pad = int16leBufferToFloatFrame(pcm, 0, FFT_FRAME_SIZE);
+    for (let i = 0; i < FFT_FRAME_SIZE; i++) {
+      pad[i] *= 0.5 * (1 - Math.cos((2 * Math.PI * i) / (FFT_FRAME_SIZE - 1)));
+    }
+    const mag = dftMagnitudesReal(pad);
+    const mel = new Float64Array(FFT_MEL_BANDS);
+    for (let m = 0; m < FFT_MEL_BANDS; m++) {
+      let e = 0;
+      const w = melFb[m];
+      for (let k = 0; k < mag.length; k++) e += mag[k] * w[k];
+      mel[m] = Math.log(1 + Math.max(e, 1e-10));
+    }
+    frameFeats.push(mel);
+  }
+
+  const mean = new Float64Array(FFT_MEL_BANDS);
+  for (const f of frameFeats) {
+    for (let b = 0; b < FFT_MEL_BANDS; b++) mean[b] += f[b];
+  }
+  for (let b = 0; b < FFT_MEL_BANDS; b++) mean[b] /= frameFeats.length;
+
+  const delta = new Float64Array(FFT_MEL_BANDS);
+  if (frameFeats.length > 1) {
+    let count = 0;
+    for (let t = 1; t < frameFeats.length; t++) {
+      for (let b = 0; b < FFT_MEL_BANDS; b++) {
+        delta[b] += Math.abs(frameFeats[t][b] - frameFeats[t - 1][b]);
+      }
+      count++;
+    }
+    for (let b = 0; b < FFT_MEL_BANDS; b++) delta[b] /= count;
+  }
+
+  const emb = [...mean, ...delta];
+  while (emb.length < FFT_VOICE_EMBEDDING_DIM) emb.push(0);
+  const out = l2Normalize(emb.slice(0, FFT_VOICE_EMBEDDING_DIM));
+  for (let i = 0; i < out.length; i++) {
+    if (!Number.isFinite(out[i])) out[i] = 0;
+  }
+  return out;
 }
 
 /**
@@ -193,14 +348,26 @@ async function identifySpeaker(audioFilePath, voiceProfiles) {
   try {
     // Generate embedding for the audio segment
     const segmentEmbedding = await generateVoiceEmbedding(audioFilePath);
-    
+
     let bestMatch = null;
     let bestScore = 0;
-    const threshold = 0.7; // Similarity threshold (adjust as needed)
-    
-    // Compare with all stored voice profiles
+    const isFftFallback =
+      Array.isArray(segmentEmbedding) && segmentEmbedding.length === FFT_VOICE_EMBEDDING_DIM;
+    const threshold = isFftFallback
+      ? Math.min(
+          0.92,
+          Math.max(0.4, parseFloat(process.env.VOICE_FFT_MATCH_THRESHOLD || '0.58', 10) || 0.58)
+        )
+      : Math.min(
+          0.95,
+          Math.max(0.5, parseFloat(process.env.VOICE_MATCH_THRESHOLD || '0.72', 10) || 0.72)
+        );
+
+    // Compare with all stored voice profiles (same vector length only — pyannote vs FFT are incompatible)
     for (const profile of voiceProfiles) {
-      const similarity = compareEmbeddings(segmentEmbedding, profile.voiceVector);
+      const pv = profile && profile.voiceVector;
+      if (!Array.isArray(pv) || pv.length !== segmentEmbedding.length) continue;
+      const similarity = compareEmbeddings(segmentEmbedding, pv);
       if (similarity > bestScore && similarity >= threshold) {
         bestScore = similarity;
         bestMatch = profile;
@@ -220,5 +387,7 @@ async function identifySpeaker(audioFilePath, voiceProfiles) {
 module.exports = {
   generateVoiceEmbedding,
   compareEmbeddings,
-  identifySpeaker
+  identifySpeaker,
+  generateFftMelVoiceEmbedding,
+  FFT_VOICE_EMBEDDING_DIM,
 };
