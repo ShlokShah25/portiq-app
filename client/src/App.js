@@ -5,22 +5,50 @@ import ProtectedLayout from './components/ProtectedLayout';
 import './App.css';
 import './styles/saas-premium-overrides.css';
 
+const lazyWithRetry = (importer, key) =>
+  lazy(() =>
+    importer().catch((error) => {
+      const msg = String(error?.message || '');
+      const chunkFailed =
+        /ChunkLoadError/i.test(msg) ||
+        /Loading chunk [\w-]+ failed/i.test(msg) ||
+        /dynamically imported module/i.test(msg);
+      if (!chunkFailed || typeof window === 'undefined') {
+        throw error;
+      }
+      const retryKey = `portiq_chunk_retry_${key}`;
+      try {
+        const alreadyRetried = window.sessionStorage.getItem(retryKey) === '1';
+        if (!alreadyRetried) {
+          window.sessionStorage.setItem(retryKey, '1');
+          window.location.reload();
+          return new Promise(() => {});
+        }
+        window.sessionStorage.removeItem(retryKey);
+      } catch (_) {
+        window.location.reload();
+        return new Promise(() => {});
+      }
+      throw error;
+    })
+  );
+
 // Lazy load components for better performance
-const Dashboard = lazy(() => import('./components/Dashboard'));
-const MeetingsScreen = lazy(() => import('./components/MeetingsScreen'));
-const Transcripts = lazy(() => import('./components/Transcripts'));
-const Participants = lazy(() => import('./components/Participants'));
-const Insights = lazy(() => import('./components/Insights'));
-const ClassesPage = lazy(() => import('./components/ClassesPage'));
-const TeachersPage = lazy(() => import('./components/TeachersPage'));
-const Settings = lazy(() => import('./components/Settings'));
-const MeetingInProgress = lazy(() => import('./components/MeetingInProgress'));
-const MeetingDetail = lazy(() => import('./components/MeetingDetail'));
-const MeetingSummary = lazy(() => import('./components/MeetingSummary'));
-const ClientAdmin = lazy(() => import('./components/ClientAdmin'));
-const BootupScreen = lazy(() => import('./components/BootupScreen'));
-const AdminLogin = lazy(() => import('./components/AdminLogin'));
-const ResetPassword = lazy(() => import('./components/ResetPassword'));
+const Dashboard = lazyWithRetry(() => import('./components/Dashboard'), 'dashboard');
+const MeetingsScreen = lazyWithRetry(() => import('./components/MeetingsScreen'), 'meetings');
+const Transcripts = lazyWithRetry(() => import('./components/Transcripts'), 'transcripts');
+const Participants = lazyWithRetry(() => import('./components/Participants'), 'participants');
+const Insights = lazyWithRetry(() => import('./components/Insights'), 'insights');
+const ClassesPage = lazyWithRetry(() => import('./components/ClassesPage'), 'classes');
+const TeachersPage = lazyWithRetry(() => import('./components/TeachersPage'), 'teachers');
+const Settings = lazyWithRetry(() => import('./components/Settings'), 'settings');
+const MeetingInProgress = lazyWithRetry(() => import('./components/MeetingInProgress'), 'meeting-room');
+const MeetingDetail = lazyWithRetry(() => import('./components/MeetingDetail'), 'meeting-detail');
+const MeetingSummary = lazyWithRetry(() => import('./components/MeetingSummary'), 'meeting-summary');
+const ClientAdmin = lazyWithRetry(() => import('./components/ClientAdmin'), 'client-admin');
+const BootupScreen = lazyWithRetry(() => import('./components/BootupScreen'), 'bootup');
+const AdminLogin = lazyWithRetry(() => import('./components/AdminLogin'), 'admin-login');
+const ResetPassword = lazyWithRetry(() => import('./components/ResetPassword'), 'reset-password');
 // Set base URL for API.
 // - In local dev: use explicit REACT_APP_API_URL or localhost:5001
 // - In production (Railway): use same-origin `/api` so CORS is not needed.
