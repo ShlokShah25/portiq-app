@@ -1,6 +1,8 @@
 const OpenAI = require('openai');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
+const { execFileSync } = require('child_process');
 const { sendEmail, isEmailConfigured, getDefaultFrom } = require('./emailService');
 const { buildMeetingSummaryPdfBuffer } = require('./meetingSummaryPdf');
 const {
@@ -21,6 +23,7 @@ const {
   buildInterviewUserJsonInstructions,
 } = require('./meetingSummaryModes');
 const { ensureWhisperSizedAudio, WHISPER_MAX_BYTES } = require('./audioCompressForWhisper');
+const { identifySpeaker } = require('./voiceRecognition');
 
 /**
  * Save Whisper output to MongoDB before summarization so GPT failures or deploys never wipe recoverable text.
@@ -1018,6 +1021,273 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
 }
 
 /**
+ * Emails that may have VoiceProfile rows (same logic as buildTranscriptWithSpeakerHints).
+ */
+async function getVoiceLookupEmailsForMeeting(meetingObj) {
+  if (!meetingObj) return [];
+  const participantEmails = (meetingObj.participants || [])
+    .filter((p) => p && isValidEmailForLookup(p.email))
+    .map((p) => p.email.trim().toLowerCase());
+  const candidateVoiceEmails = Array.isArray(meetingObj.interviewCandidates)
+    ? meetingObj.interviewCandidates
+        .map((c) => (c && c.voiceEmail ? String(c.voiceEmail).trim().toLowerCase() : ''))
+        .filter((e) => isValidEmailForLookup(e))
+    : [];
+  let adminEmail = '';
+  if (meetingObj.adminId) {
+    try {
+      const adm = await Admin.findById(meetingObj.adminId).select('email').lean();
+      if (adm && adm.email && isValidEmailForLookup(adm.email)) {
+        adminEmail = String(adm.email).trim().toLowerCase();
+      }
+    } catch (_) {
+      /* ignore */
+    }
+  }
+  return [...new Set([...participantEmails, ...candidateVoiceEmails, ...(adminEmail ? [adminEmail] : [])])];
+}
+
+function normalizeWhisperSegments(segments) {
+  if (!Array.isArray(segments)) return [];
+  return segments
+    .map((s) => ({
+      start: Number(s && s.start) || 0,
+      end: Number(s && s.end) || 0,
+      text: s && s.text != null ? String(s.text).trim() : '',
+    }))
+    .filter((s) => s.end > s.start && s.text.length > 0);
+}
+
+/**
+ * Merge Whisper segments into ~10–45s buckets; cap total buckets for long meetings.
+ */
+function coalesceSegmentsForVoiceAttribution(segments, opts = {}) {
+  const MIN_DUR = opts.minDurSec != null ? opts.minDurSec : 10;
+  const MAX_BUCKETS = opts.maxBuckets != null ? opts.maxBuckets : 90;
+  let buckets = [];
+  let cur = null;
+
+  for (const seg of segments) {
+    const dur = seg.end - seg.start;
+    if (dur <= 0) continue;
+    if (!cur) {
+      cur = { start: seg.start, end: seg.end, texts: [seg.text] };
+    } else {
+      cur.end = seg.end;
+      cur.texts.push(seg.text);
+    }
+    if (cur.end - cur.start >= MIN_DUR) {
+      buckets.push(cur);
+      cur = null;
+    }
+  }
+  if (cur && cur.end > cur.start) buckets.push(cur);
+
+  while (buckets.length > MAX_BUCKETS) {
+    const merged = [];
+    for (let i = 0; i < buckets.length; i += 2) {
+      if (i + 1 < buckets.length) {
+        merged.push({
+          start: buckets[i].start,
+          end: buckets[i + 1].end,
+          texts: [...buckets[i].texts, ...buckets[i + 1].texts],
+        });
+      } else {
+        merged.push(buckets[i]);
+      }
+    }
+    buckets = merged;
+  }
+  return buckets;
+}
+
+function extractAudioSegmentWav(inputPath, startSec, durationSec, outPath) {
+  execFileSync(
+    'ffmpeg',
+    [
+      '-nostdin',
+      '-y',
+      '-ss',
+      String(startSec),
+      '-i',
+      inputPath,
+      '-t',
+      String(durationSec),
+      '-ac',
+      '1',
+      '-ar',
+      '16000',
+      '-vn',
+      outPath,
+    ],
+    { stdio: ['ignore', 'ignore', 'pipe'], maxBuffer: 25 * 1024 * 1024, timeout: 180000 }
+  );
+}
+
+/**
+ * Build a bracketed timeline from audio + identifySpeaker (session centroids learn across chunks).
+ */
+async function buildVoiceAttributedEvidenceTranscript(meetingObj, audioPath, segments) {
+  const norm = normalizeWhisperSegments(segments);
+  if (!norm.length || !meetingObj || !audioPath || !fs.existsSync(audioPath)) return null;
+
+  const emails = await getVoiceLookupEmailsForMeeting(meetingObj);
+  if (emails.length === 0) return null;
+
+  const voiceProfiles = await VoiceProfile.find({ email: { $in: emails } });
+  if (!voiceProfiles.length) return null;
+
+  const buckets = coalesceSegmentsForVoiceAttribution(norm);
+  if (!buckets.length) return null;
+
+  const sessionContext = {
+    lastEmbedding: null,
+    lastEmail: null,
+    lastEmbeddingKind: null,
+    centroids: new Map(),
+  };
+
+  const lines = [];
+  for (let i = 0; i < buckets.length; i++) {
+    const b = buckets[i];
+    const dur = b.end - b.start;
+    if (dur < 0.4) continue;
+
+    const tmpWav = path.join(
+      os.tmpdir(),
+      `portiq_voice_ev_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 9)}.wav`
+    );
+    try {
+      extractAudioSegmentWav(audioPath, b.start, dur, tmpWav);
+    } catch (e) {
+      console.warn('⚠️ Voice evidence: ffmpeg segment failed:', e.message || e);
+      continue;
+    }
+
+    let label = '[Unidentified speaker]';
+    try {
+      const match = await identifySpeaker(tmpWav, voiceProfiles, sessionContext);
+      if (match && match.profile) {
+        const nm = String(match.profile.name || '').trim() || match.profile.email;
+        label = `[${nm}]`;
+      }
+    } catch (e) {
+      console.warn('⚠️ Voice evidence: identifySpeaker failed:', e.message || e);
+    } finally {
+      try {
+        if (fs.existsSync(tmpWav)) fs.unlinkSync(tmpWav);
+      } catch (_) {
+        /* ignore */
+      }
+    }
+
+    const chunkText = b.texts.join(' ').replace(/\s+/g, ' ').trim();
+    if (chunkText) {
+      lines.push(`${label} (${b.start.toFixed(1)}s–${b.end.toFixed(1)}s): ${chunkText}`);
+    }
+  }
+
+  if (!lines.length) return null;
+  return {
+    transcript: `[Voice timeline from recording — use to fix speaker labels where content aligns]\n${lines.join('\n')}`,
+    lines: lines.length,
+  };
+}
+
+function truncateVoiceEvidenceForPrompt(text, maxChars) {
+  const t = String(text || '');
+  const cap = maxChars || 14000;
+  if (t.length <= cap) return t;
+  const half = Math.floor((cap - 80) / 2);
+  return `${t.slice(0, half)}\n\n[... omitted middle of voice timeline ...]\n\n${t.slice(-half)}`;
+}
+
+/**
+ * Second pass: reconcile structured summary with voice-backed timeline (higher-confidence names).
+ */
+async function reauditStructuredSummaryWithVoice(summaryResult, voiceEvidenceTranscript, meetingObj, anchorRef, transcriptTextTrim) {
+  if (!openai || !summaryResult || !voiceEvidenceTranscript) return summaryResult;
+
+  const summaryChatModel = getSummaryChatModel();
+  const meetingTitle = meetingObj.title || 'Meeting';
+  const payload = JSON.stringify({
+    summary: summaryResult.summary || '',
+    keyPoints: summaryResult.keyPoints || [],
+    actionItems: summaryResult.actionItems || [],
+    decisions: summaryResult.decisions || [],
+    nextSteps: summaryResult.nextSteps || [],
+    importantNotes: summaryResult.importantNotes || [],
+  });
+
+  const evidence = truncateVoiceEvidenceForPrompt(voiceEvidenceTranscript, 14000);
+
+  const userContent =
+    `You reconcile speaker labels in a meeting summary using:\n` +
+    `(1) FIRST-PASS structured JSON from the transcript, and\n` +
+    `(2) a VOICE TIMELINE from the same recording (biometric matches; same order as the meeting).\n\n` +
+    `Rules:\n` +
+    `- Use the voice timeline to replace [Unidentified speaker] or generic labels with a real [Name] ONLY when the summary point could plausibly come from that time range and the name is in the voice timeline or participant roster.\n` +
+    `- If voice says [Unidentified speaker] for a span, keep Unidentified unless the transcript text alone clearly identifies the speaker.\n` +
+    `- Do NOT invent facts, decisions, quotes, or tasks. Do NOT add new content.\n` +
+    `- Only adjust speaker prefixes / light grammar to match label changes.\n` +
+    `- If unsure, keep the original speaker label.\n\n` +
+    `Meeting title (calendar; may be wrong): ${meetingTitle}\n\n` +
+    `FIRST-PASS JSON:\n${payload}\n\n` +
+    `VOICE TIMELINE:\n${evidence}\n\n` +
+    `Return ONLY valid JSON with keys: summary, keyPoints, actionItems, decisions, nextSteps, importantNotes. Same types as input.`;
+
+  const response = await openai.chat.completions.create({
+    model: summaryChatModel,
+    messages: [
+      {
+        role: 'system',
+        content:
+          'You output only valid JSON objects. Preserve array shapes. Never use markdown fences.',
+      },
+      { role: 'user', content: userContent },
+    ],
+    temperature: 0.1,
+    response_format: { type: 'json_object' },
+  });
+
+  const raw = response.choices[0].message.content || '';
+  const parsed = tryParseModelJsonObject(raw);
+  if (!parsed || typeof parsed.summary !== 'string') {
+    console.warn('⚠️ Voice re-audit: could not parse model JSON; keeping first-pass summary.');
+    return summaryResult;
+  }
+
+  const out = {
+    ...summaryResult,
+    summary: parsed.summary,
+    keyPoints: Array.isArray(parsed.keyPoints) ? parsed.keyPoints : summaryResult.keyPoints,
+    actionItems: Array.isArray(parsed.actionItems) ? parsed.actionItems : summaryResult.actionItems,
+    decisions: Array.isArray(parsed.decisions) ? parsed.decisions : summaryResult.decisions,
+    nextSteps: Array.isArray(parsed.nextSteps) ? parsed.nextSteps : summaryResult.nextSteps,
+    importantNotes: Array.isArray(parsed.importantNotes) ? parsed.importantNotes : summaryResult.importantNotes,
+  };
+
+  const tTrim = String(transcriptTextTrim || '').trim();
+  out.actionItems = enrichActionItemsWithDueDates(out.actionItems, anchorRef, {
+    keyPoints: out.keyPoints,
+    summary: out.summary,
+    nextSteps: out.nextSteps,
+  });
+
+  if (tTrim) {
+    const preFilter = deepCopySummaryPayload(out);
+    applyGroundingFiltersToSummaryData(out, tTrim);
+    reconcileSummaryPayloadAfterGrounding(preFilter, out, tTrim, anchorRef);
+    if (!summaryPayloadHasDisplayableContent(out)) {
+      applyTranscriptExcerptFallbackSummary(out, tTrim);
+    }
+  }
+
+  console.log('✅ Voice re-audit pass applied to structured summary');
+  return out;
+}
+
+/**
  * Transcribe audio file and generate meeting summary
  * NOTE: This version is intentionally STRICT to the current meeting only.
  * It does NOT use any past-meeting \"learning\" context so it stays on-point.
@@ -1177,6 +1447,44 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
           sumErr.message
         );
         await new Promise((r) => setTimeout(r, waitTime));
+      }
+    }
+
+    const summaryMode = String(meetingObj.summaryMode || SUMMARY_MODES.STANDARD || '').toLowerCase();
+    const reauditOn = String(process.env.VOICE_REAUDIT_ENABLED || 'true').toLowerCase() !== 'false';
+
+    if (
+      reauditOn &&
+      summaryResult &&
+      summaryMode !== 'interview' &&
+      transcription &&
+      Array.isArray(transcription.segments) &&
+      transcription.segments.length > 0
+    ) {
+      const anchorRef =
+        meetingObj && (meetingObj.endTime || meetingObj.scheduledTime || meetingObj.startTime)
+          ? new Date(meetingObj.endTime || meetingObj.scheduledTime || meetingObj.startTime)
+          : new Date();
+      try {
+        const ev = await buildVoiceAttributedEvidenceTranscript(
+          meetingObj,
+          finalAudioPath,
+          transcription.segments
+        );
+        if (ev && ev.transcript && ev.transcript.length > 400) {
+          console.log(
+            `🔄 Voice re-audit: ${ev.lines} timeline chunks, ${ev.transcript.length} chars evidence`
+          );
+          summaryResult = await reauditStructuredSummaryWithVoice(
+            summaryResult,
+            ev.transcript,
+            meetingObj,
+            anchorRef,
+            transcriptText
+          );
+        }
+      } catch (reauditErr) {
+        console.warn('⚠️ Voice re-audit skipped:', reauditErr.message || reauditErr);
       }
     }
 
