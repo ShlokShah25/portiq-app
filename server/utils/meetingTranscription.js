@@ -112,11 +112,22 @@ function formatParticipantLinesForSummaryPrompt(participants) {
     .join('\n');
 }
 
+function speakerAttributionPreamble() {
+  return (
+    `[Speaker attribution — required; transcript is the only source of truth]\n` +
+    '- Never invent dialogue, "translations", foreign-language quotes, or thematic analysis that is not clearly supported by the transcript text below.\n' +
+    `- If you are not sure who spoke a line, label them [Unidentified speaker] (or [Speaker 1] / [Speaker 2] if you can separate turns but not identities). ` +
+    `Do not skip attribution.\n` +
+    `- When a voice profile is listed for someone below, you may use their name ONLY for content that plausibly matches that person; if confidence is low, prefer [Unidentified speaker].\n` +
+    `- Every key point MUST begin with a bracketed speaker label, e.g. [Jamie Lee]: … or [Unidentified speaker]: …\n\n`
+  );
+}
+
 /** Optional voice-profile hint for speaker attribution (shared by standard + interview summary paths). */
 async function buildTranscriptWithSpeakerHints(meetingObj, transcriptTextTrim) {
-  let transcriptWithSpeakers = transcriptTextTrim;
+  const baseTranscript = String(transcriptTextTrim || '').trim();
   if (!meetingObj) {
-    return transcriptWithSpeakers;
+    return speakerAttributionPreamble() + baseTranscript;
   }
   try {
     const participantEmails = (meetingObj.participants || [])
@@ -131,10 +142,24 @@ async function buildTranscriptWithSpeakerHints(meetingObj, transcriptTextTrim) {
           .filter((e) => isValidEmailForLookup(e))
       : [];
 
-    const allVoiceLookupEmails = [...new Set([...participantEmails, ...candidateVoiceEmails])];
+    let adminEmail = '';
+    if (meetingObj.adminId) {
+      try {
+        const adm = await Admin.findById(meetingObj.adminId).select('email').lean();
+        if (adm && adm.email && isValidEmailForLookup(adm.email)) {
+          adminEmail = String(adm.email).trim().toLowerCase();
+        }
+      } catch (_) {
+        /* ignore */
+      }
+    }
+
+    const allVoiceLookupEmails = [
+      ...new Set([...participantEmails, ...candidateVoiceEmails, ...(adminEmail ? [adminEmail] : [])]),
+    ];
 
     if (allVoiceLookupEmails.length === 0) {
-      return transcriptWithSpeakers;
+      return speakerAttributionPreamble() + baseTranscript;
     }
 
     const voiceProfiles = await VoiceProfile.find({
@@ -142,7 +167,23 @@ async function buildTranscriptWithSpeakerHints(meetingObj, transcriptTextTrim) {
     });
 
     if (voiceProfiles.length === 0) {
-      return transcriptWithSpeakers;
+      const participantListOnly = (meetingObj.participants || [])
+        .map((p, i) => {
+          const name = p && p.name ? String(p.name).trim() : '';
+          const email = p && p.email ? String(p.email).trim() : '';
+          if (!name && !email) return `Participant ${i + 1} (no email on file)`;
+          if (email) return `${name || email.split('@')[0]} (${email})`;
+          return name;
+        })
+        .filter(Boolean)
+        .join(', ');
+      const roster =
+        participantListOnly || (adminEmail ? `Organizer account email on file: ${adminEmail}` : '');
+      return (
+        (roster ? `Invited participants / roster hints (may speak): ${roster}\n\n` : '') +
+        speakerAttributionPreamble() +
+        baseTranscript
+      );
     }
 
     console.log(`✅ Found ${voiceProfiles.length} voice profile(s) for speaker identification`);
@@ -203,16 +244,20 @@ async function buildTranscriptWithSpeakerHints(meetingObj, transcriptTextTrim) {
     if (participantList) {
       prefix += `Invited participants (may also speak): ${participantList}\n\n`;
     }
+    if (adminEmail) {
+      prefix += `Organizer / host account (may have a voice profile on file): ${adminEmail}\n\n`;
+    }
 
     transcriptWithSpeakers =
       prefix +
-      `[Note: The following transcript may contain speech from multiple people. ` +
-      `Only attribute statements to a named person when confidence is high. ` +
-      `If uncertain, mark speaker as unknown instead of guessing.]\n\n` +
-      transcriptTextTrim;
+      `[Voice profiles on file — use names only when transcript evidence supports it]\n` +
+      voiceProfiles.map((vp) => `- ${String(vp.name || '').trim()} <${vp.email}>`).join('\n') +
+      `\n\n` +
+      speakerAttributionPreamble() +
+      baseTranscript;
   } catch (speakerErr) {
     console.warn('⚠️  Error processing speaker identification:', speakerErr.message);
-    transcriptWithSpeakers = transcriptTextTrim;
+    transcriptWithSpeakers = speakerAttributionPreamble() + baseTranscript;
   }
   return transcriptWithSpeakers;
 }
@@ -463,6 +508,70 @@ function isGroundedAgainstTranscript(itemText, transcriptLower) {
   return keywords.some((k) => transcriptLower.includes(k));
 }
 
+function buildTranscriptCompactForGrounding(transcript) {
+  return String(transcript || '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, '');
+}
+
+/**
+ * Drop summary sentences that introduce quotes, script runs, or ideas with no support in the transcript.
+ */
+function isSentenceGroundedInTranscript(sentence, transcriptRaw) {
+  const tRaw = String(transcriptRaw || '');
+  const tLow = tRaw.toLowerCase();
+  const sent = String(sentence || '').trim();
+  if (!sent) return true;
+  if (/^not specified\.?$/i.test(sent)) return true;
+
+  const quoteRe = /["'`]([^"'`]{5,})["'`]/g;
+  let qm;
+  while ((qm = quoteRe.exec(sent)) !== null) {
+    const inner = qm[1].trim().toLowerCase().replace(/\s+/g, ' ');
+    if (inner && !tLow.includes(inner)) return false;
+  }
+
+  const devanagariRuns = sent.match(/[\u0900-\u097F]{3,}/g) || [];
+  for (const run of devanagariRuns) {
+    if (!tRaw.includes(run)) return false;
+  }
+
+  const transCompact = buildTranscriptCompactForGrounding(tRaw);
+  const sentCompact = buildTranscriptCompactForGrounding(sent);
+  if (sentCompact.length < 10) {
+    const toks = sent.toLowerCase().match(/[\p{L}\p{N}]{4,}/gu) || [];
+    return toks.some((tok) => tLow.includes(tok));
+  }
+
+  const win = 14;
+  const step = 5;
+  for (let i = 0; i + win <= sentCompact.length; i += step) {
+    const chunk = sentCompact.slice(i, i + win);
+    if (chunk.length >= 10 && transCompact.includes(chunk)) return true;
+  }
+
+  const longToks = sent.toLowerCase().match(/[\p{L}\p{N}]{7,}/gu) || [];
+  return longToks.some((tok) => tLow.includes(tok));
+}
+
+function filterGroundedExecutiveSummary(summary, transcriptRaw) {
+  const full = String(transcriptRaw || '').trim();
+  if (!full) return String(summary || '').trim();
+  const text = String(summary || '').trim();
+  if (!text) return '';
+
+  const parts = text.split(/\n\n+/);
+  const keptParas = [];
+  for (const para of parts) {
+    const chunks = para.includes('\n')
+      ? para.split(/\n+/).map((c) => c.trim()).filter(Boolean)
+      : para.split(/(?<=[.!?…])\s+/).map((c) => c.trim()).filter(Boolean);
+    const kept = chunks.filter((c) => isSentenceGroundedInTranscript(c, transcriptRaw));
+    if (kept.length) keptParas.push(kept.join(' '));
+  }
+  return keptParas.join('\n\n').trim();
+}
+
 const MEANINGLESS_SUMMARY_TOKENS = new Set([
   'not specified',
   'not applicable',
@@ -541,7 +650,12 @@ function tryParseModelJsonObject(raw) {
   return {};
 }
 
-function applyGroundingFiltersToSummaryData(summaryData, transcriptLower) {
+function applyGroundingFiltersToSummaryData(summaryData, transcriptFull) {
+  const transcriptLower = String(transcriptFull || '').toLowerCase();
+  if (typeof summaryData.summary === 'string' && summaryData.summary.trim()) {
+    const filtered = filterGroundedExecutiveSummary(summaryData.summary, transcriptFull);
+    summaryData.summary = filtered.trim();
+  }
   summaryData.keyPoints = (summaryData.keyPoints || []).filter((kp) =>
     isGroundedAgainstTranscript(kp, transcriptLower)
   );
@@ -588,9 +702,22 @@ function reconcileSummaryPayloadAfterGrounding(preFilter, summaryData, transcrip
   if (summaryPayloadHasDisplayableContent(summaryData)) {
     return;
   }
+  const t = String(transcriptTextTrim || '').trim();
+  if (t) {
+    console.warn(
+      '⚠️ Grounding removed all displayable summary content; falling back to raw transcript excerpt (safer than ungrounded model text).'
+    );
+    applyTranscriptExcerptFallbackSummary(summaryData, transcriptTextTrim);
+    summaryData.keyPoints = [];
+    summaryData.decisions = [];
+    summaryData.nextSteps = [];
+    summaryData.importantNotes = [];
+    summaryData.actionItems = [];
+    return;
+  }
   if (summaryPayloadHasDisplayableContent(preFilter)) {
     console.warn(
-      '⚠️ Grounding filter removed all displayable summary content; using unfiltered model output (API response was non-empty).'
+      '⚠️ Grounding filter removed all displayable summary content and no transcript text is available; using unfiltered model output (API response was non-empty).'
     );
     summaryData.summary = preFilter.summary;
     summaryData.keyPoints = [...preFilter.keyPoints];
@@ -744,6 +871,7 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
               systemElaborationDepth +
               'The transcript may contain multiple languages including English, Hindi, Gujarati, and Hinglish. ' +
             'Accurately understand all languages present, but provide your output only in professional English. ' +
+              'HALLUCINATION GUARD: Never fabricate quotes, translations, or foreign-language phrases that do not appear in the transcript. If you paraphrase non-English speech, stay tightly tied to words that are actually there. ' +
               'Prioritize completeness over brevity: include every relevant discussion point, decision, risk, and commitment. ' +
               (isEducation
                 ? 'Use clear teaching-friendly language; do not invent facts or examples not grounded in the transcript. '
@@ -756,8 +884,8 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
                 ? '(topics taught, concepts compared, practice discussed, open questions). '
                 : '(projects, planning, issues, risks, feedback, next steps). ') +
               'Highlight the most important concrete points such as names, topics, numbers, and deadlines. ' +
-              'IMPORTANT: Attribute statements to specific participants only when clear evidence exists in the transcript. ' +
-              'If uncertain, avoid guessing names and keep the point unattributed.',
+              'SPEAKER ATTRIBUTION: The executive summary narrative must attribute dialogue and positions to speakers whenever possible, using bracketed labels like [Alex Kim]: … or [Unidentified speaker]: … when identity is unclear. ' +
+              'Use configured / roster names only when the transcript clearly supports that person saying it; otherwise [Unidentified speaker]. Never omit speaker context for attributed claims.',
         },
         {
           role: 'user',
@@ -787,7 +915,8 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
             `- Explicitly mention important specifics such as names, topics, projects, events, numbers, dates, and deadlines when they are clearly mentioned.\n` +
               userElaborationRules +
               userEducationRules +
-              `- CRITICAL: In keyPoints, include who said what only when speaker identity is clear. Format as: "[Speaker Name]: [what they said]". If speaker cannot be identified with confidence, do not guess names.\n` +
+              `- CRITICAL: Every key point MUST start with a bracketed speaker label, then a colon and space: "[Speaker Name]: …" or "[Unidentified speaker]: …" or "[Speaker 1]: …". Use roster or voice-profile names only when the transcript clearly supports that speaker; never invent names. Do not emit a key point without a speaker prefix.\n` +
+              `- Executive summary: write in full sentences; when stating who said or decided something, use the same bracketed speaker labels.\n` +
             `- In actionItems, each task must be a specific, actionable task tied to what people actually said (no generic or invented tasks). Include the assignee name if mentioned.\n` +
               `- If there are no explicit action items in the transcript, set actionItems to []. Do not infer.\n` +
               `- For actionItems, set dueDate to YYYY-MM-DD only when a calendar deadline is clearly tied to THAT specific task.\n` +
@@ -814,7 +943,7 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
               `}`,
           },
         ],
-        temperature: 0.15,
+        temperature: 0.1,
         response_format: { type: 'json_object' },
         });
         console.log('✅ Summary generation completed successfully');
@@ -854,8 +983,7 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
     if (!Array.isArray(summaryData.importantNotes)) summaryData.importantNotes = [];
 
   const preFilter = deepCopySummaryPayload(summaryData);
-  const transcriptLower = transcriptTextTrim.toLowerCase();
-  applyGroundingFiltersToSummaryData(summaryData, transcriptLower);
+  applyGroundingFiltersToSummaryData(summaryData, transcriptTextTrim);
 
   summaryData.actionItems = enrichActionItemsWithDueDates(
     summaryData.actionItems,
