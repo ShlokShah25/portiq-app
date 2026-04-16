@@ -154,6 +154,100 @@
   color: var(--text-secondary);
 }
 
+.dashboard-education-admin-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0 0 16px;
+}
+
+.dashboard-education-admin-card {
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  background: var(--surface-card, var(--surface-secondary));
+  padding: 16px 18px;
+}
+
+.dashboard-education-admin-card__head {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  color: var(--accent-hover);
+}
+
+.dashboard-education-admin-card__head h2 {
+  margin: 0;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.dashboard-education-admin-card__hint {
+  margin: 10px 0 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.dashboard-education-admin-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.dashboard-education-admin-stats > div {
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 10px;
+  background: var(--dash-chip-bg, var(--surface-input));
+}
+
+.dashboard-education-admin-stats > div span {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.dashboard-education-admin-stats > div strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--text-primary);
+}
+
+.dashboard-education-admin-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dashboard-education-admin-list li {
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: var(--dash-chip-bg, var(--surface-input));
+}
+
+.dashboard-education-admin-list li span {
+  display: block;
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.dashboard-education-admin-list li small {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
 /* Pending summaries — high-visibility strip */
 .dashboard-pending-summaries {
   margin-bottom: 36px;
@@ -1558,6 +1652,14 @@
 @media (max-width: 768px) {
   .dashboard-content {
     padding: 24px 16px;
+  }
+
+  .dashboard-education-admin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-education-admin-stats {
+    grid-template-columns: 1fr;
   }
 
   .dashboard-title {

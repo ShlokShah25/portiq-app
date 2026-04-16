@@ -15,6 +15,7 @@ import './Dashboard.css';
 import { FEATURE_INTERVIEW_UI } from '../config/featureFlags';
 import { useTrialExperience } from './TrialExperienceProvider';
 import TeacherDashboard from './TeacherDashboard';
+import EducationAdminDashboard from './EducationAdminDashboard';
 import { isEducation } from '../config/product';
 import { getClassrooms } from '../utils/classroomsStorage';
 
@@ -307,6 +308,9 @@ const Dashboard = () => {
 
   if (isEducation && trial?.profile?.role === 'faculty') {
     return <TeacherDashboard />;
+  }
+  if (isEducation && trial?.profile?.role !== 'faculty') {
+    return <EducationAdminDashboard />;
   }
 
   if (loading) {
