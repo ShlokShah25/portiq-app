@@ -40,27 +40,31 @@ const Sidebar = () => {
       ),
       path: '/meetings',
     },
-    {
-      id: isEducation ? 'classrooms' : 'insights',
-      label: isEducation ? 'Classrooms' : 'Insights',
-      icon: (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-          {isEducation ? (
-            <>
-              <path d="M3 7.5L12 3l9 4.5-9 4.5-9-4.5z" />
-              <path d="M7 10.5V15c0 1.8 2.2 3.2 5 3.2s5-1.4 5-3.2v-4.5" />
-            </>
-          ) : (
-            <>
-              <line x1="18" y1="20" x2="18" y2="10" />
-              <line x1="12" y1="20" x2="12" y2="4" />
-              <line x1="6" y1="20" x2="6" y2="14" />
-            </>
-          )}
-        </svg>
-      ),
-      path: isEducation ? '/classes' : '/insights',
-    },
+    ...(!isEducation || isEducationAdmin
+      ? [
+          {
+            id: isEducation ? 'classrooms' : 'insights',
+            label: isEducation ? 'Classrooms' : 'Insights',
+            icon: (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                {isEducation ? (
+                  <>
+                    <path d="M3 7.5L12 3l9 4.5-9 4.5-9-4.5z" />
+                    <path d="M7 10.5V15c0 1.8 2.2 3.2 5 3.2s5-1.4 5-3.2v-4.5" />
+                  </>
+                ) : (
+                  <>
+                    <line x1="18" y1="20" x2="18" y2="10" />
+                    <line x1="12" y1="20" x2="12" y2="4" />
+                    <line x1="6" y1="20" x2="6" y2="14" />
+                  </>
+                )}
+              </svg>
+            ),
+            path: isEducation ? '/classes' : '/insights',
+          },
+        ]
+      : []),
     ...(isEducationAdmin
       ? [
           {

@@ -271,6 +271,83 @@
   border-color: var(--accent-blue);
 }
 
+.dashboard-teacher-shell {
+  padding: 20px;
+  border-radius: 16px;
+  border-color: var(--border-strong);
+}
+
+.dashboard-teacher-shell__ic {
+  background: rgba(37, 99, 235, 0.16);
+}
+
+.dashboard-teacher-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.dashboard-teacher-card {
+  padding: 12px;
+  border-radius: 12px;
+}
+
+.dashboard-teacher-tour {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dashboard-teacher-tour__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.46);
+}
+
+.dashboard-teacher-tour__card {
+  position: relative;
+  z-index: 1;
+  width: min(520px, calc(100vw - 32px));
+  border-radius: 14px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-card, var(--surface-secondary));
+  box-shadow: 0 22px 40px rgba(2, 6, 23, 0.28);
+  padding: 18px;
+}
+
+.dashboard-teacher-tour__step {
+  margin: 0 0 8px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.dashboard-teacher-tour__title {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.2;
+  color: var(--text-primary);
+}
+
+.dashboard-teacher-tour__body {
+  margin: 12px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.dashboard-teacher-tour__actions {
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 /* Pending summaries — high-visibility strip */
 .dashboard-pending-summaries {
   margin-bottom: 36px;
@@ -1686,6 +1763,10 @@
   }
 
   .dashboard-education-admin-form {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-teacher-grid {
     grid-template-columns: 1fr;
   }
 

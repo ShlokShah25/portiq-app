@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useTrialExperience } from './TrialExperienceProvider';
@@ -28,6 +28,8 @@ export default function TeacherDashboard() {
   const [selectedSubject, setSelectedSubject] = useState('');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [onboardingStep, setOnboardingStep] = useState(0);
 
   const classrooms = useMemo(() => getClassrooms(), []);
 
@@ -54,6 +56,49 @@ export default function TeacherDashboard() {
     (profile?.username && String(profile.username).trim()) ||
     (profile?.email && String(profile.email).trim()) ||
     'Teacher';
+
+  const onboardingSteps = [
+    {
+      title: 'Choose your classroom',
+      body: 'Pick the classroom you are teaching right now. This automatically links the right student list.',
+    },
+    {
+      title: 'Select the subject',
+      body: 'Choose the lecture subject from your classroom setup so notes and summaries stay organized.',
+    },
+    {
+      title: 'Start lecture instantly',
+      body: 'Click Start lecture and you are taken directly into the live lecture room with no extra form.',
+    },
+  ];
+
+  useEffect(() => {
+    const uid = String(profile?.id || profile?._id || profile?.email || '').trim();
+    if (!uid) return;
+    const key = `portiq_teacher_onboarding_v1_${uid}`;
+    try {
+      const done = window.localStorage.getItem(key) === '1';
+      if (!done) {
+        setOnboardingOpen(true);
+        setOnboardingStep(0);
+      }
+    } catch (_) {
+      setOnboardingOpen(true);
+      setOnboardingStep(0);
+    }
+  }, [profile?.id, profile?._id, profile?.email]);
+
+  const closeOnboarding = (markDone = true) => {
+    const uid = String(profile?.id || profile?._id || profile?.email || '').trim();
+    if (markDone && uid) {
+      try {
+        window.localStorage.setItem(`portiq_teacher_onboarding_v1_${uid}`, '1');
+      } catch (_) {
+        // ignore
+      }
+    }
+    setOnboardingOpen(false);
+  };
 
   const handleCreateAndStart = async () => {
     setError('');
@@ -136,17 +181,16 @@ export default function TeacherDashboard() {
           >
             <h1 className="dashboard-title">Welcome, {teacherName}</h1>
             <p className="dashboard-subtitle">
-              Pick your classroom and start a lecture. Notes and assignments are captured
-              automatically.
+              Start faster. Pick classroom and subject, then begin your lecture in one click.
             </p>
           </header>
 
           <section
-            className="dashboard-education-strip ux-dashboard-stagger"
+            className="dashboard-education-strip dashboard-teacher-shell ux-dashboard-stagger"
             style={{ animationDelay: '40ms' }}
           >
             <div className="dashboard-education-strip__title-row">
-              <span className="dashboard-stat-chip__icon" aria-hidden>
+              <span className="dashboard-stat-chip__icon dashboard-teacher-shell__ic" aria-hidden>
                 <svg
                   width="20"
                   height="20"
@@ -161,8 +205,8 @@ export default function TeacherDashboard() {
               </span>
               <h2>Start a lecture</h2>
             </div>
-            <div className="dashboard-education-strip__grid">
-              <div className="dashboard-education-pill dashboard-education-pill--wide">
+            <div className="dashboard-teacher-grid">
+              <div className="dashboard-education-pill dashboard-education-pill--wide dashboard-teacher-card">
                 <span className="dashboard-education-pill__k">Classroom</span>
                 <select
                   value={selectedClassroomId}
@@ -179,7 +223,7 @@ export default function TeacherDashboard() {
                   ))}
                 </select>
               </div>
-              <div className="dashboard-education-pill dashboard-education-pill--wide">
+              <div className="dashboard-education-pill dashboard-education-pill--wide dashboard-teacher-card">
                 <span className="dashboard-education-pill__k">Subject</span>
                 <select
                   value={selectedSubject}
@@ -216,12 +260,60 @@ export default function TeacherDashboard() {
               <button
                 type="button"
                 className="dashboard-btn-secondary dashboard-btn-micro"
-                onClick={() => navigate('/classes')}
+                onClick={() => setOnboardingOpen(true)}
               >
-                Manage classrooms
+                Quick help
               </button>
             </div>
           </section>
+
+          {onboardingOpen && (
+            <div className="dashboard-teacher-tour" role="dialog" aria-modal="true">
+              <div className="dashboard-teacher-tour__backdrop" onClick={() => closeOnboarding(true)} />
+              <div className="dashboard-teacher-tour__card">
+                <p className="dashboard-teacher-tour__step">
+                  Step {onboardingStep + 1} of {onboardingSteps.length}
+                </p>
+                <h3 className="dashboard-teacher-tour__title">{onboardingSteps[onboardingStep].title}</h3>
+                <p className="dashboard-teacher-tour__body">{onboardingSteps[onboardingStep].body}</p>
+                <div className="dashboard-teacher-tour__actions">
+                  <button
+                    type="button"
+                    className="dashboard-btn-secondary dashboard-btn-micro"
+                    onClick={() => closeOnboarding(true)}
+                  >
+                    Skip
+                  </button>
+                  {onboardingStep > 0 ? (
+                    <button
+                      type="button"
+                      className="dashboard-btn-secondary dashboard-btn-micro"
+                      onClick={() => setOnboardingStep((s) => Math.max(0, s - 1))}
+                    >
+                      Back
+                    </button>
+                  ) : null}
+                  {onboardingStep < onboardingSteps.length - 1 ? (
+                    <button
+                      type="button"
+                      className="dashboard-btn-primary dashboard-btn-micro"
+                      onClick={() => setOnboardingStep((s) => Math.min(onboardingSteps.length - 1, s + 1))}
+                    >
+                      Next
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="dashboard-btn-primary dashboard-btn-micro"
+                      onClick={() => closeOnboarding(true)}
+                    >
+                      Finish
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
