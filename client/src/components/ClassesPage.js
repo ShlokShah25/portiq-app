@@ -9,7 +9,13 @@ import {
 import './ClassesPage.css';
 
 function emptyAssignment() {
-  return { subject: '', teacherName: '', teacherEmail: '' };
+  return {
+    // Stable React list key — must NOT include `subject` or keys change while typing.
+    rowKey: `row_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
+    subject: '',
+    teacherName: '',
+    teacherEmail: '',
+  };
 }
 
 const ClassesPage = () => {
@@ -51,7 +57,7 @@ const ClassesPage = () => {
       const key = subject.toLowerCase();
       if (!subject || seen.has(key)) continue;
       seen.add(key);
-      out.push({ subject, teacherName, teacherEmail });
+      out.push({ subject, teacherName, teacherEmail }); // rowKey omitted when saving
       if (out.length >= MAX_SUBJECTS_PER_CLASSROOM) break;
     }
     return out;
@@ -112,7 +118,9 @@ const ClassesPage = () => {
     setEditing(c);
     setForm({
       className: c.className || '',
-      subjectAssignments: rows.length ? rows : [emptyAssignment()],
+      subjectAssignments: rows.length
+        ? rows.map((r) => ({ ...emptyAssignment(), ...r }))
+        : [emptyAssignment()],
       studentEmailsStr: (c.studentEmails || []).join('\n')
     });
   };
@@ -181,7 +189,7 @@ const ClassesPage = () => {
           </div>
           <div className="classes-assignments-list">
             {form.subjectAssignments.map((row, index) => (
-              <div className="classes-assignment-row" key={`${index}-${row.subject}`}>
+              <div className="classes-assignment-row" key={row.rowKey}>
                 <label>
                   Subject
                   <input
