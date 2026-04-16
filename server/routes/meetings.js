@@ -19,7 +19,11 @@ const {
 } = require('../utils/subscriptionGate');
 const jwt = require('jsonwebtoken');
 const Admin = require('../models/Admin');
-const { generateVoiceEmbedding, identifySpeaker } = require('../utils/voiceRecognition');
+const {
+  generateVoiceEmbedding,
+  identifySpeaker,
+  validateVoiceEnrollmentQuality,
+} = require('../utils/voiceRecognition');
 const { sendEmail, isEmailConfigured, getDefaultFrom } = require('../utils/emailService');
 const {
   buildGoogleCalendarUrlForMeeting,
@@ -1927,6 +1931,15 @@ router.post('/voice/register', voiceUpload.single('audio'), async (req, res) => 
       });
     }
 
+    const quality = validateVoiceEnrollmentQuality(req.file.path);
+    if (!quality.ok) {
+      return res.status(400).json({
+        error: quality.reason || 'Voice sample did not pass quality checks.',
+        details: quality.details || '',
+        code: quality.code || 'quality',
+      });
+    }
+
     // Generate voice embedding
     const voiceVector = await generateVoiceEmbedding(req.file.path);
 
@@ -1974,7 +1987,10 @@ router.post('/voice/register', voiceUpload.single('audio'), async (req, res) => 
         name: voiceProfile.name,
         hasProfile: true
       },
-      autoMatched: !req.body.email || !req.body.name // Indicates if name was auto-detected
+      autoMatched: !req.body.email || !req.body.name, // Indicates if name was auto-detected
+      enrollmentQuality: quality && quality.ok
+        ? { durationSec: quality.durationSec, rms: quality.rms }
+        : undefined,
     });
   } catch (error) {
     console.error('Error registering voice profile:', error);
