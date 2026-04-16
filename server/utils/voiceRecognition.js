@@ -426,11 +426,133 @@ function parseThresholdEnv(key, def, min, max) {
   return Math.min(max, Math.max(min, v));
 }
 
+function cloneEmbedding(e) {
+  return Array.isArray(e) ? e.slice() : [];
+}
+
+function centroidMean(c) {
+  if (!c || !c.sum || !c.n) return null;
+  const out = new Array(c.sum.length);
+  for (let i = 0; i < c.sum.length; i++) out[i] = c.sum[i] / c.n;
+  return l2Normalize(out);
+}
+
+function updateSessionCentroid(ctx, email, embedding) {
+  if (!ctx || !email || !embedding) return;
+  const key = String(email).toLowerCase();
+  let c = ctx.centroids.get(key);
+  if (!c) {
+    ctx.centroids.set(key, { sum: cloneEmbedding(embedding), n: 1 });
+    return;
+  }
+  for (let i = 0; i < embedding.length; i++) c.sum[i] += embedding[i];
+  c.n += 1;
+}
+
+function maxStoredProfileSimilarity(scored) {
+  let maxSim = 0;
+  for (let i = 0; i < scored.length; i++) {
+    const vi = scored[i].profile && scored[i].profile.voiceVector;
+    if (!Array.isArray(vi)) continue;
+    for (let j = i + 1; j < scored.length; j++) {
+      const vj = scored[j].profile && scored[j].profile.voiceVector;
+      if (!Array.isArray(vj) || vi.length !== vj.length) continue;
+      const s = compareEmbeddings(vi, vj);
+      if (s > maxSim) maxSim = s;
+    }
+  }
+  return maxSim;
+}
+
+/**
+ * When global scores are ambiguous (similar-sounding people), use meeting-local context:
+ * - continuity with previous chunk
+ * - running centroid per enrolled email (who spoke most recently in that timbre)
+ */
+function resolveSimilarVoicesWithSession(
+  segmentEmbedding,
+  scored,
+  minConf,
+  effectiveMargin,
+  ctx,
+  isFftFallback
+) {
+  if (!ctx || scored.length < 2) return null;
+
+  const best = scored[0];
+  const second = scored[1];
+  const ambiguous = second && best.score - second.score < effectiveMargin;
+
+  const contHi = parseThresholdEnv('VOICE_CONTINUITY_HIGH', 0.82, 0.68, 0.96);
+  const contLo = parseThresholdEnv('VOICE_CONTINUITY_SWITCH', 0.68, 0.45, 0.85);
+  const centroidMin = parseThresholdEnv('VOICE_CENTROID_MATCH_MIN', 0.76, 0.55, 0.94);
+
+  if (ctx.lastEmbedding && ctx.lastEmail) {
+    const cont = compareEmbeddings(segmentEmbedding, ctx.lastEmbedding);
+    const lastKey = String(ctx.lastEmail).toLowerCase();
+    const lastScored = scored.find((s) => String(s.profile.email).toLowerCase() === lastKey);
+
+    if (cont >= contHi && lastScored && lastScored.score >= minConf - (isFftFallback ? 0.12 : 0.08)) {
+      return {
+        profile: lastScored.profile,
+        confidence: Math.min(0.99, (best.score + cont + lastScored.score) / 3),
+        tieBreak: 'continuity_same',
+      };
+    }
+
+    if (ambiguous && cont <= contLo && second) {
+      const other = scored.find((s) => String(s.profile.email).toLowerCase() !== lastKey);
+      if (other && other.score >= minConf - 0.15 && other.score + 0.02 >= (lastScored ? lastScored.score : 0)) {
+        return {
+          profile: other.profile,
+          confidence: other.score,
+          tieBreak: 'turn_switch',
+        };
+      }
+    }
+  }
+
+  let bestCentEmail = null;
+  let bestCentScore = -1;
+  for (const s of scored.slice(0, 4)) {
+    const key = String(s.profile.email).toLowerCase();
+    const cent = ctx.centroids.get(key);
+    const mean = centroidMean(cent);
+    if (!mean) continue;
+    const cs = compareEmbeddings(segmentEmbedding, mean);
+    if (cs > bestCentScore) {
+      bestCentScore = cs;
+      bestCentEmail = key;
+    }
+  }
+  if (bestCentEmail && bestCentScore >= centroidMin) {
+    const prof = scored.find((s) => String(s.profile.email).toLowerCase() === bestCentEmail);
+    if (prof && prof.score >= minConf - 0.18) {
+      return {
+        profile: prof.profile,
+        confidence: Math.min(0.97, (prof.score + bestCentScore) / 2),
+        tieBreak: 'session_centroid',
+      };
+    }
+  }
+
+  if (ambiguous && best.score >= minConf - 0.05) {
+    return {
+      profile: best.profile,
+      confidence: best.score * 0.92,
+      tieBreak: 'weak_leader',
+    };
+  }
+
+  return null;
+}
+
 /**
  * High-confidence speaker match: absolute threshold + margin vs runner-up (avoids wrong-person labels).
+ * Pass optional `sessionContext` (per meeting) to disambiguate similar voices via continuity + centroids.
  * Default strict = true (workspace-safe). Set VOICE_MATCH_STRICT=false for legacy looser behavior.
  */
-async function identifySpeaker(audioFilePath, voiceProfiles) {
+async function identifySpeaker(audioFilePath, voiceProfiles, sessionContext = null) {
   try {
     const segmentEmbedding = await generateVoiceEmbedding(audioFilePath);
     const isFftFallback =
@@ -451,6 +573,11 @@ async function identifySpeaker(audioFilePath, voiceProfiles) {
           bestScore = similarity;
           bestMatch = profile;
         }
+      }
+      if (bestMatch && sessionContext) {
+        sessionContext.lastEmbedding = cloneEmbedding(segmentEmbedding);
+        sessionContext.lastEmail = bestMatch.email;
+        updateSessionCentroid(sessionContext, bestMatch.email, segmentEmbedding);
       }
       return bestMatch ? { profile: bestMatch, confidence: bestScore } : null;
     }
@@ -480,15 +607,49 @@ async function identifySpeaker(audioFilePath, voiceProfiles) {
 
     if (scored.length === 1) {
       if (best.score >= minSingle) {
+        if (sessionContext) {
+          sessionContext.lastEmbedding = cloneEmbedding(segmentEmbedding);
+          sessionContext.lastEmail = best.profile.email;
+          updateSessionCentroid(sessionContext, best.profile.email, segmentEmbedding);
+        }
         return { profile: best.profile, confidence: best.score };
       }
       return null;
     }
 
-    if (best.score < minConf) return null;
-    if (second && best.score - second.score < margin) return null;
+    const pairSim = maxStoredProfileSimilarity(scored);
+    const similarPairBoost =
+      pairSim >= parseThresholdEnv('VOICE_CONFUSABLE_PAIR_MIN', 0.82, 0.6, 0.99)
+        ? parseThresholdEnv('VOICE_MARGIN_BOOST_FOR_SIMILAR', 0.06, 0, 0.2)
+        : 0;
+    const effectiveMargin = margin + similarPairBoost;
 
-    return { profile: best.profile, confidence: best.score };
+    let chosen = null;
+
+    if (best.score >= minConf && (!second || best.score - second.score >= effectiveMargin)) {
+      chosen = { profile: best.profile, confidence: best.score, tieBreak: 'global' };
+    } else if (sessionContext) {
+      const resolved = resolveSimilarVoicesWithSession(
+        segmentEmbedding,
+        scored,
+        minConf,
+        effectiveMargin,
+        sessionContext,
+        isFftFallback
+      );
+      if (resolved) chosen = resolved;
+    }
+
+    if (!chosen) return null;
+
+    if (sessionContext && chosen && chosen.profile) {
+      sessionContext.lastEmbedding = cloneEmbedding(segmentEmbedding);
+      sessionContext.lastEmail = chosen.profile.email;
+      updateSessionCentroid(sessionContext, chosen.profile.email, segmentEmbedding);
+    }
+
+    const { profile, confidence, tieBreak } = chosen;
+    return tieBreak ? { profile, confidence, tieBreak } : { profile, confidence };
   } catch (error) {
     console.error('Error identifying speaker:', error);
     return null;

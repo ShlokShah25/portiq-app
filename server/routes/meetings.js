@@ -24,6 +24,30 @@ const {
   identifySpeaker,
   validateVoiceEnrollmentQuality,
 } = require('../utils/voiceRecognition');
+
+/** Per-meeting state so similar-sounding speakers can be separated via continuity + centroids */
+const liveVoiceSessionByMeetingId = new Map();
+const MAX_LIVE_VOICE_SESSIONS = 2000;
+
+function getLiveVoiceSessionContext(meetingId) {
+  const id = String(meetingId);
+  if (liveVoiceSessionByMeetingId.size > MAX_LIVE_VOICE_SESSIONS) {
+    const first = liveVoiceSessionByMeetingId.keys().next().value;
+    if (first) liveVoiceSessionByMeetingId.delete(first);
+  }
+  if (!liveVoiceSessionByMeetingId.has(id)) {
+    liveVoiceSessionByMeetingId.set(id, {
+      lastEmbedding: null,
+      lastEmail: null,
+      centroids: new Map(),
+    });
+  }
+  return liveVoiceSessionByMeetingId.get(id);
+}
+
+function clearLiveVoiceSessionContext(meetingId) {
+  liveVoiceSessionByMeetingId.delete(String(meetingId));
+}
 const { sendEmail, isEmailConfigured, getDefaultFrom } = require('../utils/emailService');
 const {
   buildGoogleCalendarUrlForMeeting,
@@ -785,12 +809,17 @@ router.post('/:id/live-transcribe-chunk', withMeetingAudioUpload, async (req, re
               .map((c) => (c && c.voiceEmail ? String(c.voiceEmail).trim().toLowerCase() : ''))
               .filter(Boolean)
           : [];
-      const emails = [...new Set([...participantEmails, ...interviewEmails])];
+      let adminEmail = '';
+      if (admin && admin.email && String(admin.email).includes('@')) {
+        adminEmail = String(admin.email).trim().toLowerCase();
+      }
+      const emails = [...new Set([...participantEmails, ...interviewEmails, ...(adminEmail ? [adminEmail] : [])])];
       if (emails.length > 0) {
         const profiles = await VoiceProfile.find({ email: { $in: emails } }).select(
           'email name voiceVector lastUsed'
         );
-        const match = await identifySpeaker(filePath, profiles);
+        const voiceCtx = getLiveVoiceSessionContext(meeting._id);
+        const match = await identifySpeaker(filePath, profiles, voiceCtx);
         if (match && match.profile) {
           speaker = {
             email: match.profile.email,
@@ -843,6 +872,7 @@ router.post('/:id/end', withMeetingAudioUpload, async (req, res) => {
     meeting.transcriptionStatus = 'Processing';
     meeting.transcriptionFailureCode = null;
     meeting.transcriptionFailureAt = null;
+    clearLiveVoiceSessionContext(meeting._id);
 
     // Apply duration limit per plan (backend safety net).
     const { maxDurationMinutes, plan: planName } = getPlanConstraints(admin || {});
