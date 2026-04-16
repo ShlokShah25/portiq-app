@@ -1,15 +1,13 @@
 const Admin = require('../models/Admin');
-const bcrypt = require('bcryptjs');
 
 async function ensureDefaultAdmin() {
   const adminCount = await Admin.countDocuments();
   if (adminCount === 0) {
     const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'admin123';
-    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
 
     const defaultAdmin = new Admin({
       username: process.env.DEFAULT_ADMIN_USERNAME || 'admin',
-      password: hashedPassword,
+      password: defaultPassword,
       role: 'super_admin',
     });
 
@@ -30,20 +28,30 @@ async function ensureEducationDemoAdmin() {
   const passwordPlain =
     process.env.EDU_DEMO_ADMIN_PASSWORD || 'portiq-demo-edu-123';
 
-  const existing = await Admin.findOne({ username }).lean();
+  const existing = await Admin.findOne({ username });
   if (existing) {
-    console.log('✅ Education demo admin already present:', {
+    existing.email = email;
+    existing.productType = 'education';
+    existing.role = 'admin';
+    existing.complimentaryAccess = true;
+    existing.plan = 'institutional';
+    if (passwordPlain && passwordPlain.trim()) {
+      existing.password = passwordPlain;
+    }
+    await existing.save();
+    console.log('✅ Education demo admin updated:', {
       username: existing.username,
       email: existing.email,
+      productType: existing.productType,
+      role: existing.role,
     });
     return;
   }
 
-  const hashed = await bcrypt.hash(passwordPlain, 10);
   const demo = new Admin({
     username,
     email,
-    password: hashed,
+    password: passwordPlain,
     role: 'admin',
     productType: 'education',
     complimentaryAccess: true,
