@@ -33,8 +33,6 @@ function normalizeSubjectAssignments(input, fallbackTeacher = '') {
     seen.add(key);
     out.push({
       subject,
-      teacherName: String(raw?.teacherName || raw?.teacher || fallbackTeacher || '').trim(),
-      teacherEmail: String(raw?.teacherEmail || '').trim().toLowerCase(),
     });
     if (out.length >= MAX_SUBJECTS_PER_CLASSROOM) break;
   }
@@ -48,11 +46,7 @@ function normalizeClassroomShape(c) {
       : normalizeSubjects(c?.subject || '');
   let subjectAssignments = normalizeSubjectAssignments(c?.subjectAssignments, c?.teacher);
   if (subjectAssignments.length === 0 && legacySubjects.length > 0) {
-    subjectAssignments = legacySubjects.map((s) => ({
-      subject: s,
-      teacherName: String(c?.teacher || '').trim(),
-      teacherEmail: '',
-    }));
+    subjectAssignments = legacySubjects.map((s) => ({ subject: s }));
   }
   const subjects = subjectAssignments.map((x) => x.subject);
   return {

@@ -13,8 +13,6 @@ function emptyAssignment() {
     // Stable React list key — must NOT include `subject` or keys change while typing.
     rowKey: `row_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
     subject: '',
-    teacherName: '',
-    teacherEmail: '',
   };
 }
 
@@ -51,13 +49,11 @@ const ClassesPage = () => {
     const seen = new Set();
     for (const row of Array.isArray(rows) ? rows : []) {
       const subject = String(row?.subject || '').trim();
-      const teacherName = String(row?.teacherName || '').trim();
-      const teacherEmail = String(row?.teacherEmail || '').trim().toLowerCase();
-      if (!subject && !teacherName && !teacherEmail) continue;
+      if (!subject) continue;
       const key = subject.toLowerCase();
       if (!subject || seen.has(key)) continue;
       seen.add(key);
-      out.push({ subject, teacherName, teacherEmail }); // rowKey omitted when saving
+      out.push({ subject }); // rowKey omitted when saving
       if (out.length >= MAX_SUBJECTS_PER_CLASSROOM) break;
     }
     return out;
@@ -69,19 +65,7 @@ const ClassesPage = () => {
     const studentEmails = studentEmailsFromStr(form.studentEmailsStr);
     const subjectAssignments = normalizeAssignments(form.subjectAssignments);
     if (subjectAssignments.length === 0) {
-      setError('Add at least one subject-teacher mapping.');
-      return;
-    }
-    const missingTeacherEmail = subjectAssignments.find((x) => !x.teacherEmail);
-    if (missingTeacherEmail) {
-      setError(`Add teacher email for "${missingTeacherEmail.subject}".`);
-      return;
-    }
-    const emailInvalid = subjectAssignments.find(
-      (x) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(x.teacherEmail || ''))
-    );
-    if (emailInvalid) {
-      setError(`Enter a valid teacher email for "${emailInvalid.subject}".`);
+      setError('Add at least one subject.');
       return;
     }
     if (editing) {
@@ -112,8 +96,6 @@ const ClassesPage = () => {
         : (Array.isArray(c.subjects) ? c.subjects : [])
             .map((subject) => ({
               subject,
-              teacherName: c.teacher || '',
-              teacherEmail: '',
             }));
     setEditing(c);
     setForm({
@@ -177,7 +159,7 @@ const ClassesPage = () => {
             </label>
           </div>
           <div className="classes-assignments-head">
-            <h3>Subjects & teachers (max {MAX_SUBJECTS_PER_CLASSROOM})</h3>
+            <h3>Subjects (max {MAX_SUBJECTS_PER_CLASSROOM})</h3>
             <button
               type="button"
               className="classes-btn-secondary"
@@ -199,24 +181,6 @@ const ClassesPage = () => {
                     required
                   />
                 </label>
-                <label>
-                  Teacher Name
-                  <input
-                    value={row.teacherName}
-                    onChange={(e) => updateAssignment(index, 'teacherName', e.target.value)}
-                    placeholder="e.g. Ms. Sarah"
-                  />
-                </label>
-                <label>
-                  Teacher Email
-                  <input
-                    type="email"
-                    value={row.teacherEmail}
-                    onChange={(e) => updateAssignment(index, 'teacherEmail', e.target.value)}
-                    placeholder="teacher@school.edu"
-                    required
-                  />
-                </label>
                 <button
                   type="button"
                   className="classes-btn-sm classes-btn-danger"
@@ -229,7 +193,7 @@ const ClassesPage = () => {
             ))}
           </div>
           <p className="classes-subject-cap-note">
-            Each subject maps to one teacher. Teacher email is used for lecture tracking and notifications.
+            Add the subjects taught in this classroom.
           </p>
           {error ? <p className="classes-error">{error}</p> : null}
           <label className="classes-form-full">
@@ -262,7 +226,7 @@ const ClassesPage = () => {
               <thead>
                 <tr>
                   <th>Class Name</th>
-                  <th>Subject Mappings</th>
+                  <th>Subjects</th>
                   <th>Students</th>
                   <th>Actions</th>
                 </tr>
@@ -276,7 +240,7 @@ const ClassesPage = () => {
                         <div className="classes-table-mappings">
                           {c.subjectAssignments.map((row) => (
                             <span key={`${c.id}-${row.subject}`} className="classes-mapping-pill">
-                              {row.subject}: {row.teacherName || 'Teacher'} ({row.teacherEmail || '—'})
+                              {row.subject}
                             </span>
                           ))}
                         </div>

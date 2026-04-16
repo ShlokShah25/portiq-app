@@ -7,7 +7,7 @@ import './Dashboard.css';
 
 function buildParticipantsFromClassroom(classroom, subject) {
   if (!classroom) return [];
-  const students = Array.isArray(classroom.studentEmails)
+  return Array.isArray(classroom.studentEmails)
     ? classroom.studentEmails
         .map((email) => String(email || '').trim())
         .filter(Boolean)
@@ -17,24 +17,6 @@ function buildParticipantsFromClassroom(classroom, subject) {
           role: 'participant',
         }))
     : [];
-
-  const assignments = Array.isArray(classroom.subjectAssignments)
-    ? classroom.subjectAssignments
-    : [];
-  const activeAssignment = assignments.find(
-    (row) => String(row.subject || '') === String(subject || '')
-  );
-  const teacherEmail = String(activeAssignment?.teacherEmail || '').trim().toLowerCase();
-  if (teacherEmail && !students.some((p) => p.email.toLowerCase() === teacherEmail)) {
-    students.unshift({
-      name:
-        String(activeAssignment?.teacherName || '').trim() ||
-        teacherEmail.split('@')[0],
-      email: teacherEmail,
-      role: 'teacher',
-    });
-  }
-  return students;
 }
 
 export default function TeacherDashboard() {
@@ -65,16 +47,8 @@ export default function TeacherDashboard() {
     const legacy = Array.isArray(selectedClassroom.subjects)
       ? selectedClassroom.subjects
       : [];
-    return legacy.map((s) => ({ subject: s, teacherName: '', teacherEmail: '' }));
+    return legacy.map((s) => ({ subject: s }));
   }, [selectedClassroom]);
-
-  const selectedSubjectAssignment = useMemo(
-    () =>
-      subjectAssignments.find(
-        (row) => String(row.subject || '') === String(selectedSubject || '')
-      ) || null,
-    [subjectAssignments, selectedSubject]
-  );
 
   const teacherName =
     (profile?.username && String(profile.username).trim()) ||
@@ -89,12 +63,6 @@ export default function TeacherDashboard() {
     }
     if (!selectedSubject) {
       setError('Select a subject for this lecture.');
-      return;
-    }
-    if (!selectedSubjectAssignment?.teacherEmail) {
-      setError(
-        'Selected subject is missing teacher email. Update classroom mapping first.'
-      );
       return;
     }
 
@@ -128,14 +96,9 @@ export default function TeacherDashboard() {
         educationClassroomId: classroom.id,
         educationClassroomName: className,
         educationSubject: subjectLabel,
-        educationTeacherName:
-          String(selectedSubjectAssignment?.teacherName || '').trim() ||
-          teacherName,
-        educationTeacherEmail: String(
-          selectedSubjectAssignment?.teacherEmail || ''
-        )
-          .trim()
-          .toLowerCase(),
+        educationTeacherName: teacherName,
+        educationTeacherEmail:
+          String(profile?.email || '').trim().toLowerCase() || undefined,
         summaryMode: 'standard',
       };
 
@@ -239,14 +202,6 @@ export default function TeacherDashboard() {
                   : 'Add students to this classroom so they receive lecture notes.'}
               </p>
             )}
-            {selectedSubjectAssignment && (
-              <p className="dashboard-education-strip__hint">
-                Teacher for this subject:{' '}
-                {selectedSubjectAssignment.teacherName || 'Assigned teacher'} (
-                {selectedSubjectAssignment.teacherEmail || 'no email'})
-              </p>
-            )}
-
             {error && <div className="start-meeting-error">{error}</div>}
 
             <div className="dashboard-start-meeting__actions">
