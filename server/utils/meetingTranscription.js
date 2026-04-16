@@ -1210,6 +1210,38 @@ async function reauditStructuredSummaryWithVoice(summaryResult, voiceEvidenceTra
 
   const summaryChatModel = getSummaryChatModel();
   const meetingTitle = meetingObj.title || 'Meeting';
+
+  let enrolledProfiles = [];
+  try {
+    const em = await getVoiceLookupEmailsForMeeting(meetingObj);
+    if (em.length) {
+      enrolledProfiles = await VoiceProfile.find({ email: { $in: em } }).select('name email').lean();
+    }
+  } catch (e) {
+    console.warn('⚠️ Voice re-audit: could not load enrolled profiles:', e.message || e);
+  }
+  const enrolledRosterLine =
+    enrolledProfiles.length > 0
+      ? enrolledProfiles
+          .map((p) => `${String(p.name || '').trim() || p.email} <${p.email}>`)
+          .join('; ')
+      : 'None';
+  const singleEnrolledDisplayName =
+    enrolledProfiles.length === 1
+      ? String(enrolledProfiles[0].name || '').trim() || enrolledProfiles[0].email
+      : null;
+
+  const labelMatches = String(voiceEvidenceTranscript || '').match(/\[(.+?)\]/g) || [];
+  const rawLabels = labelMatches
+    .map((m) => m.replace(/^\[|\]$/g, '').trim())
+    .filter(
+      (lab) =>
+        lab &&
+        !/^unidentified speaker$/i.test(lab) &&
+        !/^(speaker\s*\d+)$/i.test(lab)
+    );
+  const uniqueLabels = [...new Set(rawLabels)];
+  const singleVoiceName = uniqueLabels.length === 1 ? uniqueLabels[0] : null;
   const payload = JSON.stringify({
     summary: summaryResult.summary || '',
     keyPoints: summaryResult.keyPoints || [],
@@ -1225,12 +1257,15 @@ async function reauditStructuredSummaryWithVoice(summaryResult, voiceEvidenceTra
     `You reconcile speaker labels in a meeting summary using:\n` +
     `(1) FIRST-PASS structured JSON from the transcript, and\n` +
     `(2) a VOICE TIMELINE from the same recording (biometric matches; same order as the meeting).\n\n` +
+    `Enrolled voice profiles (recorded samples in our system — prefer these names when fixing labels): ${enrolledRosterLine}\n\n` +
     `Rules:\n` +
     `- Use the voice timeline to replace [Unidentified speaker] or generic labels with a real [Name] ONLY when the summary point could plausibly come from that time range and the name is in the voice timeline or participant roster.\n` +
-    `- If voice says [Unidentified speaker] for a span, keep Unidentified unless the transcript text alone clearly identifies the speaker.\n` +
+    `- If EXACTLY ONE enrolled profile exists above and the voice timeline is mostly [Unidentified speaker] due to low volume or noise, still replace [Unidentified speaker] in the summary with [that person's exact name] when the meeting is clearly a single-speaker or primary-host scenario — do not leave [Unidentified speaker] when one enrolled speaker is the only plausible voice source.\n` +
+    `- If multiple enrolled profiles exist, do not guess from enrollment alone; use the voice timeline and transcript content.\n` +
+    `- If voice says [Unidentified speaker] for a span, you may still replace it when the single-enrolled rule above applies; otherwise keep Unidentified unless the transcript alone identifies the speaker.\n` +
     `- Do NOT invent facts, decisions, quotes, or tasks. Do NOT add new content.\n` +
     `- Only adjust speaker prefixes / light grammar to match label changes.\n` +
-    `- If unsure, keep the original speaker label.\n\n` +
+    `- If unsure (multiple plausible live speakers with no timeline signal), keep the original speaker label.\n\n` +
     `Meeting title (calendar; may be wrong): ${meetingTitle}\n\n` +
     `FIRST-PASS JSON:\n${payload}\n\n` +
     `VOICE TIMELINE:\n${evidence}\n\n` +
@@ -1266,6 +1301,52 @@ async function reauditStructuredSummaryWithVoice(summaryResult, voiceEvidenceTra
     nextSteps: Array.isArray(parsed.nextSteps) ? parsed.nextSteps : summaryResult.nextSteps,
     importantNotes: Array.isArray(parsed.importantNotes) ? parsed.importantNotes : summaryResult.importantNotes,
   };
+
+  // Deterministic single-voice fallback: if the voice timeline only ever shows ONE
+  // concrete name label, aggressively replace generic/unidentified prefixes with it.
+  if (singleVoiceName) {
+    const label = `[${singleVoiceName}]`;
+    const replaceLabel = (s) =>
+      typeof s === 'string'
+        ? s
+            .replace(/\[Unidentified speaker\]/gi, label)
+            .replace(/\[Speaker\s*1\]/gi, label)
+            .replace(/\[Speaker\s*2\]/gi, label)
+        : s;
+
+    out.summary = replaceLabel(out.summary);
+    out.keyPoints = (out.keyPoints || []).map((kp) => replaceLabel(kp));
+    out.decisions = (out.decisions || []).map((d) => replaceLabel(d));
+    out.nextSteps = (out.nextSteps || []).map((n) => replaceLabel(n));
+    out.importantNotes = (out.importantNotes || []).map((n) => replaceLabel(n));
+    out.actionItems = (out.actionItems || []).map((ai) => ({
+      ...ai,
+      task: replaceLabel(ai.task),
+      notes: replaceLabel(ai.notes),
+    }));
+  } else if (singleEnrolledDisplayName) {
+    // Timeline had 0 or 2+ distinct concrete names (often all [Unidentified speaker] when mic is low),
+    // but exactly one VoiceProfile exists for this meeting — map generic labels to that person.
+    const label = `[${singleEnrolledDisplayName}]`;
+    const replaceLabel = (s) =>
+      typeof s === 'string'
+        ? s
+            .replace(/\[Unidentified speaker\]/gi, label)
+            .replace(/\[Speaker\s*1\]/gi, label)
+            .replace(/\[Speaker\s*2\]/gi, label)
+        : s;
+
+    out.summary = replaceLabel(out.summary);
+    out.keyPoints = (out.keyPoints || []).map((kp) => replaceLabel(kp));
+    out.decisions = (out.decisions || []).map((d) => replaceLabel(d));
+    out.nextSteps = (out.nextSteps || []).map((n) => replaceLabel(n));
+    out.importantNotes = (out.importantNotes || []).map((n) => replaceLabel(n));
+    out.actionItems = (out.actionItems || []).map((ai) => ({
+      ...ai,
+      task: replaceLabel(ai.task),
+      notes: replaceLabel(ai.notes),
+    }));
+  }
 
   const tTrim = String(transcriptTextTrim || '').trim();
   out.actionItems = enrichActionItemsWithDueDates(out.actionItems, anchorRef, {

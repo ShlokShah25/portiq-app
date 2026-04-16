@@ -111,6 +111,7 @@ function resetAllState(setters) {
   setters.setAuthorizedEditorEmail('');
   setters.setSendNotification(DEFAULT_SEND_NOTIFICATION_ON_CREATE);
   setters.setError('');
+  if (setters.setVoiceSuccessMessage) setters.setVoiceSuccessMessage('');
   setters.setLoading(false);
   setters.setVoiceRecognitionEnabled(false);
   if (setters.setOptionalDetailsOpen) setters.setOptionalDetailsOpen(false);
@@ -150,6 +151,7 @@ export default function MeetingCreateForm({
   const [sendNotification, setSendNotification] = useState(DEFAULT_SEND_NOTIFICATION_ON_CREATE);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [voiceSuccessMessage, setVoiceSuccessMessage] = useState('');
   const [voiceProfiles, setVoiceProfiles] = useState({});
   const [recordingEmail, setRecordingEmail] = useState(null);
   const [voiceUploading, setVoiceUploading] = useState(false);
@@ -199,6 +201,7 @@ export default function MeetingCreateForm({
       setAuthorizedEditorEmail,
       setSendNotification,
       setError,
+      setVoiceSuccessMessage,
       setLoading,
       setVoiceRecognitionEnabled,
       setOptionalDetailsOpen,
@@ -634,6 +637,7 @@ export default function MeetingCreateForm({
     try {
       setVoiceUploading(true);
       setError('');
+      setVoiceSuccessMessage('');
       let participantList = participantBook
         .filter((p) => p.email && String(p.email).trim())
         .map((p) => ({ name: p.name || '', email: String(p.email).trim() }));
@@ -658,12 +662,18 @@ export default function MeetingCreateForm({
       const res = await axios.post('/meetings/voice/register', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
+      if (res.data?.success) {
+        setVoiceSuccessMessage(
+          res.data.message || 'Voice profile saved. Your sample will be used on the next transcription.'
+        );
+      }
       const matched = res.data?.voiceProfile?.email;
       if (matched) {
         const key = String(matched).trim().toLowerCase();
         setVoiceProfiles((prev) => ({ ...prev, [key]: { hasProfile: true } }));
       }
     } catch (err) {
+      setVoiceSuccessMessage('');
       const d = err.response?.data;
       setError(
         [d?.error, d?.details].filter(Boolean).join(' — ') ||
@@ -1011,6 +1021,11 @@ export default function MeetingCreateForm({
           )}
 
                 {error && <div className="start-meeting-error">{error}</div>}
+                {voiceSuccessMessage && !error && (
+                  <div className="success-message" role="status">
+                    {voiceSuccessMessage}
+                  </div>
+                )}
 
                 {FEATURE_INTERVIEW_UI && !isEducation && (
                   <div className="meeting-create-mode-block" role="group" aria-label="Meeting mode">
