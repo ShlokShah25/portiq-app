@@ -54,12 +54,15 @@ export default function TeachersPage() {
         email: form.email.trim().toLowerCase(),
       });
       const temporaryPassword = String(res.data?.temporaryPassword || '').trim();
+      const emailStatus = res.data?.emailStatus || {};
       setForm(emptyForm());
-      setNotice(
-        temporaryPassword
-          ? `Teacher account created. Temporary password: ${temporaryPassword}. They must change it on first login.`
-          : 'Teacher account created. They will be asked to change password at first login.'
-      );
+      const baseNotice = temporaryPassword
+        ? `Teacher account created. Temporary password: ${temporaryPassword}.`
+        : 'Teacher account created.';
+      const emailNotice = emailStatus?.message
+        ? ` ${emailStatus.message}`
+        : ' Teacher will be prompted to change password on first login.';
+      setNotice(`${baseNotice}${emailNotice}`);
       await fetchTeachers();
     } catch (err) {
       const d = err.response?.data;

@@ -29,6 +29,7 @@ const {
   editorVerificationProofValid,
   redactMeetingPayloadForEditorVerification,
 } = require('../utils/editorVerification');
+const { sendEmail, isEmailConfigured, getDefaultFrom } = require('../utils/emailService');
 
 function meetingFilterForAdmin(admin) {
   return admin && admin.username !== 'admin' ? { adminId: admin._id } : {};
@@ -48,6 +49,20 @@ function buildTeacherTempPassword(username) {
     .replace(/\s+/g, '')
     .replace(/[^a-zA-Z0-9]/g, '');
   return `${base || 'Teacher'}+123`;
+}
+
+function resolveTeacherLoginUrl() {
+  const direct =
+    process.env.APP_LOGIN_URL ||
+    process.env.APP_PUBLIC_URL ||
+    process.env.APP_BASE_URL ||
+    process.env.CLIENT_URL ||
+    process.env.PUBLIC_APP_URL;
+  if (!direct) return 'https://meetingassistant.portiqtechnologies.com/admin-login';
+  const trimmed = String(direct).trim().replace(/\/+$/, '');
+  if (!trimmed) return 'https://meetingassistant.portiqtechnologies.com/admin-login';
+  if (trimmed.endsWith('/admin-login')) return trimmed;
+  return `${trimmed}/admin-login`;
 }
 
 function actionItemsForMeetingDoc(m) {
@@ -310,9 +325,59 @@ router.post('/teachers', authenticateAdmin, async (req, res) => {
     });
     await teacher.save();
 
+    let emailStatus = { sent: false, message: '' };
+    if (isEmailConfigured()) {
+      const loginUrl = resolveTeacherLoginUrl();
+      const subject = 'Your PortIQ teacher account is ready';
+      const html = `
+        <p>Hi ${teacher.username},</p>
+        <p>Your teacher account has been created on <strong>PortIQ Education</strong>.</p>
+        <p><strong>Login URL:</strong> <a href="${loginUrl}" target="_blank" rel="noopener noreferrer">${loginUrl}</a></p>
+        <p><strong>Username:</strong> ${teacher.username}<br />
+        <strong>Email:</strong> ${teacher.email}<br />
+        <strong>Temporary password:</strong> ${password}</p>
+        <p>For security, you will be prompted to change your password right after your first login.</p>
+        <p>— PortIQ Team</p>
+      `;
+      const text = [
+        `Hi ${teacher.username},`,
+        '',
+        'Your teacher account has been created on PortIQ Education.',
+        `Login URL: ${loginUrl}`,
+        `Username: ${teacher.username}`,
+        `Email: ${teacher.email}`,
+        `Temporary password: ${password}`,
+        '',
+        'You will be asked to change this password at first login.',
+      ].join('\n');
+      const emailResult = await sendEmail({
+        from: getDefaultFrom(),
+        to: teacher.email,
+        subject,
+        html,
+        text,
+      });
+      if (emailResult.success) {
+        emailStatus = { sent: true, message: 'Login details email sent to teacher.' };
+      } else {
+        emailStatus = {
+          sent: false,
+          message:
+            `Teacher created, but email delivery failed: ${emailResult.error || 'unknown mail error'}.`,
+        };
+      }
+    } else {
+      emailStatus = {
+        sent: false,
+        message:
+          'Teacher created, but email delivery is not configured on server (set RESEND_API_KEY or SMTP envs).',
+      };
+    }
+
     res.status(201).json({
       success: true,
       temporaryPassword: password,
+      emailStatus,
       teacher: {
         id: teacher._id,
         username: teacher.username,
