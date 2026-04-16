@@ -356,6 +356,13 @@ const meetingSchema = new mongoose.Schema({
     type: Date,
     default: null,
   },
+  /** User resolved "[Name1 / Name2]" pooled speaker label to one participant (see POST …/resolve-speaker-pool). */
+  speakerPoolResolution: {
+    poolBracket: { type: String, default: '' },
+    chosenDisplayName: { type: String, default: '' },
+    chosenParticipantEmail: { type: String, default: '' },
+    resolvedAt: { type: Date, default: null },
+  },
   createdAt: {
     type: Date,
     default: Date.now

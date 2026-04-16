@@ -18,6 +18,7 @@ import {
 import './MeetingSummary.css';
 import { FEATURE_INTERVIEW_UI } from '../config/featureFlags';
 import { GoogleCalendarLogo, OutlookLogo } from './CalendarBrandIcons';
+import SpeakerPoolResolveBanner from './SpeakerPoolResolveBanner';
 
 /**
  * Read-only summary layout. Use includeSections to render only action items or everything except.
@@ -368,6 +369,19 @@ export default function MeetingSummaryReadonlyBody({
             AI generated • ready for review
           </div>
         )}
+
+        <SpeakerPoolResolveBanner
+          meeting={meeting}
+          meetingId={meetingId}
+          summaryText={summaryText}
+          keyPoints={keyPoints}
+          decisions={decisions}
+          nextSteps={nextSteps}
+          importantNotes={importantNotes}
+          actionItems={actionItems}
+          onMeetingPatched={onMeetingPatched}
+          isInterview={isInterview}
+        />
 
         {hasMultipleCandidates && (
           <section

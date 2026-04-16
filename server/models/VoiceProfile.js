@@ -37,6 +37,18 @@ const voiceProfileSchema = new mongoose.Schema({
   lastUsed: {
     type: Date,
     default: Date.now
+  },
+  /** Last time the user confirmed this profile in a Name1/Name2 speaker pick (UI); reserved for future attribution weighting. */
+  lastDisambiguationAt: {
+    type: Date,
+    default: null,
+  },
+  /** Other participant email from the last Name1/Name2 pick (for future matcher hints). */
+  lastDisambiguationPeerEmail: {
+    type: String,
+    default: null,
+    trim: true,
+    lowercase: true,
   }
 });
 

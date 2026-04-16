@@ -1388,6 +1388,92 @@
   margin-bottom: 0;
 }
 
+.meeting-summary-speaker-pool {
+  margin: 14px 0 18px;
+  padding: 14px 16px 16px;
+  border-radius: var(--radius-card, 14px);
+  border: 1px solid rgba(52, 211, 153, 0.35);
+  background: rgba(16, 185, 129, 0.09);
+}
+
+.meeting-summary-speaker-pool__inner {
+  max-width: 640px;
+}
+
+.meeting-summary-speaker-pool__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--text-primary);
+  margin: 0 0 8px;
+}
+
+.meeting-summary-speaker-pool__icon {
+  color: var(--success-green, #34d399);
+  flex-shrink: 0;
+}
+
+.meeting-summary-speaker-pool__hint {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.meeting-summary-speaker-pool__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.meeting-summary-speaker-pool__btn {
+  appearance: none;
+  border: 1px solid rgba(16, 185, 129, 0.55);
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.meeting-summary-speaker-pool__btn:hover:not(:disabled) {
+  background: rgba(16, 185, 129, 0.28);
+}
+
+.meeting-summary-speaker-pool__btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.meeting-summary-speaker-pool__meta {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.meeting-summary-speaker-pool__success {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--message-success-text, #6ee7b7);
+  line-height: 1.45;
+}
+
+.meeting-summary-speaker-pool__err {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--message-error-text, #fca5a5);
+  line-height: 1.45;
+}
+
+:root[data-theme='light'] .meeting-summary-speaker-pool {
+  border-color: rgba(5, 150, 105, 0.35);
+  background: rgba(16, 185, 129, 0.06);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .meeting-summary-ready-badge.mip-ready-badge--live,
   .meeting-summary-ready-badge.mip-ready-badge--live::after {
