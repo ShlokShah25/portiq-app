@@ -49,6 +49,65 @@ function getLiveVoiceSessionContext(meetingId) {
 function clearLiveVoiceSessionContext(meetingId) {
   liveVoiceSessionByMeetingId.delete(String(meetingId));
 }
+
+/** Match a bracket fragment like "Jamie Lee" to a meeting participant. */
+function matchParticipantByPoolFragment(participants, fragment) {
+  const f = String(fragment || '')
+    .trim()
+    .toLowerCase();
+  if (!f) return null;
+  const arr = Array.isArray(participants) ? participants : [];
+  for (const p of arr) {
+    if (!p || !p.email) continue;
+    const em = String(p.email).trim().toLowerCase();
+    const nm = String(p.name || '').trim().toLowerCase();
+    const local = em.includes('@') ? em.split('@')[0] : '';
+    if (f === em || f === nm) return p;
+    if (nm && (nm === f || nm.includes(f) || f.includes(nm))) return p;
+    if (local && (f === local || local.includes(f) || f.includes(local))) return p;
+  }
+  return null;
+}
+
+function replaceLiteralInAllSummaryFields(meeting, fromLiteral, toLiteral) {
+  if (!fromLiteral || fromLiteral === toLiteral) return 0;
+  let replacements = 0;
+  const rep = (s) => {
+    if (typeof s !== 'string' || !s.includes(fromLiteral)) return s;
+    const parts = s.split(fromLiteral);
+    replacements += parts.length - 1;
+    return parts.join(toLiteral);
+  };
+  for (const k of ['summary', 'pendingSummary']) {
+    if (typeof meeting[k] === 'string') meeting[k] = rep(meeting[k]);
+  }
+  for (const k of [
+    'keyPoints',
+    'pendingKeyPoints',
+    'decisions',
+    'pendingDecisions',
+    'nextSteps',
+    'pendingNextSteps',
+    'importantNotes',
+    'pendingImportantNotes',
+  ]) {
+    if (Array.isArray(meeting[k])) {
+      meeting[k] = meeting[k].map((s) => rep(typeof s === 'string' ? s : String(s)));
+    }
+  }
+  for (const k of ['actionItems', 'pendingActionItems']) {
+    if (!Array.isArray(meeting[k])) continue;
+    meeting[k] = meeting[k].map((item) => {
+      const base = item && typeof item.toObject === 'function' ? item.toObject() : { ...(item || {}) };
+      return {
+        ...base,
+        task: rep(base.task != null ? String(base.task) : ''),
+        notes: rep(base.notes != null ? String(base.notes) : ''),
+      };
+    });
+  }
+  return replacements;
+}
 const { sendEmail, isEmailConfigured, getDefaultFrom } = require('../utils/emailService');
 const {
   buildGoogleCalendarUrlForMeeting,
@@ -1655,6 +1714,129 @@ router.put('/:id/pending-summary', async (req, res) => {
   } catch (error) {
     console.error('Error updating pending summary:', error);
     res.status(500).json({ error: 'Failed to update summary' });
+  }
+});
+
+/**
+ * Replace a two-name pooled speaker bracket [A / B] across summary fields and record the user's pick.
+ * Pairs with client UI when the AI could not separate two similar voices.
+ */
+router.post('/:id/resolve-speaker-pool', async (req, res) => {
+  try {
+    const meeting = await Meeting.findById(req.params.id);
+    if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
+    const admin = await getAdminFromRequest(req);
+    if (!canAccessMeeting(meeting, admin)) return res.status(404).json({ error: 'Meeting not found' });
+    if (!assertEditorVerificationOrRespond(meeting, req, res)) return;
+
+    const poolBracket = String((req.body && req.body.poolBracket) || '').trim();
+    const chosenParticipantEmail = String((req.body && req.body.chosenParticipantEmail) || '')
+      .trim()
+      .toLowerCase();
+    if (!poolBracket || !chosenParticipantEmail) {
+      return res.status(400).json({
+        error: 'Missing poolBracket or chosenParticipantEmail',
+        details: 'Send the exact bracket text and the chosen participant email.',
+      });
+    }
+    const inner = poolBracket.replace(/^\[/, '').replace(/\]$/, '').trim();
+    const parts = inner.split(/\s*\/\s*/).map((p) => p.trim()).filter(Boolean);
+    if (parts.length !== 2) {
+      return res.status(400).json({
+        error: 'poolBracket must contain exactly two names separated by " / "',
+        details: 'Example: [Jamie Lee / Alex Kim]',
+      });
+    }
+
+    const participants = (meeting.participants || []).filter((p) => p && p.email);
+    const matchA = matchParticipantByPoolFragment(participants, parts[0]);
+    const matchB = matchParticipantByPoolFragment(participants, parts[1]);
+    if (!matchA || !matchB) {
+      return res.status(400).json({
+        error: 'Could not match both sides of the bracket to meeting participants',
+        details: 'Check participant names on the meeting match the bracket text.',
+      });
+    }
+    const emailA = String(matchA.email).trim().toLowerCase();
+    const emailB = String(matchB.email).trim().toLowerCase();
+    if (emailA === emailB) {
+      return res.status(400).json({ error: 'Bracket must refer to two different participants' });
+    }
+    const allowed = new Set([emailA, emailB]);
+    if (!allowed.has(chosenParticipantEmail)) {
+      return res.status(400).json({ error: 'Chosen email must be one of the two people in the bracket' });
+    }
+
+    const blob = [
+      meeting.summary,
+      meeting.pendingSummary,
+      ...(meeting.keyPoints || []),
+      ...(meeting.pendingKeyPoints || []),
+      ...(meeting.decisions || []),
+      ...(meeting.pendingDecisions || []),
+      ...(meeting.nextSteps || []),
+      ...(meeting.pendingNextSteps || []),
+      ...(meeting.importantNotes || []),
+      ...(meeting.pendingImportantNotes || []),
+      ...(meeting.actionItems || []).map((i) => [i && i.task, i && i.notes]),
+      ...(meeting.pendingActionItems || []).map((i) => [i && i.task, i && i.notes]),
+    ]
+      .flat()
+      .filter(Boolean)
+      .join('\n');
+    if (!blob.includes(poolBracket)) {
+      return res.status(400).json({
+        error: 'That exact bracket text was not found in this summary',
+        details: 'Copy the bracket from the summary or refresh the page.',
+      });
+    }
+
+    const chosenParticipant =
+      chosenParticipantEmail === emailA ? matchA : matchB;
+    const peerEmail = chosenParticipantEmail === emailA ? emailB : emailA;
+    const display =
+      String(chosenParticipant.name || '').trim() ||
+      chosenParticipantEmail.split('@')[0];
+    const replacementBracket = `[${display}]`;
+
+    const n = replaceLiteralInAllSummaryFields(meeting, poolBracket, replacementBracket);
+    if (n === 0) {
+      return res.status(400).json({ error: 'No replacements were made', details: 'Bracket text may have changed.' });
+    }
+
+    meeting.speakerPoolResolution = {
+      poolBracket,
+      chosenDisplayName: display,
+      chosenParticipantEmail,
+      resolvedAt: new Date(),
+    };
+
+    try {
+      await VoiceProfile.updateOne(
+        { email: chosenParticipantEmail },
+        {
+          $set: {
+            lastUsed: new Date(),
+            lastDisambiguationAt: new Date(),
+            lastDisambiguationPeerEmail: peerEmail,
+          },
+        }
+      );
+    } catch (vpErr) {
+      console.warn('VoiceProfile disambiguation touch skipped:', vpErr.message || vpErr);
+    }
+
+    await meeting.save();
+    res.json({
+      success: true,
+      message:
+        'Saved. We’ll use this preference to improve speaker hints over time; this meeting’s text is updated.',
+      replacements: n,
+      meeting,
+    });
+  } catch (error) {
+    console.error('Error resolving speaker pool:', error);
+    res.status(500).json({ error: 'Failed to resolve speaker label', details: error.message || String(error) });
   }
 });
 
