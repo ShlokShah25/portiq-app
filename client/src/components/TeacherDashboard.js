@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useTrialExperience } from './TrialExperienceProvider';
@@ -30,6 +30,10 @@ export default function TeacherDashboard() {
   const [error, setError] = useState('');
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
+  const [spotlightRect, setSpotlightRect] = useState(null);
+  const classroomFieldRef = useRef(null);
+  const subjectFieldRef = useRef(null);
+  const startButtonRef = useRef(null);
 
   const classrooms = useMemo(() => getClassrooms(), []);
 
@@ -61,16 +65,42 @@ export default function TeacherDashboard() {
     {
       title: 'Choose your classroom',
       body: 'Pick the classroom you are teaching right now. This automatically links the right student list.',
+      target: 'classroom',
     },
     {
       title: 'Select the subject',
       body: 'Choose the lecture subject from your classroom setup so notes and summaries stay organized.',
+      target: 'subject',
     },
     {
       title: 'Start lecture instantly',
       body: 'Click Start lecture and you are taken directly into the live lecture room with no extra form.',
+      target: 'start',
     },
   ];
+
+  const currentStep = onboardingSteps[onboardingStep] || onboardingSteps[0];
+
+  const updateSpotlightRect = () => {
+    if (!onboardingOpen) return;
+    const target =
+      currentStep?.target === 'classroom'
+        ? classroomFieldRef.current
+        : currentStep?.target === 'subject'
+          ? subjectFieldRef.current
+          : startButtonRef.current;
+    if (!target) return;
+    const rect = target.getBoundingClientRect();
+    const pad = 8;
+    setSpotlightRect({
+      top: rect.top - pad,
+      left: rect.left - pad,
+      width: rect.width + pad * 2,
+      height: rect.height + pad * 2,
+      cardTop: rect.bottom + 14,
+      cardLeft: rect.left,
+    });
+  };
 
   useEffect(() => {
     const uid = String(profile?.id || profile?._id || profile?.email || '').trim();
@@ -87,6 +117,18 @@ export default function TeacherDashboard() {
       setOnboardingStep(0);
     }
   }, [profile?.id, profile?._id, profile?.email]);
+
+  useEffect(() => {
+    if (!onboardingOpen) return undefined;
+    updateSpotlightRect();
+    const onResize = () => updateSpotlightRect();
+    window.addEventListener('resize', onResize);
+    window.addEventListener('scroll', onResize, true);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('scroll', onResize, true);
+    };
+  }, [onboardingOpen, onboardingStep]);
 
   const closeOnboarding = (markDone = true) => {
     const uid = String(profile?.id || profile?._id || profile?.email || '').trim();
@@ -206,7 +248,12 @@ export default function TeacherDashboard() {
               <h2>Start a lecture</h2>
             </div>
             <div className="dashboard-teacher-grid">
-              <div className="dashboard-education-pill dashboard-education-pill--wide dashboard-teacher-card">
+              <div
+                ref={classroomFieldRef}
+                className={`dashboard-education-pill dashboard-education-pill--wide dashboard-teacher-card${
+                  onboardingOpen && currentStep?.target === 'classroom' ? ' dashboard-teacher-focus' : ''
+                }`}
+              >
                 <span className="dashboard-education-pill__k">Classroom</span>
                 <select
                   value={selectedClassroomId}
@@ -223,7 +270,12 @@ export default function TeacherDashboard() {
                   ))}
                 </select>
               </div>
-              <div className="dashboard-education-pill dashboard-education-pill--wide dashboard-teacher-card">
+              <div
+                ref={subjectFieldRef}
+                className={`dashboard-education-pill dashboard-education-pill--wide dashboard-teacher-card${
+                  onboardingOpen && currentStep?.target === 'subject' ? ' dashboard-teacher-focus' : ''
+                }`}
+              >
                 <span className="dashboard-education-pill__k">Subject</span>
                 <select
                   value={selectedSubject}
@@ -250,8 +302,11 @@ export default function TeacherDashboard() {
 
             <div className="dashboard-start-meeting__actions">
               <button
+                ref={startButtonRef}
                 type="button"
-                className="dashboard-btn-primary dashboard-btn-primary--hero dashboard-btn-micro"
+                className={`dashboard-btn-primary dashboard-btn-primary--hero dashboard-btn-micro${
+                  onboardingOpen && currentStep?.target === 'start' ? ' dashboard-teacher-focus-btn' : ''
+                }`}
                 onClick={handleCreateAndStart}
                 disabled={creating}
               >
@@ -270,12 +325,39 @@ export default function TeacherDashboard() {
           {onboardingOpen && (
             <div className="dashboard-teacher-tour" role="dialog" aria-modal="true">
               <div className="dashboard-teacher-tour__backdrop" onClick={() => closeOnboarding(true)} />
-              <div className="dashboard-teacher-tour__card">
+              {spotlightRect && (
+                <div
+                  className="dashboard-teacher-tour__spotlight"
+                  style={{
+                    top: `${spotlightRect.top}px`,
+                    left: `${spotlightRect.left}px`,
+                    width: `${spotlightRect.width}px`,
+                    height: `${spotlightRect.height}px`,
+                  }}
+                />
+              )}
+              <div
+                className="dashboard-teacher-tour__card dashboard-teacher-tour__card--spotlight"
+                style={
+                  spotlightRect
+                    ? {
+                        top: `${Math.min(
+                          spotlightRect.cardTop,
+                          window.innerHeight - 210
+                        )}px`,
+                        left: `${Math.min(
+                          spotlightRect.cardLeft,
+                          window.innerWidth - 460
+                        )}px`,
+                      }
+                    : undefined
+                }
+              >
                 <p className="dashboard-teacher-tour__step">
                   Step {onboardingStep + 1} of {onboardingSteps.length}
                 </p>
-                <h3 className="dashboard-teacher-tour__title">{onboardingSteps[onboardingStep].title}</h3>
-                <p className="dashboard-teacher-tour__body">{onboardingSteps[onboardingStep].body}</p>
+                <h3 className="dashboard-teacher-tour__title">{currentStep.title}</h3>
+                <p className="dashboard-teacher-tour__body">{currentStep.body}</p>
                 <div className="dashboard-teacher-tour__actions">
                   <button
                     type="button"

@@ -4,7 +4,7 @@ import { useTrialExperience } from './TrialExperienceProvider';
 import './Dashboard.css';
 
 function emptyForm() {
-  return { username: '', email: '', password: '' };
+  return { username: '', email: '' };
 }
 
 export default function TeachersPage() {
@@ -38,7 +38,7 @@ export default function TeachersPage() {
   }, [blocked]);
 
   const canSubmit = useMemo(
-    () => form.username.trim() && form.email.trim() && form.password.trim(),
+    () => form.username.trim() && form.email.trim(),
     [form]
   );
 
@@ -49,13 +49,17 @@ export default function TeachersPage() {
     setError('');
     setNotice('');
     try {
-      await axios.post('/admin/teachers', {
+      const res = await axios.post('/admin/teachers', {
         username: form.username.trim(),
         email: form.email.trim().toLowerCase(),
-        password: form.password,
       });
+      const temporaryPassword = String(res.data?.temporaryPassword || '').trim();
       setForm(emptyForm());
-      setNotice('Teacher account created. They will be asked to change password at first login.');
+      setNotice(
+        temporaryPassword
+          ? `Teacher account created. Temporary password: ${temporaryPassword}. They must change it on first login.`
+          : 'Teacher account created. They will be asked to change password at first login.'
+      );
       await fetchTeachers();
     } catch (err) {
       const d = err.response?.data;
@@ -87,8 +91,11 @@ export default function TeachersPage() {
           <header className="dashboard-hero-minimal">
             <h1 className="dashboard-title">Teachers</h1>
             <p className="dashboard-subtitle">
-              Create teacher users with temporary passwords. Teachers must change password on first
-              login.
+              Create teacher users quickly. Temporary password is auto-set to
+              {' '}
+              <strong>{'{TeacherName}+123'}</strong>
+              {' '}
+              and teachers must change it on first login.
             </p>
           </header>
 
@@ -107,12 +114,6 @@ export default function TeachersPage() {
                 placeholder="Teacher email"
                 value={form.email}
                 onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
-              />
-              <input
-                type="text"
-                placeholder="Temporary password (min 8 chars)"
-                value={form.password}
-                onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
               />
               <button
                 type="submit"

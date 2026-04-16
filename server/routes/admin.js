@@ -42,6 +42,14 @@ function canManageEducationTeachers(admin) {
   return role === 'admin' || role === 'super_admin';
 }
 
+function buildTeacherTempPassword(username) {
+  const base = String(username || '')
+    .trim()
+    .replace(/\s+/g, '')
+    .replace(/[^a-zA-Z0-9]/g, '');
+  return `${base || 'Teacher'}+123`;
+}
+
 function actionItemsForMeetingDoc(m) {
   let items = Array.isArray(m.actionItems) && m.actionItems.length ? m.actionItems : [];
   if (!items.length && Array.isArray(m.pendingActionItems) && m.pendingActionItems.length) {
@@ -268,19 +276,13 @@ router.post('/teachers', authenticateAdmin, async (req, res) => {
 
     const username = String(req.body?.username || '').trim();
     const email = String(req.body?.email || '').trim().toLowerCase();
-    const password = String(req.body?.password || '').trim();
-    if (!username || !email || !password) {
+    if (!username || !email) {
       return res.status(400).json({
-        error: 'username, email, and password are required.',
+        error: 'username and email are required.',
         details: 'Provide all required fields to create a teacher user.',
       });
     }
-    if (password.length < 8) {
-      return res.status(400).json({
-        error: 'Password must be at least 8 characters.',
-        details: 'Use a stronger temporary password for first login.',
-      });
-    }
+    const password = buildTeacherTempPassword(username);
     const existing = await Admin.findOne({
       $or: [{ username }, { email }],
     }).lean();
@@ -310,6 +312,7 @@ router.post('/teachers', authenticateAdmin, async (req, res) => {
 
     res.status(201).json({
       success: true,
+      temporaryPassword: password,
       teacher: {
         id: teacher._id,
         username: teacher.username,
