@@ -10,6 +10,22 @@ import {
 } from '../utils/classroomsStorage';
 import './ClassesPage.css';
 
+const SUBJECT_OPTIONS = [
+  'Mathematics',
+  'Physics',
+  'Chemistry',
+  'Biology',
+  'English Literature',
+  'English Language',
+  'Commerce',
+  'Arts',
+  'Fashion Design',
+  'Home Science',
+  'Engineering Drawing',
+  'History',
+  'Geography',
+];
+
 function emptyAssignment() {
   return {
     rowKey: `row_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
@@ -29,6 +45,7 @@ const ClassesPage = () => {
   const [classrooms, setClassrooms] = useState([]);
   const [editing, setEditing] = useState(null);
   const [query, setQuery] = useState('');
+  const [studentQuery, setStudentQuery] = useState('');
   const [form, setForm] = useState({
     className: '',
     subjectAssignments: [emptyAssignment()],
@@ -45,6 +62,7 @@ const ClassesPage = () => {
   const resetForm = () => {
     setForm({ className: '', subjectAssignments: [emptyAssignment()], studentRoster: [emptyStudent()] });
     setError('');
+    setStudentQuery('');
     setEditing(null);
   };
 
@@ -78,6 +96,16 @@ const ClassesPage = () => {
     }
     return out;
   };
+
+  const filteredStudentRows = useMemo(() => {
+    const q = studentQuery.trim().toLowerCase();
+    if (!q) return form.studentRoster;
+    return form.studentRoster.filter((row) => {
+      const nm = String(row?.name || '').toLowerCase();
+      const em = String(row?.email || '').toLowerCase();
+      return nm.includes(q) || em.includes(q);
+    });
+  }, [form.studentRoster, studentQuery]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -285,11 +313,20 @@ const ClassesPage = () => {
                 <label>
                   Subject
                   <input
+                    type="text"
+                    list={`subject-options-${row.rowKey}`}
                     value={row.subject}
                     onChange={(e) => updateAssignment(index, e.target.value)}
-                    placeholder="e.g. Mathematics"
+                    placeholder="Search or type subject"
                     required
                   />
+                  <datalist id={`subject-options-${row.rowKey}`}>
+                    {SUBJECT_OPTIONS.map((subject) => (
+                      <option key={subject} value={subject}>
+                        {subject}
+                      </option>
+                    ))}
+                  </datalist>
                 </label>
                 <button
                   type="button"
@@ -305,14 +342,23 @@ const ClassesPage = () => {
 
           <div className="classes-assignments-head classes-assignments-head--students">
             <h3>Students ({normalizeStudents(form.studentRoster).length}/{MAX_STUDENTS_PER_CLASSROOM})</h3>
-            <button
-              type="button"
-              className="classes-btn-secondary"
-              onClick={addStudent}
-              disabled={form.studentRoster.length >= MAX_STUDENTS_PER_CLASSROOM}
-            >
-              Add student
-            </button>
+            <div className="classes-assignments-actions">
+              <input
+                type="search"
+                className="classes-search classes-search--students"
+                value={studentQuery}
+                onChange={(e) => setStudentQuery(e.target.value)}
+                placeholder="Search students by name or email"
+              />
+              <button
+                type="button"
+                className="classes-btn-secondary"
+                onClick={addStudent}
+                disabled={form.studentRoster.length >= MAX_STUDENTS_PER_CLASSROOM}
+              >
+                Add student
+              </button>
+            </div>
           </div>
 
           <div className="classes-students-table-wrap">
@@ -325,7 +371,10 @@ const ClassesPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {form.studentRoster.map((row, index) => (
+                {filteredStudentRows.map((row) => {
+                  const index = form.studentRoster.findIndex((s) => s.rowKey === row.rowKey);
+                  if (index === -1) return null;
+                  return (
                   <tr key={row.rowKey}>
                     <td>
                       <input
@@ -353,7 +402,8 @@ const ClassesPage = () => {
                       </button>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
