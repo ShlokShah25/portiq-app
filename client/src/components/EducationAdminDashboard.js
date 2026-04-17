@@ -86,7 +86,8 @@ export default function EducationAdminDashboard() {
                 </div>
               </div>
               <p className="dashboard-education-admin-card__hint">
-                Create and manage classrooms, students, and subject-teacher mappings.
+                Create and manage classrooms, students, and subject-teacher mappings (7 classrooms,
+                40 students/classroom, 9 subjects/classroom).
               </p>
               <div className="dashboard-start-meeting__actions">
                 <Link className="dashboard-btn-primary dashboard-btn-micro" to="/classes">
@@ -117,7 +118,7 @@ export default function EducationAdminDashboard() {
                 </ul>
               ) : (
                 <p className="dashboard-education-admin-card__hint">
-                  No teachers yet. Create one from the teachers page.
+                  No teachers yet. Create one from the teachers page (teacher accounts are unlimited).
                 </p>
               )}
               <div className="dashboard-start-meeting__actions" style={{ marginTop: 10 }}>

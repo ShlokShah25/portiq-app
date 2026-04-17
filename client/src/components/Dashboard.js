@@ -439,7 +439,8 @@ const Dashboard = () => {
                 </div>
               </div>
               <p className="dashboard-education-strip__hint">
-                Students are managed inside classrooms. Limits: up to 7 classrooms and 8 subjects per classroom. Teachers are unlimited.
+                Students are managed inside classrooms. Limits: 7 classrooms, 40 students/classroom,
+                and 9 subjects/classroom. Teachers are unlimited.
               </p>
             </section>
           ) : null}

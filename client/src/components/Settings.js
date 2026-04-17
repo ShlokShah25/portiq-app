@@ -371,7 +371,8 @@ const Settings = () => {
                       </Link>
                     </div>
                     <p className="settings-company-hint">
-                      Teachers are unlimited. Each classroom supports up to 8 subjects, and your organization can have up to 7 classrooms.
+                      Education caps: 7 classrooms, 40 students per classroom, and 9 subjects per
+                      classroom. Teachers are unlimited.
                     </p>
                   </>
                 ) : (

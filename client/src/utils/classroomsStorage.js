@@ -1,5 +1,7 @@
 const STORAGE_KEY = 'portiq_education_classrooms';
-export const MAX_SUBJECTS_PER_CLASSROOM = 7;
+export const MAX_CLASSROOMS = 7;
+export const MAX_STUDENTS_PER_CLASSROOM = 40;
+export const MAX_SUBJECTS_PER_CLASSROOM = 9;
 
 function normalizeSubjects(input) {
   const arr = Array.isArray(input)
@@ -55,7 +57,7 @@ function normalizeClassroomShape(c) {
     subjects,
     // Keep legacy single subject field for backward compatibility in older UI paths.
     subject: subjects[0] || '',
-    studentEmails: Array.isArray(c?.studentEmails) ? c.studentEmails : [],
+    studentEmails: Array.isArray(c?.studentEmails) ? c.studentEmails.slice(0, MAX_STUDENTS_PER_CLASSROOM) : [],
   };
 }
 
@@ -76,6 +78,9 @@ export function saveClassrooms(classrooms) {
 
 export function createClassroom(classroom) {
   const list = getClassrooms();
+  if (list.length >= MAX_CLASSROOMS) {
+    throw new Error(`Classroom limit reached (${MAX_CLASSROOMS}).`);
+  }
   const id = `class_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
   const newOne = normalizeClassroomShape({
     id,

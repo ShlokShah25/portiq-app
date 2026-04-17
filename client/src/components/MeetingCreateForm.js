@@ -21,7 +21,12 @@ import {
 } from 'lucide-react';
 import { isEducation } from '../config/product';
 import { FEATURE_INTERVIEW_UI } from '../config/featureFlags';
-import { getClassrooms } from '../utils/classroomsStorage';
+import {
+  getClassrooms,
+  MAX_CLASSROOMS,
+  MAX_STUDENTS_PER_CLASSROOM,
+  MAX_SUBJECTS_PER_CLASSROOM,
+} from '../utils/classroomsStorage';
 import {
   VOICE_ENROLLMENT_API_TEMPLATE,
   voiceEnrollmentSentenceForParticipant,
@@ -401,6 +406,14 @@ export default function MeetingCreateForm({
     return legacy.map((s) => ({ subject: s }));
   }, [selectedClassroom]);
 
+  const educationClassrooms = useMemo(() => (isEducation ? getClassrooms() : []), [selectedClassroomId]);
+  const selectedClassroomStudentCount = Array.isArray(selectedClassroom?.studentEmails)
+    ? selectedClassroom.studentEmails.length
+    : 0;
+  const selectedClassroomSubjectCount = Array.isArray(selectedClassroom?.subjects)
+    ? selectedClassroom.subjects.length
+    : selectedClassroomAssignments.length;
+
   useEffect(() => {
     if (!isEducation || !selectedClassroomId) return;
     if (!selectedClassroomAssignments.length) {
@@ -459,8 +472,21 @@ export default function MeetingCreateForm({
     }
     if (isEducation && !selectedClassroomId) return 'Select a classroom.';
     if (isEducation && !selectedSubject) return 'Select a subject.';
-    if (isEducation && selectedClassroom && Array.isArray(selectedClassroom.subjects) && selectedClassroom.subjects.length > 7) {
-      return 'This classroom exceeds the current subject cap (7). Edit classroom subjects first.';
+    if (
+      isEducation &&
+      selectedClassroom &&
+      Array.isArray(selectedClassroom.subjects) &&
+      selectedClassroom.subjects.length > MAX_SUBJECTS_PER_CLASSROOM
+    ) {
+      return `This classroom exceeds the current subject cap (${MAX_SUBJECTS_PER_CLASSROOM}). Edit classroom subjects first.`;
+    }
+    if (
+      isEducation &&
+      selectedClassroom &&
+      Array.isArray(selectedClassroom.studentEmails) &&
+      selectedClassroom.studentEmails.length > MAX_STUDENTS_PER_CLASSROOM
+    ) {
+      return `This classroom exceeds the current student cap (${MAX_STUDENTS_PER_CLASSROOM}). Edit classroom students first.`;
     }
     return '';
   };
@@ -785,15 +811,23 @@ export default function MeetingCreateForm({
                       disabled={formDisabled}
                     >
                       <option value="">Select a classroom</option>
-                      {getClassrooms().map((c) => (
+                      {educationClassrooms.map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.className}
                         </option>
                       ))}
                     </select>
+                    <p className="start-meeting-field-hint">
+                      Caps: {educationClassrooms.length}/{MAX_CLASSROOMS} classrooms
+                    </p>
                     {selectedClassroom && Array.isArray(selectedClassroom.subjects) && selectedClassroom.subjects.length > 0 ? (
                       <p className="start-meeting-field-hint">
-                        Subjects: {selectedClassroom.subjects.slice(0, 7).join(', ')}
+                        Subjects: {selectedClassroom.subjects.slice(0, MAX_SUBJECTS_PER_CLASSROOM).join(', ')} ({selectedClassroomSubjectCount}/{MAX_SUBJECTS_PER_CLASSROOM})
+                      </p>
+                    ) : null}
+                    {selectedClassroom ? (
+                      <p className="start-meeting-field-hint">
+                        Students: {selectedClassroomStudentCount}/{MAX_STUDENTS_PER_CLASSROOM}
                       </p>
                     ) : null}
                     {selectedClassroomAssignments.length > 0 ? (

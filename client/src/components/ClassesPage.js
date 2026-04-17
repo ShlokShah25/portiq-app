@@ -4,6 +4,8 @@ import {
   createClassroom,
   updateClassroom,
   deleteClassroom,
+  MAX_CLASSROOMS,
+  MAX_STUDENTS_PER_CLASSROOM,
   MAX_SUBJECTS_PER_CLASSROOM,
 } from '../utils/classroomsStorage';
 import './ClassesPage.css';
@@ -62,7 +64,15 @@ const ClassesPage = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
+    if (!editing && classrooms.length >= MAX_CLASSROOMS) {
+      setError(`Classroom limit reached (${MAX_CLASSROOMS}).`);
+      return;
+    }
     const studentEmails = studentEmailsFromStr(form.studentEmailsStr);
+    if (studentEmails.length > MAX_STUDENTS_PER_CLASSROOM) {
+      setError(`Student limit reached (${MAX_STUDENTS_PER_CLASSROOM} per classroom).`);
+      return;
+    }
     const subjectAssignments = normalizeAssignments(form.subjectAssignments);
     if (subjectAssignments.length === 0) {
       setError('Add at least one subject.');
@@ -77,13 +87,18 @@ const ClassesPage = () => {
         studentEmails
       });
     } else {
-      createClassroom({
-        className: form.className.trim(),
-        subjectAssignments,
-        subjects: subjectAssignments.map((x) => x.subject),
-        teacher: '',
-        studentEmails
-      });
+      try {
+        createClassroom({
+          className: form.className.trim(),
+          subjectAssignments,
+          subjects: subjectAssignments.map((x) => x.subject),
+          teacher: '',
+          studentEmails
+        });
+      } catch (err) {
+        setError(err.message || 'Could not create classroom.');
+        return;
+      }
     }
     resetForm();
     load();
@@ -143,7 +158,11 @@ const ClassesPage = () => {
       <div className="classes-wrapper">
         <div className="classes-header">
           <h1>Classrooms</h1>
-          <p>Create and manage classrooms. Students in a classroom receive lecture notes by email.</p>
+          <p>
+            Create and manage classrooms with visible caps: {MAX_CLASSROOMS} classrooms,{' '}
+            {MAX_STUDENTS_PER_CLASSROOM} students/classroom, and {MAX_SUBJECTS_PER_CLASSROOM}{' '}
+            subjects/classroom.
+          </p>
         </div>
 
         <form className="classes-form" onSubmit={handleSubmit}>
@@ -193,7 +212,7 @@ const ClassesPage = () => {
             ))}
           </div>
           <p className="classes-subject-cap-note">
-            Add the subjects taught in this classroom.
+            Add up to {MAX_SUBJECTS_PER_CLASSROOM} subjects taught in this classroom.
           </p>
           {error ? <p className="classes-error">{error}</p> : null}
           <label className="classes-form-full">
@@ -205,8 +224,15 @@ const ClassesPage = () => {
               rows={4}
             />
           </label>
+          <p className="classes-subject-cap-note">
+            Up to {MAX_STUDENTS_PER_CLASSROOM} students per classroom.
+          </p>
           <div className="classes-form-actions">
-            <button type="submit" className="classes-btn-primary">
+            <button
+              type="submit"
+              className="classes-btn-primary"
+              disabled={!editing && classrooms.length >= MAX_CLASSROOMS}
+            >
               {editing ? 'Update Classroom' : 'Create Classroom'}
             </button>
             {editing && (
@@ -218,7 +244,9 @@ const ClassesPage = () => {
         </form>
 
         <div className="classes-list">
-          <h2>All Classrooms</h2>
+          <h2>
+            All Classrooms ({classrooms.length}/{MAX_CLASSROOMS})
+          </h2>
           {classrooms.length === 0 ? (
             <p className="classes-empty">No classrooms yet. Create one above.</p>
           ) : (
@@ -248,7 +276,9 @@ const ClassesPage = () => {
                         '—'
                       )}
                     </td>
-                    <td>{(c.studentEmails || []).length}</td>
+                    <td>
+                      {(c.studentEmails || []).length}/{MAX_STUDENTS_PER_CLASSROOM}
+                    </td>
                     <td>
                       <button type="button" className="classes-btn-sm" onClick={() => handleEdit(c)}>
                         Edit
