@@ -4,6 +4,7 @@ const path = require('path');
 const os = require('os');
 const { execFileSync } = require('child_process');
 const { sendEmail, isEmailConfigured, getDefaultFrom } = require('./emailService');
+const { formatMeetingSubjectDate } = require('./meetingMailSubject');
 const { buildMeetingSummaryPdfBuffer } = require('./meetingSummaryPdf');
 const {
   buildGoogleCalendarUrlForMeeting,
@@ -1897,7 +1898,8 @@ async function sendMeetingSummary(meeting, summaryData, options = {}) {
     return { success: true, message: 'Summary prepared (email not sent - not configured or no emails)' };
   }
 
-  const subject = `${summaryNoun} \u2013 ${meeting.title} | ${assistantLabel}`;
+  const subjectDate = formatMeetingSubjectDate(meeting);
+  const subject = `${summaryNoun} \u2013 ${meeting.title} \u2013 ${subjectDate} | ${assistantLabel}`;
   const textLines = [
     'Hello,',
     '',

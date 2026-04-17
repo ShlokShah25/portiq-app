@@ -155,6 +155,7 @@ function replaceFirstLiteralInSummaryFields(meeting, fromLiteral, toLiteral) {
   return 0;
 }
 const { sendEmail, isEmailConfigured, getDefaultFrom } = require('../utils/emailService');
+const { formatMeetingSubjectDate } = require('../utils/meetingMailSubject');
 const {
   buildGoogleCalendarUrlForMeeting,
   buildOutlookCalendarUrlForMeeting,
@@ -588,7 +589,7 @@ router.post('/', async (req, res) => {
           await transporter.sendMail({
             from: process.env.MAIL_FROM || process.env.MAIL_USER,
             to: editorTrim,
-            subject: `Verification Code - ${meeting.title} | PortIQ Meeting Assistant`,
+            subject: `Verification Code - ${meeting.title} - ${formatMeetingSubjectDate(meeting)} | PortIQ Meeting Assistant`,
             html: `
               <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; color: #111827; line-height: 1.6;">
                 <div style="text-align: left; margin-bottom: 16px;">
@@ -744,7 +745,7 @@ router.post('/', async (req, res) => {
         await transporter.sendMail({
           from: process.env.MAIL_FROM || process.env.MAIL_USER,
           to: participantEmails.join(','),
-          subject: `Meeting Scheduled – ${meeting.title} | PortIQ Meeting Assistant`,
+          subject: `Meeting Scheduled – ${meeting.title} – ${formatMeetingSubjectDate(meeting)} | PortIQ Meeting Assistant`,
           text: [
             'Hello,',
             '',
@@ -1061,7 +1062,7 @@ router.post('/:id/end', withMeetingAudioUpload, async (req, res) => {
                 await transporter.sendMail({
                   from: process.env.MAIL_FROM || process.env.MAIL_USER,
                   to: meeting.authorizedEditorEmail,
-                  subject: `Meeting Summary Ready for Review - ${meeting.title} | PortIQ Meeting Assistant`,
+                  subject: `Meeting Summary Ready for Review - ${meeting.title} - ${formatMeetingSubjectDate(meeting)} | PortIQ Meeting Assistant`,
                   html: `
                     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; color: #111827; line-height: 1.6;">
                       <div style="text-align: left; margin-bottom: 16px;">
@@ -1363,7 +1364,7 @@ router.post('/:id/schedule-follow-up', async (req, res) => {
       const to = [...toSet];
 
       if (to.length > 0) {
-        const subject = `Follow-up scheduled for ${whenShort} — ${child.title}`;
+        const subject = `Follow-up scheduled for ${whenShort} — ${child.title} — ${formatMeetingSubjectDate(meeting)}`;
         const safeSummary = summaryText.replace(/</g, '&lt;').replace(/\n/g, '<br/>');
         const html = `
           <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; color: #111827; line-height: 1.6;">
@@ -1645,7 +1646,7 @@ router.post('/:id/request-verification', async (req, res) => {
       await transporter.sendMail({
         from: process.env.MAIL_FROM || process.env.MAIL_USER,
         to: email,
-        subject: `${isResend ? 'Resending: ' : ''}Verification Code for Meeting Summary - ${meeting.title} | PortIQ Meeting Assistant`,
+        subject: `${isResend ? 'Resending: ' : ''}Verification Code for Meeting Summary - ${meeting.title} - ${formatMeetingSubjectDate(meeting)} | PortIQ Meeting Assistant`,
         html: `
           <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; color: #111827; line-height: 1.6;">
             <div style="text-align: left; margin-bottom: 16px;">
@@ -2009,7 +2010,7 @@ router.patch('/:id/action-items/:actionItemId', async (req, res) => {
             ? completedDueDate.toLocaleDateString()
             : null;
 
-        const subject = `Completed: ${completedTaskText || 'Action item'} – ${meeting.title}`;
+        const subject = `Completed: ${completedTaskText || 'Action item'} – ${meeting.title} – ${formatMeetingSubjectDate(meeting)}`;
         const html = `
           <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; color: #111827; line-height: 1.6;">
             <p>Hello,</p>
