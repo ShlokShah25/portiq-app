@@ -202,6 +202,20 @@
   gap: 12px;
 }
 
+.profile-password-card {
+  padding: 18px 18px 16px;
+  border-radius: 14px;
+  border: 2px solid var(--border-color, #1f2937);
+  background: linear-gradient(
+    165deg,
+    var(--surface-card, rgba(17, 24, 39, 0.65)) 0%,
+    var(--surface-secondary, rgba(15, 23, 42, 0.92)) 100%
+  );
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 12px 32px rgba(2, 6, 23, 0.35);
+}
+
 .profile-field-group {
   display: flex;
   flex-direction: column;
@@ -214,18 +228,23 @@
 }
 
 .profile-field-group input {
-  height: 40px;
-  border-radius: 10px;
-  border: 1px solid #1f2933;
+  min-height: 44px;
+  height: auto;
+  border-radius: 11px;
+  border: 2px solid #2d3a47;
   background: var(--bg-primary, #000000);
   color: #f9fafb;
-  padding: 0 12px;
+  padding: 0 14px;
   font-size: 14px;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .profile-field-group input:focus {
   outline: none;
   border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.22);
 }
 
 .profile-password-error {
@@ -263,14 +282,14 @@
 
 .profile-save-password-btn {
   align-self: flex-start;
-  margin-top: 4px;
-  padding: 8px 16px;
-  border-radius: 999px;
-  border: 1px solid #2563eb;
-  background: #111827;
-  color: #bfdbfe;
+  margin-top: 8px;
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: 2px solid #2563eb;
+  background: linear-gradient(180deg, #1e3a5f 0%, #111827 100%);
+  color: #e0f2fe;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -365,9 +384,17 @@
 }
 
 :root[data-theme='light'] .profile-field-group input {
-  border: 1px solid var(--border-color);
+  border: 2px solid var(--border-color);
   background: var(--surface-input);
   color: var(--text-primary);
+}
+
+:root[data-theme='light'] .profile-password-card {
+  border-color: var(--border-color);
+  background: linear-gradient(165deg, #ffffff 0%, var(--surface-secondary, #f8fafc) 100%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 10px 28px rgba(15, 23, 42, 0.08);
 }
 
 :root[data-theme='light'] .profile-field-group input:focus {
