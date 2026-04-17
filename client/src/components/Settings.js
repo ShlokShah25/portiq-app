@@ -371,7 +371,7 @@ const Settings = () => {
                       </Link>
                     </div>
                     <p className="settings-company-hint">
-                      Teachers manage students inside each classroom. Subject cap stays at 7 per classroom.
+                      Teachers are unlimited. Each classroom supports up to 8 subjects, and your organization can have up to 7 classrooms.
                     </p>
                   </>
                 ) : (
