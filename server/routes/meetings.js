@@ -2262,7 +2262,17 @@ router.post('/voice/register', withVoiceUpload, async (req, res) => {
     }
 
     const quality = validateVoiceEnrollmentQuality(req.file.path);
-    if (!quality.ok) {
+    const skipQualityDueToDecode =
+      !quality.ok &&
+      quality.code === 'decode' &&
+      /ffmpeg|spawnSync/i.test(String(quality.details || ''));
+
+    if (skipQualityDueToDecode) {
+      console.warn(
+        '⚠️ Voice enrollment quality check skipped: ffmpeg decode unavailable on server.',
+        quality.details || ''
+      );
+    } else if (!quality.ok) {
       return res.status(400).json({
         error: quality.reason || 'Voice sample did not pass quality checks.',
         details: quality.details || '',
@@ -2319,6 +2329,7 @@ router.post('/voice/register', withVoiceUpload, async (req, res) => {
         hasProfile: true
       },
       autoMatched: !req.body.email || !req.body.name, // Indicates if name was auto-detected
+      qualityCheckSkipped: !!skipQualityDueToDecode,
       enrollmentQuality: quality && quality.ok
         ? { durationSec: quality.durationSec, rms: quality.rms }
         : undefined,
