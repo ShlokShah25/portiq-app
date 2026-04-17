@@ -660,10 +660,16 @@ export function ParticipantBookPanel({ embedded = false }) {
                       <div className="participant-voice-uploading">Uploading voice sample...</div>
                     )}
                   </div>
-                  <button 
+                  <button
+                    type="button"
                     className="participant-delete"
-                    onClick={() => handleDeleteParticipant(idx)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleDeleteParticipant(idx);
+                    }}
                     title="Remove participant"
+                    aria-label={`Remove ${participantName}`}
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                       <line x1="18" y1="6" x2="6" y2="18"></line>
