@@ -20,6 +20,27 @@ function buildParticipantsFromClassroom(classroom, subject) {
     : [];
 }
 
+/** Local calendar YYYY-MM-DD for comparison (browser timezone). */
+function getLocalDayKey(d = new Date()) {
+  const y = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, '0');
+  const da = String(d.getDate()).padStart(2, '0');
+  return `${y}-${mo}-${da}`;
+}
+
+function getMeetingSortDate(m) {
+  const v = m?.startTime || m?.scheduledTime || m?.createdAt;
+  if (!v) return null;
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function isMeetingOnLocalDay(m, dayKey) {
+  const d = getMeetingSortDate(m);
+  if (!d) return false;
+  return getLocalDayKey(d) === dayKey;
+}
+
 export default function TeacherDashboard() {
   const trial = useTrialExperience();
   const profile = trial?.profile;
@@ -33,6 +54,8 @@ export default function TeacherDashboard() {
   const [lectureRecords, setLectureRecords] = useState([]);
   const [recordsLoading, setRecordsLoading] = useState(false);
   const [recordsError, setRecordsError] = useState('');
+  /** Bumps when the local calendar day changes so we refetch / refilter “today’s” list. */
+  const [localDayKey, setLocalDayKey] = useState(() => getLocalDayKey());
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [spotlightRect, setSpotlightRect] = useState(null);
@@ -151,6 +174,31 @@ export default function TeacherDashboard() {
   };
 
   useEffect(() => {
+    const syncLocalDay = () => {
+      const next = getLocalDayKey();
+      setLocalDayKey((prev) => (prev !== next ? next : prev));
+    };
+
+    const msToNextMidnight = () => {
+      const n = new Date();
+      const next = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1, 0, 0, 0, 0);
+      return Math.max(5_000, next.getTime() - n.getTime());
+    };
+
+    const poll = setInterval(syncLocalDay, 60 * 1000);
+    const midnight = setTimeout(syncLocalDay, msToNextMidnight());
+    const onVis = () => {
+      if (document.visibilityState === 'visible') syncLocalDay();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      clearInterval(poll);
+      clearTimeout(midnight);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [localDayKey]);
+
+  useEffect(() => {
     let cancelled = false;
     const loadRecords = async () => {
       setRecordsLoading(true);
@@ -161,6 +209,7 @@ export default function TeacherDashboard() {
         const rows = Array.isArray(res.data?.meetings) ? res.data.meetings : [];
         const teacherRecords = rows
           .filter((m) => {
+            if (!isMeetingOnLocalDay(m, localDayKey)) return false;
             const ownerEmail = String(m?.educationTeacherEmail || '').trim().toLowerCase();
             const organizer = String(m?.organizer || '').trim().toLowerCase();
             if (teacherEmail) {
@@ -173,7 +222,7 @@ export default function TeacherDashboard() {
             const bTime = new Date(b?.startTime || b?.scheduledTime || b?.createdAt || 0).getTime();
             return bTime - aTime;
           })
-          .slice(0, 10);
+          .slice(0, 20);
         setLectureRecords(teacherRecords);
       } catch (err) {
         if (cancelled) return;
@@ -191,7 +240,7 @@ export default function TeacherDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [teacherEmail, teacherName]);
+  }, [teacherEmail, teacherName, localDayKey]);
 
   const formatLectureTime = (meeting) => {
     const value = meeting?.startTime || meeting?.scheduledTime || meeting?.createdAt;
@@ -398,8 +447,18 @@ export default function TeacherDashboard() {
               <h2>My lecture records</h2>
             </div>
             <p className="dashboard-education-strip__hint">
-              Only your lectures are shown here for quick review and reopening.
+              Today&apos;s lectures only — this list clears when the day ends. Use Meetings for your full
+              history.
             </p>
+            <div className="dashboard-start-meeting__actions" style={{ marginBottom: 10 }}>
+              <button
+                type="button"
+                className="dashboard-btn-secondary dashboard-btn-micro"
+                onClick={() => navigate('/meetings')}
+              >
+                View all lectures
+              </button>
+            </div>
             {recordsError && <div className="start-meeting-error">{recordsError}</div>}
             {recordsLoading ? (
               <p className="dashboard-education-strip__hint">Loading your lecture records…</p>
@@ -434,7 +493,7 @@ export default function TeacherDashboard() {
               </ul>
             ) : (
               <p className="dashboard-education-strip__hint">
-                No lecture records yet. Start your first lecture above.
+                No lectures today yet. Start one above, or open Meetings to see every lecture.
               </p>
             )}
           </section>
