@@ -2130,9 +2130,45 @@ router.post('/:id/approve-and-send', async (req, res) => {
 router.post('/voice/register', voiceUpload.single('audio'), async (req, res) => {
   try {
     let { email, name, standardSentence, participants } = req.body;
+    email = String(email || '').trim().toLowerCase();
+    name = String(name || '').trim();
+
+    let participantList = [];
+    if (participants) {
+      try {
+        participantList = typeof participants === 'string' ? JSON.parse(participants) : participants;
+      } catch (e) {
+        participantList = [];
+      }
+    }
     
     if (!req.file) {
       return res.status(400).json({ error: 'Audio file is required' });
+    }
+
+    // Prefer explicit participant mapping before costly transcription fallback.
+    if (email && !name && participantList.length > 0) {
+      const byEmail = participantList.find(
+        (p) => String(p?.email || '').trim().toLowerCase() === email
+      );
+      if (byEmail) {
+        name = String(byEmail.name || byEmail.email || '').trim();
+      }
+    }
+    if (!email && name && participantList.length > 0) {
+      const normalizedName = name.toLowerCase();
+      const byName = participantList.find((p) => {
+        const pName = String(p?.name || '').trim().toLowerCase();
+        return pName && (pName === normalizedName || pName.includes(normalizedName) || normalizedName.includes(pName));
+      });
+      if (byName && byName.email) {
+        email = String(byName.email).trim().toLowerCase();
+      }
+    }
+
+    // If email is known, avoid 400 by deriving a readable fallback name.
+    if (email && !name) {
+      name = email.includes('@') ? email.split('@')[0] : email;
     }
 
     // If email/name not provided, try to detect from audio
@@ -2159,16 +2195,6 @@ router.post('/voice/register', voiceUpload.single('audio'), async (req, res) => 
         if (nameMatch && nameMatch[1]) {
           const detectedName = nameMatch[1].trim();
           
-          // Parse participants if provided as JSON string
-          let participantList = [];
-          if (participants) {
-            try {
-              participantList = typeof participants === 'string' ? JSON.parse(participants) : participants;
-            } catch (e) {
-              participantList = [];
-            }
-          }
-          
           // Try to match detected name to participant list
           if (participantList.length > 0) {
             const matchedParticipant = participantList.find(p => {
@@ -2177,9 +2203,7 @@ router.post('/voice/register', voiceUpload.single('audio'), async (req, res) => 
               const detected = detectedName.toLowerCase().trim();
               
               // Check if name matches or is similar
-              return pName === detected || 
-                     pName.includes(detected) || 
-                     detected.includes(pName) ||
+              return (pName && (pName === detected || pName.includes(detected) || detected.includes(pName))) ||
                      pEmail.includes(detected) ||
                      detected.includes(pEmail.split('@')[0]);
             });
@@ -2208,7 +2232,8 @@ router.post('/voice/register', voiceUpload.single('audio'), async (req, res) => 
     // Final validation
     if (!email || !name) {
       return res.status(400).json({ 
-        error: 'Could not determine participant. Please ensure the audio contains "Hello, my name is [Name]" or provide email/name manually.' 
+        error: 'Could not determine participant. Please provide email and name, or say "Hello, my name is [Name]" clearly in the sample.',
+        details: 'If this is a new participant, first add them to the participant list and then record again.',
       });
     }
 
