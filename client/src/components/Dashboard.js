@@ -17,6 +17,12 @@ import { useTrialExperience } from './TrialExperienceProvider';
 import TeacherDashboard from './TeacherDashboard';
 import EducationAdminDashboard from './EducationAdminDashboard';
 import { isEducation } from '../config/product';
+import {
+  WORKSPACE_TIPS,
+  EDUCATION_ADMIN_TIPS,
+  pickTipIndex,
+  TIP_ROTATION_MS,
+} from '../config/dashboardTips';
 import { getClassrooms } from '../utils/classroomsStorage';
 
 function buildRecentTasks(stats) {
@@ -65,23 +71,6 @@ function statusLabel(s) {
   if (s === 'in_progress') return 'In progress';
   return 'Not started';
 }
-
-const DASHBOARD_TIPS_ALL = [
-  'Tip: Add participants from Settings → Workspace or directly while creating a meeting.',
-  'Tip: Use optional details to adjust date, time, and location before you start.',
-  'Tip: Review action items regularly so nothing slips through.',
-  'Tip: Pending summaries need a quick review before they go out.',
-  'Tip: Interview meetings leave your decision queue once you finalize the decision.',
-];
-const DASHBOARD_TIPS = FEATURE_INTERVIEW_UI
-  ? DASHBOARD_TIPS_ALL
-  : DASHBOARD_TIPS_ALL.filter((t) => !t.includes('Interview'));
-const DASHBOARD_TIPS_EDUCATION = [
-  'Tip: Create classrooms first, then add students directly inside each classroom.',
-  'Tip: Mention assignments and presentation deadlines clearly so reminders trigger correctly.',
-  'Tip: Use specific lesson titles to keep revision notes easy for students.',
-  'Tip: Review lesson notes before sharing with students.',
-];
 
 const DASHBOARD_SECTION_KEYS = {
   pendingSummaries: 'pendingSummaries',
@@ -157,29 +146,15 @@ function isInterviewDecisionPending(m) {
   return hasSummary || hasHiringDraft || hasEval;
 }
 
-function pickDashboardTipIndex() {
-  try {
-    const k = 'portiq_dashboard_tip_idx';
-    const tips = isEducation ? DASHBOARD_TIPS_EDUCATION : DASHBOARD_TIPS;
-    const raw = sessionStorage.getItem(k);
-    if (raw != null) {
-      const n = parseInt(raw, 10);
-      if (!Number.isNaN(n)) return n % tips.length;
-    }
-    const idx = Math.floor(Math.random() * tips.length);
-    sessionStorage.setItem(k, String(idx));
-    return idx;
-  } catch {
-    return 0;
-  }
-}
-
 const Dashboard = () => {
   const trial = useTrialExperience();
   const [stats, setStats] = useState(null);
   const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [tipIndex, setTipIndex] = useState(() => pickDashboardTipIndex());
+  const mainDashboardTips = isEducation ? EDUCATION_ADMIN_TIPS : WORKSPACE_TIPS;
+  const [tipIndex, setTipIndex] = useState(() =>
+    pickTipIndex('portiq_dashboard_tip_idx', mainDashboardTips.length)
+  );
   const [hiddenSections, setHiddenSections] = useState(() => readHiddenSections());
 
   useEffect(() => {
@@ -208,10 +183,10 @@ const Dashboard = () => {
   }, [trial?.refreshProfile]);
 
   useEffect(() => {
-    const tips = isEducation ? DASHBOARD_TIPS_EDUCATION : DASHBOARD_TIPS;
+    const tips = isEducation ? EDUCATION_ADMIN_TIPS : WORKSPACE_TIPS;
     const id = window.setInterval(() => {
       setTipIndex((i) => (i + 1) % tips.length);
-    }, 6500);
+    }, TIP_ROTATION_MS);
     return () => window.clearInterval(id);
   }, []);
 
@@ -460,7 +435,7 @@ const Dashboard = () => {
           <div className="dashboard-tip-strip" role="status" aria-live="polite">
             <Lightbulb className="dashboard-tip-strip__ic" strokeWidth={1.5} aria-hidden />
             <span key={tipIndex} className="dashboard-tip-strip__text ux-dashboard-tip-fade">
-              {(isEducation ? DASHBOARD_TIPS_EDUCATION : DASHBOARD_TIPS)[tipIndex]}
+              {(isEducation ? EDUCATION_ADMIN_TIPS : WORKSPACE_TIPS)[tipIndex]}
             </span>
             </div>
 

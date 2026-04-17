@@ -2,9 +2,10 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useTrialExperience } from './TrialExperienceProvider';
-import { BookOpen, GraduationCap, Zap } from 'lucide-react';
+import { BookOpen, GraduationCap, Lightbulb, Zap } from 'lucide-react';
 import { getClassrooms } from '../utils/classroomsStorage';
 import { T } from '../config/terminology';
+import { TEACHER_FACULTY_TIPS, pickTipIndex, TIP_ROTATION_MS } from '../config/dashboardTips';
 import './Dashboard.css';
 
 function buildParticipantsFromClassroom(classroom, subject) {
@@ -59,6 +60,9 @@ export default function TeacherDashboard() {
   const [localDayKey, setLocalDayKey] = useState(() => getLocalDayKey());
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
+  const [tipIndex, setTipIndex] = useState(() =>
+    pickTipIndex('portiq_teacher_tip_idx', TEACHER_FACULTY_TIPS.length)
+  );
   const [spotlightRect, setSpotlightRect] = useState(null);
   const classroomFieldRef = useRef(null);
   const subjectFieldRef = useRef(null);
@@ -133,6 +137,13 @@ export default function TeacherDashboard() {
       cardLeft: rect.left,
     });
   };
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setTipIndex((i) => (i + 1) % TEACHER_FACULTY_TIPS.length);
+    }, TIP_ROTATION_MS);
+    return () => window.clearInterval(id);
+  }, []);
 
   useEffect(() => {
     const uid = String(profile?.id || profile?._id || profile?.email || '').trim();
@@ -498,30 +509,17 @@ export default function TeacherDashboard() {
             ) : null}
           </section>
 
-          <section
-            className="dashboard-education-strip dashboard-teacher-shell dashboard-teacher-tips ux-dashboard-stagger"
+          <div
+            className="dashboard-tip-strip ux-dashboard-stagger"
             style={{ animationDelay: '120ms' }}
-            aria-labelledby="teacher-tips-heading"
+            role="status"
+            aria-live="polite"
           >
-            <div className="dashboard-education-strip__title-row">
-              <h2 id="teacher-tips-heading">Tips for teachers</h2>
-            </div>
-            <ul className="dashboard-teacher-tips-list">
-              <li>
-                When a student asks a question, briefly repeat or rephrase it before you answer (for example,
-                &ldquo;Good question — you&apos;re asking whether…&rdquo;) so the recording captures both the
-                question and your answer. That helps summaries and notes stick for revision.
-              </li>
-              <li>
-                Say key terms, names, and spellings clearly once; it improves transcript quality and what
-                students see in lecture notes.
-              </li>
-              <li>
-                Use a clear lecture title above before you start; it makes today&apos;s list and follow-up
-                emails easy to recognise.
-              </li>
-            </ul>
-          </section>
+            <Lightbulb className="dashboard-tip-strip__ic" strokeWidth={1.5} aria-hidden />
+            <span key={tipIndex} className="dashboard-tip-strip__text ux-dashboard-tip-fade">
+              {TEACHER_FACULTY_TIPS[tipIndex]}
+            </span>
+          </div>
 
           {onboardingOpen && (
             <div className="dashboard-teacher-tour" role="dialog" aria-modal="true">
