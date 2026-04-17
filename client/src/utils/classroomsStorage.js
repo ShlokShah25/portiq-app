@@ -51,13 +51,37 @@ function normalizeClassroomShape(c) {
     subjectAssignments = legacySubjects.map((s) => ({ subject: s }));
   }
   const subjects = subjectAssignments.map((x) => x.subject);
+  const studentRosterRaw = Array.isArray(c?.studentRoster) ? c.studentRoster : [];
+  const studentRoster = [];
+  const seenEmails = new Set();
+  for (const raw of studentRosterRaw) {
+    const email = String(raw?.email || '').trim().toLowerCase();
+    if (!email || seenEmails.has(email)) continue;
+    seenEmails.add(email);
+    studentRoster.push({
+      name: String(raw?.name || '').trim(),
+      email,
+    });
+    if (studentRoster.length >= MAX_STUDENTS_PER_CLASSROOM) break;
+  }
+  let studentEmails = [];
+  if (studentRoster.length > 0) {
+    studentEmails = studentRoster.map((s) => s.email);
+  } else if (Array.isArray(c?.studentEmails)) {
+    studentEmails = c.studentEmails
+      .map((e) => String(e || '').trim().toLowerCase())
+      .filter(Boolean)
+      .filter((email, i, arr) => arr.indexOf(email) === i)
+      .slice(0, MAX_STUDENTS_PER_CLASSROOM);
+  }
   return {
     ...c,
     subjectAssignments,
     subjects,
     // Keep legacy single subject field for backward compatibility in older UI paths.
     subject: subjects[0] || '',
-    studentEmails: Array.isArray(c?.studentEmails) ? c.studentEmails.slice(0, MAX_STUDENTS_PER_CLASSROOM) : [],
+    studentRoster,
+    studentEmails,
   };
 }
 

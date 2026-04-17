@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   getClassrooms,
   createClassroom,
@@ -12,19 +12,27 @@ import './ClassesPage.css';
 
 function emptyAssignment() {
   return {
-    // Stable React list key — must NOT include `subject` or keys change while typing.
     rowKey: `row_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
     subject: '',
+  };
+}
+
+function emptyStudent() {
+  return {
+    rowKey: `student_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
+    name: '',
+    email: '',
   };
 }
 
 const ClassesPage = () => {
   const [classrooms, setClassrooms] = useState([]);
   const [editing, setEditing] = useState(null);
+  const [query, setQuery] = useState('');
   const [form, setForm] = useState({
     className: '',
     subjectAssignments: [emptyAssignment()],
-    studentEmailsStr: ''
+    studentRoster: [emptyStudent()],
   });
   const [error, setError] = useState('');
 
@@ -35,16 +43,10 @@ const ClassesPage = () => {
   }, []);
 
   const resetForm = () => {
-    setForm({ className: '', subjectAssignments: [emptyAssignment()], studentEmailsStr: '' });
+    setForm({ className: '', subjectAssignments: [emptyAssignment()], studentRoster: [emptyStudent()] });
     setError('');
     setEditing(null);
   };
-
-  const studentEmailsFromStr = (str) =>
-    str
-      .split(/[\n,;]+/)
-      .map((e) => e.trim().toLowerCase())
-      .filter(Boolean);
 
   const normalizeAssignments = (rows) => {
     const out = [];
@@ -53,10 +55,26 @@ const ClassesPage = () => {
       const subject = String(row?.subject || '').trim();
       if (!subject) continue;
       const key = subject.toLowerCase();
-      if (!subject || seen.has(key)) continue;
+      if (seen.has(key)) continue;
       seen.add(key);
-      out.push({ subject }); // rowKey omitted when saving
+      out.push({ subject });
       if (out.length >= MAX_SUBJECTS_PER_CLASSROOM) break;
+    }
+    return out;
+  };
+
+  const normalizeStudents = (rows) => {
+    const out = [];
+    const seen = new Set();
+    for (const row of Array.isArray(rows) ? rows : []) {
+      const email = String(row?.email || '').trim().toLowerCase();
+      if (!email || seen.has(email)) continue;
+      seen.add(email);
+      out.push({
+        name: String(row?.name || '').trim(),
+        email,
+      });
+      if (out.length >= MAX_STUDENTS_PER_CLASSROOM) break;
     }
     return out;
   };
@@ -68,38 +86,39 @@ const ClassesPage = () => {
       setError(`Classroom limit reached (${MAX_CLASSROOMS}).`);
       return;
     }
-    const studentEmails = studentEmailsFromStr(form.studentEmailsStr);
-    if (studentEmails.length > MAX_STUDENTS_PER_CLASSROOM) {
-      setError(`Student limit reached (${MAX_STUDENTS_PER_CLASSROOM} per classroom).`);
-      return;
-    }
+
     const subjectAssignments = normalizeAssignments(form.subjectAssignments);
     if (subjectAssignments.length === 0) {
       setError('Add at least one subject.');
       return;
     }
+
+    const studentRoster = normalizeStudents(form.studentRoster);
+    if (studentRoster.length > MAX_STUDENTS_PER_CLASSROOM) {
+      setError(`Student limit reached (${MAX_STUDENTS_PER_CLASSROOM} per classroom).`);
+      return;
+    }
+
+    const payload = {
+      className: form.className.trim(),
+      subjectAssignments,
+      subjects: subjectAssignments.map((x) => x.subject),
+      teacher: '',
+      studentRoster,
+      studentEmails: studentRoster.map((s) => s.email),
+    };
+
     if (editing) {
-      updateClassroom(editing.id, {
-        className: form.className.trim(),
-        subjectAssignments,
-        subjects: subjectAssignments.map((x) => x.subject),
-        teacher: '',
-        studentEmails
-      });
+      updateClassroom(editing.id, payload);
     } else {
       try {
-        createClassroom({
-          className: form.className.trim(),
-          subjectAssignments,
-          subjects: subjectAssignments.map((x) => x.subject),
-          teacher: '',
-          studentEmails
-        });
+        createClassroom(payload);
       } catch (err) {
         setError(err.message || 'Could not create classroom.');
         return;
       }
     }
+
     resetForm();
     load();
   };
@@ -108,33 +127,63 @@ const ClassesPage = () => {
     const rows =
       Array.isArray(c.subjectAssignments) && c.subjectAssignments.length > 0
         ? c.subjectAssignments
-        : (Array.isArray(c.subjects) ? c.subjects : [])
-            .map((subject) => ({
-              subject,
-            }));
+        : (Array.isArray(c.subjects) ? c.subjects : []).map((subject) => ({ subject }));
+
+    const students =
+      Array.isArray(c.studentRoster) && c.studentRoster.length > 0
+        ? c.studentRoster
+        : (Array.isArray(c.studentEmails) ? c.studentEmails : []).map((email) => ({ name: '', email }));
+
     setEditing(c);
     setForm({
       className: c.className || '',
-      subjectAssignments: rows.length
-        ? rows.map((r) => ({ ...emptyAssignment(), ...r }))
-        : [emptyAssignment()],
-      studentEmailsStr: (c.studentEmails || []).join('\n')
+      subjectAssignments: rows.length ? rows.map((r) => ({ ...emptyAssignment(), ...r })) : [emptyAssignment()],
+      studentRoster: students.length ? students.map((s) => ({ ...emptyStudent(), ...s })) : [emptyStudent()],
     });
   };
 
   const handleDelete = (id) => {
-    if (window.confirm('Delete this classroom?')) {
-      deleteClassroom(id);
-      load();
-      resetForm();
+    if (!window.confirm('Delete this classroom?')) return;
+    deleteClassroom(id);
+    load();
+    resetForm();
+  };
+
+  const handleRemoveStudentFromClassroom = (classroom, studentEmail) => {
+    const email = String(studentEmail || '').trim().toLowerCase();
+    if (!email || !classroom) return;
+    if (!window.confirm(`Remove ${email} from ${classroom.className}?`)) return;
+
+    const roster =
+      Array.isArray(classroom.studentRoster) && classroom.studentRoster.length > 0
+        ? classroom.studentRoster
+        : (Array.isArray(classroom.studentEmails)
+            ? classroom.studentEmails.map((e) => ({ name: '', email: String(e || '').trim().toLowerCase() }))
+            : []);
+    const nextRoster = roster.filter((s) => String(s?.email || '').trim().toLowerCase() !== email);
+
+    updateClassroom(classroom.id, {
+      studentRoster: nextRoster,
+      studentEmails: nextRoster.map((s) => s.email),
+    });
+    load();
+
+    // Keep edit form in sync if this classroom is currently being edited.
+    if (editing && editing.id === classroom.id) {
+      setForm((prev) => ({
+        ...prev,
+        studentRoster: nextRoster.length
+          ? nextRoster.map((s) => ({ ...emptyStudent(), ...s }))
+          : [emptyStudent()],
+      }));
     }
   };
 
-  const updateAssignment = (index, field, value) => {
+  const updateAssignment = (index, value) => {
     setForm((prev) => ({
       ...prev,
       subjectAssignments: prev.subjectAssignments.map((row, i) =>
-        i === index ? { ...row, [field]: value } : row
+        i === index ? { ...row, subject: value } : row
       ),
     }));
   };
@@ -153,14 +202,55 @@ const ClassesPage = () => {
     });
   };
 
+  const updateStudent = (index, field, value) => {
+    setForm((prev) => ({
+      ...prev,
+      studentRoster: prev.studentRoster.map((row, i) =>
+        i === index ? { ...row, [field]: value } : row
+      ),
+    }));
+  };
+
+  const addStudent = () => {
+    setForm((prev) => {
+      if (prev.studentRoster.length >= MAX_STUDENTS_PER_CLASSROOM) return prev;
+      return { ...prev, studentRoster: [...prev.studentRoster, emptyStudent()] };
+    });
+  };
+
+  const removeStudent = (index) => {
+    setForm((prev) => {
+      const next = prev.studentRoster.filter((_, i) => i !== index);
+      return { ...prev, studentRoster: next.length ? next : [emptyStudent()] };
+    });
+  };
+
+  const filteredClassrooms = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return classrooms;
+    return classrooms.filter((c) => {
+      const className = String(c.className || '').toLowerCase();
+      const subjects = (Array.isArray(c.subjectAssignments) ? c.subjectAssignments : [])
+        .map((s) => String(s?.subject || '').toLowerCase())
+        .join(' ');
+      const students = (Array.isArray(c.studentRoster) && c.studentRoster.length > 0
+        ? c.studentRoster
+        : (Array.isArray(c.studentEmails) ? c.studentEmails.map((email) => ({ name: '', email })) : [])
+      )
+        .map((s) => `${String(s?.name || '').toLowerCase()} ${String(s?.email || '').toLowerCase()}`)
+        .join(' ');
+      return className.includes(q) || subjects.includes(q) || students.includes(q);
+    });
+  }, [classrooms, query]);
+
   return (
     <div className="classes-page">
       <div className="classes-wrapper">
         <div className="classes-header">
           <h1>Classrooms</h1>
           <p>
-            Create and manage classrooms with visible caps: {MAX_CLASSROOMS} classrooms,{' '}
-            {MAX_STUDENTS_PER_CLASSROOM} students/classroom, and {MAX_SUBJECTS_PER_CLASSROOM}{' '}
+            Create and manage classrooms with visible caps: {MAX_CLASSROOMS} classrooms,
+            {' '}{MAX_STUDENTS_PER_CLASSROOM} students/classroom, and {MAX_SUBJECTS_PER_CLASSROOM}{' '}
             subjects/classroom.
           </p>
         </div>
@@ -177,8 +267,9 @@ const ClassesPage = () => {
               />
             </label>
           </div>
+
           <div className="classes-assignments-head">
-            <h3>Subjects (max {MAX_SUBJECTS_PER_CLASSROOM})</h3>
+            <h3>Subjects ({normalizeAssignments(form.subjectAssignments).length}/{MAX_SUBJECTS_PER_CLASSROOM})</h3>
             <button
               type="button"
               className="classes-btn-secondary"
@@ -195,7 +286,7 @@ const ClassesPage = () => {
                   Subject
                   <input
                     value={row.subject}
-                    onChange={(e) => updateAssignment(index, 'subject', e.target.value)}
+                    onChange={(e) => updateAssignment(index, e.target.value)}
                     placeholder="e.g. Mathematics"
                     required
                   />
@@ -211,22 +302,63 @@ const ClassesPage = () => {
               </div>
             ))}
           </div>
-          <p className="classes-subject-cap-note">
-            Add up to {MAX_SUBJECTS_PER_CLASSROOM} subjects taught in this classroom.
-          </p>
+
+          <div className="classes-assignments-head classes-assignments-head--students">
+            <h3>Students ({normalizeStudents(form.studentRoster).length}/{MAX_STUDENTS_PER_CLASSROOM})</h3>
+            <button
+              type="button"
+              className="classes-btn-secondary"
+              onClick={addStudent}
+              disabled={form.studentRoster.length >= MAX_STUDENTS_PER_CLASSROOM}
+            >
+              Add student
+            </button>
+          </div>
+
+          <div className="classes-students-table-wrap">
+            <table className="classes-students-table">
+              <thead>
+                <tr>
+                  <th>Name (optional)</th>
+                  <th>Email (required)</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {form.studentRoster.map((row, index) => (
+                  <tr key={row.rowKey}>
+                    <td>
+                      <input
+                        value={row.name}
+                        onChange={(e) => updateStudent(index, 'name', e.target.value)}
+                        placeholder="Student name"
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="email"
+                        value={row.email}
+                        onChange={(e) => updateStudent(index, 'email', e.target.value)}
+                        placeholder="student@school.edu"
+                      />
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        className="classes-btn-sm classes-btn-danger"
+                        onClick={() => removeStudent(index)}
+                        disabled={form.studentRoster.length === 1}
+                      >
+                        Remove
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
           {error ? <p className="classes-error">{error}</p> : null}
-          <label className="classes-form-full">
-            Student Emails (one per line or comma-separated)
-            <textarea
-              value={form.studentEmailsStr}
-              onChange={(e) => setForm({ ...form, studentEmailsStr: e.target.value })}
-              placeholder="student1@school.edu\nstudent2@school.edu"
-              rows={4}
-            />
-          </label>
-          <p className="classes-subject-cap-note">
-            Up to {MAX_STUDENTS_PER_CLASSROOM} students per classroom.
-          </p>
           <div className="classes-form-actions">
             <button
               type="submit"
@@ -244,11 +376,20 @@ const ClassesPage = () => {
         </form>
 
         <div className="classes-list">
-          <h2>
-            All Classrooms ({classrooms.length}/{MAX_CLASSROOMS})
-          </h2>
-          {classrooms.length === 0 ? (
-            <p className="classes-empty">No classrooms yet. Create one above.</p>
+          <div className="classes-list-head">
+            <h2>All Classrooms ({classrooms.length}/{MAX_CLASSROOMS})</h2>
+            <input
+              type="search"
+              className="classes-search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search by class, subject, student name, or email"
+            />
+          </div>
+          {filteredClassrooms.length === 0 ? (
+            <p className="classes-empty">
+              {classrooms.length === 0 ? 'No classrooms yet. Create one above.' : 'No classrooms match this search.'}
+            </p>
           ) : (
             <table className="classes-table">
               <thead>
@@ -260,35 +401,66 @@ const ClassesPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {classrooms.map((c) => (
-                  <tr key={c.id}>
-                    <td>{c.className}</td>
-                    <td>
-                      {Array.isArray(c.subjectAssignments) && c.subjectAssignments.length ? (
-                        <div className="classes-table-mappings">
-                          {c.subjectAssignments.map((row) => (
-                            <span key={`${c.id}-${row.subject}`} className="classes-mapping-pill">
-                              {row.subject}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        '—'
-                      )}
-                    </td>
-                    <td>
-                      {(c.studentEmails || []).length}/{MAX_STUDENTS_PER_CLASSROOM}
-                    </td>
-                    <td>
-                      <button type="button" className="classes-btn-sm" onClick={() => handleEdit(c)}>
-                        Edit
-                      </button>
-                      <button type="button" className="classes-btn-sm classes-btn-danger" onClick={() => handleDelete(c.id)}>
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {filteredClassrooms.map((c) => {
+                  const roster =
+                    Array.isArray(c.studentRoster) && c.studentRoster.length > 0
+                      ? c.studentRoster
+                      : (Array.isArray(c.studentEmails) ? c.studentEmails.map((email) => ({ name: '', email })) : []);
+                  return (
+                    <tr key={c.id}>
+                      <td>{c.className}</td>
+                      <td>
+                        {Array.isArray(c.subjectAssignments) && c.subjectAssignments.length ? (
+                          <div className="classes-table-mappings">
+                            {c.subjectAssignments.map((row) => (
+                              <span key={`${c.id}-${row.subject}`} className="classes-mapping-pill">
+                                {row.subject}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                      <td>
+                        <div>{roster.length}/{MAX_STUDENTS_PER_CLASSROOM}</div>
+                        {roster.length > 0 ? (
+                          <div className="classes-student-preview-list">
+                            {roster.map((s) => (
+                              <span key={`${c.id}-${s.email}`} className="classes-student-chip">
+                                <span className="classes-student-chip__text">
+                                  {s.name ? `${s.name} · ` : ''}
+                                  {s.email}
+                                </span>
+                                <button
+                                  type="button"
+                                  className="classes-student-chip__remove"
+                                  onClick={() => handleRemoveStudentFromClassroom(c, s.email)}
+                                  aria-label={`Remove ${s.email}`}
+                                  title="Remove student"
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        ) : null}
+                      </td>
+                      <td>
+                        <button type="button" className="classes-btn-sm" onClick={() => handleEdit(c)}>
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="classes-btn-sm classes-btn-danger"
+                          onClick={() => handleDelete(c.id)}
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
