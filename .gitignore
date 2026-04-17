@@ -18,4 +18,9 @@ admin/.env
 client/build/
 admin/build/
 uploads/
+
+# Python (voice embedding helpers, etc.)
+__pycache__/
+*.py[cod]
+*.pyo
 package-lock.json
