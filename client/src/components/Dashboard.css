@@ -154,6 +154,28 @@
   color: var(--text-secondary);
 }
 
+.dashboard-education-strip__hint--emph {
+  margin-top: 6px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.dashboard-teacher-tips-list {
+  margin: 8px 0 0;
+  padding-left: 1.2rem;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.dashboard-teacher-tips-list li {
+  margin-bottom: 12px;
+}
+
+.dashboard-teacher-tips-list li:last-child {
+  margin-bottom: 0;
+}
+
 .dashboard-education-admin-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

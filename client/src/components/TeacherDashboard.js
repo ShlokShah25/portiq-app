@@ -4,6 +4,7 @@ import axios from 'axios';
 import { useTrialExperience } from './TrialExperienceProvider';
 import { BookOpen, GraduationCap, Zap } from 'lucide-react';
 import { getClassrooms } from '../utils/classroomsStorage';
+import { T } from '../config/terminology';
 import './Dashboard.css';
 
 function buildParticipantsFromClassroom(classroom, subject) {
@@ -447,16 +448,19 @@ export default function TeacherDashboard() {
               <h2>My lecture records</h2>
             </div>
             <p className="dashboard-education-strip__hint">
-              Today&apos;s lectures only — this list clears when the day ends. Use Meetings for your full
-              history.
+              Only today&apos;s lectures are listed here.
+            </p>
+            <p className="dashboard-education-strip__hint dashboard-education-strip__hint--emph">
+              Start a new lecture with the form above.
             </p>
             <div className="dashboard-start-meeting__actions" style={{ marginBottom: 10 }}>
               <button
                 type="button"
                 className="dashboard-btn-secondary dashboard-btn-micro"
                 onClick={() => navigate('/meetings')}
+                title={`Same as “${T.meetings()}” in the sidebar — your full archive`}
               >
-                View all lectures
+                Go to {T.meetings()}
               </button>
             </div>
             {recordsError && <div className="start-meeting-error">{recordsError}</div>}
@@ -491,11 +495,32 @@ export default function TeacherDashboard() {
                   </li>
                 ))}
               </ul>
-            ) : (
-              <p className="dashboard-education-strip__hint">
-                No lectures today yet. Start one above, or open Meetings to see every lecture.
-              </p>
-            )}
+            ) : null}
+          </section>
+
+          <section
+            className="dashboard-education-strip dashboard-teacher-shell dashboard-teacher-tips ux-dashboard-stagger"
+            style={{ animationDelay: '120ms' }}
+            aria-labelledby="teacher-tips-heading"
+          >
+            <div className="dashboard-education-strip__title-row">
+              <h2 id="teacher-tips-heading">Tips for teachers</h2>
+            </div>
+            <ul className="dashboard-teacher-tips-list">
+              <li>
+                When a student asks a question, briefly repeat or rephrase it before you answer (for example,
+                &ldquo;Good question — you&apos;re asking whether…&rdquo;) so the recording captures both the
+                question and your answer. That helps summaries and notes stick for revision.
+              </li>
+              <li>
+                Say key terms, names, and spellings clearly once; it improves transcript quality and what
+                students see in lecture notes.
+              </li>
+              <li>
+                Use a clear lecture title above before you start; it makes today&apos;s list and follow-up
+                emails easy to recognise.
+              </li>
+            </ul>
           </section>
 
           {onboardingOpen && (
