@@ -3,6 +3,7 @@ const Meeting = require('../models/Meeting');
 const Admin = require('../models/Admin');
 const Config = require('../models/Config');
 const { sendEmail, isEmailConfigured, getDefaultFrom } = require('./emailService');
+const { formatMeetingSubjectDate } = require('./meetingMailSubject');
 const { getPlanConstraints } = require('./planConstraints');
 
 /**
@@ -87,7 +88,9 @@ async function startActionItemReminderCron() {
         status: 'Completed',
         transcriptionStatus: 'Completed',
         actionItems: { $exists: true, $ne: [] }
-      }).select('adminId title organizer participants endTime actionItems');
+      }).select(
+        'adminId title organizer participants endTime startTime scheduledTime createdAt actionItems'
+      );
 
       const adminIds = [
         ...new Set(
@@ -150,7 +153,7 @@ async function startActionItemReminderCron() {
               const to = Array.from(recipientEmails);
               if (to.length > 0) {
                 const humanDueDate = dueDate.toLocaleString();
-                const subject = `Reminder: Action item due soon – ${meeting.title}`;
+                const subject = `Reminder: Action item due soon – ${meeting.title} – ${formatMeetingSubjectDate(meeting)}`;
                 const summaryUrl = getSummaryUrl(meeting._id);
                 const html = `
                   <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; color: #111827; line-height: 1.6;">
@@ -234,7 +237,7 @@ async function startActionItemReminderCron() {
 
               const to2 = Array.from(recipientEmails2);
               if (to2.length > 0) {
-                const subject2 = `Overdue: Action item – ${meeting.title}`;
+                const subject2 = `Overdue: Action item – ${meeting.title} – ${formatMeetingSubjectDate(meeting)}`;
                 const overdueHtml = `
                   <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; color: #111827; line-height: 1.6;">
                     <p>Hello,</p>
