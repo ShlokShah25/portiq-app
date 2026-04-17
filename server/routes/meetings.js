@@ -278,6 +278,30 @@ const voiceUpload = multer({
   }
 });
 
+/** Multer wrapper so voice upload errors return JSON { error, details }. */
+function withVoiceUpload(req, res, next) {
+  voiceUpload.single('audio')(req, res, (err) => {
+    if (!err) return next();
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({
+          error: 'Voice sample is too large.',
+          details: 'Maximum upload size is 10 MB for voice enrollment samples.',
+        });
+      }
+      return res.status(400).json({
+        error: 'Voice upload did not complete.',
+        details: err.message || 'Try again with a supported audio file.',
+      });
+    }
+    return res.status(400).json({
+      error: 'Voice upload failed.',
+      details:
+        err.message || 'Use a supported audio format (WebM, MP3, WAV, M4A, MP4, OGG).',
+    });
+  });
+}
+
 function buildInterviewMeetingTitle(candidateName, role) {
   const safeCandidate = String(candidateName || '').trim().slice(0, 200) || 'Candidate';
   const safeRole = String(role || '').trim().slice(0, 200);
@@ -2127,7 +2151,7 @@ router.post('/:id/approve-and-send', async (req, res) => {
 /**
  * Register voice profile for a participant
  */
-router.post('/voice/register', voiceUpload.single('audio'), async (req, res) => {
+router.post('/voice/register', withVoiceUpload, async (req, res) => {
   try {
     let { email, name, standardSentence, participants } = req.body;
     email = String(email || '').trim().toLowerCase();
@@ -2301,8 +2325,13 @@ router.post('/voice/register', voiceUpload.single('audio'), async (req, res) => 
     });
   } catch (error) {
     console.error('Error registering voice profile:', error);
+    const msg = String(error?.message || '');
+    const isConfigError =
+      /HF_TOKEN|pyannote|Hugging Face|embedding backend unavailable|Voice embedding failed/i.test(msg);
     res.status(500).json({
-      error: 'Failed to register voice profile',
+      error: isConfigError
+        ? 'Voice embedding service is not configured on the server.'
+        : 'Failed to register voice profile',
       details: error.message || String(error),
     });
   }
