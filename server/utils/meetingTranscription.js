@@ -132,6 +132,13 @@ async function buildTranscriptWithSpeakerHints(meetingObj, transcriptTextTrim) {
   if (!meetingObj) {
     return speakerAttributionPreamble() + baseTranscript;
   }
+  // Education sessions are typically single-teacher led; skip voice-profile attribution hints.
+  if (
+    String(meetingObj.productType || '').trim().toLowerCase() === 'education' ||
+    String(meetingObj.educationTeacherEmail || '').trim()
+  ) {
+    return baseTranscript;
+  }
   try {
     const participantEmails = (meetingObj.participants || [])
       .filter((p) => p && isValidEmailForLookup(p.email))
@@ -357,9 +364,9 @@ async function generateInterviewMeetingSummaryFromTranscript(transcriptRaw, meet
 
   let summaryResponse = null;
   let summaryError = null;
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
       console.log(
         `   Interview evaluation (attempt ${attempt}/${maxRetries})… model=${summaryChatModel}`
       );
@@ -373,7 +380,7 @@ async function generateInterviewMeetingSummaryFromTranscript(transcriptRaw, meet
         response_format: { type: 'json_object' },
       });
       break;
-    } catch (apiError) {
+      } catch (apiError) {
       summaryError = apiError;
       const retryable = isRetryableOpenAiError(apiError);
       if (retryable && attempt < maxRetries) {
@@ -382,11 +389,11 @@ async function generateInterviewMeetingSummaryFromTranscript(transcriptRaw, meet
           `⚠️  OpenAI API error during interview summary (${apiError.status || apiError.code || 'unknown'}), retrying in ${waitTime / 1000}s...`
         );
         await new Promise((resolve) => setTimeout(resolve, waitTime));
-        continue;
+          continue;
       }
-      throw apiError;
-    }
-  }
+          throw apiError;
+        }
+      }
 
   if (!summaryResponse) {
     throw summaryError || new Error('Interview summary generation failed after all retries');
@@ -829,31 +836,35 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
 
   const systemEducationFocus = isEducation
     ? 'This output is for teaching and learning outcomes: help teachers teach better and help students revise effectively. Preserve learning goals when stated, definitions and distinctions as spoken, examples walked through, lists or taxonomies the speaker used, formulas or steps if verbalized, caveats and misconceptions addressed, and questions raised by learners. '
-    : '';
+    : 'This output is for operational clarity and execution quality: preserve the real business substance of the session, including context, rationale, trade-offs, dependencies, risks, blockers, stakeholder concerns, and concrete commitments. Keep nuanced reasoning when it changes decisions or priorities. ';
 
   const systemElaborationDepth = isEducation
     ? 'When the instructor explains a concept at length, keep the substance in the summary and key points—not a single vague line like "discussed X". '
-    : '';
+    : 'When people discuss a topic in depth (problem analysis, options, constraints, or escalation), keep that depth in the summary and key points—not a vague line like "discussed X". ';
 
   const summarySchemaHint = isEducation
     ? '"summary": "Coherent English narrative (typically 8–16 sentences when the session is substantive). Cover what was actually taught: definitions, comparisons, examples. Scale length with the transcript—not with the calendar title.",'
-    : '"summary": "Clear executive summary in English (typically 6–12 sentences; add more only if the transcript is long). Every claim must be grounded in what was spoken—never in the calendar title.",';
+    : '"summary": "Coherent English narrative (typically 8–16 sentences when the session is substantive). Cover the true business content: context, what changed, key decisions, trade-offs, risks, owners, and expected outcomes. Scale length with transcript depth—not with the calendar title.",';
 
   const keyPointsSchemaHint = isEducation
     ? '"keyPoints": ["Concrete, review-friendly bullets tied to the transcript; split long explanations across multiple bullets when needed"],'
-    : '"keyPoints": ["Concrete point 1 with specifics from the transcript", "Concrete point 2 with specifics"],';
+    : '"keyPoints": ["Concrete, execution-focused bullets tied to the transcript; split long analytical discussions into multiple specific bullets when needed"],';
 
   const userElaborationRules = isEducation
     ? `- When an explanation was long, split across several key points so definitions and examples stay clear.\n` +
       `- Put nuances or clarified misunderstandings in importantNotes when they do not fit a crisp key point.\n`
-    : '';
+    : `- When analysis was long, split across several key points so problem framing, constraints, and decisions stay clear.\n` +
+      `- Put nuanced caveats, unresolved concerns, or dependency risks in importantNotes when they do not fit a crisp key point.\n`;
 
   const userEducationRules = isEducation
     ? `- Education mode: structure bullets like study notes where the transcript supports it (e.g. types of X, steps, criteria).\n` +
       `- If the instructor named terms, keep those terms and the gist of each definition as stated.\n` +
       `- If assignments, presentations, quizzes, homework, submissions, or project work are mentioned, ensure they appear as concrete action items with due dates when stated.\n` +
       `- Keep wording classroom-friendly and instructional, not corporate.\n`
-    : '';
+    : `- Workplace mode: structure bullets for execution clarity where transcript supports it (e.g. decision rationale, owner-accountability, timelines, dependency chains, go/no-go conditions).\n` +
+      `- Keep exact business terms as spoken (project names, system names, ticket refs, metrics, and deadlines).\n` +
+      `- If deliverables, approvals, follow-ups, handoffs, or review checkpoints are mentioned, ensure they appear as concrete action items with due dates when stated.\n` +
+      `- Keep wording professional and operational, not generic or motivational.\n`;
 
     let summaryResponse = null;
     let summaryError = null;
@@ -872,7 +883,7 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
               systemRole +
               systemEducationFocus +
               systemElaborationDepth +
-              'The transcript may contain multiple languages including English, Hindi, Gujarati, and Hinglish. ' +
+              'The transcript may contain multiple languages including English, Hindi, Marathi, Gujarati, Japanese, Chinese, French, Spanish, German, and Russian (plus mixed variants like Hinglish). ' +
             'Accurately understand all languages present, but provide your output only in professional English. ' +
               'HALLUCINATION GUARD: Never fabricate quotes, translations, or foreign-language phrases that do not appear in the transcript. If you paraphrase non-English speech, stay tightly tied to words that are actually there. ' +
               'Prioritize completeness over brevity: include every relevant discussion point, decision, risk, and commitment. ' +
@@ -1656,6 +1667,7 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
       reauditOn &&
       summaryResult &&
       summaryMode !== 'interview' &&
+      !isEducation &&
       transcription &&
       Array.isArray(transcription.segments) &&
       transcription.segments.length > 0
@@ -1690,7 +1702,7 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
       }
     }
 
-    if (summaryResult && summaryMode !== 'interview') {
+    if (summaryResult && summaryMode !== 'interview' && !isEducation) {
       try {
         await scrubUnidentifiedWhenAllParticipantsVoiceEnrolled(meetingObj, summaryResult, {
           voiceEvidenceText: voiceEvidenceForScrub || undefined,
@@ -1775,7 +1787,7 @@ async function translateSummaryForEmail(summaryData, language) {
   const targetLanguage = language.trim();
   const baseTextParts = [];
   if (summaryData.summary) {
-    baseTextParts.push(`Executive summary:\n${summaryData.summary}`);
+    baseTextParts.push(`Summary:\n${summaryData.summary}`);
   }
   if ((summaryData.keyPoints || []).length) {
     baseTextParts.push(
@@ -1891,7 +1903,7 @@ async function sendMeetingSummary(meeting, summaryData, options = {}) {
     '',
     `Please find attached the automatically generated summary for the ${sessionNoun} titled "${meeting.title}".`,
     '',
-    `The attached document contains the executive summary, key discussion points, decisions made, and action items identified during the ${sessionNoun}.`,
+    `The attached document contains the summary, key discussion points, decisions made, and action items identified during the ${sessionNoun}.`,
     '',
     '---',
     'PortIQ Technologies',
@@ -2153,7 +2165,7 @@ async function sendMeetingSummary(meeting, summaryData, options = {}) {
         "<strong>${meeting.title}</strong>".
       </p>
       <p>
-        The attached document contains the executive summary, key discussion points, decisions made,
+        The attached document contains the summary, key discussion points, decisions made,
         and action items identified during the ${sessionNoun}.
       </p>
       <p>

@@ -928,6 +928,12 @@ router.post('/:id/live-transcribe-chunk', withMeetingAudioUpload, async (req, re
     const text = await transcribeLiveChunkFile(filePath);
     let speaker = null;
     try {
+      const isEducationMeeting =
+        String(meeting?.educationTeacherEmail || '').trim().length > 0 ||
+        String(meeting?.educationSubject || '').trim().length > 0;
+      if (isEducationMeeting) {
+        return res.json({ text: text || '', speaker: null });
+      }
       const participantEmails = Array.isArray(meeting.participants)
         ? meeting.participants
             .map((p) => (p && p.email ? String(p.email).trim().toLowerCase() : ''))

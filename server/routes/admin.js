@@ -330,25 +330,42 @@ router.post('/teachers', authenticateAdmin, async (req, res) => {
       const loginUrl = resolveTeacherLoginUrl();
       const subject = 'Your PortIQ teacher account is ready';
       const html = `
-        <p>Hi ${teacher.username},</p>
-        <p>Your teacher account has been created on <strong>PortIQ Education</strong>.</p>
-        <p><strong>Login URL:</strong> <a href="${loginUrl}" target="_blank" rel="noopener noreferrer">${loginUrl}</a></p>
-        <p><strong>Username:</strong> ${teacher.username}<br />
-        <strong>Email:</strong> ${teacher.email}<br />
-        <strong>Temporary password:</strong> ${password}</p>
-        <p>For security, you will be prompted to change your password right after your first login.</p>
-        <p>— PortIQ Team</p>
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; color: #111827; line-height: 1.6;">
+          <div style="text-align: left; margin-bottom: 16px;">
+            <img src="https://portiqtechnologies.com/logo.png" alt="PortIQ" style="max-width: 160px; height: auto; display: block;" />
+          </div>
+          <p>Dear ${teacher.username},</p>
+          <p>
+            Your <strong>PortIQ Education</strong> teacher account has been created successfully.
+          </p>
+          <p><strong>Sign in:</strong> <a href="${loginUrl}" target="_blank" rel="noopener noreferrer">${loginUrl}</a></p>
+          <p>
+            <strong>Username:</strong> ${teacher.username}<br />
+            <strong>Email:</strong> ${teacher.email}<br />
+            <strong>Temporary password:</strong> ${password}
+          </p>
+          <p>
+            For security, you will be prompted to set a new password immediately after your first login.
+          </p>
+          <p>
+            Regards,<br />
+            <strong>PortIQ Education Team</strong>
+          </p>
+        </div>
       `;
       const text = [
-        `Hi ${teacher.username},`,
+        `Dear ${teacher.username},`,
         '',
-        'Your teacher account has been created on PortIQ Education.',
+        'Your PortIQ Education teacher account has been created successfully.',
         `Login URL: ${loginUrl}`,
         `Username: ${teacher.username}`,
         `Email: ${teacher.email}`,
         `Temporary password: ${password}`,
         '',
-        'You will be asked to change this password at first login.',
+        'You will be prompted to change this password at first login.',
+        '',
+        'Regards,',
+        'PortIQ Education Team',
       ].join('\n');
       const emailResult = await sendEmail({
         from: getDefaultFrom(),

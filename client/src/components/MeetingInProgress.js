@@ -4,6 +4,7 @@ import axios from 'axios';
 import { T } from '../config/terminology';
 import { FEATURE_INTERVIEW_UI } from '../config/featureFlags';
 import { formatApiError } from '../utils/apiErrorMessage';
+import { isEducation } from '../config/product';
 import './MeetingSummary.css';
 import './MeetingInProgress.css';
 import './MeetingDetail.css';
@@ -828,7 +829,7 @@ const MeetingInProgress = () => {
             <>
               <div className="meeting-summary-ready-badge mip-ready-badge mip-ready-badge--neutral">
                 <span className="meeting-summary-ready-badge__dot mip-ready-badge__dot--neutral" />
-                {isInterview ? 'Interview ended' : 'Meeting ended'}
+                {isInterview ? 'Interview ended' : isEducation ? 'Lecture ended' : 'Meeting ended'}
               </div>
               <h1 className="meeting-summary-page-title">{meeting.title || 'Untitled meeting'}</h1>
               <p className="meeting-summary-subtitle">
@@ -883,7 +884,7 @@ const MeetingInProgress = () => {
                       : 'Interview in progress'
                     : meeting.status === 'Scheduled'
                       ? 'When you begin, start recording below.'
-                      : 'Meeting in progress'}
+                      : isEducation ? 'Lecture in progress' : 'Meeting in progress'}
                 </p>
               </header>
 
@@ -1140,7 +1141,7 @@ const MeetingInProgress = () => {
                   className="mip-secondary-row__link"
                   onClick={() => navigate('/meetings', { state: { showAllMeetings: true } })}
                 >
-                  View all meetings
+                  {isEducation ? 'View all lectures' : 'View all meetings'}
                 </button>
                 <p className="mip-ai-disclaimer mip-ai-disclaimer--footer">
                   Audio is captured in your browser. Stopping recording or ending uploads audio for your transcript.
@@ -1157,7 +1158,7 @@ const MeetingInProgress = () => {
             disabled={uploading || followUpSubmitting || recordingLive}
             title={recordingLive ? 'Stop recording first' : undefined}
           >
-            Schedule follow-up &amp; close
+            {isEducation ? 'Schedule next lecture &amp; close' : 'Schedule follow-up &amp; close'}
           </button>
           <button
             type="button"
@@ -1165,7 +1166,7 @@ const MeetingInProgress = () => {
             onClick={handleEndMeeting}
             disabled={uploading}
           >
-            {isInterview ? 'End interview' : 'End meeting'}
+            {isInterview ? 'End interview' : T.endMeeting()}
           </button>
         </div>
             </>

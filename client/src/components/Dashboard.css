@@ -283,13 +283,57 @@
 
 .dashboard-teacher-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 
 .dashboard-teacher-card {
-  padding: 12px;
+  padding: 14px;
   border-radius: 12px;
+}
+
+.dashboard-teacher-card input,
+.dashboard-teacher-card select {
+  margin-top: 8px;
+  width: 100%;
+  min-height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-input, rgba(255, 255, 255, 0.04));
+  color: var(--text-primary);
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+.dashboard-teacher-caps-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.dashboard-teacher-cap-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--dash-chip-bg, var(--surface-input));
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.dashboard-teacher-classroom-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.dashboard-teacher-card input:focus,
+.dashboard-teacher-card select:focus {
+  outline: none;
+  border-color: var(--accent-blue);
 }
 
 .dashboard-teacher-tour {

@@ -2,7 +2,12 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useTrialExperience } from './TrialExperienceProvider';
-import { getClassrooms } from '../utils/classroomsStorage';
+import {
+  getClassrooms,
+  MAX_CLASSROOMS,
+  MAX_STUDENTS_PER_CLASSROOM,
+  MAX_SUBJECTS_PER_CLASSROOM,
+} from '../utils/classroomsStorage';
 import './Dashboard.css';
 
 function buildParticipantsFromClassroom(classroom, subject) {
@@ -25,9 +30,13 @@ export default function TeacherDashboard() {
   const navigate = useNavigate();
 
   const [selectedClassroomId, setSelectedClassroomId] = useState('');
+  const [lectureTitle, setLectureTitle] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
+  const [lectureRecords, setLectureRecords] = useState([]);
+  const [recordsLoading, setRecordsLoading] = useState(false);
+  const [recordsError, setRecordsError] = useState('');
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [spotlightRect, setSpotlightRect] = useState(null);
@@ -41,7 +50,6 @@ export default function TeacherDashboard() {
     () => classrooms.find((c) => c.id === selectedClassroomId) || null,
     [classrooms, selectedClassroomId]
   );
-
   const subjectAssignments = useMemo(() => {
     if (!selectedClassroom) return [];
     if (
@@ -55,11 +63,11 @@ export default function TeacherDashboard() {
       : [];
     return legacy.map((s) => ({ subject: s }));
   }, [selectedClassroom]);
-
   const teacherName =
     (profile?.username && String(profile.username).trim()) ||
     (profile?.email && String(profile.email).trim()) ||
     'Teacher';
+  const teacherEmail = String(profile?.email || '').trim().toLowerCase();
 
   const onboardingSteps = [
     {
@@ -142,8 +150,63 @@ export default function TeacherDashboard() {
     setOnboardingOpen(false);
   };
 
+  useEffect(() => {
+    let cancelled = false;
+    const loadRecords = async () => {
+      setRecordsLoading(true);
+      setRecordsError('');
+      try {
+        const res = await axios.get('/meetings', { timeout: 30000 });
+        if (cancelled) return;
+        const rows = Array.isArray(res.data?.meetings) ? res.data.meetings : [];
+        const teacherRecords = rows
+          .filter((m) => {
+            const ownerEmail = String(m?.educationTeacherEmail || '').trim().toLowerCase();
+            const organizer = String(m?.organizer || '').trim().toLowerCase();
+            if (teacherEmail) {
+              return ownerEmail === teacherEmail || organizer === teacherEmail;
+            }
+            return String(m?.educationTeacherName || '').trim().toLowerCase() === teacherName.toLowerCase();
+          })
+          .sort((a, b) => {
+            const aTime = new Date(a?.startTime || a?.scheduledTime || a?.createdAt || 0).getTime();
+            const bTime = new Date(b?.startTime || b?.scheduledTime || b?.createdAt || 0).getTime();
+            return bTime - aTime;
+          })
+          .slice(0, 10);
+        setLectureRecords(teacherRecords);
+      } catch (err) {
+        if (cancelled) return;
+        const d = err.response?.data;
+        setRecordsError(
+          [d?.error, d?.details].filter(Boolean).join(' — ') ||
+            err.message ||
+            'Could not load lecture records.'
+        );
+      } finally {
+        if (!cancelled) setRecordsLoading(false);
+      }
+    };
+    loadRecords();
+    return () => {
+      cancelled = true;
+    };
+  }, [teacherEmail, teacherName]);
+
+  const formatLectureTime = (meeting) => {
+    const value = meeting?.startTime || meeting?.scheduledTime || meeting?.createdAt;
+    if (!value) return 'Not set';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return 'Not set';
+    return d.toLocaleString();
+  };
+
   const handleCreateAndStart = async () => {
     setError('');
+    if (!lectureTitle.trim()) {
+      setError('Enter a lecture title.');
+      return;
+    }
     if (!selectedClassroomId) {
       setError('Select a classroom to start a lecture.');
       return;
@@ -166,9 +229,10 @@ export default function TeacherDashboard() {
       const iso = now.toISOString();
       const className = String(classroom?.className || 'Classroom').trim();
       const subjectLabel = String(selectedSubject || 'Lecture').trim();
+      const titleLabel = String(lectureTitle || '').trim();
 
       const body = {
-        title: `${subjectLabel} – ${className}`,
+        title: titleLabel,
         agenda: `Lecture for ${className} · Subject: ${subjectLabel}`,
         organizer:
           (profile?.email && String(profile.email).trim()) ||
@@ -247,7 +311,27 @@ export default function TeacherDashboard() {
               </span>
               <h2>Start a lecture</h2>
             </div>
+            <div className="dashboard-teacher-caps-row">
+              <span className="dashboard-teacher-cap-pill">
+                Classrooms: {classrooms.length}/{MAX_CLASSROOMS}
+              </span>
+              <span className="dashboard-teacher-cap-pill">
+                Subjects/classroom: {MAX_SUBJECTS_PER_CLASSROOM}
+              </span>
+              <span className="dashboard-teacher-cap-pill">
+                Students/classroom: {MAX_STUDENTS_PER_CLASSROOM}
+              </span>
+            </div>
             <div className="dashboard-teacher-grid">
+              <div className="dashboard-education-pill dashboard-education-pill--wide dashboard-teacher-card">
+                <span className="dashboard-education-pill__k">Lecture title</span>
+                <input
+                  type="text"
+                  value={lectureTitle}
+                  onChange={(e) => setLectureTitle(e.target.value)}
+                  placeholder="e.g. Algebra Revision - Grade 10"
+                />
+              </div>
               <div
                 ref={classroomFieldRef}
                 className={`dashboard-education-pill dashboard-education-pill--wide dashboard-teacher-card${
@@ -282,7 +366,9 @@ export default function TeacherDashboard() {
                   onChange={(e) => setSelectedSubject(e.target.value)}
                   disabled={!subjectAssignments.length}
                 >
-                  <option value="">Select subject</option>
+                  <option value="">
+                    {subjectAssignments.length ? 'Select subject' : 'Select classroom first'}
+                  </option>
                   {subjectAssignments.map((row) => (
                     <option key={row.subject} value={row.subject}>
                       {row.subject}
@@ -292,11 +378,17 @@ export default function TeacherDashboard() {
               </div>
             </div>
             {selectedClassroom && (
-              <p className="dashboard-education-strip__hint">
-                {Array.isArray(selectedClassroom.studentEmails)
-                  ? `${selectedClassroom.studentEmails.length} students in this classroom.`
-                  : 'Add students to this classroom so they receive lecture notes.'}
-              </p>
+              <div className="dashboard-teacher-classroom-details">
+                <span className="dashboard-teacher-cap-pill">
+                  Students: {Array.isArray(selectedClassroom.studentEmails) ? selectedClassroom.studentEmails.length : 0}/{MAX_STUDENTS_PER_CLASSROOM}
+                </span>
+                <span className="dashboard-teacher-cap-pill">
+                  Subjects: {subjectAssignments.length}/{MAX_SUBJECTS_PER_CLASSROOM}
+                </span>
+                <span className="dashboard-teacher-cap-pill">
+                  Class: {selectedClassroom.className}
+                </span>
+              </div>
             )}
             {error && <div className="start-meeting-error">{error}</div>}
 
@@ -320,6 +412,55 @@ export default function TeacherDashboard() {
                 Quick help
               </button>
             </div>
+          </section>
+
+          <section
+            className="dashboard-education-strip dashboard-teacher-shell ux-dashboard-stagger"
+            style={{ animationDelay: '80ms' }}
+          >
+            <div className="dashboard-education-strip__title-row">
+              <h2>My lecture records</h2>
+            </div>
+            <p className="dashboard-education-strip__hint">
+              Only your lectures are shown here for quick review and reopening.
+            </p>
+            {recordsError && <div className="start-meeting-error">{recordsError}</div>}
+            {recordsLoading ? (
+              <p className="dashboard-education-strip__hint">Loading your lecture records…</p>
+            ) : lectureRecords.length ? (
+              <ul className="dashboard-education-admin-list">
+                {lectureRecords.map((m) => (
+                  <li key={String(m?._id || m?.id || `${m?.title}-${m?.createdAt || ''}`)}>
+                    <span>{m?.title || 'Untitled lecture'}</span>
+                    <small>
+                      {(m?.educationClassroomName || 'Classroom') +
+                        ' · ' +
+                        (m?.educationSubject || 'Subject') +
+                        ' · ' +
+                        formatLectureTime(m) +
+                        ' · ' +
+                        (m?.status || 'Scheduled')}
+                    </small>
+                    <div className="dashboard-start-meeting__actions" style={{ marginTop: 8 }}>
+                      <button
+                        type="button"
+                        className="dashboard-btn-secondary dashboard-btn-micro"
+                        onClick={() => {
+                          const id = m?._id || m?.id;
+                          if (id) navigate(`/meetings/${String(id)}`);
+                        }}
+                      >
+                        Open record
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="dashboard-education-strip__hint">
+                No lecture records yet. Start your first lecture above.
+              </p>
+            )}
           </section>
 
           {onboardingOpen && (
