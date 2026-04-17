@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { marketingPricingUrl } from '../config/urls';
 import './TrialExperience.css';
+import './Profile.css';
 
 const TrialExperienceContext = createContext(null);
 
@@ -407,34 +408,36 @@ export default function TrialExperienceProvider({ children }) {
           aria-modal="true"
           aria-labelledby="portiq-force-password-title"
         >
-          <div className="portiq-trial-modal">
+          <div className="portiq-trial-modal portiq-trial-modal--password">
             <h2 className="portiq-trial-modal__title" id="portiq-force-password-title">
               Change your temporary password
             </h2>
             <p className="portiq-trial-modal__body">
               For security, you must set a new password before continuing.
             </p>
-            <label className="portiq-trial-modal__body" style={{ display: 'block', marginBottom: 10 }}>
-              Current password
-              <input
-                type="password"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                style={{ width: '100%', marginTop: 6 }}
-              />
-            </label>
-            <label className="portiq-trial-modal__body" style={{ display: 'block' }}>
-              New password
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                style={{ width: '100%', marginTop: 6 }}
-              />
-            </label>
-            {passwordError ? (
-              <p style={{ marginTop: 10, color: '#fca5a5', fontSize: 13 }}>{passwordError}</p>
-            ) : null}
+            <div className="profile-password-card" style={{ marginTop: 14 }}>
+              <div className="profile-field-group">
+                <label htmlFor="portiq-force-password-current">Current password</label>
+                <input
+                  id="portiq-force-password-current"
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  autoComplete="current-password"
+                />
+              </div>
+              <div className="profile-field-group" style={{ marginTop: 12 }}>
+                <label htmlFor="portiq-force-password-new">New password</label>
+                <input
+                  id="portiq-force-password-new"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  autoComplete="new-password"
+                />
+              </div>
+            </div>
+            {passwordError ? <p className="profile-password-error" style={{ marginTop: 12 }}>{passwordError}</p> : null}
             <div className="portiq-trial-modal__actions">
               <button
                 type="button"

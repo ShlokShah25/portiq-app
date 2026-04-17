@@ -258,7 +258,7 @@ const Settings = () => {
                     <p className="settings-panel-row__desc">{L('settings.passwordDesc')}</p>
                   </div>
                   <div className="settings-panel-row__control">
-                    <form className="profile-password-form" onSubmit={handleChangePassword}>
+                    <form className="profile-password-form profile-password-card" onSubmit={handleChangePassword}>
                       <div className="profile-field-group">
                         <label>{L('settings.currentPassword')}</label>
                         <input
@@ -266,6 +266,7 @@ const Settings = () => {
                           value={currentPassword}
                           onChange={(e) => setCurrentPassword(e.target.value)}
                           placeholder={L('settings.currentPasswordPh')}
+                          autoComplete="current-password"
                         />
                       </div>
                       <div className="profile-field-group">
@@ -275,6 +276,7 @@ const Settings = () => {
                           value={newPassword}
                           onChange={(e) => setNewPassword(e.target.value)}
                           placeholder={L('settings.newPasswordPh')}
+                          autoComplete="new-password"
                         />
                       </div>
                       <div className="profile-field-group">
@@ -284,6 +286,7 @@ const Settings = () => {
                           value={confirmPassword}
                           onChange={(e) => setConfirmPassword(e.target.value)}
                           placeholder={L('settings.confirmPasswordPh')}
+                          autoComplete="new-password"
                         />
                       </div>
                       {passwordError && <div className="profile-password-error">{passwordError}</div>}

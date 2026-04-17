@@ -2,12 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useTrialExperience } from './TrialExperienceProvider';
-import {
-  getClassrooms,
-  MAX_CLASSROOMS,
-  MAX_STUDENTS_PER_CLASSROOM,
-  MAX_SUBJECTS_PER_CLASSROOM,
-} from '../utils/classroomsStorage';
+import { BookOpen, GraduationCap, Zap } from 'lucide-react';
+import { getClassrooms } from '../utils/classroomsStorage';
 import './Dashboard.css';
 
 function buildParticipantsFromClassroom(classroom, subject) {
@@ -72,22 +68,26 @@ export default function TeacherDashboard() {
   const onboardingSteps = [
     {
       title: 'Choose your classroom',
-      body: 'Pick the classroom you are teaching right now. This automatically links the right student list.',
+      body: 'Select the group you are teaching. The roster is linked automatically so your session stays aligned with that class.',
       target: 'classroom',
+      Icon: GraduationCap,
     },
     {
       title: 'Select the subject',
-      body: 'Choose the lecture subject from your classroom setup so notes and summaries stay organized.',
+      body: 'Match the subject you are covering today. Notes and summaries stay grouped by subject for easy review later.',
       target: 'subject',
+      Icon: BookOpen,
     },
     {
-      title: 'Start lecture instantly',
-      body: 'Click Start lecture and you are taken directly into the live lecture room with no extra form.',
+      title: 'Go live in one tap',
+      body: 'Hit Start lecture to open the room with recording and live notes ready—no extra setup.',
       target: 'start',
+      Icon: Zap,
     },
   ];
 
   const currentStep = onboardingSteps[onboardingStep] || onboardingSteps[0];
+  const StepIcon = currentStep?.Icon;
 
   const updateSpotlightRect = () => {
     if (!onboardingOpen) return;
@@ -311,17 +311,6 @@ export default function TeacherDashboard() {
               </span>
               <h2>Start a lecture</h2>
             </div>
-            <div className="dashboard-teacher-caps-row">
-              <span className="dashboard-teacher-cap-pill">
-                Classrooms: {classrooms.length}/{MAX_CLASSROOMS}
-              </span>
-              <span className="dashboard-teacher-cap-pill">
-                Subjects/classroom: {MAX_SUBJECTS_PER_CLASSROOM}
-              </span>
-              <span className="dashboard-teacher-cap-pill">
-                Students/classroom: {MAX_STUDENTS_PER_CLASSROOM}
-              </span>
-            </div>
             <div className="dashboard-teacher-grid">
               <div className="dashboard-education-pill dashboard-education-pill--wide dashboard-teacher-card">
                 <span className="dashboard-education-pill__k">Lecture title</span>
@@ -377,19 +366,6 @@ export default function TeacherDashboard() {
                 </select>
               </div>
             </div>
-            {selectedClassroom && (
-              <div className="dashboard-teacher-classroom-details">
-                <span className="dashboard-teacher-cap-pill">
-                  Students: {Array.isArray(selectedClassroom.studentEmails) ? selectedClassroom.studentEmails.length : 0}/{MAX_STUDENTS_PER_CLASSROOM}
-                </span>
-                <span className="dashboard-teacher-cap-pill">
-                  Subjects: {subjectAssignments.length}/{MAX_SUBJECTS_PER_CLASSROOM}
-                </span>
-                <span className="dashboard-teacher-cap-pill">
-                  Class: {selectedClassroom.className}
-                </span>
-              </div>
-            )}
             {error && <div className="start-meeting-error">{error}</div>}
 
             <div className="dashboard-start-meeting__actions">
@@ -494,9 +470,37 @@ export default function TeacherDashboard() {
                     : undefined
                 }
               >
-                <p className="dashboard-teacher-tour__step">
-                  Step {onboardingStep + 1} of {onboardingSteps.length}
-                </p>
+                <div className="dashboard-teacher-tour__card-accent" aria-hidden />
+                <div className="dashboard-teacher-tour__head">
+                  {StepIcon ? (
+                    <div className="dashboard-teacher-tour__icon-wrap">
+                      <StepIcon
+                        className="dashboard-teacher-tour__icon"
+                        size={28}
+                        strokeWidth={1.75}
+                        aria-hidden
+                      />
+                    </div>
+                  ) : null}
+                  <div className="dashboard-teacher-tour__head-text">
+                    <p className="dashboard-teacher-tour__eyebrow">Your quick tour</p>
+                    <p className="dashboard-teacher-tour__step">
+                      Step {onboardingStep + 1} of {onboardingSteps.length}
+                    </p>
+                  </div>
+                </div>
+                <div className="dashboard-teacher-tour__dots" role="tablist" aria-label="Tour progress">
+                  {onboardingSteps.map((_, i) => (
+                    <span
+                      key={String(i)}
+                      className={
+                        i === onboardingStep
+                          ? 'dashboard-teacher-tour__dot dashboard-teacher-tour__dot--active'
+                          : 'dashboard-teacher-tour__dot'
+                      }
+                    />
+                  ))}
+                </div>
                 <h3 className="dashboard-teacher-tour__title">{currentStep.title}</h3>
                 <p className="dashboard-teacher-tour__body">{currentStep.body}</p>
                 <div className="dashboard-teacher-tour__actions">
