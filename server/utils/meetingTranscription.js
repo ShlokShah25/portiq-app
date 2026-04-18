@@ -414,7 +414,10 @@ async function generateInterviewMeetingSummaryFromTranscript(transcriptRaw, meet
   const payload = mapInterviewToPipelinePayload(normalized);
 
   if (!summaryPayloadHasDisplayableContent(payload)) {
-    applyTranscriptExcerptFallbackSummary(payload, transcriptTextTrim);
+    await applyTranscriptExcerptFallbackSummaryAsync(payload, transcriptTextTrim, {
+      meetingTitle: meetingObj.title || 'Meeting',
+      isEducation: false,
+    });
   }
 
   console.log('✅ Interview evaluation summary generated');
@@ -665,7 +668,113 @@ function tryParseModelJsonObject(raw) {
   return {};
 }
 
-function applyGroundingFiltersToSummaryData(summaryData, transcriptFull) {
+/**
+ * Latin-keyword grounding assumes the transcript shares enough Latin tokens with the summary.
+ * Hindi / Devanagari (and similar) transcripts fail that check and incorrectly strip valid English
+ * model output, which then triggers a raw-transcript fallback in the source language.
+ */
+function shouldSkipLatinKeywordGrounding(transcriptFull) {
+  const t = String(transcriptFull || '');
+  if (t.length < 120) return false;
+  const sample = t.slice(0, Math.min(20000, t.length));
+  const latin = (sample.match(/[A-Za-z]/g) || []).length;
+  const deva = (sample.match(/[\u0900-\u097F]/g) || []).length;
+  const arab = (sample.match(/[\u0600-\u06FF]/g) || []).length;
+  const cjk = (sample.match(/[\u3040-\u30ff\u3400-\u9fff\uf900-\ufaff]/g) || []).length;
+  const nonLatin = deva + arab + cjk;
+  if (nonLatin >= 30 && nonLatin >= Math.max(latin * 0.25, 15)) return true;
+  return false;
+}
+
+function shouldSkipGroundingForTranscriptLanguage(detectedLanguage) {
+  const raw = String(detectedLanguage || '').trim().toLowerCase();
+  if (!raw || raw === 'unknown') return false;
+  const base = raw.split(/[-_]/)[0];
+  if (base === 'en' || base === 'eng') return false;
+  return base.length >= 2;
+}
+
+function shouldSkipGroundingForMultilingualTranscript(transcriptFull, detectedLanguage) {
+  if (shouldSkipLatinKeywordGrounding(transcriptFull)) return true;
+  return shouldSkipGroundingForTranscriptLanguage(detectedLanguage);
+}
+
+/**
+ * When structured summary failed or was stripped, produce readable English from the transcript
+ * (translate + condense; do not paste non-English verbatim as the main summary).
+ */
+async function synthesizeEnglishRecapFromTranscriptExcerpt(excerpt, meetingTitle, isEducation) {
+  if (!openai) return null;
+  const cap = Math.min(28000, Math.max(6000, excerpt.length));
+  const body = excerpt.length > cap ? `${excerpt.slice(0, cap)}\n\n[…]` : excerpt;
+  const session = isEducation ? 'lecture or class session' : 'meeting';
+  try {
+    const response = await openai.chat.completions.create({
+      model: getSummaryChatModel(),
+      messages: [
+        {
+          role: 'system',
+          content:
+            `You write clear professional English notes for a ${session}. ` +
+            'The input may be entirely in Hindi, mixed Hinglish, or other languages. ' +
+            'Your output must be **English only**: faithful recap of what was discussed (topics, facts, decisions, assignments if any). ' +
+            'Do not copy long repetitive filler from the source; summarize. ' +
+            'Do not invent content not supported by the text. ' +
+            'Use plain paragraphs (no JSON, no markdown fences).',
+        },
+        {
+          role: 'user',
+          content:
+            `Calendar title (may be a placeholder): ${String(meetingTitle || 'Untitled').trim()}\n\n` +
+            `Transcript / notes to recap:\n\n${body}`,
+        },
+      ],
+      temperature: 0.2,
+      max_tokens: 2500,
+    });
+    const text = String(response.choices?.[0]?.message?.content || '').trim();
+    return text || null;
+  } catch (e) {
+    console.warn('⚠️ English recap synthesis failed:', e.message || e);
+    return null;
+  }
+}
+
+async function applyTranscriptExcerptFallbackSummaryAsync(summaryData, transcriptTextTrim, meta = {}) {
+  const t = String(transcriptTextTrim || '').trim();
+  if (!t) {
+    summaryData.summary =
+      String(summaryData.summary || '').trim() ||
+      'Summary could not be generated and no transcript text was available.';
+    return;
+  }
+  const max = Math.min(
+    20000,
+    Math.max(2000, parseInt(process.env.SUMMARY_FALLBACK_TRANSCRIPT_MAX_CHARS || '12000', 10) || 12000)
+  );
+  const excerpt = t.length > max ? `${t.slice(0, max)}\n\n[…]` : t;
+  const english = await synthesizeEnglishRecapFromTranscriptExcerpt(
+    excerpt,
+    meta.meetingTitle,
+    !!meta.isEducation
+  );
+  if (english) {
+    summaryData.summary = english;
+    return;
+  }
+  summaryData.summary =
+    'We could not generate an English summary from this transcript (AI recap unavailable). ' +
+    'Please open the recording or transcript view for the original audio/text.';
+}
+
+function applyGroundingFiltersToSummaryData(summaryData, transcriptFull, meta = {}) {
+  const detectedLanguage = meta && meta.detectedLanguage != null ? String(meta.detectedLanguage) : '';
+  if (shouldSkipGroundingForMultilingualTranscript(transcriptFull, detectedLanguage)) {
+    console.log(
+      '📝 Skipping Latin-keyword grounding (non-English or script-heavy transcript; preserves English model output).'
+    );
+    return;
+  }
   const transcriptLower = String(transcriptFull || '').toLowerCase();
   if (typeof summaryData.summary === 'string' && summaryData.summary.trim()) {
     const filtered = filterGroundedExecutiveSummary(summaryData.summary, transcriptFull);
@@ -693,36 +802,26 @@ function applyGroundingFiltersToSummaryData(summaryData, transcriptFull) {
   });
 }
 
-function applyTranscriptExcerptFallbackSummary(summaryData, transcriptTextTrim) {
-  const t = String(transcriptTextTrim || '').trim();
-  if (!t) {
-    summaryData.summary =
-      String(summaryData.summary || '').trim() ||
-      'Summary could not be generated and no transcript text was available.';
-    return;
-  }
-  const max = Math.min(
-    20000,
-    Math.max(2000, parseInt(process.env.SUMMARY_FALLBACK_TRANSCRIPT_MAX_CHARS || '12000', 10) || 12000)
-  );
-  const excerpt = t.length > max ? `${t.slice(0, max)}\n\n[…]` : t;
-  summaryData.summary = `Here is an excerpt of your meeting transcript:\n\n${excerpt}`;
-}
-
 /**
  * If grounding stripped everything the model produced, keep the model output (API succeeded — don't ship empty).
- * If the model truly returned nothing usable, surface transcript text so the user never hits a blank summary from our logic.
+ * If the model truly returned nothing usable, synthesize an English recap from the transcript (never paste raw Hindi/etc. as the main summary).
  */
-function reconcileSummaryPayloadAfterGrounding(preFilter, summaryData, transcriptTextTrim, anchorRef) {
+async function reconcileSummaryPayloadAfterGroundingAsync(
+  preFilter,
+  summaryData,
+  transcriptTextTrim,
+  anchorRef,
+  meta = {}
+) {
   if (summaryPayloadHasDisplayableContent(summaryData)) {
     return;
   }
   const t = String(transcriptTextTrim || '').trim();
   if (t) {
     console.warn(
-      '⚠️ Grounding removed all displayable summary content; falling back to raw transcript excerpt (safer than ungrounded model text).'
+      '⚠️ Grounding removed all displayable summary content; falling back to English recap from transcript.'
     );
-    applyTranscriptExcerptFallbackSummary(summaryData, transcriptTextTrim);
+    await applyTranscriptExcerptFallbackSummaryAsync(summaryData, transcriptTextTrim, meta);
     summaryData.keyPoints = [];
     summaryData.decisions = [];
     summaryData.nextSteps = [];
@@ -748,9 +847,9 @@ function reconcileSummaryPayloadAfterGrounding(preFilter, summaryData, transcrip
     return;
   }
   console.warn(
-    '⚠️ Model returned no usable structured summary; using transcript excerpt so the meeting is not left empty.'
+    '⚠️ Model returned no usable structured summary; synthesizing English recap from transcript if possible.'
   );
-  applyTranscriptExcerptFallbackSummary(summaryData, transcriptTextTrim);
+  await applyTranscriptExcerptFallbackSummaryAsync(summaryData, transcriptTextTrim, meta);
 }
 
 const EDUCATION_SPEAKER_BRACKET_PREFIX = /\[[^\]\r\n]{1,120}\]\s*:\s*/g;
@@ -931,6 +1030,7 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
               systemElaborationDepth +
               'The transcript may contain multiple languages including English, Hindi, Marathi, Gujarati, Japanese, Chinese, French, Spanish, German, and Russian (plus mixed variants like Hinglish). ' +
             'Accurately understand all languages present, but provide your output only in professional English. ' +
+              'CRITICAL: Every JSON string (summary, each keyPoint, decisions, nextSteps, importantNotes, actionItems.task and actionItems.notes) must be English prose — translate or paraphrase from Hindi or any other source language. Never paste the raw non-English transcript (or long repetitive non-English filler) as the summary or bullets. ' +
               'HALLUCINATION GUARD: Never fabricate quotes, translations, or foreign-language phrases that do not appear in the transcript. If you paraphrase non-English speech, stay tightly tied to words that are actually there. ' +
               'Prioritize completeness over brevity: include every relevant discussion point, decision, risk, and commitment. ' +
               (isEducation
@@ -1054,7 +1154,7 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
     if (!Array.isArray(summaryData.importantNotes)) summaryData.importantNotes = [];
 
   const preFilter = deepCopySummaryPayload(summaryData);
-  applyGroundingFiltersToSummaryData(summaryData, transcriptTextTrim);
+  applyGroundingFiltersToSummaryData(summaryData, transcriptTextTrim, { detectedLanguage });
 
   summaryData.actionItems = enrichActionItemsWithDueDates(
     summaryData.actionItems,
@@ -1066,10 +1166,17 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
     }
   );
 
-  reconcileSummaryPayloadAfterGrounding(preFilter, summaryData, transcriptTextTrim, anchorRef);
+  const groundingMeta = { meetingTitle, isEducation, detectedLanguage };
+  await reconcileSummaryPayloadAfterGroundingAsync(
+    preFilter,
+    summaryData,
+    transcriptTextTrim,
+    anchorRef,
+    groundingMeta
+  );
 
   if (!summaryPayloadHasDisplayableContent(summaryData)) {
-    applyTranscriptExcerptFallbackSummary(summaryData, transcriptTextTrim);
+    await applyTranscriptExcerptFallbackSummaryAsync(summaryData, transcriptTextTrim, groundingMeta);
   }
 
   if (isEducation) {
@@ -1538,10 +1645,11 @@ async function reauditStructuredSummaryWithVoice(summaryResult, voiceEvidenceTra
 
   if (tTrim) {
     const preFilter = deepCopySummaryPayload(out);
-    applyGroundingFiltersToSummaryData(out, tTrim);
-    reconcileSummaryPayloadAfterGrounding(preFilter, out, tTrim, anchorRef);
+    applyGroundingFiltersToSummaryData(out, tTrim, { detectedLanguage: 'unknown' });
+    const voiceMeta = { meetingTitle, isEducation: false, detectedLanguage: 'unknown' };
+    await reconcileSummaryPayloadAfterGroundingAsync(preFilter, out, tTrim, anchorRef, voiceMeta);
     if (!summaryPayloadHasDisplayableContent(out)) {
-      applyTranscriptExcerptFallbackSummary(out, tTrim);
+      await applyTranscriptExcerptFallbackSummaryAsync(out, tTrim, voiceMeta);
     }
   }
 
