@@ -365,9 +365,12 @@ const ClassesPage = () => {
             <table className="classes-students-table">
               <thead>
                 <tr>
-                  <th>Name (optional)</th>
-                  <th>Email (required)</th>
-                  <th>Action</th>
+                  <th scope="col" className="classes-students-table__roll">
+                    Roll no.
+                  </th>
+                  <th scope="col">Name (optional)</th>
+                  <th scope="col">Email (required)</th>
+                  <th scope="col">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -376,6 +379,9 @@ const ClassesPage = () => {
                   if (index === -1) return null;
                   return (
                   <tr key={row.rowKey}>
+                    <td className="classes-students-table__roll" aria-label={`Roll number ${index + 1}`}>
+                      {index + 1}
+                    </td>
                     <td>
                       <input
                         value={row.name}
