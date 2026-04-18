@@ -977,32 +977,36 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
 
   const systemEducationFocus = isEducation
     ? 'This output is for teaching and learning outcomes: help teachers teach better and help students revise effectively. Preserve learning goals when stated, definitions and distinctions as spoken, examples walked through, lists or taxonomies the speaker used, formulas or steps if verbalized, caveats and misconceptions addressed, and questions raised by learners. ' +
+      'Treat the transcript as a sequence of teaching beats: walk through that sequence (or a clear teaching order) and unpack each major beat with depth—definitions, reasoning, comparisons, worked steps, and caveats—rather than skimming in broad strokes. ' +
       'You may add a light student-facing assist layer: short clarifying phrases that connect ideas, restate why something matters, or signpost how points fit together—only when that glue is clearly supported by what was said; never invent teaching content or facts not grounded in the transcript. '
     : 'This output is for operational clarity and execution quality: preserve the real business substance of the session, including context, rationale, trade-offs, dependencies, risks, blockers, stakeholder concerns, and concrete commitments. Keep nuanced reasoning when it changes decisions or priorities. ';
 
   const systemElaborationDepth = isEducation
-    ? 'When the instructor explains a concept at length, keep the substance in the summary and key points—not a single vague line like "discussed X". Where the transcript gives rationale, contrast, sequence, or a worked example, carry that through so a student can follow the logic without having been in the room. '
+    ? 'Point-by-point depth is required: when the instructor explains a concept at length, keep the full logical thread in the summary and key points—not a single vague line like "discussed X" or "covered Y". For each important idea, include as much of the how/why/what-next as the transcript provides (rationale, contrast, sequence, edge cases, numbers, or a worked example). Prefer several sentences per major topic over one thin sentence. '
     : 'When people discuss a topic in depth (problem analysis, options, constraints, or escalation), keep that depth in the summary and key points—not a vague line like "discussed X". ';
 
   const summarySchemaHint = isEducation
-    ? '"summary": "Coherent English narrative (typically 10–18 sentences when the session is substantive). Cover what was actually taught: definitions, comparisons, examples, and how ideas build on each other. Where helpful for revision, weave in brief clarifying phrases (e.g. how one idea relates to another) only when the transcript supports them. Scale length with the transcript—not with the calendar title.",'
+    ? '"summary": "Coherent English narrative in lecture-recap style (typically 16–30 sentences when the session is substantive—longer when the transcript is dense). Follow the class in order: move through topics roughly as they arose (or in a teaching order that preserves dependencies), and devote several sentences to each major idea before advancing. For each segment: state what was taught, then unpack definitions, comparisons, examples, formulas/steps verbalized, and how it builds on prior material. Brief clarifying bridges are fine only when grounded in the transcript. Scale length with transcript substance—not with the calendar title.",'
     : '"summary": "Coherent English narrative (typically 8–16 sentences when the session is substantive). Cover the true business content: context, what changed, key decisions, trade-offs, risks, owners, and expected outcomes. Scale length with transcript depth—not with the calendar title.",';
 
   const keyPointsSchemaHint = isEducation
-    ? '"keyPoints": ["Each item: one or two sentences when useful—first sentence states the teaching point as given; optional second sentence may briefly explain why it matters, how it links to an earlier idea, or a pitfall the instructor warned about, only if that follow-on is grounded in the transcript. Split long explanations across bullets."],'
+    ? '"keyPoints": ["Ordered study-style bullets (match transcript/teaching order when possible). ONE distinct teaching point per string—do not merge unrelated ideas. Each item: at least two sentences whenever the transcript has enough substance: (1) state the point clearly; (2) deepen with mechanism, rationale, contrast, steps, numbers, example, or pitfall exactly as the instructor developed it. If a single idea was explained at length, use multiple consecutive bullets for sub-parts rather than one shallow line."],'
     : '"keyPoints": ["Concrete, execution-focused bullets tied to the transcript; split long analytical discussions into multiple specific bullets when needed"],';
 
   const userElaborationRules = isEducation
-    ? `- When an explanation was long, split across several key points so definitions and examples stay clear.\n` +
-      `- In the summary narrative, you may use short bridges between paragraphs or ideas (e.g. reminding how a new step follows from a definition already given) when the transcript makes that relationship explicit.\n` +
+    ? `- Line-by-line / point-by-point: mirror the instructor’s progression through material; do not jump to only “headline” topics—recover the chain of reasoning and examples between them when the transcript supports it.\n` +
+      `- When an explanation was long, split across several key points so definitions, derivations, and examples stay clear and each bullet stays focused.\n` +
+      `- In the summary narrative, use short bridges only when the transcript makes the link explicit (e.g. how a new step follows from a definition already given).\n` +
+      `- Prefer more bullets with depth over few generic bullets; skim-level recap is not acceptable when the transcript is detailed.\n` +
       `- Put nuances or clarified misunderstandings in importantNotes when they do not fit a crisp key point.\n`
     : `- When analysis was long, split across several key points so problem framing, constraints, and decisions stay clear.\n` +
       `- Put nuanced caveats, unresolved concerns, or dependency risks in importantNotes when they do not fit a crisp key point.\n`;
 
   const userEducationRules = isEducation
-    ? `- Education mode: structure bullets like study notes where the transcript supports it (e.g. types of X, steps, criteria).\n` +
-      `- If the instructor named terms, keep those terms and the gist of each definition as stated.\n` +
-      `- Where it helps a student revise, add a concise second clause in the same key-point string that spells out significance, prerequisite, contrast, or a mnemonic the teacher actually used—never invent pedagogy.\n` +
+    ? `- Education mode: structure bullets like ordered revision notes (e.g. types of X, steps, criteria)—each bullet is one teachable unit, explained deeply from the transcript.\n` +
+      `- If the instructor named terms, keep those terms and the gist of each definition as stated; expand with the instructor’s own elaboration, not invented theory.\n` +
+      `- Every substantive teaching move in the audio should map to at least one key point or to several sentences in the summary; do not omit middle steps of an argument the class actually heard.\n` +
+      `- Where it helps a student revise, use a second (or third) sentence in the same key-point string for significance, prerequisite, contrast, or a mnemonic the teacher actually used—never invent pedagogy.\n` +
       `- Prefer concrete student-facing phrasing only when the instructor’s wording or intent supports it (e.g. "Contrast this with…", "The takeaway for exams is…" only if said or clearly implied).\n` +
       `- If assignments, presentations, quizzes, homework, submissions, or project work are mentioned, ensure they appear as concrete action items with due dates when stated.\n` +
       `- Keep wording classroom-friendly and instructional, not corporate.\n`
@@ -1010,6 +1014,14 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
       `- Keep exact business terms as spoken (project names, system names, ticket refs, metrics, and deadlines).\n` +
       `- If deliverables, approvals, follow-ups, handoffs, or review checkpoints are mentioned, ensure they appear as concrete action items with due dates when stated.\n` +
       `- Keep wording professional and operational, not generic or motivational.\n`;
+
+  const meetingOrLectureFullPictureRule = isEducation
+    ? `- The summary narrative must be an ordered lecture recap: learning goals when stated, then each main topic in the sequence the class followed (preserve dependencies between ideas), with several sentences devoted to each major topic so a student can follow the reasoning, examples, formulas/steps, and caveats—not a thin topic list.\n`
+    : `- The executive summary must cover the full picture of the meeting: why it was held, what was discussed across all topics, key concerns, and overall outcome.\n`;
+
+  const coverageMandatoryRule = isEducation
+    ? `- Coverage is mandatory: include every substantive teaching move, definition, comparison, example, and clarification—not only topic titles or opening/closing themes.\n`
+    : `- Coverage is mandatory: include ALL relevant points that materially affect outcomes, responsibilities, risks, timelines, or scope.\n`;
 
     let summaryResponse = null;
     let summaryError = null;
@@ -1036,18 +1048,20 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
               'HALLUCINATION GUARD: Never fabricate quotes, translations, or foreign-language phrases that do not appear in the transcript. If you paraphrase non-English speech, stay tightly tied to words that are actually there. ' +
               'Prioritize completeness over brevity: include every relevant discussion point, decision, risk, and commitment. ' +
               (isEducation
-                ? 'Use clear teaching-friendly language; do not invent facts or examples not grounded in the transcript. '
+                ? 'For lecture notes, exhaustive point-by-point coverage beats high-level skimming: recover the chain of teaching, not just headlines. Use clear teaching-friendly language; do not invent facts or examples not grounded in the transcript. '
                 : 'Use professional business language, do not invent information, and only include decisions or actions that are clearly mentioned. ') +
               'NEVER infer the subject of the meeting from the calendar/booking title—titles are often placeholders (e.g. "Test", "Retest", "Quick call"). Substance must come only from the transcript. ' +
               'Output must follow the requested JSON structure only. ' +
             'CRITICAL: Base your summary ONLY on the current transcript. Do NOT bring in information or topics from any past meetings. ' +
-              'The executive summary must capture ALL the major themes of the session ' +
               (isEducation
-                ? '(topics taught, concepts compared, practice discussed, open questions). '
+                ? 'The lecture recap must capture ALL major themes AND the intermediate steps between them '
+                : 'The executive summary must capture ALL the major themes of the session ') +
+              (isEducation
+                ? '(topics taught, how each was developed, concepts compared, practice or problems worked, misconceptions addressed, open questions). '
                 : '(projects, planning, issues, risks, feedback, next steps). ') +
               'Highlight the most important concrete points such as names, topics, numbers, and deadlines. ' +
               (isEducation
-                ? 'LECTURE NOTES MODE: This is a single-instructor classroom session. Do NOT attribute dialogue to speakers. Never use bracketed speaker prefixes such as [Name]: or [Unidentified speaker]: in the summary, key points, decisions, next steps, or important notes. Write neutral instructional prose (e.g. "The lecture introduced…", "Students explored…"). '
+                ? 'LECTURE NOTES MODE: This is a single-instructor classroom session. Do NOT attribute dialogue to speakers. Never use bracketed speaker prefixes such as [Name]: or [Unidentified speaker]: in the summary, key points, decisions, next steps, or important notes. Write neutral instructional prose (e.g. "The lecture introduced…", "The class then examined…"). Expand each point to the depth the transcript allows—shallow lists alone are insufficient when the audio was detailed. '
                 : 'SPEAKER ATTRIBUTION: The executive summary narrative must attribute dialogue and positions to speakers whenever possible, using bracketed labels like [Alex Kim]: … or [Unidentified speaker]: … when identity is unclear. ' +
                   'Use configured / roster names only when the transcript clearly supports that person saying it; otherwise [Unidentified speaker]. Never omit speaker context for attributed claims.'),
         },
@@ -1077,8 +1091,8 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
             `- Focus ONLY on what is actually discussed in this transcript.\n` +
               `- Do NOT invent themes from the calendar title. If the title is generic but the audio is about travel, family, logistics, health, etc., write about what was spoken.\n` +
             `- Do NOT talk about the AI or summarization itself unless it is explicitly discussed.\n` +
-            `- The executive summary must cover the full picture of the meeting: why it was held, what was discussed across all topics, key concerns, and overall outcome.\n` +
-              `- Coverage is mandatory: include ALL relevant points that materially affect outcomes, responsibilities, risks, timelines, or scope.\n` +
+            meetingOrLectureFullPictureRule +
+            coverageMandatoryRule +
               `- Do not collapse multiple distinct points into a vague sentence; keep distinct points separate and explicit.\n` +
               `- Avoid generic filler like "align on next steps", "confirm preparations", or "follow up" unless that wording/commitment exists in the transcript.\n` +
             `- Explicitly mention important specifics such as names, topics, projects, events, numbers, dates, and deadlines when they are clearly mentioned.\n` +
