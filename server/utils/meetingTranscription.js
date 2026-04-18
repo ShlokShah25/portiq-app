@@ -873,23 +873,25 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
     : 'You are an AI meeting assistant for professional, high-fidelity minutes. ';
 
   const systemEducationFocus = isEducation
-    ? 'This output is for teaching and learning outcomes: help teachers teach better and help students revise effectively. Preserve learning goals when stated, definitions and distinctions as spoken, examples walked through, lists or taxonomies the speaker used, formulas or steps if verbalized, caveats and misconceptions addressed, and questions raised by learners. '
+    ? 'This output is for teaching and learning outcomes: help teachers teach better and help students revise effectively. Preserve learning goals when stated, definitions and distinctions as spoken, examples walked through, lists or taxonomies the speaker used, formulas or steps if verbalized, caveats and misconceptions addressed, and questions raised by learners. ' +
+      'You may add a light student-facing assist layer: short clarifying phrases that connect ideas, restate why something matters, or signpost how points fit together—only when that glue is clearly supported by what was said; never invent teaching content or facts not grounded in the transcript. '
     : 'This output is for operational clarity and execution quality: preserve the real business substance of the session, including context, rationale, trade-offs, dependencies, risks, blockers, stakeholder concerns, and concrete commitments. Keep nuanced reasoning when it changes decisions or priorities. ';
 
   const systemElaborationDepth = isEducation
-    ? 'When the instructor explains a concept at length, keep the substance in the summary and key points—not a single vague line like "discussed X". '
+    ? 'When the instructor explains a concept at length, keep the substance in the summary and key points—not a single vague line like "discussed X". Where the transcript gives rationale, contrast, sequence, or a worked example, carry that through so a student can follow the logic without having been in the room. '
     : 'When people discuss a topic in depth (problem analysis, options, constraints, or escalation), keep that depth in the summary and key points—not a vague line like "discussed X". ';
 
   const summarySchemaHint = isEducation
-    ? '"summary": "Coherent English narrative (typically 8–16 sentences when the session is substantive). Cover what was actually taught: definitions, comparisons, examples. Scale length with the transcript—not with the calendar title.",'
+    ? '"summary": "Coherent English narrative (typically 10–18 sentences when the session is substantive). Cover what was actually taught: definitions, comparisons, examples, and how ideas build on each other. Where helpful for revision, weave in brief clarifying phrases (e.g. how one idea relates to another) only when the transcript supports them. Scale length with the transcript—not with the calendar title.",'
     : '"summary": "Coherent English narrative (typically 8–16 sentences when the session is substantive). Cover the true business content: context, what changed, key decisions, trade-offs, risks, owners, and expected outcomes. Scale length with transcript depth—not with the calendar title.",';
 
   const keyPointsSchemaHint = isEducation
-    ? '"keyPoints": ["Concrete, review-friendly bullets tied to the transcript; split long explanations across multiple bullets when needed"],'
+    ? '"keyPoints": ["Each item: one or two sentences when useful—first sentence states the teaching point as given; optional second sentence may briefly explain why it matters, how it links to an earlier idea, or a pitfall the instructor warned about, only if that follow-on is grounded in the transcript. Split long explanations across bullets."],'
     : '"keyPoints": ["Concrete, execution-focused bullets tied to the transcript; split long analytical discussions into multiple specific bullets when needed"],';
 
   const userElaborationRules = isEducation
     ? `- When an explanation was long, split across several key points so definitions and examples stay clear.\n` +
+      `- In the summary narrative, you may use short bridges between paragraphs or ideas (e.g. reminding how a new step follows from a definition already given) when the transcript makes that relationship explicit.\n` +
       `- Put nuances or clarified misunderstandings in importantNotes when they do not fit a crisp key point.\n`
     : `- When analysis was long, split across several key points so problem framing, constraints, and decisions stay clear.\n` +
       `- Put nuanced caveats, unresolved concerns, or dependency risks in importantNotes when they do not fit a crisp key point.\n`;
@@ -897,6 +899,8 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
   const userEducationRules = isEducation
     ? `- Education mode: structure bullets like study notes where the transcript supports it (e.g. types of X, steps, criteria).\n` +
       `- If the instructor named terms, keep those terms and the gist of each definition as stated.\n` +
+      `- Where it helps a student revise, add a concise second clause in the same key-point string that spells out significance, prerequisite, contrast, or a mnemonic the teacher actually used—never invent pedagogy.\n` +
+      `- Prefer concrete student-facing phrasing only when the instructor’s wording or intent supports it (e.g. "Contrast this with…", "The takeaway for exams is…" only if said or clearly implied).\n` +
       `- If assignments, presentations, quizzes, homework, submissions, or project work are mentioned, ensure they appear as concrete action items with due dates when stated.\n` +
       `- Keep wording classroom-friendly and instructional, not corporate.\n`
     : `- Workplace mode: structure bullets for execution clarity where transcript supports it (e.g. decision rationale, owner-accountability, timelines, dependency chains, go/no-go conditions).\n` +
