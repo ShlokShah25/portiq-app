@@ -96,6 +96,12 @@ export function getClassrooms() {
   }
 }
 
+export function getClassroomById(id) {
+  if (!id) return null;
+  const list = getClassrooms();
+  return list.find((c) => c.id === id) || null;
+}
+
 export function saveClassrooms(classrooms) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(classrooms));
 }

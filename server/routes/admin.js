@@ -1175,7 +1175,10 @@ router.get('/meetings/:id/summary-pdf', authenticateAdmin, async (req, res) => {
     }
 
     const durationMinutes = durationMinutesFromMeeting(meeting);
-    const pdfBuffer = await buildMeetingSummaryPdfBuffer(meeting, summaryData, durationMinutes);
+    const isEducation = String(req.admin?.productType || '').toLowerCase() === 'education';
+    const pdfBuffer = await buildMeetingSummaryPdfBuffer(meeting, summaryData, durationMinutes, {
+      isEducation,
+    });
     const safeTitle = (meeting.title || 'Meeting').replace(/[^a-z0-9]/gi, '_');
     const stamp = new Date(meeting.endTime || meeting.startTime || Date.now()).toISOString().split('T')[0];
 

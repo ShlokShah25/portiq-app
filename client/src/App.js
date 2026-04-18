@@ -2,6 +2,7 @@ import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import ProtectedLayout from './components/ProtectedLayout';
+import MeetingsAccessGate from './components/MeetingsAccessGate';
 import './App.css';
 import './styles/saas-premium-overrides.css';
 
@@ -40,6 +41,7 @@ const Transcripts = lazyWithRetry(() => import('./components/Transcripts'), 'tra
 const Participants = lazyWithRetry(() => import('./components/Participants'), 'participants');
 const Insights = lazyWithRetry(() => import('./components/Insights'), 'insights');
 const ClassesPage = lazyWithRetry(() => import('./components/ClassesPage'), 'classes');
+const ClassroomDetailPage = lazyWithRetry(() => import('./components/ClassroomDetailPage'), 'classroom-detail');
 const TeachersPage = lazyWithRetry(() => import('./components/TeachersPage'), 'teachers');
 const Settings = lazyWithRetry(() => import('./components/Settings'), 'settings');
 const MeetingInProgress = lazyWithRetry(() => import('./components/MeetingInProgress'), 'meeting-room');
@@ -146,13 +148,16 @@ function App() {
               <Route index element={<Dashboard />} />
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="dashboard/tasks/:bucket" element={<Navigate to="/insights" replace />} />
-              <Route path="meetings" element={<MeetingsScreen />} />
-              <Route path="meetings/:id/summary" element={<MeetingSummary />} />
-              <Route path="meetings/:id/room" element={<MeetingInProgress />} />
-              <Route path="meetings/:id" element={<MeetingDetail />} />
+              <Route path="meetings" element={<MeetingsAccessGate />}>
+                <Route index element={<MeetingsScreen />} />
+                <Route path=":id/summary" element={<MeetingSummary />} />
+                <Route path=":id/room" element={<MeetingInProgress />} />
+                <Route path=":id" element={<MeetingDetail />} />
+              </Route>
               <Route path="transcripts" element={<Transcripts />} />
               <Route path="participants" element={<Participants />} />
               <Route path="insights" element={<Insights />} />
+              <Route path="classes/:classroomId" element={<ClassroomDetailPage />} />
               <Route path="classes" element={<ClassesPage />} />
               <Route path="teachers" element={<TeachersPage />} />
               <Route path="settings" element={<Settings />} />

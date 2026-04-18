@@ -50,8 +50,50 @@ function formatDueForPdf(dueDate) {
 
 /**
  * Writes minutes body onto a PDFKit doc (header through next steps).
+ * @param {{ isEducation?: boolean }} [options]
  */
-function writeMeetingMinutesPdfContent(doc, meeting, summaryData, durationMinutes) {
+function writeMeetingMinutesPdfContent(doc, meeting, summaryData, durationMinutes, options = {}) {
+  const isEducation = Boolean(options.isEducation);
+  /** Student-facing PDF labels (education) vs workplace minutes. */
+  const labels = isEducation
+    ? {
+        documentTitle: 'Class notes (for students)',
+        classTopic: 'Class / topic',
+        location: 'Classroom or link',
+        teacher: 'Teacher',
+        when: 'When',
+        sessionLength: 'Session length',
+        summary: 'What we covered today',
+        summaryEmpty: 'No class recap has been added yet.',
+        keyPoints: 'Main ideas to remember',
+        tasks: 'Assignments & follow-ups',
+        decisions: 'Takeaways & clarifications',
+        importantNotes: 'Extra notes from class',
+        nextSteps: 'Homework, prep & next steps',
+        defaultTask: 'Follow-up',
+        taskBullet: 'Item',
+        assignedTo: 'Assigned to',
+        due: 'Due',
+      }
+    : {
+        documentTitle: 'Minutes of Meeting',
+        classTopic: 'Title',
+        location: 'Room',
+        teacher: 'Organizer',
+        when: 'Date',
+        sessionLength: 'Duration',
+        summary: 'Summary',
+        summaryEmpty: 'No summary provided.',
+        keyPoints: 'Key Points',
+        tasks: 'Action Items',
+        decisions: 'Decisions',
+        importantNotes: 'Important Notes',
+        nextSteps: 'Next Steps',
+        defaultTask: 'Action item',
+        taskBullet: 'Task',
+        assignedTo: 'Assignee',
+        due: 'Deadline',
+      };
   const companyName = process.env.COMPANY_NAME || 'Your Company';
   const logoPath = process.env.COMPANY_LOGO_PATH;
 
@@ -65,32 +107,32 @@ function writeMeetingMinutesPdfContent(doc, meeting, summaryData, durationMinute
   }
 
   doc.fontSize(18).text(companyName, { align: 'left' }).moveDown(0.5);
-  doc.fontSize(16).text('Minutes of Meeting', { align: 'left' }).moveDown();
+  doc.fontSize(16).text(labels.documentTitle, { align: 'left' }).moveDown();
 
   const meetingDate = meeting.startTime ? new Date(meeting.startTime) : new Date();
   doc
     .fontSize(12)
-    .text(`Title: ${meeting.title || ''}`)
-    .text(`Room: ${meeting.meetingRoom || ''}`)
-    .text(`Organizer: ${meeting.organizer || ''}`)
-    .text(`Date: ${meetingDate.toLocaleString()}`);
+    .text(`${labels.classTopic}: ${meeting.title || ''}`)
+    .text(`${labels.location}: ${meeting.meetingRoom || ''}`)
+    .text(`${labels.teacher}: ${meeting.organizer || ''}`)
+    .text(`${labels.when}: ${meetingDate.toLocaleString()}`);
 
   if (durationMinutes != null) {
-    doc.text(`Duration: ${durationMinutes} minutes`);
+    doc.text(`${labels.sessionLength}: ${durationMinutes} minutes`);
   }
 
   doc.moveDown();
 
   doc
     .fontSize(13)
-    .text('Summary', { underline: true })
+    .text(labels.summary, { underline: true })
     .moveDown(0.5)
     .fontSize(12)
-    .text(summaryData.summary || 'No summary provided.')
+    .text(summaryData.summary || labels.summaryEmpty)
     .moveDown();
 
   if ((summaryData.keyPoints || []).length) {
-    doc.fontSize(13).text('Key Points', { underline: true }).moveDown(0.5).fontSize(12);
+    doc.fontSize(13).text(labels.keyPoints, { underline: true }).moveDown(0.5).fontSize(12);
     (summaryData.keyPoints || []).forEach((p) => {
       doc.text(`• ${p}`);
     });
@@ -98,14 +140,16 @@ function writeMeetingMinutesPdfContent(doc, meeting, summaryData, durationMinute
   }
 
   if ((summaryData.actionItems || []).length) {
-    doc.fontSize(13).text('Action Items', { underline: true }).moveDown(0.5).fontSize(12);
+    doc.fontSize(13).text(labels.tasks, { underline: true }).moveDown(0.5).fontSize(12);
     (summaryData.actionItems || []).forEach((a) => {
-      const task = a.task || (typeof a === 'string' ? a : a?.toString?.() || 'Action item');
-      const assignee = a.assignee ? `Assignee: ${a.assignee}` : '';
+      const task =
+        a.task ||
+        (typeof a === 'string' ? a : a?.toString?.() || labels.defaultTask);
+      const assignee = a.assignee ? `${labels.assignedTo}: ${a.assignee}` : '';
       const dueRaw = a.dueDate;
-      const due = dueRaw ? `Deadline: ${formatDueForPdf(dueRaw)}` : '';
+      const due = dueRaw ? `${labels.due}: ${formatDueForPdf(dueRaw)}` : '';
       const notes = a.notes ? `Notes: ${a.notes}` : '';
-      doc.text(`• Task: ${task}`);
+      doc.text(`• ${labels.taskBullet}: ${task}`);
       if (assignee) doc.text(`  ${assignee}`);
       if (due) doc.text(`  ${due}`);
       if (notes) doc.text(`  ${notes}`);
@@ -115,7 +159,7 @@ function writeMeetingMinutesPdfContent(doc, meeting, summaryData, durationMinute
   }
 
   if ((summaryData.decisions || []).length) {
-    doc.fontSize(13).text('Decisions', { underline: true }).moveDown(0.5).fontSize(12);
+    doc.fontSize(13).text(labels.decisions, { underline: true }).moveDown(0.5).fontSize(12);
     (summaryData.decisions || []).forEach((d) => {
       doc.text(`• ${d}`);
     });
@@ -123,7 +167,7 @@ function writeMeetingMinutesPdfContent(doc, meeting, summaryData, durationMinute
   }
 
   if ((summaryData.importantNotes || []).length) {
-    doc.fontSize(13).text('Important Notes', { underline: true }).moveDown(0.5).fontSize(12);
+    doc.fontSize(13).text(labels.importantNotes, { underline: true }).moveDown(0.5).fontSize(12);
     (summaryData.importantNotes || []).forEach((n) => {
       doc.text(`• ${n}`);
     });
@@ -131,18 +175,18 @@ function writeMeetingMinutesPdfContent(doc, meeting, summaryData, durationMinute
   }
 
   if ((summaryData.nextSteps || []).length) {
-    doc.fontSize(13).text('Next Steps', { underline: true }).moveDown(0.5).fontSize(12);
+    doc.fontSize(13).text(labels.nextSteps, { underline: true }).moveDown(0.5).fontSize(12);
     (summaryData.nextSteps || []).forEach((s) => {
       doc.text(`• ${s}`);
     });
   }
 }
 
-async function buildMeetingSummaryPdfBuffer(meeting, summaryData, durationMinutes) {
+async function buildMeetingSummaryPdfBuffer(meeting, summaryData, durationMinutes, pdfOptions = {}) {
   const pdfBuffers = [];
   const doc = new PDFDocument({ margin: 50 });
   doc.on('data', (chunk) => pdfBuffers.push(chunk));
-  writeMeetingMinutesPdfContent(doc, meeting, summaryData, durationMinutes);
+  writeMeetingMinutesPdfContent(doc, meeting, summaryData, durationMinutes, pdfOptions);
   doc.end();
   return new Promise((resolve) => {
     doc.on('end', () => resolve(Buffer.concat(pdfBuffers)));

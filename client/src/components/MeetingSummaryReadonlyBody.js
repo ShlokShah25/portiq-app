@@ -158,7 +158,7 @@ export default function MeetingSummaryReadonlyBody({
       >
         <h2 className="meeting-summary-heading meeting-summary-heading--with-icon">
           <CheckSquare className="meeting-summary-heading-icon" strokeWidth={1.5} aria-hidden />
-          Action Items
+          {isEducation ? 'Assignments & follow-ups' : 'Action Items'}
         </h2>
         <ul className="meeting-summary-list meeting-summary-list--action meeting-summary-list--tasks-notion">
           {actionItems.map((item, idx) => {
@@ -170,10 +170,10 @@ export default function MeetingSummaryReadonlyBody({
                 : 'not_started';
             const effectiveDue = getEffectiveDueDate(item, meeting);
 
-            const title = item?.task || 'Action item';
+            const title = item?.task || (isEducation ? 'Follow-up' : 'Action item');
             const details = [
-              meeting?.title ? `Meeting: ${meeting.title}` : null,
-              item?.assignee ? `Assignee: ${item.assignee}` : null,
+              meeting?.title ? `${isEducation ? 'Lecture' : 'Meeting'}: ${meeting.title}` : null,
+              item?.assignee ? `${isEducation ? 'Assigned to' : 'Assignee'}: ${item.assignee}` : null,
             ]
               .filter(Boolean)
               .join('\n');
@@ -260,9 +260,11 @@ export default function MeetingSummaryReadonlyBody({
                     </div>
                   ) : null}
 
-                  <div className="meeting-task-title">{item.task || 'Action item'}</div>
+                  <div className="meeting-task-title">{item.task || (isEducation ? 'Follow-up' : 'Action item')}</div>
                   {item.assignee ? (
-                    <div className="meeting-task-assignee">{item.assignee}</div>
+                    <div className="meeting-task-assignee">
+                      {isEducation ? <>Assigned to: {item.assignee}</> : item.assignee}
+                    </div>
                   ) : null}
 
                   <div className="meeting-task-status-row">
@@ -270,7 +272,7 @@ export default function MeetingSummaryReadonlyBody({
                       className="meeting-task-status-label"
                       htmlFor={`task-status-${meetingId || 'meeting'}-${idx}`}
                     >
-                      Status
+                      {isEducation ? 'Your progress' : 'Status'}
                     </label>
                     <select
                       id={`task-status-${meetingId || 'meeting'}-${idx}`}
@@ -322,7 +324,7 @@ export default function MeetingSummaryReadonlyBody({
                             const url = URL.createObjectURL(blob);
                             const a = document.createElement('a');
                             a.href = url;
-                            a.download = `action-item-${(item.task || 'task')
+                            a.download = `${isEducation ? 'follow-up' : 'action-item'}-${(item.task || 'task')
                               .slice(0, 40)
                               .replace(/[^a-z0-9]+/gi, '-')
                               .toLowerCase()}.ics`;
@@ -478,7 +480,7 @@ export default function MeetingSummaryReadonlyBody({
           >
             <h2 className="meeting-summary-heading meeting-summary-heading--with-icon">
               <FileText className="meeting-summary-heading-icon" strokeWidth={1.5} aria-hidden />
-              {isInterview || isEducation ? 'Summary' : 'Minutes of the meeting'}
+              {isInterview ? 'Summary' : isEducation ? 'What we covered' : 'Minutes of the meeting'}
             </h2>
             <p className="meeting-summary-body">{summaryText}</p>
           </section>
@@ -491,7 +493,7 @@ export default function MeetingSummaryReadonlyBody({
           >
             <h2 className="meeting-summary-heading meeting-summary-heading--with-icon">
               <ListChecks className="meeting-summary-heading-icon" strokeWidth={1.5} aria-hidden />
-              {isInterview ? 'Key strengths' : 'Key Points'}
+              {isInterview ? 'Key strengths' : isEducation ? 'Main ideas to remember' : 'Key Points'}
             </h2>
             <ul className="meeting-summary-list meeting-summary-list--checks">
               {keyPoints.map((p, idx) => (
@@ -508,7 +510,7 @@ export default function MeetingSummaryReadonlyBody({
           >
             <h2 className="meeting-summary-heading meeting-summary-heading--with-icon">
               <CheckCircle className="meeting-summary-heading-icon" strokeWidth={1.5} aria-hidden />
-              Decisions
+              {isEducation ? 'Takeaways & clarifications' : 'Decisions'}
             </h2>
             <ul className="meeting-summary-list">
               {decisionsDisplay.map((d, idx) => (
@@ -523,7 +525,9 @@ export default function MeetingSummaryReadonlyBody({
             className={`meeting-summary-section${staggerSections ? ' meeting-summary-section--ux-reveal' : ''}`}
             style={staggerSections ? { animationDelay: '200ms' } : undefined}
           >
-            <h2 className="meeting-summary-heading">Next Steps</h2>
+            <h2 className="meeting-summary-heading">
+              {isEducation ? 'Homework, prep & next steps' : 'Next Steps'}
+            </h2>
             <ul className="meeting-summary-list">
               {nextSteps.map((s, idx) => (
                 <li key={idx}>{s}</li>
@@ -541,7 +545,7 @@ export default function MeetingSummaryReadonlyBody({
               {isInterview
                 ? 'Concerns / red flags'
                 : isEducation
-                  ? 'Important Concepts'
+                  ? 'Extra notes from class'
                   : 'Important Notes'}
             </h2>
             <ul className="meeting-summary-list">

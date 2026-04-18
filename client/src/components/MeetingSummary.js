@@ -554,9 +554,11 @@ const MeetingSummary = () => {
               <div className="meeting-summary-edit">
                 <div className="meeting-summary-edit-field">
                   <label>
-                    {(FEATURE_INTERVIEW_UI && editableSummary.summaryMode === 'interview') || isEducation
+                    {FEATURE_INTERVIEW_UI && editableSummary.summaryMode === 'interview'
                       ? 'Summary'
-                      : 'Minutes of the meeting'}
+                      : isEducation
+                        ? 'What we covered (class recap)'
+                        : 'Minutes of the meeting'}
                   </label>
                   <textarea
                     value={editableSummary.summary}
@@ -604,7 +606,9 @@ const MeetingSummary = () => {
                   <label>
                     {FEATURE_INTERVIEW_UI && editableSummary.summaryMode === 'interview'
                       ? 'Key strengths (one per line)'
-                      : 'Key Points (one per line)'}
+                      : isEducation
+                        ? 'Main ideas to remember (one per line)'
+                        : 'Key Points (one per line)'}
                   </label>
                   <textarea
                     value={(editableSummary.keyPoints || []).join('\n')}
@@ -614,9 +618,11 @@ const MeetingSummary = () => {
                   />
                 </div>
                 <div className="meeting-summary-edit-field">
-                  <label>Action Items</label>
+                  <label>{isEducation ? 'Assignments & follow-ups' : 'Action Items'}</label>
                   <small className="meeting-summary-edit-hint">
-                    One per line. Format: Task | Assignee | Due date as YYYY-MM-DD (optional)
+                    {isEducation
+                      ? 'One per line. Format: Work to do | Assigned to | Due date as YYYY-MM-DD (optional)'
+                      : 'One per line. Format: Task | Assignee | Due date as YYYY-MM-DD (optional)'}
                   </small>
                   <textarea
                     value={(editableSummary.actionItems || []).map((item) => {
@@ -657,7 +663,9 @@ const MeetingSummary = () => {
                   />
                 </div>
                 <div className="meeting-summary-edit-field">
-                  <label>Decisions (one per line)</label>
+                  <label>
+                    {isEducation ? 'Takeaways & clarifications (one per line)' : 'Decisions (one per line)'}
+                  </label>
                   <textarea
                     value={(editableSummary.decisions || []).join('\n')}
                     onChange={e => setEditableSummary({ ...editableSummary, decisions: e.target.value.split('\n').filter(l => l.trim()) })}
@@ -666,7 +674,9 @@ const MeetingSummary = () => {
                   />
                 </div>
                 <div className="meeting-summary-edit-field">
-                  <label>Next Steps (one per line)</label>
+                  <label>
+                    {isEducation ? 'Homework, prep & next steps (one per line)' : 'Next Steps (one per line)'}
+                  </label>
                   <textarea
                     value={(editableSummary.nextSteps || []).join('\n')}
                     onChange={e => setEditableSummary({ ...editableSummary, nextSteps: e.target.value.split('\n').filter(l => l.trim()) })}
@@ -679,7 +689,7 @@ const MeetingSummary = () => {
                     {FEATURE_INTERVIEW_UI && editableSummary.summaryMode === 'interview'
                       ? 'Concerns / red flags (one per line)'
                       : isEducation
-                        ? 'Important Concepts (one per line)'
+                        ? 'Extra notes from class (one per line)'
                         : 'Important Notes (one per line)'}
                   </label>
                   <textarea

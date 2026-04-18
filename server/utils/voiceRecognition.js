@@ -139,13 +139,26 @@ function tryFfmpegCleanVoiceEnrollmentSync(inputPath) {
  * Uses pyannote.audio via Python script for production-quality embeddings
  * Falls back to simplified approach if Python script is not available
  */
+/** Thrown when pyannote / Python embedding cannot run (config, deps, HF access). */
+function voiceEmbeddingUnavailable(message, details = '') {
+  const e = new Error(message);
+  e.code = 'VOICE_EMBEDDING_UNAVAILABLE';
+  e.details = String(details || '').trim().slice(0, 8000);
+  return e;
+}
+
 /**
  * pyannote/embedding via voice_embedding.py (optional diarization crop in Python).
- * @returns {Promise<number[]|null>}
+ * @returns {Promise<number[]>}
  */
 async function tryPyannoteEmbedding(processedPath) {
   const pythonScript = path.join(__dirname, 'voice_embedding.py');
-  if (!fs.existsSync(pythonScript)) return null;
+  if (!fs.existsSync(pythonScript)) {
+    throw voiceEmbeddingUnavailable(
+      'Voice embedding script is missing on the server.',
+      `Expected file: ${pythonScript}`
+    );
+  }
   try {
     console.log('🎤 Generating voice embedding using pyannote.audio...');
 
@@ -169,26 +182,72 @@ async function tryPyannoteEmbedding(processedPath) {
 
     console.log(`📝 Executing: python3 voice_embedding.py "${processedPath}" ${hfToken ? '[token provided]' : '[no token]'}`);
 
-    const { stdout, stderr } = await execPromise(command, {
-      timeout: 30000,
-      env: env,
-    });
+    let stdout = '';
+    let stderr = '';
+    try {
+      const out = await execPromise(command, {
+        timeout: 30000,
+        env: env,
+      });
+      stdout = String(out.stdout || '');
+      stderr = String(out.stderr || '');
+    } catch (execErr) {
+      stdout = String(execErr.stdout || '');
+      stderr = String(execErr.stderr || '').trim();
+      const bits = [stderr, stdout, execErr.message].filter(Boolean);
+      const combined = bits.join('\n').slice(0, 8000);
+      console.warn('⚠️  Python embedding process failed:', combined.slice(0, 2000));
 
-    if (stderr && !stderr.includes('Warning') && !stderr.includes('UserWarning')) {
-      console.warn('⚠️  Python script warning:', stderr);
+      let headline = 'Voice embedding (Python / pyannote) failed on the server.';
+      const low = combined.toLowerCase();
+      if (!hfToken && (low.includes('token') || low.includes('401') || low.includes('403'))) {
+        headline =
+          'Hugging Face token is missing or invalid. Set HF_TOKEN (or HUGGINGFACE_TOKEN) and restart the server.';
+      } else if (low.includes('403') || low.includes('restricted') || low.includes('gated')) {
+        headline =
+          'Hugging Face rejected access to pyannote models. Accept the model terms on huggingface.co for pyannote/embedding (and speaker-diarization if used), and use a token with read access.';
+      } else if (low.includes('modulenotfounderror') || low.includes('no module named')) {
+        headline =
+          'Python voice dependencies are missing. On the server, install: pip install pyannote.audio torch torchaudio (see server logs for the exact import error).';
+      } else if (low.includes('torch') || low.includes('cuda')) {
+        headline = 'PyTorch / audio stack error while generating the embedding. See server logs for details.';
+      }
+
+      throw voiceEmbeddingUnavailable(headline, combined);
     }
 
-    const embedding = JSON.parse(stdout.trim());
+    if (stderr && !stderr.includes('Warning') && !stderr.includes('UserWarning')) {
+      console.warn('⚠️  Python script stderr:', stderr.slice(0, 1500));
+    }
+
+    let embedding;
+    try {
+      embedding = JSON.parse(stdout.trim());
+    } catch (parseErr) {
+      throw voiceEmbeddingUnavailable(
+        'Voice embedding script did not return valid JSON.',
+        [stderr, stdout].filter(Boolean).join('\n').slice(0, 8000)
+      );
+    }
 
     if (!Array.isArray(embedding) || embedding.length === 0) {
-      throw new Error('Invalid embedding format from Python script');
+      throw voiceEmbeddingUnavailable(
+        'Voice embedding script returned an empty or invalid vector.',
+        [stderr, stdout].filter(Boolean).join('\n').slice(0, 8000)
+      );
     }
 
     console.log(`✅ Voice embedding generated: ${embedding.length} dimensions`);
     return embedding;
   } catch (pythonError) {
+    if (pythonError && pythonError.code === 'VOICE_EMBEDDING_UNAVAILABLE') {
+      throw pythonError;
+    }
     console.warn('⚠️  Python script failed:', pythonError.message);
-    return null;
+    throw voiceEmbeddingUnavailable(
+      'Voice embedding (Python / pyannote) failed.',
+      pythonError.message || String(pythonError)
+    );
   }
 }
 
@@ -208,14 +267,7 @@ async function generateVoiceEmbedding(audioFilePath) {
     cleanPath = tryFfmpegNormalizeVoiceAudioSync(processedPath, 'enrollment');
     const embeddingPath = cleanPath || processedPath;
 
-    const py = await tryPyannoteEmbedding(embeddingPath);
-    if (py) return py;
-
-    throw new Error(
-      'Voice embedding failed (pyannote). Set HF_TOKEN, accept Hugging Face model terms for ' +
-        'pyannote/embedding (and speaker-diarization-3.1 if using diarization), and ensure Python has ' +
-        'pyannote.audio installed. Legacy FFT/mel fallback has been removed.'
-    );
+    return await tryPyannoteEmbedding(embeddingPath);
   } catch (error) {
     console.error('Error generating voice embedding:', error);
     throw error;

@@ -1,4 +1,5 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   getClassrooms,
   createClassroom,
@@ -42,6 +43,7 @@ function emptyStudent() {
 }
 
 const ClassesPage = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [classrooms, setClassrooms] = useState([]);
   const [editing, setEditing] = useState(null);
   const [query, setQuery] = useState('');
@@ -58,6 +60,43 @@ const ClassesPage = () => {
   useEffect(() => {
     load();
   }, []);
+
+  const handleEdit = useCallback((c) => {
+    const rows =
+      Array.isArray(c.subjectAssignments) && c.subjectAssignments.length > 0
+        ? c.subjectAssignments
+        : (Array.isArray(c.subjects) ? c.subjects : []).map((subject) => ({ subject }));
+
+    const students =
+      Array.isArray(c.studentRoster) && c.studentRoster.length > 0
+        ? c.studentRoster
+        : (Array.isArray(c.studentEmails) ? c.studentEmails : []).map((email) => ({ name: '', email }));
+
+    setEditing(c);
+    setForm({
+      className: c.className || '',
+      subjectAssignments: rows.length ? rows.map((r) => ({ ...emptyAssignment(), ...r })) : [emptyAssignment()],
+      studentRoster: students.length ? students.map((s) => ({ ...emptyStudent(), ...s })) : [emptyStudent()],
+    });
+  }, []);
+
+  useEffect(() => {
+    const editId = searchParams.get('edit');
+    if (!editId) return;
+    const c = classrooms.find((x) => x.id === editId);
+    if (!c) {
+      if (classrooms.length > 0) {
+        const next = new URLSearchParams(searchParams);
+        next.delete('edit');
+        setSearchParams(next, { replace: true });
+      }
+      return;
+    }
+    handleEdit(c);
+    const next = new URLSearchParams(searchParams);
+    next.delete('edit');
+    setSearchParams(next, { replace: true });
+  }, [classrooms, searchParams, handleEdit, setSearchParams]);
 
   const resetForm = () => {
     setForm({ className: '', subjectAssignments: [emptyAssignment()], studentRoster: [emptyStudent()] });
@@ -151,60 +190,11 @@ const ClassesPage = () => {
     load();
   };
 
-  const handleEdit = (c) => {
-    const rows =
-      Array.isArray(c.subjectAssignments) && c.subjectAssignments.length > 0
-        ? c.subjectAssignments
-        : (Array.isArray(c.subjects) ? c.subjects : []).map((subject) => ({ subject }));
-
-    const students =
-      Array.isArray(c.studentRoster) && c.studentRoster.length > 0
-        ? c.studentRoster
-        : (Array.isArray(c.studentEmails) ? c.studentEmails : []).map((email) => ({ name: '', email }));
-
-    setEditing(c);
-    setForm({
-      className: c.className || '',
-      subjectAssignments: rows.length ? rows.map((r) => ({ ...emptyAssignment(), ...r })) : [emptyAssignment()],
-      studentRoster: students.length ? students.map((s) => ({ ...emptyStudent(), ...s })) : [emptyStudent()],
-    });
-  };
-
   const handleDelete = (id) => {
     if (!window.confirm('Delete this classroom?')) return;
     deleteClassroom(id);
     load();
     resetForm();
-  };
-
-  const handleRemoveStudentFromClassroom = (classroom, studentEmail) => {
-    const email = String(studentEmail || '').trim().toLowerCase();
-    if (!email || !classroom) return;
-    if (!window.confirm(`Remove ${email} from ${classroom.className}?`)) return;
-
-    const roster =
-      Array.isArray(classroom.studentRoster) && classroom.studentRoster.length > 0
-        ? classroom.studentRoster
-        : (Array.isArray(classroom.studentEmails)
-            ? classroom.studentEmails.map((e) => ({ name: '', email: String(e || '').trim().toLowerCase() }))
-            : []);
-    const nextRoster = roster.filter((s) => String(s?.email || '').trim().toLowerCase() !== email);
-
-    updateClassroom(classroom.id, {
-      studentRoster: nextRoster,
-      studentEmails: nextRoster.map((s) => s.email),
-    });
-    load();
-
-    // Keep edit form in sync if this classroom is currently being edited.
-    if (editing && editing.id === classroom.id) {
-      setForm((prev) => ({
-        ...prev,
-        studentRoster: nextRoster.length
-          ? nextRoster.map((s) => ({ ...emptyStudent(), ...s }))
-          : [emptyStudent()],
-      }));
-    }
   };
 
   const updateAssignment = (index, value) => {
@@ -431,7 +421,7 @@ const ClassesPage = () => {
           </div>
         </form>
 
-        <div className="classes-list">
+        <div className="classes-list classes-list-panel">
           <div className="classes-list-head">
             <h2>All Classrooms ({classrooms.length}/{MAX_CLASSROOMS})</h2>
             <input
@@ -447,78 +437,73 @@ const ClassesPage = () => {
               {classrooms.length === 0 ? 'No classrooms yet. Create one above.' : 'No classrooms match this search.'}
             </p>
           ) : (
-            <table className="classes-table">
-              <thead>
-                <tr>
-                  <th>Class Name</th>
-                  <th>Subjects</th>
-                  <th>Students</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredClassrooms.map((c) => {
-                  const roster =
-                    Array.isArray(c.studentRoster) && c.studentRoster.length > 0
-                      ? c.studentRoster
-                      : (Array.isArray(c.studentEmails) ? c.studentEmails.map((email) => ({ name: '', email })) : []);
-                  return (
-                    <tr key={c.id}>
-                      <td>{c.className}</td>
-                      <td>
-                        {Array.isArray(c.subjectAssignments) && c.subjectAssignments.length ? (
-                          <div className="classes-table-mappings">
-                            {c.subjectAssignments.map((row) => (
-                              <span key={`${c.id}-${row.subject}`} className="classes-mapping-pill">
-                                {row.subject}
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
-                          '—'
-                        )}
-                      </td>
-                      <td>
-                        <div>{roster.length}/{MAX_STUDENTS_PER_CLASSROOM}</div>
-                        {roster.length > 0 ? (
-                          <div className="classes-student-preview-list">
-                            {roster.map((s) => (
-                              <span key={`${c.id}-${s.email}`} className="classes-student-chip">
-                                <span className="classes-student-chip__text">
-                                  {s.name ? `${s.name} · ` : ''}
-                                  {s.email}
+            <div className="classes-table-scroll">
+              <table className="classes-table">
+                <thead>
+                  <tr>
+                    <th className="classes-table__class">Class</th>
+                    <th className="classes-table__subjects">Subjects</th>
+                    <th className="classes-table__students">Students</th>
+                    <th className="classes-table__actions">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredClassrooms.map((c) => {
+                    const roster =
+                      Array.isArray(c.studentRoster) && c.studentRoster.length > 0
+                        ? c.studentRoster
+                        : (Array.isArray(c.studentEmails) ? c.studentEmails.map((email) => ({ name: '', email })) : []);
+                    const n = roster.length;
+                    return (
+                      <tr key={c.id} className="classes-table-row">
+                        <td className="classes-table__class">
+                          <Link to={`/classes/${c.id}`} className="classes-class-link">
+                            {c.className}
+                          </Link>
+                        </td>
+                        <td className="classes-table__subjects">
+                          {Array.isArray(c.subjectAssignments) && c.subjectAssignments.length ? (
+                            <div className="classes-table-mappings">
+                              {c.subjectAssignments.map((row) => (
+                                <span key={`${c.id}-${row.subject}`} className="classes-mapping-pill">
+                                  {row.subject}
                                 </span>
-                                <button
-                                  type="button"
-                                  className="classes-student-chip__remove"
-                                  onClick={() => handleRemoveStudentFromClassroom(c, s.email)}
-                                  aria-label={`Remove ${s.email}`}
-                                  title="Remove student"
-                                >
-                                  ×
-                                </button>
-                              </span>
-                            ))}
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="classes-table-dash">—</span>
+                          )}
+                        </td>
+                        <td className="classes-table__students">
+                          <div className="classes-student-summary">
+                            <span className="classes-student-count" title="Enrolled / capacity">
+                              {n}/{MAX_STUDENTS_PER_CLASSROOM}
+                            </span>
+                            <Link to={`/classes/${c.id}`} className="classes-roster-link">
+                              {n === 0 ? 'Add students' : 'View roster'}
+                            </Link>
                           </div>
-                        ) : null}
-                      </td>
-                      <td>
-                        <button type="button" className="classes-btn-sm" onClick={() => handleEdit(c)}>
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          className="classes-btn-sm classes-btn-danger"
-                          onClick={() => handleDelete(c.id)}
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        </td>
+                        <td className="classes-table__actions">
+                          <div className="classes-actions-cell">
+                            <button type="button" className="classes-btn-sm" onClick={() => handleEdit(c)}>
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              className="classes-btn-sm classes-btn-danger"
+                              onClick={() => handleDelete(c.id)}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </div>

@@ -2344,13 +2344,18 @@ router.post('/voice/register', withVoiceUpload, async (req, res) => {
   } catch (error) {
     console.error('Error registering voice profile:', error);
     const msg = String(error?.message || '');
-    const isConfigError =
-      /HF_TOKEN|pyannote|Hugging Face|embedding backend unavailable|Voice embedding failed/i.test(msg);
-    res.status(500).json({
-      error: isConfigError
-        ? 'Voice embedding service is not configured on the server.'
+    const details = String(error?.details || '').trim() || msg;
+    const isEmbeddingUnavailable =
+      error?.code === 'VOICE_EMBEDDING_UNAVAILABLE' ||
+      /HF_TOKEN|pyannote|Hugging Face|embedding backend unavailable|Voice embedding failed|Python \/ pyannote/i.test(
+        `${msg}\n${details}`
+      );
+    const status = isEmbeddingUnavailable ? 503 : 500;
+    res.status(status).json({
+      error: isEmbeddingUnavailable
+        ? 'Voice enrollment is unavailable: the server could not build a voice embedding (pyannote / Hugging Face).'
         : 'Failed to register voice profile',
-      details: error.message || String(error),
+      details,
     });
   }
 });

@@ -135,6 +135,14 @@
   cursor: pointer;
 }
 
+a.classes-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
 .classes-btn-secondary {
   background: transparent;
   color: #9ca3af;
@@ -142,6 +150,13 @@
   padding: 10px 20px;
   border-radius: 8px;
   cursor: pointer;
+}
+
+.classes-list-panel {
+  padding: 22px 22px 8px;
+  border-radius: 14px;
+  border: 1px solid #1f2937;
+  background: rgba(15, 23, 42, 0.25);
 }
 
 .classes-list h2 {
@@ -178,22 +193,115 @@
   font-size: 14px;
 }
 
+.classes-table-scroll {
+  overflow-x: auto;
+  margin: 0 -6px 14px;
+  padding: 0 6px 2px;
+  -webkit-overflow-scrolling: touch;
+}
+
 .classes-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 14px;
+  table-layout: fixed;
 }
 
 .classes-table th,
 .classes-table td {
-  padding: 12px 16px;
+  padding: 14px 14px;
   text-align: left;
   border-bottom: 1px solid #1f1f1f;
+  vertical-align: middle;
 }
 
 .classes-table th {
   color: #9ca3af;
   font-weight: 500;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.classes-table__class {
+  width: 22%;
+}
+
+.classes-table__subjects {
+  width: 36%;
+}
+
+.classes-table__students {
+  width: 24%;
+}
+
+.classes-table__actions {
+  width: 18%;
+  text-align: right;
+}
+
+.classes-table-row:hover td {
+  background: rgba(37, 99, 235, 0.06);
+}
+
+.classes-table-dash {
+  color: #6b7280;
+}
+
+.classes-class-link {
+  color: #93c5fd;
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+.classes-class-link:hover {
+  color: #bfdbfe;
+  border-bottom-color: rgba(191, 219, 254, 0.45);
+}
+
+.classes-student-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+}
+
+.classes-student-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.25rem;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #cbd5e1;
+  border: 1px solid #334155;
+  background: rgba(30, 41, 59, 0.45);
+}
+
+.classes-roster-link {
+  font-size: 13px;
+  font-weight: 500;
+  color: #60a5fa;
+  text-decoration: none;
+}
+
+.classes-roster-link:hover {
+  text-decoration: underline;
+}
+
+.classes-actions-cell {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.classes-actions-cell .classes-btn-sm {
+  margin-right: 0;
 }
 
 .classes-btn-sm {
@@ -396,6 +504,35 @@
 
 :root[data-theme='light'] .classes-empty {
   color: #64748b;
+}
+
+:root[data-theme='light'] .classes-list-panel {
+  border-color: #dbe6f3;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  box-shadow: 0 16px 34px -28px rgba(15, 23, 42, 0.35);
+}
+
+:root[data-theme='light'] .classes-class-link {
+  color: #1d4ed8;
+}
+
+:root[data-theme='light'] .classes-class-link:hover {
+  color: #1e40af;
+  border-bottom-color: rgba(29, 78, 216, 0.35);
+}
+
+:root[data-theme='light'] .classes-student-count {
+  color: #334155;
+  border-color: #cbd5e1;
+  background: #f1f5f9;
+}
+
+:root[data-theme='light'] .classes-roster-link {
+  color: #1d4ed8;
+}
+
+:root[data-theme='light'] .classes-table-row:hover td {
+  background: rgba(37, 99, 235, 0.05);
 }
 
 :root[data-theme='light'] .classes-table th,
