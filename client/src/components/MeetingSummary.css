@@ -304,6 +304,12 @@
   margin-bottom: 20px;
 }
 
+/* Placed after long read-only body so the message sits next to primary actions (no “missing button”). */
+.meeting-summary-action-error--near-actions {
+  margin-top: 16px;
+  margin-bottom: 12px;
+}
+
 .meeting-summary-edit {
   display: flex;
   flex-direction: column;
