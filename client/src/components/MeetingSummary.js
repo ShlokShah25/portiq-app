@@ -369,9 +369,7 @@ const MeetingSummary = () => {
         {
           additionalParticipants: [],
           translationLanguage:
-            !isEducation && allowsTranslatedSummary && translationLanguage
-              ? translationLanguage
-              : null,
+            allowsTranslatedSummary && translationLanguage ? translationLanguage : null,
         },
         { headers: otpHeaders }
       );
@@ -533,7 +531,7 @@ const MeetingSummary = () => {
             <div className="meeting-summary-language-row">
               <label className="meeting-summary-language-label">
                 {isEducation
-                  ? 'Preview summary in another language (on-screen only):'
+                  ? 'Also append translated summary in the class email:'
                   : 'Also send translated summary in:'}
               </label>
               {isEducation && (
@@ -545,7 +543,8 @@ const MeetingSummary = () => {
                     lineHeight: 1.45,
                   }}
                 >
-                  Emails to your class are always sent in English. This option is for your own preview only.
+                  The main message and PDF stay in English; the language you pick is added as an extra section in the
+                  same email for students.
                 </p>
               )}
               <select

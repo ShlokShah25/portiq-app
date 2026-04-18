@@ -2119,6 +2119,20 @@ async function sendMeetingSummary(meeting, summaryData, options = {}) {
     'https://meetingassistant.portiqtechnologies.com';
   const summaryUrl = `${String(baseUrl).replace(/\/+$/, '')}/meetings/${meeting._id}/summary`;
 
+  const translationLang =
+    options.translationLanguage && String(options.translationLanguage).trim()
+      ? String(options.translationLanguage).trim()
+      : null;
+  let emailTranslatedSummary = null;
+  if (translationLang) {
+    emailTranslatedSummary = await translateSummaryForEmail(summaryData, translationLang);
+    if (!emailTranslatedSummary) {
+      console.warn(
+        `⚠️ Could not generate email translation for ${translationLang}; sending English-only body.`
+      );
+    }
+  }
+
   const textLines = [
     'Hello,',
     '',
@@ -2139,6 +2153,9 @@ async function sendMeetingSummary(meeting, summaryData, options = {}) {
           eduThought,
           '',
         ]
+      : []),
+    ...(emailTranslatedSummary && translationLang
+      ? ['', `Translated summary (${translationLang}):`, emailTranslatedSummary, '']
       : []),
     '---',
     'PortIQ Technologies',
@@ -2427,18 +2444,15 @@ async function sendMeetingSummary(meeting, summaryData, options = {}) {
     : '';
 
   let translatedBlock = '';
-  if (!isEducation && options.translationLanguage) {
-    const translated = await translateSummaryForEmail(summaryData, options.translationLanguage);
-    if (translated) {
-      translatedBlock = `
+  if (emailTranslatedSummary && translationLang) {
+    translatedBlock = `
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
       <p style="margin: 0 0 8px 0; font-size: 13px; color: #4b5563;">
-        Translated summary (<strong>${options.translationLanguage}</strong>):
+        Translated summary (<strong>${escHtml(translationLang)}</strong>):
       </p>
       <div style="white-space: pre-wrap; font-size: 13px; color: #111827; background: #f9fafb; padding: 12px 14px; border-radius: 8px; border: 1px solid #e5e7eb;">
-        ${translated.replace(/</g, '&lt;')}
+        ${emailTranslatedSummary.replace(/</g, '&lt;')}
       </div>`;
-    }
   }
 
   const htmlBody = `

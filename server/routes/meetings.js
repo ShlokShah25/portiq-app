@@ -2129,9 +2129,7 @@ router.post('/:id/approve-and-send', async (req, res) => {
       });
     }
     const translation =
-      !isEducationAccount &&
-      translationLanguage &&
-      String(translationLanguage).trim()
+      translationLanguage && String(translationLanguage).trim()
         ? String(translationLanguage).trim()
         : null;
     if (translation && !planInfo.allowsTranslatedSummary) {
