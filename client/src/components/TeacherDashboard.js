@@ -491,18 +491,6 @@ export default function TeacherDashboard() {
                         ' · ' +
                         (m?.status || 'Scheduled')}
                     </small>
-                    <div className="dashboard-start-meeting__actions" style={{ marginTop: 8 }}>
-                      <button
-                        type="button"
-                        className="dashboard-btn-secondary dashboard-btn-micro"
-                        onClick={() => {
-                          const id = m?._id || m?.id;
-                          if (id) navigate(`/meetings/${String(id)}`);
-                        }}
-                      >
-                        Open record
-                      </button>
-                    </div>
                   </li>
                 ))}
               </ul>
