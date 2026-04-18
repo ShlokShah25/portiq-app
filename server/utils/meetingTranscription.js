@@ -749,6 +749,43 @@ function reconcileSummaryPayloadAfterGrounding(preFilter, summaryData, transcrip
   applyTranscriptExcerptFallbackSummary(summaryData, transcriptTextTrim);
 }
 
+const EDUCATION_SPEAKER_BRACKET_PREFIX = /\[[^\]\r\n]{1,120}\]\s*:\s*/g;
+
+/** Remove bracket speaker labels from education lecture notes (summary + structured fields). */
+function stripEducationSpeakerLabelsFromSummaryData(summaryData) {
+  if (!summaryData || typeof summaryData !== 'object') return;
+  const strip = (s) => {
+    let t = String(s || '');
+    let prev;
+    do {
+      prev = t;
+      t = t.replace(EDUCATION_SPEAKER_BRACKET_PREFIX, '');
+    } while (t !== prev);
+    return t.replace(/\s{2,}/g, ' ').trim();
+  };
+  const stripArr = (arr) =>
+    (Array.isArray(arr) ? arr : [])
+      .map((x) => strip(x))
+      .filter((x) => x.length > 0);
+  summaryData.summary = strip(summaryData.summary);
+  summaryData.keyPoints = stripArr(summaryData.keyPoints);
+  summaryData.decisions = stripArr(summaryData.decisions);
+  summaryData.nextSteps = stripArr(summaryData.nextSteps);
+  summaryData.importantNotes = stripArr(summaryData.importantNotes);
+  if (Array.isArray(summaryData.actionItems)) {
+    summaryData.actionItems = summaryData.actionItems.map((item) => ({
+      ...item,
+      task: strip(item && item.task != null ? item.task : ''),
+      notes:
+        item && item.notes != null && String(item.notes).trim()
+          ? strip(item.notes)
+          : item && item.notes != null
+            ? item.notes
+            : item?.notes,
+    }));
+  }
+}
+
 /**
  * Generate structured summary from transcript text only (no Whisper).
  * Used when the recording file is missing on disk but the transcript is still in the database.
@@ -899,8 +936,10 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
                 ? '(topics taught, concepts compared, practice discussed, open questions). '
                 : '(projects, planning, issues, risks, feedback, next steps). ') +
               'Highlight the most important concrete points such as names, topics, numbers, and deadlines. ' +
-              'SPEAKER ATTRIBUTION: The executive summary narrative must attribute dialogue and positions to speakers whenever possible, using bracketed labels like [Alex Kim]: … or [Unidentified speaker]: … when identity is unclear. ' +
-              'Use configured / roster names only when the transcript clearly supports that person saying it; otherwise [Unidentified speaker]. Never omit speaker context for attributed claims.',
+              (isEducation
+                ? 'LECTURE NOTES MODE: This is a single-instructor classroom session. Do NOT attribute dialogue to speakers. Never use bracketed speaker prefixes such as [Name]: or [Unidentified speaker]: in the summary, key points, decisions, next steps, or important notes. Write neutral instructional prose (e.g. "The lecture introduced…", "Students explored…"). '
+                : 'SPEAKER ATTRIBUTION: The executive summary narrative must attribute dialogue and positions to speakers whenever possible, using bracketed labels like [Alex Kim]: … or [Unidentified speaker]: … when identity is unclear. ' +
+                  'Use configured / roster names only when the transcript clearly supports that person saying it; otherwise [Unidentified speaker]. Never omit speaker context for attributed claims.'),
         },
         {
           role: 'user',
@@ -914,9 +953,13 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
               ? `Approximate meeting duration: ${durationMinutes} minutes.\n\n`
               : '') +
             (meetingObj.participants && meetingObj.participants.length > 0
-                ? `IMPORTANT: The following people are expected participants (some may be unnamed or guests). When names appear in the transcript, prefer the spellings below when they match:\n` +
-                  formatParticipantLinesForSummaryPrompt(meetingObj.participants) +
-                  `\n\nEnsure names in the summary and action items match the transcript; do not invent people who did not speak.\n\n`
+                ? isEducation
+                  ? `Roster (spelling reference only — do not label speech by speaker in your outputs):\n` +
+                    formatParticipantLinesForSummaryPrompt(meetingObj.participants) +
+                    `\n\nUse these spellings when student names appear in content; do not invent people who were not part of the class.\n\n`
+                  : `IMPORTANT: The following people are expected participants (some may be unnamed or guests). When names appear in the transcript, prefer the spellings below when they match:\n` +
+                    formatParticipantLinesForSummaryPrompt(meetingObj.participants) +
+                    `\n\nEnsure names in the summary and action items match the transcript; do not invent people who did not speak.\n\n`
               : '') +
             `Transcript:\n\n${transcriptWithSpeakers}\n\n` +
             `Follow these rules strictly:\n` +
@@ -930,9 +973,12 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
             `- Explicitly mention important specifics such as names, topics, projects, events, numbers, dates, and deadlines when they are clearly mentioned.\n` +
               userElaborationRules +
               userEducationRules +
-              `- CRITICAL: Every key point MUST start with a bracketed speaker label, then a colon and space: "[Speaker Name]: …" or "[Unidentified speaker]: …" or "[Speaker 1]: …". Use roster or voice-profile names only when the transcript clearly supports that speaker; never invent names. Do not emit a key point without a speaker prefix.\n` +
-              `- Executive summary: write in full sentences; when stating who said or decided something, use the same bracketed speaker labels.\n` +
-            `- In actionItems, each task must be a specific, actionable task tied to what people actually said (no generic or invented tasks). Include the assignee name if mentioned.\n` +
+              (isEducation
+                ? `- Key points must be plain strings with NO speaker labels — start each bullet directly with the teaching point.\n` +
+                  `- The summary must read as continuous lecture notes without [Speaker]: prefixes or dialogue attribution.\n`
+                : `- CRITICAL: Every key point MUST start with a bracketed speaker label, then a colon and space: "[Speaker Name]: …" or "[Unidentified speaker]: …" or "[Speaker 1]: …". Use roster or voice-profile names only when the transcript clearly supports that speaker; never invent names. Do not emit a key point without a speaker prefix.\n` +
+                  `- Executive summary: write in full sentences; when stating who said or decided something, use the same bracketed speaker labels.\n`) +
+            `- In actionItems, each task must be a specific, actionable task tied to what was actually discussed (no generic or invented tasks). Include the assignee name if mentioned.\n` +
               `- If there are no explicit action items in the transcript, set actionItems to []. Do not infer.\n` +
               `- For actionItems, set dueDate to YYYY-MM-DD only when a calendar deadline is clearly tied to THAT specific task.\n` +
               `- Map relative language using the meeting anchor above: "tonight", "today", "this evening", "EOD", "by end of day", Romanized Hindi/Hinglish like "aaj raat", "aaj sham/shaam" → ${anchorLocalYmd}. "tomorrow" / "kal" (when meaning next day) → ${anchorTomorrowYmd}.\n` +
@@ -944,7 +990,9 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
             `- Do not hallucinate information that was not discussed.\n` +
             `- Only include decisions or actions that are clearly mentioned.\n` +
             `- If a section has no information, set it to "Not specified".\n` +
-            `- When participant names are mentioned in the transcript, use them to attribute statements. Match names from the participant list provided.\n\n` +
+            (isEducation
+              ? `- Do not frame content as who said what; focus on what was taught and clarified.\n\n`
+              : `- When participant names are mentioned in the transcript, use them to attribute statements. Match names from the participant list provided.\n\n`) +
             `Return ONLY a JSON object with the following structure:\n` +
             `{\n` +
               `  ${summarySchemaHint}\n` +
@@ -1014,6 +1062,10 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
 
   if (!summaryPayloadHasDisplayableContent(summaryData)) {
     applyTranscriptExcerptFallbackSummary(summaryData, transcriptTextTrim);
+  }
+
+  if (isEducation) {
+    stripEducationSpeakerLabelsFromSummaryData(summaryData);
   }
 
   console.log('✅ Summary generated (from stored transcript)');

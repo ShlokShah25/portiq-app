@@ -13,6 +13,7 @@ import {
 import './MeetingSummary.css';
 import MeetingSummaryReadonlyBody from './MeetingSummaryReadonlyBody';
 import { formatApiError } from '../utils/apiErrorMessage';
+import { stripEducationSummaryForDisplay } from '../utils/educationSummaryDisplay';
 
 const MeetingSummary = () => {
   const { id } = useParams();
@@ -118,25 +119,45 @@ const MeetingSummary = () => {
 
   if (!meeting) return null;
 
-  const summaryText =
-    meeting.pendingSummary ||
-    meeting.summary ||
-    '';
-  const keyPoints =
-    (meeting.pendingKeyPoints && meeting.pendingKeyPoints.length) ? meeting.pendingKeyPoints
+  const rawSummaryText = meeting.pendingSummary || meeting.summary || '';
+  const rawKeyPoints =
+    meeting.pendingKeyPoints && meeting.pendingKeyPoints.length
+      ? meeting.pendingKeyPoints
       : meeting.keyPoints || [];
-  const actionItems =
-    (meeting.pendingActionItems && meeting.pendingActionItems.length) ? meeting.pendingActionItems
+  const rawActionItems =
+    meeting.pendingActionItems && meeting.pendingActionItems.length
+      ? meeting.pendingActionItems
       : meeting.actionItems || [];
-  const decisions =
-    (meeting.pendingDecisions && meeting.pendingDecisions.length) ? meeting.pendingDecisions
+  const rawDecisions =
+    meeting.pendingDecisions && meeting.pendingDecisions.length
+      ? meeting.pendingDecisions
       : meeting.decisions || [];
-  const nextSteps =
-    (meeting.pendingNextSteps && meeting.pendingNextSteps.length) ? meeting.pendingNextSteps
+  const rawNextSteps =
+    meeting.pendingNextSteps && meeting.pendingNextSteps.length
+      ? meeting.pendingNextSteps
       : meeting.nextSteps || [];
-  const importantNotes =
-    (meeting.pendingImportantNotes && meeting.pendingImportantNotes.length) ? meeting.pendingImportantNotes
+  const rawImportantNotes =
+    meeting.pendingImportantNotes && meeting.pendingImportantNotes.length
+      ? meeting.pendingImportantNotes
       : meeting.importantNotes || [];
+
+  const eduStripped = isEducation
+    ? stripEducationSummaryForDisplay({
+        summary: rawSummaryText,
+        keyPoints: rawKeyPoints,
+        decisions: rawDecisions,
+        nextSteps: rawNextSteps,
+        importantNotes: rawImportantNotes,
+        actionItems: rawActionItems,
+      })
+    : null;
+
+  const summaryText = eduStripped ? eduStripped.summary : rawSummaryText;
+  const keyPoints = eduStripped ? eduStripped.keyPoints : rawKeyPoints;
+  const actionItems = eduStripped ? eduStripped.actionItems : rawActionItems;
+  const decisions = eduStripped ? eduStripped.decisions : rawDecisions;
+  const nextSteps = eduStripped ? eduStripped.nextSteps : rawNextSteps;
+  const importantNotes = eduStripped ? eduStripped.importantNotes : rawImportantNotes;
 
   const summaryMode = meeting.summaryMode === 'interview' ? 'interview' : 'standard';
   const isInterview = FEATURE_INTERVIEW_UI && summaryMode === 'interview';
