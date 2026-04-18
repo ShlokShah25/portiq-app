@@ -1619,6 +1619,9 @@ router.get('/:id', async (req, res) => {
     } else {
       attachSummaryUiState(payload);
     }
+    if (admin) {
+      payload.accountProductType = String(admin.productType || 'workplace').toLowerCase();
+    }
 
     res.json({ meeting: payload });
   } catch (error) {
