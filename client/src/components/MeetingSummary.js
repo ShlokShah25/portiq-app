@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
-import { T } from '../config/terminology';
 import { isEducation } from '../config/product';
 import { FEATURE_INTERVIEW_UI } from '../config/featureFlags';
 import { getSummaryEmptyBodyMessage } from '../utils/summaryEmptyReasonCopy';
@@ -14,6 +13,18 @@ import './MeetingSummary.css';
 import MeetingSummaryReadonlyBody from './MeetingSummaryReadonlyBody';
 import { formatApiError } from '../utils/apiErrorMessage';
 import { stripEducationSummaryForDisplay } from '../utils/educationSummaryDisplay';
+
+/** True when this meeting is a lecture/class (metadata on the meeting doc), independent of client shell. */
+function meetingHasEducationContext(m) {
+  if (!m || typeof m !== 'object') return false;
+  if (m.educationSummaryTeacherReviewedAt) return true;
+  if (String(m.educationClassroomId || '').trim()) return true;
+  if (String(m.educationSubject || '').trim()) return true;
+  if (String(m.educationClassroomName || '').trim()) return true;
+  if (String(m.educationTeacherName || '').trim()) return true;
+  if (String(m.educationTeacherEmail || '').trim()) return true;
+  return false;
+}
 
 const MeetingSummary = () => {
   const { id } = useParams();
@@ -127,14 +138,12 @@ const MeetingSummary = () => {
   if (!meeting) return null;
 
   const accountPt = String(meeting.accountProductType || '').trim().toLowerCase();
+  const educationFromMeetingMeta = meetingHasEducationContext(meeting);
   const isEducationMode =
-    accountPt === 'education'
-      ? true
-      : accountPt === 'workplace'
-        ? false
-        : serverProductType != null
-          ? serverProductType === 'education'
-          : isEducation;
+    educationFromMeetingMeta ||
+    accountPt === 'education' ||
+    (accountPt !== 'workplace' && serverProductType != null && serverProductType === 'education') ||
+    (accountPt !== 'workplace' && serverProductType == null && isEducation);
 
   const rawSummaryText = meeting.pendingSummary || meeting.summary || '';
   const rawKeyPoints =
@@ -452,7 +461,9 @@ const MeetingSummary = () => {
             />
           )}
 
-          <p className="meeting-summary-subtitle">{T.meetingSummary()}</p>
+          <p className="meeting-summary-subtitle">
+            {isEducationMode ? 'Lecture Notes' : 'Meeting Summary'}
+          </p>
 
           {meeting.editorVerificationRequired && (
             <div
@@ -787,6 +798,11 @@ const MeetingSummary = () => {
                   />
                 </div>
               </div>
+              {actionError && (
+                <div className="meeting-summary-action-error" role="alert">
+                  {actionError}
+                </div>
+              )}
               {canEditAndSend && (
                 <div className="meeting-summary-actions meeting-summary-actions--send-first">
                   {isEducationMode ? (
@@ -851,8 +867,6 @@ const MeetingSummary = () => {
             </>
           )}
 
-          {actionError && <div className="meeting-summary-action-error">{actionError}</div>}
-
           {!!hasContent && !editingSummary && !meeting.editorVerificationRequired && (
             <>
               {!isInterview &&
@@ -909,6 +923,11 @@ const MeetingSummary = () => {
                   evaluationSignals={evaluationSignals}
                 />
               </div>
+              {actionError && (
+                <div className="meeting-summary-action-error meeting-summary-action-error--near-actions" role="alert">
+                  {actionError}
+                </div>
+              )}
               {canEditAndSend && (
                 <div className="meeting-summary-actions meeting-summary-actions--send-first meeting-summary-actions--after-body">
                   {isInterview ? (
