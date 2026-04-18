@@ -2035,7 +2035,8 @@ async function sendMeetingSummary(meeting, summaryData, options = {}) {
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
-  const eduThought = isEducation ? pickEducationThoughtOfTheDay(meeting.educationSubject) : '';
+  const educationSubjectLabel = String(meeting.educationSubject || '').trim();
+  const eduThought = isEducation ? pickEducationThoughtOfTheDay(educationSubjectLabel) : '';
   const eduRider = isEducation
     ? formatEducationProfessorRider(meeting.educationTeacherName || meeting.organizer)
     : '';
@@ -2125,7 +2126,15 @@ async function sendMeetingSummary(meeting, summaryData, options = {}) {
     summaryUrl,
     '',
     ...(isEducation
-      ? ['PortIQ thought of the day:', eduThought, '', eduRider, '']
+      ? [
+          eduRider,
+          '',
+          educationSubjectLabel
+            ? `Subject insight (${educationSubjectLabel}):`
+            : 'Subject insight:',
+          eduThought,
+          '',
+        ]
       : []),
     '---',
     'PortIQ Technologies',
@@ -2314,20 +2323,36 @@ async function sendMeetingSummary(meeting, summaryData, options = {}) {
     `
       : '';
 
-  const educationDigestExtrasHtml = isEducation
-    ? `
-      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
-      <p style="margin: 0 0 8px 0; font-size: 13px; color: #4b5563;">
-        <strong>PortIQ thought of the day</strong>
-      </p>
-      <p style="margin: 0 0 16px 0; font-size: 13px; color: #111827; line-height: 1.55;">
-        ${escHtml(eduThought)}
-      </p>
-      <p style="margin: 0; font-size: 13px; color: #374151; font-style: italic;">
-        ${escHtml(eduRider)}
+  const educationProfessorBodyHtml =
+    isEducation && eduRider
+      ? `
+      <p style="margin: 20px 0 0 0; padding: 14px 16px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0; font-size: 14px; color: #0f172a; line-height: 1.55;">
+        <strong>${escHtml(eduRider)}</strong>
       </p>
     `
-    : '';
+      : '';
+
+  const educationSubjectInsightHtml =
+    isEducation && eduThought
+      ? `
+      <div style="margin: 22px 0 0 0; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; background: linear-gradient(165deg, #ffffff 0%, #f8fafc 42%, #eef2ff 100%); box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);">
+        <div style="padding: 14px 18px 12px 18px; border-bottom: 1px solid #e2e8f0; background: rgba(37, 99, 235, 0.07);">
+          <p style="margin: 0; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: #64748b; font-weight: 600;">PortIQ</p>
+          <p style="margin: 8px 0 0 0; font-size: 17px; font-weight: 700; color: #0f172a; letter-spacing: -0.02em;">Subject insight</p>
+          ${
+            educationSubjectLabel
+              ? `<p style="margin: 8px 0 0 0; font-size: 12px; color: #475569;">For this lecture · <strong style="color: #1e293b;">${escHtml(
+                  educationSubjectLabel
+                )}</strong></p>`
+              : `<p style="margin: 8px 0 0 0; font-size: 12px; color: #475569;">One idea to carry from this session</p>`
+          }
+        </div>
+        <div style="padding: 16px 18px 18px 18px;">
+          <p style="margin: 0; font-size: 15px; line-height: 1.65; color: #334155;">${escHtml(eduThought)}</p>
+        </div>
+      </div>
+    `
+      : '';
 
   const meetingStart = meeting.startTime || meeting.scheduledTime;
   const meetingEnd = meeting.endTime || (meetingStart ? new Date(new Date(meetingStart).getTime() + 60 * 60 * 1000) : null);
@@ -2431,9 +2456,10 @@ async function sendMeetingSummary(meeting, summaryData, options = {}) {
           ${summaryUrl}
         </a>
       </p>
+      ${educationProfessorBodyHtml}
       ${meetingCalendarBlock}
       ${isEducation ? educationAssignmentsEmailBlock : actionItemsBlock}
-      ${educationDigestExtrasHtml}
+      ${educationSubjectInsightHtml}
       <br/>
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
       <p style="margin: 0;">
