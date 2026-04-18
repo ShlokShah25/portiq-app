@@ -716,7 +716,7 @@ async function synthesizeEnglishRecapFromTranscriptExcerpt(excerpt, meetingTitle
           role: 'system',
           content:
             `You write clear professional English notes for a ${session}. ` +
-            'The input may be entirely in Hindi, mixed Hinglish, or other languages. ' +
+            'The input may be in Hindi (Devanagari or romanized), Hinglish, other Indian languages, Arabic, CJK scripts, European languages, or any mix—read everything carefully. ' +
             'Your output must be **English only**: faithful recap of what was discussed (topics, facts, decisions, assignments if any). ' +
             'Do not copy long repetitive filler from the source; summarize. ' +
             'Do not invent content not supported by the text. ' +
@@ -1028,9 +1028,11 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
               systemRole +
               systemEducationFocus +
               systemElaborationDepth +
-              'The transcript may contain multiple languages including English, Hindi, Marathi, Gujarati, Japanese, Chinese, French, Spanish, German, and Russian (plus mixed variants like Hinglish). ' +
-            'Accurately understand all languages present, but provide your output only in professional English. ' +
-              'CRITICAL: Every JSON string (summary, each keyPoint, decisions, nextSteps, importantNotes, actionItems.task and actionItems.notes) must be English prose — translate or paraphrase from Hindi or any other source language. Never paste the raw non-English transcript (or long repetitive non-English filler) as the summary or bullets. ' +
+              'MULTILINGUAL INPUT: The transcript may be entirely or partly in English, Hindi (Devanagari or romanized), Hinglish, Marathi, Gujarati, Tamil, Telugu, Kannada, Malayalam, Bengali, Punjabi, Urdu (Arabic script), Arabic, Persian, Japanese, Chinese (Simplified or Traditional), Korean, French, Spanish, German, Portuguese, Italian, Dutch, Polish, Turkish, Vietnamese, Thai, Indonesian, Swahili, or other languages—and may code-switch mid-sentence. ' +
+              'Read and interpret every language and script that appears, including mixed registers and transliterated names. ' +
+              'OUTPUT LANGUAGE (mandatory): The entire JSON response must be professional English only. Translate and paraphrase all substantive content into English. Do not leave the summary, key points, decisions, next steps, important notes, or action item text in Hindi or any non-English script, and do not paste long stretches of raw non-English transcript as filler. ' +
+              'Exception: you may keep a short technical term or vocabulary item in its original form inside an otherwise English sentence when the transcript is explicitly teaching that word. ' +
+              'CRITICAL: Every JSON string (summary, each keyPoint, decisions, nextSteps, importantNotes, actionItems.task and actionItems.notes) must read as fluent English prose grounded in the transcript. ' +
               'HALLUCINATION GUARD: Never fabricate quotes, translations, or foreign-language phrases that do not appear in the transcript. If you paraphrase non-English speech, stay tightly tied to words that are actually there. ' +
               'Prioritize completeness over brevity: include every relevant discussion point, decision, risk, and commitment. ' +
               (isEducation
@@ -1071,6 +1073,7 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
               : '') +
             `Transcript:\n\n${transcriptWithSpeakers}\n\n` +
             `Follow these rules strictly:\n` +
+            `- Output language: write every JSON string in English regardless of the detected primary transcription language (${detectedLanguage}) or the mix of languages in the audio—comprehend all of it, report only in English.\n` +
             `- Focus ONLY on what is actually discussed in this transcript.\n` +
               `- Do NOT invent themes from the calendar title. If the title is generic but the audio is about travel, family, logistics, health, etc., write about what was spoken.\n` +
             `- Do NOT talk about the AI or summarization itself unless it is explicitly discussed.\n` +
@@ -1598,7 +1601,8 @@ async function reauditStructuredSummaryWithVoice(summaryResult, voiceEvidenceTra
       {
         role: 'system',
         content:
-          'You output only valid JSON objects. Preserve array shapes. Never use markdown fences.',
+          'You output only valid JSON objects. Preserve array shapes. Never use markdown fences. ' +
+          'Keep every string field in clear professional English (translate if the underlying meeting was not in English).',
       },
       { role: 'user', content: userContent },
     ],
