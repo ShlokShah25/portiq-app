@@ -59,6 +59,7 @@ function buildPipelineUpdateFromSummaryData(summaryData) {
     originalEvaluationSignals: ev,
     transcriptionStatus: 'Completed',
     summaryStatus: 'Pending Approval',
+    educationSummaryTeacherReviewedAt: null,
     ...clearTranscriptionFailureFields(),
   };
 }

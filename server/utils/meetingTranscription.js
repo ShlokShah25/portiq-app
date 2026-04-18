@@ -25,6 +25,10 @@ const {
 } = require('./meetingSummaryModes');
 const { ensureWhisperSizedAudio, WHISPER_MAX_BYTES } = require('./audioCompressForWhisper');
 const { identifySpeaker } = require('./voiceRecognition');
+const {
+  pickEducationThoughtOfTheDay,
+  formatEducationProfessorRider,
+} = require('./educationEmailBonuses');
 
 /**
  * Save Whisper output to MongoDB before summarization so GPT failures or deploys never wipe recoverable text.
@@ -1917,6 +1921,16 @@ async function sendMeetingSummary(meeting, summaryData, options = {}) {
     productType = 'workplace';
   }
   const isEducation = productType === 'education';
+  const escHtml = (t) =>
+    String(t || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  const eduThought = isEducation ? pickEducationThoughtOfTheDay(meeting.educationSubject) : '';
+  const eduRider = isEducation
+    ? formatEducationProfessorRider(meeting.educationTeacherName || meeting.organizer)
+    : '';
   const summaryNoun = isEducation ? 'Lecture Summary' : 'Meeting Summary';
   const sessionNoun = isEducation ? 'lecture' : 'meeting';
   const audienceNoun = isEducation ? 'students' : 'participants';
@@ -2002,6 +2016,9 @@ async function sendMeetingSummary(meeting, summaryData, options = {}) {
     viewOnlineLabel,
     summaryUrl,
     '',
+    ...(isEducation
+      ? ['PortIQ thought of the day:', eduThought, '', eduRider, '']
+      : []),
     '---',
     'PortIQ Technologies',
     platformLabel,
@@ -2119,7 +2136,7 @@ async function sendMeetingSummary(meeting, summaryData, options = {}) {
 
   const actionItemsWithDates = actionItemsForEmail.filter((a) => a.dueDate && toAllDayDate(a.dueDate));
 
-  const actionItemsBlock = actionItemsWithDates.length
+  const actionItemsBlock = !isEducation && actionItemsWithDates.length
     ? `
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
       <p style="margin: 0 0 10px 0; font-size: 13px; color: #4b5563;">
@@ -2158,6 +2175,49 @@ async function sendMeetingSummary(meeting, summaryData, options = {}) {
           ${calendarTasksTip}
         </p>
       </div>
+    `
+    : '';
+
+  const educationAssignmentsEmailBlock =
+    isEducation && actionItemsForEmail.length > 0
+      ? `
+      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+      <p style="margin: 0 0 10px 0; font-size: 13px; color: #4b5563;">
+        <strong>Assignments & follow-ups</strong>
+      </p>
+      <ul style="margin: 0; padding-left: 18px; font-size: 13px; color: #111827;">
+        ${actionItemsForEmail
+          .map((a) => {
+            const task = escHtml(a.task);
+            const assignee = a.assignee
+              ? `<span style="color:#4b5563">Assigned to: ${escHtml(a.assignee)}</span>`
+              : '';
+            let dueLine = '';
+            if (a.dueDate && toAllDayDate(a.dueDate)) {
+              const due = new Date(a.dueDate);
+              if (!Number.isNaN(due.getTime())) {
+                dueLine = `<br/><span style="color:#4b5563">Due: ${escHtml(due.toLocaleDateString())}</span>`;
+              }
+            }
+            return `<li style="margin-bottom:10px"><strong>${task}</strong><br/>${assignee}${dueLine}</li>`;
+          })
+          .join('')}
+      </ul>
+    `
+      : '';
+
+  const educationDigestExtrasHtml = isEducation
+    ? `
+      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+      <p style="margin: 0 0 8px 0; font-size: 13px; color: #4b5563;">
+        <strong>PortIQ thought of the day</strong>
+      </p>
+      <p style="margin: 0 0 16px 0; font-size: 13px; color: #111827; line-height: 1.55;">
+        ${escHtml(eduThought)}
+      </p>
+      <p style="margin: 0; font-size: 13px; color: #374151; font-style: italic;">
+        ${escHtml(eduRider)}
+      </p>
     `
     : '';
 
@@ -2209,7 +2269,9 @@ async function sendMeetingSummary(meeting, summaryData, options = {}) {
       })
     : null;
 
-  const meetingCalendarBlock = (meetingCalendarGoogle || meetingCalendarOutlook)
+  const meetingCalendarBlock =
+    !isEducation &&
+    (meetingCalendarGoogle || meetingCalendarOutlook)
     ? `
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
       <p style="margin: 0 0 10px 0; font-size: 13px; color: #4b5563;">
@@ -2228,7 +2290,7 @@ async function sendMeetingSummary(meeting, summaryData, options = {}) {
     : '';
 
   let translatedBlock = '';
-  if (options.translationLanguage) {
+  if (!isEducation && options.translationLanguage) {
     const translated = await translateSummaryForEmail(summaryData, options.translationLanguage);
     if (translated) {
       translatedBlock = `
@@ -2262,7 +2324,8 @@ async function sendMeetingSummary(meeting, summaryData, options = {}) {
         </a>
       </p>
       ${meetingCalendarBlock}
-      ${actionItemsBlock}
+      ${isEducation ? educationAssignmentsEmailBlock : actionItemsBlock}
+      ${educationDigestExtrasHtml}
       <br/>
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
       <p style="margin: 0;">
@@ -2294,14 +2357,14 @@ async function sendMeetingSummary(meeting, summaryData, options = {}) {
         content: pdfBuffer,
         contentType: 'application/pdf',
       },
-      ...(meetingIcs
+      ...(!isEducation && meetingIcs
         ? [{
             filename: `${isEducation ? 'Lecture' : 'Meeting'}-${safeTitleForFile}-${dateStamp}.ics`,
             content: Buffer.from(meetingIcs, 'utf8'),
             contentType: 'text/calendar; charset=utf-8',
           }]
         : []),
-      ...(actionItemsWithDates.length > 0
+      ...(!isEducation && actionItemsWithDates.length > 0
         ? [{
             filename: `${icsFollowUpsFilename}-${safeTitleForFile}-${dateStamp}.ics`,
             content: Buffer.from(buildActionItemsIcs(actionItemsWithDates), 'utf8'),

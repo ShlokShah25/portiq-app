@@ -54,6 +54,7 @@ const MeetingsScreen = () => {
   const [verificationStep, setVerificationStep] = useState(''); // 'request', 'verify', 'edit', 'approved'
   const [editableSummary, setEditableSummary] = useState(null);
   const [editingSummary, setEditingSummary] = useState(false);
+  const [inlineSummaryBusy, setInlineSummaryBusy] = useState(false);
   const [additionalParticipants, setAdditionalParticipants] = useState([
     { name: '', email: '' }
   ]);
@@ -365,6 +366,169 @@ const MeetingsScreen = () => {
   const companyName = config?.companyName || 'Your Company';
   const isInterviewMeeting = (m) => FEATURE_INTERVIEW_UI && m?.summaryMode === 'interview';
   const meetingTypeLabel = (m) => (isInterviewMeeting(m) ? 'Interview' : isEducation ? 'Lecture' : 'Meeting');
+
+  const meetingToEditableSummary = useCallback((m) => {
+    const sm = m.summaryMode === 'interview' ? 'interview' : 'standard';
+    const hiringRecommendation = String(
+      m.pendingHiringRecommendation || m.hiringRecommendation || ''
+    ).trim();
+    const hiringRecommendationReason = String(
+      m.pendingHiringRecommendationReason || m.hiringRecommendationReason || ''
+    ).trim();
+    const evaluationSignals =
+      m.pendingEvaluationSignals != null ? m.pendingEvaluationSignals : m.evaluationSignals;
+    return {
+      summary: m.pendingSummary || m.summary || '',
+      keyPoints: m.pendingKeyPoints?.length ? m.pendingKeyPoints : m.keyPoints || [],
+      actionItems: m.pendingActionItems?.length ? m.pendingActionItems : m.actionItems || [],
+      decisions: m.pendingDecisions?.length ? m.pendingDecisions : m.decisions || [],
+      nextSteps: m.pendingNextSteps?.length ? m.pendingNextSteps : m.nextSteps || [],
+      importantNotes: m.pendingImportantNotes?.length
+        ? m.pendingImportantNotes
+        : m.importantNotes || [],
+      summaryMode: sm,
+      hiringRecommendation,
+      hiringRecommendationReason,
+      evaluationSignals: evaluationSignals || null,
+    };
+  }, []);
+
+  const handleInlineSaveEducationReview = useCallback(async () => {
+    if (!selectedMeeting?._id || !editableSummary) return;
+    setInlineSummaryBusy(true);
+    setError('');
+    try {
+      const otpHeaders = editorOtpHeaders(selectedMeeting._id);
+      const pendingBody = {
+        summary: editableSummary.summary,
+        keyPoints: editableSummary.keyPoints,
+        actionItems: editableSummary.actionItems,
+        decisions: editableSummary.decisions,
+        nextSteps: editableSummary.nextSteps,
+        importantNotes: editableSummary.importantNotes,
+        markEducationReviewComplete: true,
+      };
+      if (editableSummary.summaryMode === 'interview') {
+        pendingBody.hiringRecommendation = editableSummary.hiringRecommendation || '';
+        pendingBody.hiringRecommendationReason = editableSummary.hiringRecommendationReason || '';
+        pendingBody.evaluationSignals = editableSummary.evaluationSignals;
+      }
+      const res = await axios.put(
+        `/meetings/${selectedMeeting._id}/pending-summary`,
+        pendingBody,
+        { headers: otpHeaders }
+      );
+      setSelectedMeeting(res.data.meeting);
+      setEditableSummary(meetingToEditableSummary(res.data.meeting));
+      setEditingSummary(false);
+    } catch (err) {
+      const d = err.response?.data;
+      setError([d?.error, d?.details].filter(Boolean).join(' — ') || 'Failed to save review.');
+    } finally {
+      setInlineSummaryBusy(false);
+    }
+  }, [selectedMeeting, editableSummary, meetingToEditableSummary]);
+
+  const handleInlineApproveAndSend = useCallback(async () => {
+    if (!selectedMeeting?._id) return;
+    const interview = FEATURE_INTERVIEW_UI && selectedMeeting.summaryMode === 'interview';
+    setInlineSummaryBusy(true);
+    setError('');
+    try {
+      const otpHeaders = editorOtpHeaders(selectedMeeting._id);
+      const validAdditionalParticipants = interview
+        ? []
+        : additionalParticipants
+            .filter((p) => p.email && p.email.trim())
+            .map((p) => ({
+              name: p.name.trim() || '',
+              email: p.email.trim(),
+              role: 'participant',
+            }));
+
+      if (editableSummary) {
+        const pendingBody = {
+          summary: editableSummary.summary,
+          keyPoints: editableSummary.keyPoints,
+          actionItems: editableSummary.actionItems,
+          decisions: editableSummary.decisions,
+          nextSteps: editableSummary.nextSteps,
+          importantNotes: editableSummary.importantNotes,
+        };
+        if (editableSummary.summaryMode === 'interview') {
+          pendingBody.hiringRecommendation = editableSummary.hiringRecommendation || '';
+          pendingBody.hiringRecommendationReason = editableSummary.hiringRecommendationReason || '';
+          pendingBody.evaluationSignals = editableSummary.evaluationSignals;
+        }
+        await axios.put(
+          `/meetings/${selectedMeeting._id}/pending-summary`,
+          pendingBody,
+          { headers: otpHeaders }
+        );
+      }
+
+      const res = await axios.post(
+        `/meetings/${selectedMeeting._id}/approve-and-send`,
+        { additionalParticipants: validAdditionalParticipants },
+        { headers: otpHeaders }
+      );
+      clearStoredEditorOtp(selectedMeeting._id);
+      setSelectedMeeting(res.data.meeting);
+      setVerificationStep('approved');
+      setError('');
+      const msg =
+        res.data.message ||
+        (interview
+          ? 'Decision finalized and saved.'
+          : res.data.emailSent
+            ? isEducation
+              ? 'Lecture notes were sent to the class.'
+              : 'Summary approved and sent to all participants!'
+            : isEducation
+              ? 'Lecture notes were saved. Emails could not be sent (check mail configuration).'
+              : 'Summary approved and saved. Emails could not be sent (check mail configuration).');
+      alert(msg);
+      setTimeout(() => navigate('/meetings'), 2000);
+    } catch (err) {
+      const d = err.response?.data;
+      setError(
+        [d?.error, d?.details].filter(Boolean).join(' — ') || 'Failed to save summary'
+      );
+    } finally {
+      setInlineSummaryBusy(false);
+    }
+  }, [selectedMeeting, editableSummary, additionalParticipants, isEducation, navigate]);
+
+  const educationReopenInlineEdit = useCallback(async () => {
+    if (!selectedMeeting?._id) return;
+    setError('');
+    setInlineSummaryBusy(true);
+    try {
+      let m = selectedMeeting;
+      if (isEducation && selectedMeeting.educationSummaryTeacherReviewedAt) {
+        const otpHeaders = editorOtpHeaders(selectedMeeting._id);
+        await axios.put(
+          `/meetings/${selectedMeeting._id}/pending-summary`,
+          { educationCancelReview: true },
+          { headers: otpHeaders }
+        );
+        const resGet = await axios.get(`/meetings/${selectedMeeting._id}`, {
+          headers: otpHeaders,
+        });
+        m = resGet.data.meeting;
+        setSelectedMeeting(m);
+      }
+      setEditableSummary(meetingToEditableSummary(m));
+      setEditingSummary(true);
+    } catch (err) {
+      const d = err.response?.data;
+      setError(
+        [d?.error, d?.details].filter(Boolean).join(' — ') || 'Could not reopen notes for editing.'
+      );
+    } finally {
+      setInlineSummaryBusy(false);
+    }
+  }, [selectedMeeting, isEducation, meetingToEditableSummary]);
   const interviewStatusLabel = (status) => {
     if (status === 'Sent' || status === 'Approved') return 'Finalized';
     if (status === 'Pending Approval') return 'Pending decision';
@@ -1123,75 +1287,56 @@ const MeetingsScreen = () => {
                             {isInterviewMeeting(selectedMeeting)
                               ? 'The interview summary and recommendation are generated. Finalize the decision when you are ready.'
                               : isEducation
-                                ? 'The summary is generated and can be emailed to students once you approve it.'
+                                ? 'The summary is generated. Review and edit your notes, then you can send lecture notes to the class (student emails are in English).'
                                 : 'The summary is generated and can be emailed to participants once you approve it.'}
                           </p>
                           <p style={{ marginBottom: 20, color: '#9ca3af', fontSize: 13 }}>
                             {isInterviewMeeting(selectedMeeting)
                               ? 'Open to review and edit, then finalize the decision. This is internal and is not sent to candidates.'
-                              : 'Open to review, edit if needed, add late participants, then approve and send.'}
+                              : isEducation
+                                ? 'Use Review and Edit Notes, save your review, then send lecture notes to the class.'
+                                : 'Open to review, edit if needed, add late participants, then approve and send.'}
                           </p>
                       <button
                             type="button"
                             className="meeting-summary-btn meeting-summary-btn--primary"
                             style={{ width: '100%' }}
-                        onClick={() => {
-                              const sm =
-                                selectedMeeting.summaryMode === 'interview' ? 'interview' : 'standard';
-                              const hiringRecommendation = String(
-                                selectedMeeting.pendingHiringRecommendation ||
-                                  selectedMeeting.hiringRecommendation ||
-                                  ''
-                              ).trim();
-                              const hiringRecommendationReason = String(
-                                selectedMeeting.pendingHiringRecommendationReason ||
-                                  selectedMeeting.hiringRecommendationReason ||
-                                  ''
-                              ).trim();
-                              const evaluationSignals =
-                                selectedMeeting.pendingEvaluationSignals != null
-                                  ? selectedMeeting.pendingEvaluationSignals
-                                  : selectedMeeting.evaluationSignals;
-
-                          const base = {
-                            summary:
-                              selectedMeeting.pendingSummary ||
-                              selectedMeeting.summary ||
-                              '',
-                            keyPoints:
-                              selectedMeeting.pendingKeyPoints?.length
-                                ? selectedMeeting.pendingKeyPoints
-                                : selectedMeeting.keyPoints || [],
-                            actionItems:
-                              selectedMeeting.pendingActionItems?.length
-                                ? selectedMeeting.pendingActionItems
-                                : selectedMeeting.actionItems || [],
-                            decisions:
-                              selectedMeeting.pendingDecisions?.length
-                                ? selectedMeeting.pendingDecisions
-                                : selectedMeeting.decisions || [],
-                            nextSteps:
-                              selectedMeeting.pendingNextSteps?.length
-                                ? selectedMeeting.pendingNextSteps
-                                : selectedMeeting.nextSteps || [],
-                            importantNotes:
-                              selectedMeeting.pendingImportantNotes?.length
-                                ? selectedMeeting.pendingImportantNotes
-                                    : selectedMeeting.importantNotes || [],
-                                summaryMode: sm,
-                                hiringRecommendation,
-                                hiringRecommendationReason,
-                                evaluationSignals: evaluationSignals || null,
-                          };
-
-                          setEditableSummary(base);
-                              setEditingSummary(true);
-                          setVerificationStep('edit');
+                        onClick={async () => {
                           setError('');
+                          let meetingForEdit = selectedMeeting;
+                          try {
+                            if (
+                              isEducation &&
+                              selectedMeeting.educationSummaryTeacherReviewedAt
+                            ) {
+                              const otpHeaders = editorOtpHeaders(selectedMeeting._id);
+                              await axios.put(
+                                `/meetings/${selectedMeeting._id}/pending-summary`,
+                                { educationCancelReview: true },
+                                { headers: otpHeaders }
+                              );
+                              const resGet = await axios.get(
+                                `/meetings/${selectedMeeting._id}`,
+                                { headers: otpHeaders }
+                              );
+                              meetingForEdit = resGet.data.meeting;
+                              setSelectedMeeting(meetingForEdit);
+                            }
+                          } catch (err) {
+                            const d = err.response?.data;
+                            setError(
+                              [d?.error, d?.details].filter(Boolean).join(' — ') ||
+                                'Could not reopen notes for editing.'
+                            );
+                            return;
+                          }
+                          setEditableSummary(meetingToEditableSummary(meetingForEdit));
+                          setEditingSummary(true);
+                          setVerificationStep('edit');
                           setAdditionalParticipants([{ name: '', email: '' }]);
                         }}
                           >
-                            View &amp; Edit Summary
+                            {isEducation ? 'Review and Edit Notes' : 'View &amp; Edit Summary'}
                       </button>
                         </>
                       )}
@@ -1372,6 +1517,7 @@ const MeetingsScreen = () => {
                               hiringRecommendationReason={editableSummary.hiringRecommendationReason}
                               evaluationSignals={editableSummary.evaluationSignals}
                               isEducation={isEducation}
+                              readOnlyEducationAssignments={isEducation}
                               onMeetingPatched={syncMeetingAfterActionItemPatch}
                             />
                             
@@ -1472,91 +1618,93 @@ const MeetingsScreen = () => {
                         )}
 
                     <div className="meeting-summary-actions meeting-summary-actions--send-first">
-                      <button
-                        type="button"
-                        className="meeting-summary-btn meeting-summary-btn--primary meeting-summary-btn--send"
-                        onClick={async () => {
-                          try {
-                            const otpHeaders = editorOtpHeaders(selectedMeeting._id);
-
-                            const validAdditionalParticipants =
-                              isInterviewMeeting(selectedMeeting)
-                                ? []
-                                : additionalParticipants
-                              .filter((p) => p.email && p.email.trim())
-                              .map((p) => ({
-                                name: p.name.trim() || '',
-                                email: p.email.trim(),
-                                role: 'participant',
-                              }));
-
-                            if (editableSummary) {
-                              const pendingBody = {
-                                summary: editableSummary.summary,
-                                keyPoints: editableSummary.keyPoints,
-                                actionItems: editableSummary.actionItems,
-                                decisions: editableSummary.decisions,
-                                nextSteps: editableSummary.nextSteps,
-                                importantNotes: editableSummary.importantNotes,
-                              };
-                              if (editableSummary.summaryMode === 'interview') {
-                                pendingBody.hiringRecommendation =
-                                  editableSummary.hiringRecommendation || '';
-                                pendingBody.hiringRecommendationReason =
-                                  editableSummary.hiringRecommendationReason || '';
-                                pendingBody.evaluationSignals = editableSummary.evaluationSignals;
-                              }
-                              await axios.put(
-                                `/meetings/${selectedMeeting._id}/pending-summary`,
-                                pendingBody,
-                                { headers: otpHeaders }
-                              );
-                            }
-
-                            const res = await axios.post(
-                              `/meetings/${selectedMeeting._id}/approve-and-send`,
-                              {
-                                additionalParticipants: validAdditionalParticipants,
-                              },
-                              { headers: otpHeaders }
-                            );
-                            clearStoredEditorOtp(selectedMeeting._id);
-                            setSelectedMeeting(res.data.meeting);
-                            setVerificationStep('approved');
-                            setError('');
-                            const msg =
-                              res.data.message ||
-                              (isInterviewMeeting(selectedMeeting)
-                                ? 'Decision finalized and saved.'
-                                : res.data.emailSent
-                                  ? isEducation
-                                    ? 'Summary approved and sent to all students!'
-                                    : 'Summary approved and sent to all participants!'
-                                  : 'Summary approved and saved. Emails could not be sent (check mail configuration).');
-                            alert(msg);
-                            setTimeout(() => navigate('/meetings'), 2000);
-                          } catch (err) {
-                            const d = err.response?.data;
-                            setError(
-                              [d?.error, d?.details].filter(Boolean).join(' — ') ||
-                                'Failed to save summary'
-                            );
-                          }
-                        }}
-                      >
-                        {isEducation
-                          ? 'Send Lecture Notes to Participants'
-                          : isInterviewMeeting(selectedMeeting)
-                            ? 'Finalize Decision'
-                            : 'Send Summary to Participants'}
-                      </button>
-                      <button
-                        type="button"
-                        className="meeting-summary-btn meeting-summary-btn--secondary"
-                        onClick={() => setEditingSummary(!editingSummary)}
-                      >
-                        {editingSummary ? 'Cancel Edit' : 'Edit Summary'}
-                      </button>
+                      {isInterviewMeeting(selectedMeeting) ? (
+                        <>
+                          <button
+                            type="button"
+                            className="meeting-summary-btn meeting-summary-btn--primary meeting-summary-btn--send"
+                            disabled={inlineSummaryBusy}
+                            onClick={handleInlineApproveAndSend}
+                          >
+                            {inlineSummaryBusy ? 'Finalizing…' : 'Finalize Decision'}
+                          </button>
+                          <button
+                            type="button"
+                            className="meeting-summary-btn meeting-summary-btn--secondary"
+                            onClick={() => setEditingSummary(!editingSummary)}
+                          >
+                            {editingSummary ? 'Cancel Edit' : 'Edit Summary'}
+                          </button>
+                        </>
+                      ) : isEducation && editingSummary ? (
+                        <>
+                          <button
+                            type="button"
+                            className="meeting-summary-btn meeting-summary-btn--primary meeting-summary-btn--send"
+                            disabled={inlineSummaryBusy}
+                            onClick={handleInlineSaveEducationReview}
+                          >
+                            {inlineSummaryBusy ? 'Saving…' : 'Save review'}
+                          </button>
+                          <button
+                            type="button"
+                            className="meeting-summary-btn meeting-summary-btn--secondary"
+                            onClick={() => setEditingSummary(false)}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : isEducation &&
+                        !selectedMeeting.educationSummaryTeacherReviewedAt &&
+                        !editingSummary ? (
+                        <button
+                          type="button"
+                          className="meeting-summary-btn meeting-summary-btn--primary meeting-summary-btn--send"
+                          disabled={inlineSummaryBusy}
+                          onClick={() => setEditingSummary(true)}
+                        >
+                          Continue editing
+                        </button>
+                      ) : isEducation ? (
+                        <>
+                          <button
+                            type="button"
+                            className="meeting-summary-btn meeting-summary-btn--primary meeting-summary-btn--send"
+                            disabled={inlineSummaryBusy}
+                            onClick={handleInlineApproveAndSend}
+                          >
+                            {inlineSummaryBusy ? 'Sending…' : 'Send lecture notes to class'}
+                          </button>
+                          <button
+                            type="button"
+                            className="meeting-summary-btn meeting-summary-btn--secondary"
+                            disabled={inlineSummaryBusy}
+                            onClick={educationReopenInlineEdit}
+                          >
+                            Edit notes
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            className="meeting-summary-btn meeting-summary-btn--primary meeting-summary-btn--send"
+                            disabled={inlineSummaryBusy}
+                            onClick={handleInlineApproveAndSend}
+                          >
+                            {inlineSummaryBusy
+                              ? 'Sending…'
+                              : 'Send Summary to Participants'}
+                          </button>
+                          <button
+                            type="button"
+                            className="meeting-summary-btn meeting-summary-btn--secondary"
+                            onClick={() => setEditingSummary(!editingSummary)}
+                          >
+                            {editingSummary ? 'Cancel Edit' : 'Edit Summary'}
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 )}
@@ -1579,6 +1727,7 @@ const MeetingsScreen = () => {
                       decisions={selectedMeeting.decisions}
                       nextSteps={selectedMeeting.nextSteps}
                       importantNotes={selectedMeeting.importantNotes}
+                      readOnlyEducationAssignments={isEducation}
                       summaryMode={
                         selectedMeeting.summaryMode === 'interview' ? 'interview' : 'standard'
                       }

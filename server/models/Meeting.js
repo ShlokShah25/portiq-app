@@ -363,6 +363,37 @@ const meetingSchema = new mongoose.Schema({
     chosenParticipantEmail: { type: String, default: '' },
     resolvedAt: { type: Date, default: null },
   },
+  /** Education tenant: classroom + subject metadata (lecture scheduling). */
+  educationClassroomId: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  educationClassroomName: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  educationSubject: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  educationTeacherName: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  educationTeacherEmail: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  /** Set when teacher saves review (cleared when pending summary is replaced or edits resume). */
+  educationSummaryTeacherReviewedAt: {
+    type: Date,
+    default: null,
+  },
   createdAt: {
     type: Date,
     default: Date.now

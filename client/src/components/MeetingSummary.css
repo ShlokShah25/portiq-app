@@ -888,6 +888,10 @@
   padding-bottom: 8px;
 }
 
+.meeting-task-row--edu-static {
+  padding-left: 2px;
+}
+
 .meeting-task-row__check {
   flex-shrink: 0;
   padding-top: 2px;

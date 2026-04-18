@@ -384,6 +384,11 @@ router.post('/', async (req, res) => {
       interviewInterviewerEmail: interviewInterviewerEmailBody,
       interviewInterviewerEmails: interviewInterviewerEmailsBody,
       interviewCandidates: interviewCandidatesBody,
+      educationClassroomId: educationClassroomIdBody,
+      educationClassroomName: educationClassroomNameBody,
+      educationSubject: educationSubjectBody,
+      educationTeacherName: educationTeacherNameBody,
+      educationTeacherEmail: educationTeacherEmailBody,
     } = req.body;
 
     const admin = await getAdminFromRequest(req);
@@ -544,6 +549,19 @@ router.post('/', async (req, res) => {
         ? buildInterviewMeetingTitle(interviewCandidateName, interviewRole)
         : titleTrim;
 
+    const educationClassroomIdTrim =
+      educationClassroomIdBody != null ? String(educationClassroomIdBody).trim().slice(0, 128) : '';
+    const educationClassroomNameTrim =
+      educationClassroomNameBody != null ? String(educationClassroomNameBody).trim().slice(0, 256) : '';
+    const educationSubjectTrim =
+      educationSubjectBody != null ? String(educationSubjectBody).trim().slice(0, 256) : '';
+    const educationTeacherNameTrim =
+      educationTeacherNameBody != null ? String(educationTeacherNameBody).trim().slice(0, 256) : '';
+    const educationTeacherEmailTrim =
+      educationTeacherEmailBody != null
+        ? String(educationTeacherEmailBody).trim().toLowerCase().slice(0, 320)
+        : '';
+
     const meeting = new Meeting({
       adminId: admin ? admin._id : null,
       meetingRoom: roomTrim,
@@ -565,6 +583,11 @@ router.post('/', async (req, res) => {
       interviewInterviewerEmail: summaryMode === 'interview' ? interviewInterviewerTrim : '',
       interviewInterviewerEmails: summaryMode === 'interview' ? interviewInterviewerEmails : [],
       interviewCandidates: summaryMode === 'interview' ? interviewCandidatesNorm : [],
+      educationClassroomId: educationClassroomIdTrim,
+      educationClassroomName: educationClassroomNameTrim,
+      educationSubject: educationSubjectTrim,
+      educationTeacherName: educationTeacherNameTrim,
+      educationTeacherEmail: educationTeacherEmailTrim,
     });
 
     // Generate verification code for authorized editor if specified
@@ -1738,6 +1761,21 @@ router.put('/:id/pending-summary', async (req, res) => {
     const admin = await getAdminFromRequest(req);
     if (!canAccessMeeting(meeting, admin)) return res.status(404).json({ error: 'Meeting not found' });
     if (!assertEditorVerificationOrRespond(meeting, req, res)) return;
+
+    const productEdu = String(admin?.productType || '').toLowerCase() === 'education';
+
+    if (req.body.educationCancelReview === true) {
+      if (!productEdu) {
+        return res.status(400).json({
+          error: 'Invalid request',
+          details: 'educationCancelReview is only valid for education accounts.',
+        });
+      }
+      meeting.educationSummaryTeacherReviewedAt = null;
+      await meeting.save();
+      return res.json({ success: true, meeting });
+    }
+
     const {
       summary,
       keyPoints,
@@ -1749,6 +1787,7 @@ router.put('/:id/pending-summary', async (req, res) => {
       hiringRecommendationReason,
       evaluationSignals,
     } = req.body;
+    const markEducationReviewComplete = req.body.markEducationReviewComplete === true;
 
     // Update pending summary
     if (summary !== undefined) meeting.pendingSummary = summary;
@@ -1783,6 +1822,26 @@ router.put('/:id/pending-summary', async (req, res) => {
     }
     if (evaluationSignals !== undefined) {
       meeting.pendingEvaluationSignals = evaluationSignals;
+    }
+
+    if (productEdu) {
+      if (markEducationReviewComplete) {
+        meeting.educationSummaryTeacherReviewedAt = new Date();
+      } else {
+        const contentTouched =
+          summary !== undefined ||
+          keyPoints !== undefined ||
+          actionItems !== undefined ||
+          decisions !== undefined ||
+          nextSteps !== undefined ||
+          importantNotes !== undefined ||
+          hiringRecommendation !== undefined ||
+          hiringRecommendationReason !== undefined ||
+          evaluationSignals !== undefined;
+        if (contentTouched) {
+          meeting.educationSummaryTeacherReviewedAt = null;
+        }
+      }
     }
 
     await meeting.save();
@@ -2061,8 +2120,18 @@ router.post('/:id/approve-and-send', async (req, res) => {
     const { additionalParticipants, translationLanguage } = req.body;
 
     const planInfo = getPlanConstraints(admin);
+    const isEducationAccount = String(admin?.productType || '').toLowerCase() === 'education';
+    if (isEducationAccount && !meeting.educationSummaryTeacherReviewedAt) {
+      return res.status(400).json({
+        error: 'Review your lecture notes before sending to the class.',
+        details:
+          'Use Review and Edit Notes, save your review, then send lecture notes to the class. Student emails are sent in English only.',
+      });
+    }
     const translation =
-      translationLanguage && String(translationLanguage).trim()
+      !isEducationAccount &&
+      translationLanguage &&
+      String(translationLanguage).trim()
         ? String(translationLanguage).trim()
         : null;
     if (translation && !planInfo.allowsTranslatedSummary) {
@@ -2146,8 +2215,12 @@ router.post('/:id/approve-and-send', async (req, res) => {
       message: isInterview
         ? 'Decision finalized and saved.'
         : emailSent
-          ? 'Summary approved and sent to participants'
-          : 'Summary approved and saved. Emails could not be sent to participants (check mail configuration).'
+          ? isEducationAccount
+            ? 'Lecture notes approved and sent to the class'
+            : 'Summary approved and sent to participants'
+          : isEducationAccount
+            ? 'Lecture notes approved and saved. Emails could not be sent to the class (check mail configuration).'
+            : 'Summary approved and saved. Emails could not be sent to participants (check mail configuration).'
     });
   } catch (error) {
     console.error('Error approving and sending summary:', error);

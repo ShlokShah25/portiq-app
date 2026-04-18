@@ -41,6 +41,8 @@ export default function MeetingSummaryReadonlyBody({
   hiringRecommendation = '',
   hiringRecommendationReason = '',
   evaluationSignals = null,
+  /** Education: hide checkboxes, progress, and calendar links (teacher / admin preview). */
+  readOnlyEducationAssignments = false,
 }) {
   const [statusSaving, setStatusSaving] = useState({});
 
@@ -226,9 +228,15 @@ export default function MeetingSummaryReadonlyBody({
             const overdueBadge = isOverdue ? 'Overdue' : null;
 
             const statusDisabled = !!statusSaving[itemId] || !item?._id || !meetingId;
+            const staticEduAssignments = isEducation && readOnlyEducationAssignments;
 
             return (
-              <li key={itemId} className="meeting-task-row" data-action-status={status}>
+              <li
+                key={itemId}
+                className={`meeting-task-row${staticEduAssignments ? ' meeting-task-row--edu-static' : ''}`}
+                data-action-status={status}
+              >
+                {!staticEduAssignments && (
                 <div className="meeting-task-row__check">
                   <button
                     type="button"
@@ -244,6 +252,7 @@ export default function MeetingSummaryReadonlyBody({
                     )}
                   </button>
                 </div>
+                )}
                 <div className="meeting-task-row__body">
                   {dueLabel || overdueBadge ? (
                     <div className="meeting-action-item-badges">
@@ -267,6 +276,7 @@ export default function MeetingSummaryReadonlyBody({
                     </div>
                   ) : null}
 
+                  {!staticEduAssignments && (
                   <div className="meeting-task-status-row">
                     <label
                       className="meeting-task-status-label"
@@ -286,8 +296,9 @@ export default function MeetingSummaryReadonlyBody({
                       <option value="done">Done</option>
                     </select>
                   </div>
+                  )}
 
-                  {(gcalUrl || outlookUrl || ics) && (
+                  {!staticEduAssignments && (gcalUrl || outlookUrl || ics) && (
                     <div className="meeting-action-item-links meeting-action-item-links--task">
                       {gcalUrl && (
                         <a
