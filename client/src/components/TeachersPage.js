@@ -10,6 +10,8 @@ function emptyForm() {
 export default function TeachersPage() {
   const trial = useTrialExperience();
   const role = String(trial?.profile?.role || '').toLowerCase();
+  const isEducationAccount =
+    String(trial?.profile?.productType || '').toLowerCase() === 'education';
   const [teachers, setTeachers] = useState([]);
   const [form, setForm] = useState(() => emptyForm());
   const [loading, setLoading] = useState(false);
@@ -17,7 +19,7 @@ export default function TeachersPage() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
-  const blocked = role === 'faculty';
+  const blocked = !isEducationAccount || role === 'faculty';
 
   const fetchTeachers = async () => {
     setLoading(true);
@@ -34,8 +36,9 @@ export default function TeachersPage() {
   };
 
   useEffect(() => {
+    if (trial?.loading) return;
     if (!blocked) fetchTeachers();
-  }, [blocked]);
+  }, [blocked, trial?.loading]);
 
   const canSubmit = useMemo(
     () => form.username.trim() && form.email.trim(),

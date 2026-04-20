@@ -8,6 +8,9 @@ import { useTrialExperience } from './TrialExperienceProvider';
 export default function EducationAdminDashboard() {
   const trial = useTrialExperience();
   const profile = trial?.profile;
+  const role = String(profile?.role || '').toLowerCase();
+  const isEducationAccount = String(profile?.productType || '').toLowerCase() === 'education';
+  const canManageTeachers = isEducationAccount && (role === 'admin' || role === 'super_admin');
   const classrooms = useMemo(() => getClassrooms(), []);
   const [teachers, setTeachers] = useState([]);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
@@ -36,6 +39,10 @@ export default function EducationAdminDashboard() {
   );
 
   useEffect(() => {
+    if (!canManageTeachers) {
+      setTeachers([]);
+      return undefined;
+    }
     let cancelled = false;
     (async () => {
       try {
@@ -51,7 +58,7 @@ export default function EducationAdminDashboard() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [canManageTeachers]);
 
   const onboardingSteps = [
     {
