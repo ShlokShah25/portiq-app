@@ -88,6 +88,20 @@ function getSummaryChatModel() {
   return process.env.OPENAI_SUMMARY_MODEL || 'gpt-4o-mini';
 }
 
+function getSummaryChatModelCandidates() {
+  const fromEnv = String(process.env.OPENAI_SUMMARY_MODEL || '').trim();
+  const fallbackEnv = String(process.env.OPENAI_SUMMARY_MODEL_FALLBACKS || '')
+    .split(',')
+    .map((m) => String(m || '').trim())
+    .filter(Boolean);
+  const defaults = ['gpt-4o-mini', 'gpt-4.1-mini', 'gpt-4o'];
+  const unique = [];
+  [fromEnv, ...fallbackEnv, ...defaults].forEach((m) => {
+    if (m && !unique.includes(m)) unique.push(m);
+  });
+  return unique.length ? unique : ['gpt-4o-mini'];
+}
+
 // Email is sent via shared emailService (Resend or SMTP)
 
 function safeListParticipantNames(participants = []) {
@@ -285,7 +299,8 @@ async function generateInterviewMeetingSummaryFromTranscript(transcriptRaw, meet
     throw new Error('OpenAI API key not configured');
   }
 
-  const summaryChatModel = getSummaryChatModel();
+  const summaryChatModels = getSummaryChatModelCandidates();
+  const summaryChatModel = summaryChatModels[0];
   const detectedLanguage =
     String(options.detectedLanguage || '').trim().toLowerCase() || 'unknown';
   const transcriptTextTrim = String(transcriptRaw || '').trim();
@@ -294,6 +309,8 @@ async function generateInterviewMeetingSummaryFromTranscript(transcriptRaw, meet
   }
 
   const maxRetries = OPENAI_PIPELINE_MAX_RETRIES;
+  const meetingTitle = meetingObj.title || 'Interview';
+  const isEducation = false;
   const transcriptWithSpeakers = await buildTranscriptWithSpeakerHints(meetingObj, transcriptTextTrim);
   const transcriptForSummaryPrompt = await condenseTranscriptForStructuredSummary(
     transcriptWithSpeakers,
@@ -360,8 +377,6 @@ async function generateInterviewMeetingSummaryFromTranscript(transcriptRaw, meet
     .filter(Boolean)
     .join('\n');
 
-  const meetingTitle = meetingObj.title || 'Interview';
-
   const interviewUser =
     `Analyze the following interview transcript. When the transcript includes clear role cues or speaker labels, ` +
     `prefer describing speakers as Interviewer vs Candidate when supported by the text; do not invent roles.\n` +
@@ -373,7 +388,7 @@ async function generateInterviewMeetingSummaryFromTranscript(transcriptRaw, meet
     (optionalContext ? `${optionalContext}\n\n` : '') +
     `Calendar / booking title (may be generic; do not treat as the ground truth about topic): ${meetingTitle}\n\n` +
     `Detected primary transcription language: ${detectedLanguage}\n\n` +
-    `Transcript:\n\n${transcriptWithSpeakers}\n\n` +
+    `Transcript:\n\n${transcriptForSummaryPrompt}\n\n` +
     buildInterviewUserJsonInstructions();
 
   let summaryResponse = null;
@@ -381,11 +396,12 @@ async function generateInterviewMeetingSummaryFromTranscript(transcriptRaw, meet
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
+      const modelForAttempt = summaryChatModels[(attempt - 1) % summaryChatModels.length];
       console.log(
-        `   Interview evaluation (attempt ${attempt}/${maxRetries})… model=${summaryChatModel}`
+        `   Interview evaluation (attempt ${attempt}/${maxRetries})… model=${modelForAttempt}`
       );
       summaryResponse = await openai.chat.completions.create({
-        model: summaryChatModel,
+        model: modelForAttempt,
         messages: [
           { role: 'system', content: INTERVIEW_EVALUATION_SYSTEM_PROMPT },
           { role: 'user', content: interviewUser },
@@ -1071,7 +1087,8 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
     }
   }
   const isEducation = resolvedProductType === 'education';
-  const summaryChatModel = getSummaryChatModel();
+  const summaryChatModels = getSummaryChatModelCandidates();
+  const summaryChatModel = summaryChatModels[0];
   const detectedLanguage =
     String(options.detectedLanguage || '').trim().toLowerCase() || 'unknown';
 
@@ -1185,11 +1202,12 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
+      const modelForAttempt = summaryChatModels[(attempt - 1) % summaryChatModels.length];
       console.log(
-        `   Generating summary (attempt ${attempt}/${maxRetries})… model=${summaryChatModel} mode=${isEducation ? 'education' : 'workplace'}`
+        `   Generating summary (attempt ${attempt}/${maxRetries})… model=${modelForAttempt} mode=${isEducation ? 'education' : 'workplace'}`
       );
         summaryResponse = await openai.chat.completions.create({
-        model: summaryChatModel,
+        model: modelForAttempt,
           messages: [
         {
           role: 'system',
