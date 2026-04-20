@@ -295,6 +295,15 @@ async function generateInterviewMeetingSummaryFromTranscript(transcriptRaw, meet
 
   const maxRetries = OPENAI_PIPELINE_MAX_RETRIES;
   const transcriptWithSpeakers = await buildTranscriptWithSpeakerHints(meetingObj, transcriptTextTrim);
+  const transcriptForSummaryPrompt = await condenseTranscriptForStructuredSummary(
+    transcriptWithSpeakers,
+    {
+      meetingTitle,
+      isEducation,
+      detectedLanguage,
+      model: summaryChatModel,
+    }
+  );
 
   const interviewerEmails = [
     ...(Array.isArray(meetingObj.interviewInterviewerEmails)
@@ -767,6 +776,154 @@ async function applyTranscriptExcerptFallbackSummaryAsync(summaryData, transcrip
     'Please open the recording or transcript view for the original audio/text.';
 }
 
+function splitTranscriptIntoContextSafeChunks(transcriptText, opts = {}) {
+  const text = String(transcriptText || '').trim();
+  if (!text) return [];
+  const maxChars = Math.min(
+    26000,
+    Math.max(8000, parseInt(opts.maxChars || process.env.SUMMARY_CHUNK_MAX_CHARS || '18000', 10) || 18000)
+  );
+  const overlap = Math.min(
+    2500,
+    Math.max(0, parseInt(opts.overlap || process.env.SUMMARY_CHUNK_OVERLAP_CHARS || '1200', 10) || 1200)
+  );
+  const chunks = [];
+  let cursor = 0;
+  while (cursor < text.length) {
+    let end = Math.min(text.length, cursor + maxChars);
+    if (end < text.length) {
+      const nl = text.lastIndexOf('\n', end);
+      const dot = text.lastIndexOf('. ', end);
+      const boundary = Math.max(nl, dot);
+      if (boundary > cursor + Math.floor(maxChars * 0.55)) {
+        end = boundary + 1;
+      }
+    }
+    const chunk = text.slice(cursor, end).trim();
+    if (chunk) chunks.push(chunk);
+    if (end >= text.length) break;
+    cursor = Math.max(end - overlap, cursor + 1);
+  }
+  return chunks;
+}
+
+async function condenseTranscriptForStructuredSummary(
+  transcriptText,
+  {
+    meetingTitle = 'Meeting',
+    isEducation = false,
+    detectedLanguage = 'unknown',
+    model = getSummaryChatModel(),
+  } = {}
+) {
+  const source = String(transcriptText || '').trim();
+  if (!source) return source;
+
+  const directMax = Math.min(
+    140000,
+    Math.max(
+      30000,
+      parseInt(process.env.SUMMARY_DIRECT_TRANSCRIPT_MAX_CHARS || '70000', 10) || 70000
+    )
+  );
+  if (source.length <= directMax) return source;
+
+  const chunks = splitTranscriptIntoContextSafeChunks(source);
+  if (chunks.length <= 1) return source;
+
+  console.log(
+    `🧩 Long transcript detected (${source.length} chars). Building chunk recaps (${chunks.length} chunks) before structured summary.`
+  );
+
+  const chunkRecaps = [];
+  const perChunkRetries = Math.min(
+    4,
+    Math.max(2, parseInt(process.env.SUMMARY_CHUNK_RETRIES || '3', 10) || 3)
+  );
+
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i];
+    let recap = null;
+    let lastErr = null;
+    for (let attempt = 1; attempt <= perChunkRetries; attempt++) {
+      try {
+        const r = await openai.chat.completions.create({
+          model,
+          messages: [
+            {
+              role: 'system',
+              content:
+                `You are preparing source notes for a ${isEducation ? 'lecture' : 'meeting'} summary pipeline. ` +
+                'Input can mix multiple languages; output must be English only. Preserve concrete details. ' +
+                'Capture all important specifics from this chunk: key concepts/topics, rationale/explanations, numbers, dates, commitments, assignments/homework, decisions, questions, and caveats. ' +
+                'No markdown table. Use compact bullet lines with enough depth.',
+            },
+            {
+              role: 'user',
+              content:
+                `Title (may be generic): ${String(meetingTitle || 'Untitled').trim()}\n` +
+                `Detected language hint: ${String(detectedLanguage || 'unknown')}\n` +
+                `Chunk ${i + 1} of ${chunks.length}:\n\n${chunk}`,
+            },
+          ],
+          temperature: 0.1,
+          max_tokens: 2200,
+        });
+        recap = String(r.choices?.[0]?.message?.content || '').trim();
+        if (recap) break;
+      } catch (err) {
+        lastErr = err;
+        const retryable = isRetryableOpenAiError(err);
+        if (!retryable || attempt >= perChunkRetries) break;
+        await new Promise((res) => setTimeout(res, Math.pow(2, attempt) * 1000));
+      }
+    }
+    if (!recap) {
+      console.warn(
+        `⚠️ Chunk recap failed for chunk ${i + 1}/${chunks.length}; using trimmed raw chunk.`,
+        lastErr?.message || ''
+      );
+      recap = chunk.slice(0, 5000);
+    }
+    chunkRecaps.push(`Chunk ${i + 1}/${chunks.length}\n${recap}`);
+  }
+
+  const merged = chunkRecaps.join('\n\n');
+  const mergeMax = Math.min(
+    90000,
+    Math.max(25000, parseInt(process.env.SUMMARY_MERGED_CONTEXT_MAX_CHARS || '60000', 10) || 60000)
+  );
+  if (merged.length <= mergeMax) return merged;
+
+  try {
+    const finalMerge = await openai.chat.completions.create({
+      model,
+      messages: [
+        {
+          role: 'system',
+          content:
+            `Merge chunk recaps into a single high-fidelity English source brief for downstream ${isEducation ? 'lecture' : 'meeting'} structured JSON generation. ` +
+            'Do not drop important specifics. Keep explicit chronology/dependencies. Keep names, numbers, deadlines, assignments, decisions, and unresolved questions.',
+        },
+        {
+          role: 'user',
+          content:
+            `Title: ${String(meetingTitle || 'Untitled').trim()}\n` +
+            `Detected language hint: ${String(detectedLanguage || 'unknown')}\n\n` +
+            merged,
+        },
+      ],
+      temperature: 0.1,
+      max_tokens: 3500,
+    });
+    const mergedBrief = String(finalMerge.choices?.[0]?.message?.content || '').trim();
+    return mergedBrief || merged.slice(0, mergeMax);
+  } catch (err) {
+    console.warn('⚠️ Final merge for long transcript failed; using concatenated chunk recaps.');
+    return merged.slice(0, mergeMax);
+  }
+}
+
 function applyGroundingFiltersToSummaryData(summaryData, transcriptFull, meta = {}) {
   const detectedLanguage = meta && meta.detectedLanguage != null ? String(meta.detectedLanguage) : '';
   if (shouldSkipGroundingForMultilingualTranscript(transcriptFull, detectedLanguage)) {
@@ -1085,7 +1242,7 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
                     formatParticipantLinesForSummaryPrompt(meetingObj.participants) +
                     `\n\nEnsure names in the summary and action items match the transcript; do not invent people who did not speak.\n\n`
               : '') +
-            `Transcript:\n\n${transcriptWithSpeakers}\n\n` +
+            `Transcript:\n\n${transcriptForSummaryPrompt}\n\n` +
             `Follow these rules strictly:\n` +
             `- Output language: write every JSON string in English regardless of the detected primary transcription language (${detectedLanguage}) or the mix of languages in the audio—comprehend all of it, report only in English.\n` +
             `- Focus ONLY on what is actually discussed in this transcript.\n` +
