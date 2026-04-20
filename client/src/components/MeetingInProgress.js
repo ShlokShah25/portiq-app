@@ -183,12 +183,6 @@ const MeetingInProgress = () => {
   const [maxDurationMinutes, setMaxDurationMinutes] = useState(null);
   const [autoEnded, setAutoEnded] = useState(false);
   const [sessionDetailsOpen, setSessionDetailsOpen] = useState(false);
-  const [followUpOpen, setFollowUpOpen] = useState(false);
-  const [followUpDt, setFollowUpDt] = useState('');
-  const [checkpointText, setCheckpointText] = useState('');
-  const [sendEmailParticipants, setSendEmailParticipants] = useState(true);
-  const [followUpSubmitting, setFollowUpSubmitting] = useState(false);
-  const [followUpError, setFollowUpError] = useState('');
   const [firstMeetingToast, setFirstMeetingToast] = useState(false);
   const [uploadNotice, setUploadNotice] = useState('');
   const [voiceProfiles, setVoiceProfiles] = useState({});
@@ -695,71 +689,6 @@ const MeetingInProgress = () => {
     });
   };
 
-  const openFollowUpFromRoom = () => {
-    if (!meeting) return;
-    const t = new Date();
-    t.setDate(t.getDate() + 1);
-    t.setHours(10, 0, 0, 0);
-    const pad = (n) => String(n).padStart(2, '0');
-    const local = `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}T${pad(t.getHours())}:${pad(t.getMinutes())}`;
-    setFollowUpDt(local);
-    const parts = [
-      meeting.summary,
-      meeting.pendingSummary,
-      Array.isArray(meeting.keyPoints) && meeting.keyPoints.length
-        ? meeting.keyPoints.slice(0, 10).map((k) => `• ${k}`).join('\n')
-        : '',
-      meeting.sessionCheckpointSummary,
-      meeting.parentContinuation?.sessionCheckpointSummary,
-    ].filter((x) => x && String(x).trim());
-    setCheckpointText(parts.length ? String(parts[0]).trim().slice(0, 4000) : '');
-    setFollowUpError('');
-    setFollowUpOpen(true);
-  };
-
-  const handleScheduleFollowUpFromRoom = async (e) => {
-    e.preventDefault();
-    setFollowUpError('');
-    const when = new Date(followUpDt);
-    if (Number.isNaN(when.getTime())) {
-      setFollowUpError('Pick a valid date and time for the follow-up.');
-      return;
-    }
-    if (!checkpointText.trim()) {
-      setFollowUpError('Add a short recap of what you covered.');
-      return;
-    }
-    if (isGlobalRecordingActive()) {
-      setFollowUpError('Stop recording first (Stop & Upload), or use End Meeting — then schedule follow-up from the meeting details page.');
-      return;
-    }
-    setFollowUpSubmitting(true);
-    try {
-      const res = await axios.post(`/meetings/${meetingId}/schedule-follow-up`, {
-        scheduledTime: when.toISOString(),
-        checkpointSummary: checkpointText.trim(),
-        sendEmail: sendEmailParticipants,
-        endCurrentSession: true,
-      });
-      if (res.data?.celebrateFirstMeeting && isMountedRef.current) {
-        setFirstMeetingToast(true);
-      }
-      setFollowUpOpen(false);
-      const nextId = res.data?.followUpMeeting?._id;
-      if (nextId) {
-        navigate(`/meetings/${nextId}`);
-      } else {
-        navigate(`/meetings/${meetingId}`);
-      }
-    } catch (err) {
-      setFollowUpError(
-        err.response?.data?.error || err.message || 'Could not schedule follow-up.'
-      );
-    } finally {
-      setFollowUpSubmitting(false);
-    }
-  };
-
   if (loading) {
     return (
       <div className="meeting-summary-screen meeting-in-progress">
@@ -1086,7 +1015,11 @@ const MeetingInProgress = () => {
 
         {meeting.participants && meeting.participants.length > 0 && (
           <div className="meeting-summary-section meeting-summary-section--keypoints mip-participants-section mip-participants-section--after-meta">
-            <h2 className="meeting-summary-heading">Participants</h2>
+            <h2 className="meeting-summary-heading">
+              {isEducation
+                ? `Classroom${meeting.educationClassroomName ? `: ${meeting.educationClassroomName}` : ''}`
+                : 'Participants'}
+            </h2>
             <div className="participants-list participants-list--room mip-participants-list">
             <div className="participants-grid participants-grid--room">
               {meeting.participants.map((p, idx) => {
@@ -1153,15 +1086,6 @@ const MeetingInProgress = () => {
         <div className="meeting-summary-actions mip-footer-actions">
           <button
             type="button"
-            className="meeting-summary-btn meeting-summary-btn--secondary"
-            onClick={openFollowUpFromRoom}
-            disabled={uploading || followUpSubmitting || recordingLive}
-            title={recordingLive ? 'Stop recording first' : undefined}
-          >
-            {isEducation ? 'Schedule next lecture &amp; close' : 'Schedule follow-up &amp; close'}
-          </button>
-          <button
-            type="button"
             className="meeting-summary-btn mip-btn-end-meeting"
             onClick={handleEndMeeting}
             disabled={uploading}
@@ -1173,70 +1097,6 @@ const MeetingInProgress = () => {
           )}
         </div>
       </div>
-      {followUpOpen && (
-        <div
-          className="meeting-followup-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="mip-followup-title"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setFollowUpOpen(false);
-          }}
-        >
-          <form className="meeting-followup-modal" onSubmit={handleScheduleFollowUpFromRoom}>
-            <h3 id="mip-followup-title">Schedule follow-up</h3>
-            <p className="meeting-followup-modal-desc">
-              We&apos;ll save your recap, end this session, create the next meeting on the date you
-              pick, and optionally email everyone.
-            </p>
-            {followUpError && <div className="meeting-followup-error">{followUpError}</div>}
-            <div className="meeting-followup-field">
-              <label htmlFor="mip-followup-when">Follow-up date &amp; time</label>
-              <input
-                id="mip-followup-when"
-                type="datetime-local"
-                value={followUpDt}
-                onChange={(e) => setFollowUpDt(e.target.value)}
-                required
-              />
-            </div>
-            <div className="meeting-followup-field">
-              <label htmlFor="mip-followup-recap">What we covered</label>
-              <textarea
-                id="mip-followup-recap"
-                value={checkpointText}
-                onChange={(e) => setCheckpointText(e.target.value)}
-                required
-              />
-            </div>
-            <label className="meeting-followup-check">
-              <input
-                type="checkbox"
-                checked={sendEmailParticipants}
-                onChange={(e) => setSendEmailParticipants(e.target.checked)}
-              />
-              <span>Email participants the recap and follow-up time</span>
-            </label>
-            <div className="meeting-followup-actions">
-              <button
-                type="submit"
-                className="meeting-detail-btn meeting-detail-btn--primary"
-                disabled={followUpSubmitting}
-              >
-                {followUpSubmitting ? 'Scheduling…' : 'Schedule &amp; close session'}
-              </button>
-              <button
-                type="button"
-                className="meeting-detail-btn meeting-detail-btn--secondary"
-                onClick={() => setFollowUpOpen(false)}
-                disabled={followUpSubmitting}
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
     </div>
   );
 };
