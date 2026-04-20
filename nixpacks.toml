@@ -1,0 +1,15 @@
+# Railway / Nixpacks: Node app + Python stack for voice_embedding.py (pyannote / torch CPU).
+# HF_TOKEN must still be set in Railway variables; accept model terms on Hugging Face.
+
+[phases.setup]
+nixPkgs = ["...", "python311", "ffmpeg"]
+
+[phases.install]
+cmds = [
+  "...",
+  "python3 -m pip install --upgrade pip setuptools wheel",
+  "python3 -m pip install --user -r server/requirements-voice.txt || PIP_BREAK_SYSTEM_PACKAGES=1 python3 -m pip install --user -r server/requirements-voice.txt",
+]
+
+[variables]
+PYTHONUNBUFFERED = "1"

@@ -5,6 +5,21 @@ const { exec, execFileSync } = require('child_process');
 const util = require('util');
 const execPromise = util.promisify(exec);
 
+/** Resolve a Python binary for voice_embedding.py (Railway often has `python` but not `python3`). */
+function resolvePythonBinaryForVoice() {
+  const fromEnv = String(process.env.PYTHON_BIN || process.env.PYTHON || '').trim();
+  if (fromEnv) return fromEnv;
+  for (const bin of ['python3', 'python']) {
+    try {
+      execFileSync(bin, ['-c', 'import sys; sys.exit(0)'], { stdio: 'ignore' });
+      return bin;
+    } catch (_) {
+      /* try next */
+    }
+  }
+  return null;
+}
+
 /**
  * Speaker identification — pyannote.audio only (see server/utils/voice_embedding.py).
  * ------------------------------------------------------------
@@ -162,12 +177,20 @@ async function tryPyannoteEmbedding(processedPath) {
   try {
     console.log('🎤 Generating voice embedding using pyannote.audio...');
 
-    const hfToken = process.env.HF_TOKEN || process.env.HUGGINGFACE_TOKEN;
+    const hfToken = String(process.env.HF_TOKEN || process.env.HUGGINGFACE_TOKEN || '').trim();
 
     if (!hfToken) {
       console.warn('⚠️  HF_TOKEN not found in environment. Make sure to set it before starting the server.');
     } else {
       console.log(`🔑 Using HuggingFace token (length: ${hfToken.length})`);
+    }
+
+    const pythonBin = resolvePythonBinaryForVoice();
+    if (!pythonBin) {
+      throw voiceEmbeddingUnavailable(
+        'Python 3 is not available on the server PATH.',
+        'Set PYTHON_BIN to your python executable, or deploy with nixpacks.toml so Python installs on Railway.'
+      );
     }
 
     const env = { ...process.env };
@@ -176,21 +199,27 @@ async function tryPyannoteEmbedding(processedPath) {
       env.HUGGINGFACE_TOKEN = hfToken;
     }
 
-    const command = hfToken
-      ? `python3 "${pythonScript}" "${processedPath}" "${hfToken}"`
-      : `python3 "${pythonScript}" "${processedPath}"`;
+    const embedTimeout = Math.min(
+      900000,
+      Math.max(45000, parseInt(process.env.VOICE_EMBEDDING_TIMEOUT_MS || '240000', 10) || 240000)
+    );
 
-    console.log(`📝 Executing: python3 voice_embedding.py "${processedPath}" ${hfToken ? '[token provided]' : '[no token]'}`);
+    const command = `"${pythonBin}" "${pythonScript}" "${processedPath}"`;
+
+    console.log(
+      `📝 Executing: ${pythonBin} voice_embedding.py "${processedPath}" (timeout ${embedTimeout}ms) ${hfToken ? '[HF_TOKEN in env]' : '[no HF_TOKEN]'}`
+    );
 
     let stdout = '';
     let stderr = '';
     try {
       const out = await execPromise(command, {
-        timeout: 30000,
-        env: env,
+        timeout: embedTimeout,
+        env,
+        maxBuffer: 50 * 1024 * 1024,
       });
       stdout = String(out.stdout || '');
-      stderr = String(out.stderr || '');
+      stderr = String(out.stderr || '').trim();
     } catch (execErr) {
       stdout = String(execErr.stdout || '');
       stderr = String(execErr.stderr || '').trim();
@@ -200,7 +229,15 @@ async function tryPyannoteEmbedding(processedPath) {
 
       let headline = 'Voice embedding (Python / pyannote) failed on the server.';
       const low = combined.toLowerCase();
-      if (!hfToken && (low.includes('token') || low.includes('401') || low.includes('403'))) {
+      const blob = `${combined}\n${execErr.message || ''}`;
+      const code = execErr && execErr.code;
+      if (
+        code === 127 ||
+        /enoent|not found|python3: not found|python: not found|spawn .*enoent/i.test(blob)
+      ) {
+        headline =
+          'Python was not found or failed to start. Set PYTHON_BIN or install Python 3 (Railway: use nixpacks.toml in this repo).';
+      } else if (!hfToken && (low.includes('token') || low.includes('401') || low.includes('403'))) {
         headline =
           'Hugging Face token is missing or invalid. Set HF_TOKEN (or HUGGINGFACE_TOKEN) and restart the server.';
       } else if (low.includes('403') || low.includes('restricted') || low.includes('gated')) {
@@ -208,9 +245,11 @@ async function tryPyannoteEmbedding(processedPath) {
           'Hugging Face rejected access to pyannote models. Accept the model terms on huggingface.co for pyannote/embedding (and speaker-diarization if used), and use a token with read access.';
       } else if (low.includes('modulenotfounderror') || low.includes('no module named')) {
         headline =
-          'Python voice dependencies are missing. On the server, install: pip install pyannote.audio torch torchaudio (see server logs for the exact import error).';
+          'Python voice dependencies are missing. Run: pip install -r server/requirements-voice.txt (Railway: redeploy after nixpacks.toml installs them).';
       } else if (low.includes('torch') || low.includes('cuda')) {
         headline = 'PyTorch / audio stack error while generating the embedding. See server logs for details.';
+      } else if (/etimedout|timed out|timeout/i.test(combined) || execErr?.killed) {
+        headline = `Voice embedding timed out after ${embedTimeout}ms. Set VOICE_EMBEDDING_TIMEOUT_MS (e.g. 600000) for first-time model download, then retry.`;
       }
 
       throw voiceEmbeddingUnavailable(headline, combined);

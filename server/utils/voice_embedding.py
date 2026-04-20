@@ -28,16 +28,32 @@ _DIARIZATION_LOAD_FAILED = False
 
 def _resolve_token(token):
     if token:
-        return token
+        return str(token).strip() or None
     t = os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_TOKEN")
     if t:
-        return t
+        return str(t).strip() or None
     try:
         from huggingface_hub import HfFolder
 
-        return HfFolder.get_token()
+        x = HfFolder.get_token()
+        return str(x).strip() if x else None
     except Exception:
         return None
+
+
+def _from_pretrained_hf(callable_cls, model_id, auth_token, **kwargs):
+    """
+    huggingface_hub >= 0.20 prefers `token=`; older pyannote stacks used `use_auth_token=`.
+    """
+    if auth_token:
+        try:
+            return callable_cls.from_pretrained(model_id, token=auth_token, **kwargs)
+        except TypeError:
+            return callable_cls.from_pretrained(model_id, use_auth_token=auth_token, **kwargs)
+    try:
+        return callable_cls.from_pretrained(model_id, token=True, **kwargs)
+    except TypeError:
+        return callable_cls.from_pretrained(model_id, use_auth_token=True, **kwargs)
 
 
 def _load_embedding_inference(auth_token):
@@ -47,7 +63,7 @@ def _load_embedding_inference(auth_token):
 
     from pyannote.audio import Inference, Model
 
-    max_retries = 3
+    max_retries = 5
     last_err = None
     for attempt in range(max_retries):
         try:
@@ -60,16 +76,21 @@ def _load_embedding_inference(auth_token):
                     f"Loading pyannote/embedding (attempt {attempt + 1}/{max_retries})...",
                     file=sys.stderr,
                 )
-                _EMBEDDING_MODEL = Model.from_pretrained(
+                _EMBEDDING_MODEL = _from_pretrained_hf(
+                    Model,
                     "pyannote/embedding",
-                    use_auth_token=auth_token,
+                    auth_token,
                     cache_dir=None,
                     strict=False,
                 )
             else:
                 print("No token found, trying cached HF credentials...", file=sys.stderr)
-                _EMBEDDING_MODEL = Model.from_pretrained(
-                    "pyannote/embedding", use_auth_token=True, strict=False
+                _EMBEDDING_MODEL = _from_pretrained_hf(
+                    Model,
+                    "pyannote/embedding",
+                    None,
+                    cache_dir=None,
+                    strict=False,
                 )
             _EMBEDDING_INFERENCE = Inference(_EMBEDDING_MODEL, device="cpu")
             print("✅ Embedding model loaded", file=sys.stderr)
@@ -103,14 +124,16 @@ def _get_diarization_pipeline(auth_token):
         from pyannote.audio import Pipeline
 
         if auth_token:
-            _DIARIZATION_PIPELINE = Pipeline.from_pretrained(
+            _DIARIZATION_PIPELINE = _from_pretrained_hf(
+                Pipeline,
                 "pyannote/speaker-diarization-3.1",
-                use_auth_token=auth_token,
+                auth_token,
             )
         else:
-            _DIARIZATION_PIPELINE = Pipeline.from_pretrained(
+            _DIARIZATION_PIPELINE = _from_pretrained_hf(
+                Pipeline,
                 "pyannote/speaker-diarization-3.1",
-                use_auth_token=True,
+                None,
             )
         print("✅ Speaker diarization pipeline loaded", file=sys.stderr)
     except Exception as e:
@@ -256,6 +279,8 @@ if __name__ == "__main__":
 
     audio_path = sys.argv[1]
     token_arg = sys.argv[2] if len(sys.argv) > 2 else None
+    if not token_arg:
+        token_arg = _resolve_token(None)
 
     if token_arg:
         os.environ["HF_TOKEN"] = token_arg
