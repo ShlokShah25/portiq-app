@@ -1154,7 +1154,23 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
     }
     
     if (!summaryResponse) {
-      throw summaryError || new Error('Summary generation failed after all retries');
+      console.warn(
+        '⚠️ Structured summary generation failed after retries; using transcript fallback summary to avoid empty meeting output.'
+      );
+      const fallbackSummaryData = {
+        transcription: transcriptTextTrim,
+        summary: '',
+        keyPoints: [],
+        actionItems: [],
+        decisions: [],
+        nextSteps: [],
+        importantNotes: [],
+      };
+      await applyTranscriptExcerptFallbackSummaryAsync(fallbackSummaryData, transcriptTextTrim, {
+        meetingTitle,
+        isEducation,
+      });
+      return fallbackSummaryData;
     }
 
   const rawContent = summaryResponse.choices[0].message.content || '';
@@ -1821,7 +1837,10 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
     await checkpointTranscriptionToDb(meetingObj._id, transcriptText);
 
     let summaryResult;
-    const maxSummaryAttempts = 3;
+    const maxSummaryAttempts = Math.min(
+      6,
+      Math.max(3, parseInt(process.env.SUMMARY_GENERATION_ATTEMPTS || '5', 10) || 5)
+    );
     for (let sumAttempt = 1; sumAttempt <= maxSummaryAttempts; sumAttempt++) {
       try {
         summaryResult = await generateMeetingSummaryFromTranscript(transcriptText, meetingObj, {
@@ -2459,7 +2478,7 @@ async function sendMeetingSummary(meeting, summaryData, options = {}) {
 
   let translatedBlock = '';
   if (emailTranslatedSummary && translationLang) {
-    translatedBlock = `
+      translatedBlock = `
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
       <p style="margin: 0 0 8px 0; font-size: 13px; color: #4b5563;">
         Translated summary (<strong>${escHtml(translationLang)}</strong>):
