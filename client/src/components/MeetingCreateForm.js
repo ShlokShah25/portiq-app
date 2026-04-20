@@ -146,6 +146,8 @@ export default function MeetingCreateForm({
   const [scheduledDate, setScheduledDate] = useState(defaults.date);
   const [scheduledTime, setScheduledTime] = useState(defaults.time);
   const [organizer, setOrganizer] = useState('');
+  /** Server account product — voice + participant book are workplace-only. */
+  const [accountProductType, setAccountProductType] = useState(null);
   const [liveLocation, setLiveLocation] = useState('');
   const [selectedClassroomId, setSelectedClassroomId] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
@@ -230,12 +232,15 @@ export default function MeetingCreateForm({
       try {
         const res = await axios.get('/admin/profile');
         const a = res.data?.admin;
+        const pt = String(a?.productType || 'workplace').trim().toLowerCase();
+        setAccountProductType(pt);
         const o = (a?.email && String(a.email).trim()) || (a?.username && String(a.username).trim()) || '';
         setOrganizer(o);
-      } catch {
-        setOrganizer('');
-      }
-      if (!isEducation) {
+        if (pt === 'education') {
+          setParticipantBook([]);
+          setParticipantBookError('');
+          return;
+        }
         setParticipantBookError('');
         try {
           const bookRes = await axios.get('/admin/participant-book');
@@ -249,12 +254,15 @@ export default function MeetingCreateForm({
               : 'Could not load participant book.'
           );
         }
+      } catch {
+        setOrganizer('');
+        setAccountProductType(null);
       }
     })();
   }, [active]);
 
   useEffect(() => {
-    if (!active || isEducation) {
+    if (!active || accountProductType === 'education') {
       setVoiceProfiles({});
       return;
     }
@@ -301,8 +309,8 @@ export default function MeetingCreateForm({
     };
   }, [
     active,
+    accountProductType,
     participantBook,
-    isEducation,
     summaryModeEffective,
     interviewInterviewerEmails,
     interviewCandidates,
@@ -666,10 +674,13 @@ export default function MeetingCreateForm({
       setVoiceSuccessMessage('');
       let participantList = participantBook
         .filter((p) => p.email && String(p.email).trim())
-        .map((p) => ({ name: p.name || '', email: String(p.email).trim() }));
+        .map((p) => ({
+          name: p.name || '',
+          email: String(p.email).trim().toLowerCase(),
+        }));
       if (summaryModeEffective === 'interview') {
         interviewCandidates.forEach((c) => {
-          const em = String(c.voiceEmail || '').trim();
+          const em = String(c.voiceEmail || '').trim().toLowerCase();
           const nm = String(c.name || '').trim();
           if (em && nm) participantList.push({ name: nm, email: em });
         });
@@ -678,13 +689,15 @@ export default function MeetingCreateForm({
       const audioFile = new File([audioBlob], `voice-sample-${Date.now()}.webm`, {
         type: 'audio/webm',
       });
-      formData.append('audio', audioFile);
       formData.append('participants', JSON.stringify(participantList));
       formData.append('standardSentence', VOICE_ENROLLMENT_API_TEMPLATE);
       if (targetParticipant?.email) {
-        formData.append('email', String(targetParticipant.email).trim());
-        if (targetParticipant.name) formData.append('name', String(targetParticipant.name));
+        formData.append('email', String(targetParticipant.email).trim().toLowerCase());
+        if (targetParticipant.name) {
+          formData.append('name', String(targetParticipant.name).trim());
+        }
       }
+      formData.append('audio', audioFile);
       const res = await axios.post('/meetings/voice/register', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });

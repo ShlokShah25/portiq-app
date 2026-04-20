@@ -84,7 +84,7 @@ export function ParticipantBookPanel({ embedded = false }) {
 
   const voiceReadyCount = useMemo(() => {
     return participants.filter((p) => {
-      const em = p.email && String(p.email).trim();
+      const em = p.email && String(p.email).trim().toLowerCase();
       return em && voiceProfiles[em]?.hasProfile;
     }).length;
   }, [participants, voiceProfiles]);
@@ -117,14 +117,15 @@ export function ParticipantBookPanel({ embedded = false }) {
   const fetchVoiceProfiles = async (emails) => {
     try {
       const res = await axios.get(`/meetings/voice/profiles?emails=${emails.join(',')}`);
+      const list = Array.isArray(res.data?.profiles) ? res.data.profiles : [];
       const profilesMap = {};
-      emails.forEach(email => {
-        const profile = res.data.profiles.find(
-          p => p.email.toLowerCase() === email.toLowerCase()
-        );
+      emails.forEach((rawEmail) => {
+        const email = String(rawEmail || '').trim().toLowerCase();
+        if (!email) return;
+        const profile = list.find((p) => p && String(p.email || '').trim().toLowerCase() === email);
         profilesMap[email] = {
           hasProfile: !!profile,
-          name: profile?.name || ''
+          name: profile?.name || '',
         };
       });
       setVoiceProfiles(profilesMap);
@@ -270,7 +271,7 @@ export function ParticipantBookPanel({ embedded = false }) {
 
       mediaRecorder.start();
       setVoiceMediaRecorder(mediaRecorder);
-      setRecordingEmail(participant.email);
+      setRecordingEmail(String(participant.email || '').trim().toLowerCase());
     } catch (err) {
       console.error('Error starting voice recording:', err);
       setError('Unable to access microphone. Please check browser permissions.');
@@ -290,10 +291,10 @@ export function ParticipantBookPanel({ embedded = false }) {
       setError('');
 
       const participantList = participants
-        .filter(p => p.email && p.email.trim())
-        .map(p => ({
+        .filter((p) => p.email && String(p.email).trim())
+        .map((p) => ({
           name: p.name || '',
-          email: p.email.trim()
+          email: String(p.email).trim().toLowerCase(),
         }));
 
       const formData = new FormData();
@@ -302,19 +303,16 @@ export function ParticipantBookPanel({ embedded = false }) {
         `voice-sample-${Date.now()}.webm`,
         { type: 'audio/webm' }
       );
-      formData.append('audio', audioFile);
+      // Append text fields before the file so multer can read req.body.email for disk filename.
       formData.append('participants', JSON.stringify(participantList));
-      formData.append(
-        'standardSentence',
-        VOICE_ENROLLMENT_API_TEMPLATE
-      );
-
+      formData.append('standardSentence', VOICE_ENROLLMENT_API_TEMPLATE);
       if (targetParticipant && targetParticipant.email) {
-        formData.append('email', targetParticipant.email.trim());
+        formData.append('email', String(targetParticipant.email).trim().toLowerCase());
         if (targetParticipant.name) {
-          formData.append('name', targetParticipant.name);
+          formData.append('name', String(targetParticipant.name).trim());
         }
       }
+      formData.append('audio', audioFile);
 
       const res = await axios.post('/meetings/voice/register', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
@@ -325,9 +323,10 @@ export function ParticipantBookPanel({ embedded = false }) {
       const wasAutoMatched = res.data.autoMatched;
 
       if (matchedEmail) {
-        setVoiceProfiles(prev => ({
+        const key = String(matchedEmail).trim().toLowerCase();
+        setVoiceProfiles((prev) => ({
           ...prev,
-          [matchedEmail]: { hasProfile: true, name: matchedName }
+          [key]: { hasProfile: true, name: matchedName },
         }));
 
         setRecordingEmail(null);
@@ -550,6 +549,7 @@ export function ParticipantBookPanel({ embedded = false }) {
             <div className="participants-grid">
               {participants.map((p, idx) => {
                 const participantName = p.name || p.email || 'This participant';
+                const emailKey = String(p.email || '').trim().toLowerCase();
                 const standardSentence = voiceEnrollmentSentenceForParticipant(participantName);
                 return (
                 <div key={idx} className="participant-card">
@@ -571,34 +571,34 @@ export function ParticipantBookPanel({ embedded = false }) {
                         <span className="participant-intel-stat-label">tasks</span>
                       </span>
                     </div>
-                    {p.email && p.email.trim() && (
+                    {emailKey && (
                       <div className="participant-voice-block">
                         <div className="participant-voice-row__top">
                           <span className="participant-voice-status">
-                            {voiceProfiles[p.email]?.hasProfile
+                            {voiceProfiles[emailKey]?.hasProfile
                               ? 'Voice configured'
                               : 'Voice not configured'}
                           </span>
                           <button
                             type="button"
                             className="participant-voice-btn"
-                            disabled={uploading && recordingEmail === p.email}
+                            disabled={uploading && recordingEmail === emailKey}
                             onClick={() => {
-                              if (recordingEmail === p.email) {
+                              if (recordingEmail === emailKey) {
                                 stopVoiceRecording();
                               } else {
                                 startVoiceRecording(p);
                               }
                             }}
                           >
-                            {recordingEmail === p.email
+                            {recordingEmail === emailKey
                               ? 'Stop & Save'
-                              : voiceProfiles[p.email]?.hasProfile
+                              : voiceProfiles[emailKey]?.hasProfile
                                 ? 'Re-record'
                                 : 'Configure Voice'}
                           </button>
                         </div>
-                        {recordingEmail === p.email && (
+                        {recordingEmail === emailKey && (
                           <>
                             <div className="participant-voice-meter" aria-live="polite">
                               <div

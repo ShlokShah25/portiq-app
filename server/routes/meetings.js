@@ -2292,13 +2292,19 @@ router.post('/voice/register', withVoiceUpload, async (req, res) => {
         
         const transcriptText = transcription.text || '';
         
-        // Extract name from transcript using pattern matching
-        const nameMatch = transcriptText.match(/my name is ([A-Za-z\s]+?)(?:\s+and|\s+I|$)/i) || 
-                         transcriptText.match(/name is ([A-Za-z\s]+?)(?:\s+and|\s+I|$)/i) ||
-                         transcriptText.match(/I am ([A-Za-z\s]+?)(?:\s+and|\s+ready|$)/i);
+        // Extract name from transcript (legacy phrase used "… and I am ready…"; current enrollment uses
+        // "… This is my sample voice for PortIQ …" — allow both and common punctuation before the next clause).
+        const nameMatch =
+          transcriptText.match(/my name is ([^.!?\n]+?)(?:[.!?]|\s+this\s+is\s+my\s+sample|\s+and\s+I\b|$)/i) ||
+          transcriptText.match(/name is ([^.!?\n]+?)(?:[.!?]|\s+this\s+is\s+my\s+sample|\s+and\s+I\b|$)/i) ||
+          transcriptText.match(/my name is ([A-Za-z\s]+?)(?:\s+and|\s+I\b|$)/i) ||
+          transcriptText.match(/name is ([A-Za-z\s]+?)(?:\s+and|\s+I\b|$)/i) ||
+          transcriptText.match(/I am ([A-Za-z\s]+?)(?:\s+and|\s+ready|$)/i);
         
         if (nameMatch && nameMatch[1]) {
-          const detectedName = nameMatch[1].trim();
+          const detectedName = String(nameMatch[1] || '')
+            .replace(/\s+/g, ' ')
+            .trim();
           
           // Try to match detected name to participant list
           if (participantList.length > 0) {
@@ -2447,12 +2453,12 @@ router.get('/voice/profiles', async (req, res) => {
 
     const emailList = Array.isArray(emails) ? emails : emails.split(',');
     const profiles = await VoiceProfile.find({
-      email: { $in: emailList.map(e => e.toLowerCase()) }
+      email: { $in: emailList.map((e) => String(e || '').trim().toLowerCase()).filter(Boolean) },
     });
 
     res.json({
       success: true,
-      profiles: profiles.map(p => ({
+      profiles: (profiles || []).map((p) => ({
         email: p.email,
         name: p.name,
         hasProfile: true,
