@@ -1040,6 +1040,22 @@ async function reconcileSummaryPayloadAfterGroundingAsync(
     return;
   }
   const t = String(transcriptTextTrim || '').trim();
+  if (t) {
+    const aiRecap = await synthesizeEnglishRecapFromTranscriptExcerpt(
+      t,
+      meta.meetingTitle,
+      !!meta.isEducation
+    );
+    if (aiRecap && String(aiRecap).trim()) {
+      summaryData.summary = String(aiRecap).trim();
+      summaryData.keyPoints = [];
+      summaryData.decisions = [];
+      summaryData.nextSteps = [];
+      summaryData.importantNotes = [];
+      summaryData.actionItems = [];
+      return;
+    }
+  }
   if (summaryPayloadHasDisplayableContent(preFilter)) {
     console.warn(
       '⚠️ Grounding filter removed all displayable summary content and no transcript text is available; using unfiltered model output (API response was non-empty).'
@@ -1057,10 +1073,11 @@ async function reconcileSummaryPayloadAfterGroundingAsync(
     });
     return;
   }
-  if (t) {
-    throw new Error('No usable structured summary content after grounding');
-  }
-  throw new Error('No usable structured summary content (empty transcript context)');
+  throw new Error(
+    t
+      ? 'No usable structured summary content after grounding (AI recap salvage unavailable)'
+      : 'No usable structured summary content (empty transcript context)'
+  );
 }
 
 const EDUCATION_SPEAKER_BRACKET_PREFIX = /\[[^\]\r\n]{1,120}\]\s*:\s*/g;
@@ -1438,7 +1455,21 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
   );
 
   if (!summaryPayloadHasDisplayableContent(summaryData)) {
-    throw new Error('Structured summary was empty after processing');
+    const aiRecap = await synthesizeEnglishRecapFromTranscriptExcerpt(
+      transcriptTextTrim,
+      meetingTitle,
+      isEducation
+    );
+    if (aiRecap && String(aiRecap).trim()) {
+      summaryData.summary = String(aiRecap).trim();
+      summaryData.keyPoints = [];
+      summaryData.decisions = [];
+      summaryData.nextSteps = [];
+      summaryData.importantNotes = [];
+      summaryData.actionItems = [];
+    } else {
+      throw new Error('Structured summary was empty after processing');
+    }
   }
 
   if (isEducation) {
