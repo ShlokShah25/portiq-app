@@ -64,57 +64,6 @@ function buildPipelineUpdateFromSummaryData(summaryData) {
   };
 }
 
-function buildDeterministicFallbackSummaryData(transcriptText, meetingDoc, options = {}) {
-  const t = String(transcriptText || '').replace(/\s+/g, ' ').trim();
-  const rawProduct =
-    String(
-      options.productType ||
-        meetingDoc?.productType ||
-        meetingDoc?.adminProductType ||
-        ''
-    )
-      .trim()
-      .toLowerCase();
-  const isEducation =
-    rawProduct === 'education' ||
-    !!(
-      meetingDoc &&
-      (meetingDoc.educationClassroomId ||
-        meetingDoc.educationClassroomName ||
-        meetingDoc.educationSubject ||
-        meetingDoc.educationTeacherName)
-    );
-
-  const sentenceLike = t
-    .split(/(?<=[.!?])\s+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  const maxSentences = isEducation ? 18 : 14;
-  const picked = sentenceLike.slice(0, maxSentences);
-  const summaryCore = picked.length > 0 ? picked.join(' ') : t.slice(0, 3500);
-  const summaryPrefix = isEducation
-    ? 'Lecture recap fallback:'
-    : 'Meeting recap fallback:';
-
-  const keyPoints =
-    sentenceLike.length > maxSentences
-      ? sentenceLike.slice(maxSentences, maxSentences + 8)
-      : [];
-
-  return {
-    transcription: t,
-    summary: `${summaryPrefix} ${summaryCore}`.trim(),
-    keyPoints,
-    actionItems: [],
-    decisions: [],
-    nextSteps: [],
-    importantNotes: [
-      'Auto-generated fallback summary because AI structured summarization was temporarily unavailable.',
-    ],
-  };
-}
-
 /**
  * @returns {Promise<boolean>} true if meeting was recovered to Completed
  */
@@ -148,22 +97,7 @@ async function recoverSummaryFromCheckpointedTranscript(meetingId, options = {})
       }
     }
   }
-
-  try {
-    const fallback = buildDeterministicFallbackSummaryData(t, fresh, options);
-    const update = buildPipelineUpdateFromSummaryData(fallback);
-    await Meeting.findByIdAndUpdate(meetingId, { $set: update }, { new: true });
-    console.warn(
-      `⚠️ Recovered meeting ${meetingId} with deterministic fallback summary after AI retries failed`
-    );
-    return true;
-  } catch (fallbackErr) {
-    console.error(
-      `❌ Deterministic fallback recovery failed for ${meetingId}:`,
-      fallbackErr.message || fallbackErr
-    );
-    return false;
-  }
+  return false;
 }
 
 module.exports = {
