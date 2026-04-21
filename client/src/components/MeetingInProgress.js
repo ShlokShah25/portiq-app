@@ -768,8 +768,8 @@ const MeetingInProgress = () => {
         <div className={`meeting-summary-card mip-card${meeting && !loading ? ' ux-screen-enter' : ''}`}>
           {meetingEnded ? (
             <>
-              <div className="meeting-summary-ready-badge mip-ready-badge mip-ready-badge--neutral">
-                <span className="meeting-summary-ready-badge__dot mip-ready-badge__dot--neutral" />
+              <div className="meeting-summary-ready-badge mip-ready-badge mip-ready-badge--ended">
+                <span className="meeting-summary-ready-badge__dot mip-ready-badge__dot--ended" />
                 {isInterview ? 'Interview ended' : meetingEducationMode ? 'Lecture ended' : 'Meeting ended'}
               </div>
               <h1 className="meeting-summary-page-title">{meeting.title || 'Untitled meeting'}</h1>

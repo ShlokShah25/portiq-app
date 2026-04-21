@@ -470,8 +470,21 @@
   color: var(--text-secondary);
 }
 
+.mip-ready-badge--ended {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.24), rgba(34, 197, 94, 0.18));
+  border-color: rgba(34, 197, 94, 0.45);
+  color: #dcfce7;
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.14) inset;
+}
+
 .mip-ready-badge__dot--neutral {
   background: #6b7280 !important;
+  animation: none !important;
+}
+
+.mip-ready-badge__dot--ended {
+  background: #22c55e !important;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.55);
   animation: none !important;
 }
 
