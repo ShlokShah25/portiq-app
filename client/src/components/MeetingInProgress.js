@@ -9,6 +9,17 @@ import './MeetingSummary.css';
 import './MeetingInProgress.css';
 import './MeetingDetail.css';
 
+function meetingHasEducationContext(m) {
+  if (!m || typeof m !== 'object') return false;
+  if (String(m.accountProductType || '').trim().toLowerCase() === 'education') return true;
+  if (String(m.educationClassroomId || '').trim()) return true;
+  if (String(m.educationClassroomName || '').trim()) return true;
+  if (String(m.educationSubject || '').trim()) return true;
+  if (String(m.educationTeacherName || '').trim()) return true;
+  if (String(m.educationTeacherEmail || '').trim()) return true;
+  return false;
+}
+
 // Keep the MediaRecorder + mic stream alive even if the user navigates away from this route.
 // Without this, some browsers will stop recording when the owning React component unmounts.
 let globalActiveMeetingId = null;
@@ -738,6 +749,7 @@ const MeetingInProgress = () => {
 
   const recordingLive = recording || isGlobalRecordingActive();
   const isInterview = FEATURE_INTERVIEW_UI && meeting?.summaryMode === 'interview';
+  const meetingEducationMode = meetingHasEducationContext(meeting) || isEducation;
   const meetingLocationTrimmed = meeting ? String(meeting.meetingRoom || '').trim() : '';
   const hasMeetingLocation = meetingLocationTrimmed.length > 0;
   const showLiveStatusChip =
@@ -758,7 +770,7 @@ const MeetingInProgress = () => {
             <>
               <div className="meeting-summary-ready-badge mip-ready-badge mip-ready-badge--neutral">
                 <span className="meeting-summary-ready-badge__dot mip-ready-badge__dot--neutral" />
-                {isInterview ? 'Interview ended' : isEducation ? 'Lecture ended' : 'Meeting ended'}
+                {isInterview ? 'Interview ended' : meetingEducationMode ? 'Lecture ended' : 'Meeting ended'}
               </div>
               <h1 className="meeting-summary-page-title">{meeting.title || 'Untitled meeting'}</h1>
               <p className="meeting-summary-subtitle">
@@ -813,7 +825,7 @@ const MeetingInProgress = () => {
                       : 'Interview in progress'
                     : meeting.status === 'Scheduled'
                       ? 'When you begin, start recording below.'
-                      : isEducation ? 'Lecture in progress' : 'Meeting in progress'}
+                      : meetingEducationMode ? 'Lecture in progress' : 'Meeting in progress'}
                 </p>
               </header>
 
@@ -1013,10 +1025,18 @@ const MeetingInProgress = () => {
                 </div>
               </div>
 
-        {meeting.participants && meeting.participants.length > 0 && (
+        {meetingEducationMode ? (
           <div className="meeting-summary-section meeting-summary-section--keypoints mip-participants-section mip-participants-section--after-meta">
             <h2 className="meeting-summary-heading">
-              {isEducation
+              {`Classroom${meeting.educationClassroomName ? `: ${meeting.educationClassroomName}` : ''}`}
+            </h2>
+          </div>
+        ) : null}
+
+        {meeting.participants && meeting.participants.length > 0 && !meetingEducationMode && (
+          <div className="meeting-summary-section meeting-summary-section--keypoints mip-participants-section mip-participants-section--after-meta">
+            <h2 className="meeting-summary-heading">
+              {meetingEducationMode
                 ? `Classroom${meeting.educationClassroomName ? `: ${meeting.educationClassroomName}` : ''}`
                 : 'Participants'}
             </h2>
@@ -1035,7 +1055,7 @@ const MeetingInProgress = () => {
                     </div>
                     <div className="mip-participant-text">
                       <div className="mip-participant-name">{p.name || 'Unnamed'}</div>
-                      {!isEducation && p.email ? (
+                      {!meetingEducationMode && p.email ? (
                         <div className="mip-participant-email">{p.email}</div>
                       ) : null}
                     </div>
@@ -1074,7 +1094,7 @@ const MeetingInProgress = () => {
                   className="mip-secondary-row__link"
                   onClick={() => navigate('/meetings', { state: { showAllMeetings: true } })}
                 >
-                  {isEducation ? 'View all lectures' : 'View all meetings'}
+                  {meetingEducationMode ? 'View all lectures' : 'View all meetings'}
                 </button>
                 <p className="mip-ai-disclaimer mip-ai-disclaimer--footer">
                   Audio is captured in your browser. Stopping recording or ending uploads audio for your transcript.
@@ -1090,7 +1110,7 @@ const MeetingInProgress = () => {
             onClick={handleEndMeeting}
             disabled={uploading}
           >
-            {isInterview ? 'End interview' : T.endMeeting()}
+            {isInterview ? 'End interview' : (meetingEducationMode ? 'End Lecture' : T.endMeeting())}
           </button>
         </div>
             </>

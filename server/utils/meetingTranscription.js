@@ -990,18 +990,6 @@ async function reconcileSummaryPayloadAfterGroundingAsync(
     return;
   }
   const t = String(transcriptTextTrim || '').trim();
-  if (t) {
-    console.warn(
-      '⚠️ Grounding removed all displayable summary content; falling back to English recap from transcript.'
-    );
-    await applyTranscriptExcerptFallbackSummaryAsync(summaryData, transcriptTextTrim, meta);
-    summaryData.keyPoints = [];
-    summaryData.decisions = [];
-    summaryData.nextSteps = [];
-    summaryData.importantNotes = [];
-    summaryData.actionItems = [];
-    return;
-  }
   if (summaryPayloadHasDisplayableContent(preFilter)) {
     console.warn(
       '⚠️ Grounding filter removed all displayable summary content and no transcript text is available; using unfiltered model output (API response was non-empty).'
@@ -1019,10 +1007,10 @@ async function reconcileSummaryPayloadAfterGroundingAsync(
     });
     return;
   }
-  console.warn(
-    '⚠️ Model returned no usable structured summary; synthesizing English recap from transcript if possible.'
-  );
-  await applyTranscriptExcerptFallbackSummaryAsync(summaryData, transcriptTextTrim, meta);
+  if (t) {
+    throw new Error('No usable structured summary content after grounding');
+  }
+  throw new Error('No usable structured summary content (empty transcript context)');
 }
 
 const EDUCATION_SPEAKER_BRACKET_PREFIX = /\[[^\]\r\n]{1,120}\]\s*:\s*/g;
@@ -1329,23 +1317,7 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
     }
     
     if (!summaryResponse) {
-      console.warn(
-        '⚠️ Structured summary generation failed after retries; using transcript fallback summary to avoid empty meeting output.'
-      );
-      const fallbackSummaryData = {
-        transcription: transcriptTextTrim,
-        summary: '',
-        keyPoints: [],
-        actionItems: [],
-        decisions: [],
-        nextSteps: [],
-        importantNotes: [],
-      };
-      await applyTranscriptExcerptFallbackSummaryAsync(fallbackSummaryData, transcriptTextTrim, {
-        meetingTitle,
-        isEducation,
-      });
-      return fallbackSummaryData;
+      throw summaryError || new Error('Structured summary generation failed after retries');
     }
 
   const rawContent = summaryResponse.choices[0].message.content || '';
@@ -1384,7 +1356,7 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
   );
 
   if (!summaryPayloadHasDisplayableContent(summaryData)) {
-    await applyTranscriptExcerptFallbackSummaryAsync(summaryData, transcriptTextTrim, groundingMeta);
+    throw new Error('Structured summary was empty after processing');
   }
 
   if (isEducation) {
