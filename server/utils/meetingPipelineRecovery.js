@@ -168,6 +168,5 @@ async function recoverSummaryFromCheckpointedTranscript(meetingId, options = {})
 
 module.exports = {
   buildPipelineUpdateFromSummaryData,
-  buildDeterministicFallbackSummaryData,
   recoverSummaryFromCheckpointedTranscript,
 };

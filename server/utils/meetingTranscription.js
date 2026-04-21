@@ -84,18 +84,6 @@ function isRetryableOpenAiError(apiError) {
   return false;
 }
 
-function isProviderOutageLikeError(err) {
-  if (!err) return false;
-  const s = Number(err.status || err.response?.status || 0);
-  if (s === 408 || s === 429 || s === 500 || s === 502 || s === 503 || s === 504) return true;
-  const code = String(err.code || '');
-  if (['ECONNRESET', 'ETIMEDOUT', 'ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN'].includes(code)) {
-    return true;
-  }
-  const msg = String(err.message || '');
-  return /rate limit|timeout|timed out|server error|service unavailable|overloaded/i.test(msg);
-}
-
 function getSummaryChatModel() {
   return process.env.OPENAI_SUMMARY_MODEL || 'gpt-4o-mini';
 }
@@ -705,110 +693,6 @@ function tryParseModelJsonObject(raw) {
   return {};
 }
 
-async function tryRepairStructuredSummaryJsonAsync(raw, meta = {}) {
-  const parsed = tryParseModelJsonObject(raw);
-  if (parsed && Object.keys(parsed).length > 0) return parsed;
-  const source = String(raw || '').trim();
-  if (!source || !openai) return {};
-  try {
-    const repairModel = getSummaryChatModelCandidates()[0] || getSummaryChatModel();
-    const repairMessages = [
-      {
-        role: 'system',
-        content:
-          'Convert the provided text into one strict JSON object only (no markdown). ' +
-          'Use this schema with the same keys and types: ' +
-          '{"summary":"string","keyPoints":["string"],"actionItems":[{"task":"string","assignee":"string","dueDate":"YYYY-MM-DD or null","notes":"string"}],"decisions":["string"],"nextSteps":["string"],"importantNotes":["string"]}. ' +
-          'If a section is missing, return empty string or empty array accordingly.',
-      },
-      {
-        role: 'user',
-        content:
-          `Meeting title: ${String(meta.meetingTitle || 'Meeting')}\n` +
-          `Detected language: ${String(meta.detectedLanguage || 'unknown')}\n` +
-          `Education mode: ${meta.isEducation ? 'yes' : 'no'}\n\n` +
-          `Source text to repair into strict JSON:\n\n${source}`,
-      },
-    ];
-    try {
-      const repair = await openai.chat.completions.create({
-        model: repairModel,
-        messages: repairMessages,
-        temperature: 0,
-        response_format: { type: 'json_object' },
-      });
-      return tryParseModelJsonObject(String(repair.choices?.[0]?.message?.content || ''));
-    } catch (strictErr) {
-      const strictStatus = Number(strictErr?.status || strictErr?.response?.status || 0);
-      if (strictStatus !== 400) throw strictErr;
-      const repair = await openai.chat.completions.create({
-        model: repairModel,
-        messages: repairMessages,
-        temperature: 0,
-      });
-      return tryParseModelJsonObject(String(repair.choices?.[0]?.message?.content || ''));
-    }
-  } catch (err) {
-    console.warn('⚠️ Structured summary JSON repair failed:', err?.message || err);
-    return {};
-  }
-}
-
-function normalizeStructuredSummaryShape(data) {
-  const out = data && typeof data === 'object' ? { ...data } : {};
-  if (typeof out.summary !== 'string') out.summary = '';
-  if (!Array.isArray(out.keyPoints)) out.keyPoints = [];
-  if (!Array.isArray(out.actionItems)) out.actionItems = [];
-  if (!Array.isArray(out.decisions)) out.decisions = [];
-  if (!Array.isArray(out.nextSteps)) out.nextSteps = [];
-  if (!Array.isArray(out.importantNotes)) out.importantNotes = [];
-  return out;
-}
-
-async function generateLenientStructuredSummaryFromTranscript(transcriptText, meta = {}) {
-  if (!openai) return null;
-  const source = String(transcriptText || '').trim();
-  if (!source) return null;
-  const isEducation = !!meta.isEducation;
-  const meetingTitle = String(meta.meetingTitle || 'Meeting').trim();
-  const detectedLanguage = String(meta.detectedLanguage || 'unknown').trim();
-  const candidates = getSummaryChatModelCandidates();
-  const model = candidates[0] || getSummaryChatModel();
-  const cap = Math.min(45000, Math.max(12000, source.length));
-  const clipped = source.length > cap ? `${source.slice(0, cap)}\n\n[…]` : source;
-  try {
-    const res = await openai.chat.completions.create({
-      model,
-      messages: [
-        {
-          role: 'system',
-          content:
-            `You are generating structured ${isEducation ? 'lecture notes' : 'meeting notes'} in English. ` +
-            'Return ONE JSON object only (no markdown) with keys: summary, keyPoints, actionItems, decisions, nextSteps, importantNotes. ' +
-            'Keep each key concise but concrete. Do not invent facts.',
-        },
-        {
-          role: 'user',
-          content:
-            `Title: ${meetingTitle}\n` +
-            `Detected language: ${detectedLanguage}\n\n` +
-            `Transcript:\n${clipped}\n\n` +
-            `JSON schema:\n` +
-            `{"summary":"string","keyPoints":["string"],"actionItems":[{"task":"string","assignee":"string","dueDate":"YYYY-MM-DD or null","notes":"string"}],"decisions":["string"],"nextSteps":["string"],"importantNotes":["string"]}`,
-        },
-      ],
-      temperature: 0.1,
-    });
-    const raw = String(res.choices?.[0]?.message?.content || '');
-    const parsed = await tryRepairStructuredSummaryJsonAsync(raw, meta);
-    const normalized = normalizeStructuredSummaryShape(parsed);
-    return summaryPayloadHasDisplayableContent(normalized) ? normalized : null;
-  } catch (err) {
-    console.warn('⚠️ Lenient structured summary pass failed:', err?.message || err);
-    return null;
-  }
-}
-
 /**
  * Latin-keyword grounding assumes the transcript shares enough Latin tokens with the summary.
  * Hindi / Devanagari (and similar) transcripts fail that check and incorrectly strip valid English
@@ -1105,9 +989,22 @@ async function reconcileSummaryPayloadAfterGroundingAsync(
   if (summaryPayloadHasDisplayableContent(summaryData)) {
     return;
   }
+  const t = String(transcriptTextTrim || '').trim();
+  if (t) {
+    console.warn(
+      '⚠️ Grounding removed all displayable summary content; falling back to English recap from transcript.'
+    );
+    await applyTranscriptExcerptFallbackSummaryAsync(summaryData, transcriptTextTrim, meta);
+    summaryData.keyPoints = [];
+    summaryData.decisions = [];
+    summaryData.nextSteps = [];
+    summaryData.importantNotes = [];
+    summaryData.actionItems = [];
+    return;
+  }
   if (summaryPayloadHasDisplayableContent(preFilter)) {
     console.warn(
-      '⚠️ Grounding removed displayable content; restoring pre-filter AI structured summary.'
+      '⚠️ Grounding filter removed all displayable summary content and no transcript text is available; using unfiltered model output (API response was non-empty).'
     );
     summaryData.summary = preFilter.summary;
     summaryData.keyPoints = [...preFilter.keyPoints];
@@ -1120,19 +1017,6 @@ async function reconcileSummaryPayloadAfterGroundingAsync(
       summary: summaryData.summary,
       nextSteps: summaryData.nextSteps,
     });
-    return;
-  }
-  const t = String(transcriptTextTrim || '').trim();
-  if (t) {
-    console.warn(
-      '⚠️ Grounding removed all displayable summary content; falling back to English recap from transcript.'
-    );
-    await applyTranscriptExcerptFallbackSummaryAsync(summaryData, transcriptTextTrim, meta);
-    summaryData.keyPoints = [];
-    summaryData.decisions = [];
-    summaryData.nextSteps = [];
-    summaryData.importantNotes = [];
-    summaryData.actionItems = [];
     return;
   }
   console.warn(
@@ -1315,8 +1199,6 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
 
     let summaryResponse = null;
     let summaryError = null;
-    let useStrictJsonResponseFormat = true;
-    let summaryPromptTranscript = transcriptForSummaryPrompt;
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -1324,8 +1206,8 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
       console.log(
         `   Generating summary (attempt ${attempt}/${maxRetries})… model=${modelForAttempt} mode=${isEducation ? 'education' : 'workplace'}`
       );
-        const completionReq = {
-          model: modelForAttempt,
+        summaryResponse = await openai.chat.completions.create({
+        model: modelForAttempt,
           messages: [
         {
           role: 'system',
@@ -1378,7 +1260,7 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
                     formatParticipantLinesForSummaryPrompt(meetingObj.participants) +
                     `\n\nEnsure names in the summary and action items match the transcript; do not invent people who did not speak.\n\n`
               : '') +
-            `Transcript:\n\n${summaryPromptTranscript}\n\n` +
+            `Transcript:\n\n${transcriptForSummaryPrompt}\n\n` +
             `Follow these rules strictly:\n` +
             `- Output language: write every JSON string in English regardless of the detected primary transcription language (${detectedLanguage}) or the mix of languages in the audio—comprehend all of it, report only in English.\n` +
             `- Focus ONLY on what is actually discussed in this transcript.\n` +
@@ -1424,42 +1306,14 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
               `}`,
           },
         ],
-            temperature: 0.1,
-        };
-        if (useStrictJsonResponseFormat) {
-          completionReq.response_format = { type: 'json_object' };
-        }
-        summaryResponse = await openai.chat.completions.create(completionReq);
+        temperature: 0.1,
+        response_format: { type: 'json_object' },
+        });
         console.log('✅ Summary generation completed successfully');
       break;
       } catch (apiError) {
         summaryError = apiError;
       const retryable = isRetryableOpenAiError(apiError);
-      const statusCode = Number(apiError?.status || apiError?.response?.status || 0);
-      const msg = String(apiError?.message || '');
-      const isBadRequest = statusCode === 400;
-      const isResponseFormatIssue =
-        /response_format|json_object|supported|invalid.*response/i.test(msg);
-      const isContextIssue =
-        /maximum context|context length|max tokens|too long|token limit/i.test(msg);
-
-      if (isBadRequest && isResponseFormatIssue && useStrictJsonResponseFormat && attempt < maxRetries) {
-        useStrictJsonResponseFormat = false;
-        console.warn('⚠️ Summary request rejected strict JSON mode; retrying without response_format.');
-        await new Promise((resolve) => setTimeout(resolve, 400));
-        continue;
-      }
-      if (isBadRequest && isContextIssue && attempt < maxRetries) {
-        const nextCap = Math.max(16000, Math.floor(summaryPromptTranscript.length * 0.75));
-        if (nextCap < summaryPromptTranscript.length) {
-          summaryPromptTranscript = `${summaryPromptTranscript.slice(0, nextCap)}\n\n[…]`;
-          console.warn(
-            `⚠️ Summary prompt too large for model; shrinking context to ${nextCap} chars and retrying.`
-          );
-          await new Promise((resolve) => setTimeout(resolve, 400));
-          continue;
-        }
-      }
         
       if (retryable && attempt < maxRetries) {
           const waitTime = Math.pow(2, attempt) * 1000;
@@ -1476,33 +1330,7 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
     
     if (!summaryResponse) {
       console.warn(
-        '⚠️ Structured summary generation failed after retries; trying lenient structured pass before fallback.'
-      );
-      const lenient = await generateLenientStructuredSummaryFromTranscript(transcriptTextTrim, {
-        meetingTitle,
-        isEducation,
-        detectedLanguage,
-      });
-      if (lenient) {
-        return {
-          transcription: transcriptTextTrim,
-          summary: lenient.summary || '',
-          keyPoints: lenient.keyPoints || [],
-          actionItems: lenient.actionItems || [],
-          decisions: lenient.decisions || [],
-          nextSteps: lenient.nextSteps || [],
-          importantNotes: lenient.importantNotes || [],
-          hiringRecommendation: '',
-          hiringRecommendationReason: '',
-          evaluationSignals: null,
-        };
-      }
-      const outageLikely = isProviderOutageLikeError(summaryError);
-      if (!outageLikely) {
-        throw summaryError || new Error('Structured summary generation failed without provider-outage signal');
-      }
-      console.warn(
-        '⚠️ Lenient structured pass also failed during provider outage; using transcript fallback summary to avoid empty meeting output.'
+        '⚠️ Structured summary generation failed after retries; using transcript fallback summary to avoid empty meeting output.'
       );
       const fallbackSummaryData = {
         transcription: transcriptTextTrim,
@@ -1521,11 +1349,7 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
     }
 
   const rawContent = summaryResponse.choices[0].message.content || '';
-  let summaryData = await tryRepairStructuredSummaryJsonAsync(rawContent, {
-    meetingTitle,
-    detectedLanguage,
-    isEducation,
-  });
+  let summaryData = tryParseModelJsonObject(rawContent);
   if (!rawContent.trim() || Object.keys(summaryData).length === 0) {
     console.warn('⚠️ Empty or unparseable model JSON; applying transcript safeguards.');
   }
@@ -1560,17 +1384,7 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
   );
 
   if (!summaryPayloadHasDisplayableContent(summaryData)) {
-    const lenient = await generateLenientStructuredSummaryFromTranscript(transcriptTextTrim, groundingMeta);
-    if (lenient) {
-      summaryData = normalizeStructuredSummaryShape(lenient);
-      summaryData.actionItems = enrichActionItemsWithDueDates(summaryData.actionItems, anchorRef, {
-        keyPoints: summaryData.keyPoints,
-        summary: summaryData.summary,
-        nextSteps: summaryData.nextSteps,
-      });
-    } else {
-      throw new Error('AI structured summary returned no displayable content after strict + lenient passes');
-    }
+    await applyTranscriptExcerptFallbackSummaryAsync(summaryData, transcriptTextTrim, groundingMeta);
   }
 
   if (isEducation) {
