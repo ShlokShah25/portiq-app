@@ -1,9 +1,10 @@
 /**
  * Additive long-audio wrapper (hierarchical chunk → mid-summary → final).
- * Short recordings (≤10 min) and all calls when ENABLE_LONG_AUDIO_PROCESSING is not "true"
- * use the existing transcribeAndSummarize path unchanged.
+ * Long path runs only when ffprobe duration > 10 minutes (and not interview mode).
+ * Short recordings (≤10 min) always use the existing transcribeAndSummarize path unchanged.
  *
- * Env: ENABLE_LONG_AUDIO_PROCESSING=true to activate for audio duration > 600s.
+ * Long audio is ON by default. Set ENABLE_LONG_AUDIO_PROCESSING=false (or 0/no/off) to disable
+ * hierarchical processing and force the legacy single-file path for all durations.
  */
 
 const fs = require('fs');
@@ -25,7 +26,9 @@ const GROUP_SIZE = 5;
 const CHUNK_SUFFIX = '.wav';
 
 function longAudioProcessingEnabled() {
-  return String(process.env.ENABLE_LONG_AUDIO_PROCESSING || '').trim().toLowerCase() === 'true';
+  const v = String(process.env.ENABLE_LONG_AUDIO_PROCESSING ?? '').trim().toLowerCase();
+  if (v === 'false' || v === '0' || v === 'no' || v === 'off') return false;
+  return true;
 }
 
 function getSummaryChatModel() {
