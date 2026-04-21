@@ -700,30 +700,42 @@ async function tryRepairStructuredSummaryJsonAsync(raw, meta = {}) {
   if (!source || !openai) return {};
   try {
     const repairModel = getSummaryChatModelCandidates()[0] || getSummaryChatModel();
-    const repair = await openai.chat.completions.create({
-      model: repairModel,
-      messages: [
-        {
-          role: 'system',
-          content:
-            'Convert the provided text into one strict JSON object only (no markdown). ' +
-            'Use this schema with the same keys and types: ' +
-            '{"summary":"string","keyPoints":["string"],"actionItems":[{"task":"string","assignee":"string","dueDate":"YYYY-MM-DD or null","notes":"string"}],"decisions":["string"],"nextSteps":["string"],"importantNotes":["string"]}. ' +
-            'If a section is missing, return empty string or empty array accordingly.',
-        },
-        {
-          role: 'user',
-          content:
-            `Meeting title: ${String(meta.meetingTitle || 'Meeting')}\n` +
-            `Detected language: ${String(meta.detectedLanguage || 'unknown')}\n` +
-            `Education mode: ${meta.isEducation ? 'yes' : 'no'}\n\n` +
-            `Source text to repair into strict JSON:\n\n${source}`,
-        },
-      ],
-      temperature: 0,
-      response_format: { type: 'json_object' },
-    });
-    return tryParseModelJsonObject(String(repair.choices?.[0]?.message?.content || ''));
+    const repairMessages = [
+      {
+        role: 'system',
+        content:
+          'Convert the provided text into one strict JSON object only (no markdown). ' +
+          'Use this schema with the same keys and types: ' +
+          '{"summary":"string","keyPoints":["string"],"actionItems":[{"task":"string","assignee":"string","dueDate":"YYYY-MM-DD or null","notes":"string"}],"decisions":["string"],"nextSteps":["string"],"importantNotes":["string"]}. ' +
+          'If a section is missing, return empty string or empty array accordingly.',
+      },
+      {
+        role: 'user',
+        content:
+          `Meeting title: ${String(meta.meetingTitle || 'Meeting')}\n` +
+          `Detected language: ${String(meta.detectedLanguage || 'unknown')}\n` +
+          `Education mode: ${meta.isEducation ? 'yes' : 'no'}\n\n` +
+          `Source text to repair into strict JSON:\n\n${source}`,
+      },
+    ];
+    try {
+      const repair = await openai.chat.completions.create({
+        model: repairModel,
+        messages: repairMessages,
+        temperature: 0,
+        response_format: { type: 'json_object' },
+      });
+      return tryParseModelJsonObject(String(repair.choices?.[0]?.message?.content || ''));
+    } catch (strictErr) {
+      const strictStatus = Number(strictErr?.status || strictErr?.response?.status || 0);
+      if (strictStatus !== 400) throw strictErr;
+      const repair = await openai.chat.completions.create({
+        model: repairModel,
+        messages: repairMessages,
+        temperature: 0,
+      });
+      return tryParseModelJsonObject(String(repair.choices?.[0]?.message?.content || ''));
+    }
   } catch (err) {
     console.warn('⚠️ Structured summary JSON repair failed:', err?.message || err);
     return {};
@@ -1236,6 +1248,8 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
 
     let summaryResponse = null;
     let summaryError = null;
+    let useStrictJsonResponseFormat = true;
+    let summaryPromptTranscript = transcriptForSummaryPrompt;
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -1243,8 +1257,8 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
       console.log(
         `   Generating summary (attempt ${attempt}/${maxRetries})… model=${modelForAttempt} mode=${isEducation ? 'education' : 'workplace'}`
       );
-        summaryResponse = await openai.chat.completions.create({
-        model: modelForAttempt,
+        const completionReq = {
+          model: modelForAttempt,
           messages: [
         {
           role: 'system',
@@ -1297,7 +1311,7 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
                     formatParticipantLinesForSummaryPrompt(meetingObj.participants) +
                     `\n\nEnsure names in the summary and action items match the transcript; do not invent people who did not speak.\n\n`
               : '') +
-            `Transcript:\n\n${transcriptForSummaryPrompt}\n\n` +
+            `Transcript:\n\n${summaryPromptTranscript}\n\n` +
             `Follow these rules strictly:\n` +
             `- Output language: write every JSON string in English regardless of the detected primary transcription language (${detectedLanguage}) or the mix of languages in the audio—comprehend all of it, report only in English.\n` +
             `- Focus ONLY on what is actually discussed in this transcript.\n` +
@@ -1343,14 +1357,42 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
               `}`,
           },
         ],
-        temperature: 0.1,
-        response_format: { type: 'json_object' },
-        });
+            temperature: 0.1,
+        };
+        if (useStrictJsonResponseFormat) {
+          completionReq.response_format = { type: 'json_object' };
+        }
+        summaryResponse = await openai.chat.completions.create(completionReq);
         console.log('✅ Summary generation completed successfully');
       break;
       } catch (apiError) {
         summaryError = apiError;
       const retryable = isRetryableOpenAiError(apiError);
+      const statusCode = Number(apiError?.status || apiError?.response?.status || 0);
+      const msg = String(apiError?.message || '');
+      const isBadRequest = statusCode === 400;
+      const isResponseFormatIssue =
+        /response_format|json_object|supported|invalid.*response/i.test(msg);
+      const isContextIssue =
+        /maximum context|context length|max tokens|too long|token limit/i.test(msg);
+
+      if (isBadRequest && isResponseFormatIssue && useStrictJsonResponseFormat && attempt < maxRetries) {
+        useStrictJsonResponseFormat = false;
+        console.warn('⚠️ Summary request rejected strict JSON mode; retrying without response_format.');
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        continue;
+      }
+      if (isBadRequest && isContextIssue && attempt < maxRetries) {
+        const nextCap = Math.max(16000, Math.floor(summaryPromptTranscript.length * 0.75));
+        if (nextCap < summaryPromptTranscript.length) {
+          summaryPromptTranscript = `${summaryPromptTranscript.slice(0, nextCap)}\n\n[…]`;
+          console.warn(
+            `⚠️ Summary prompt too large for model; shrinking context to ${nextCap} chars and retrying.`
+          );
+          await new Promise((resolve) => setTimeout(resolve, 400));
+          continue;
+        }
+      }
         
       if (retryable && attempt < maxRetries) {
           const waitTime = Math.pow(2, attempt) * 1000;
