@@ -693,6 +693,56 @@ function tryParseModelJsonObject(raw) {
   return {};
 }
 
+async function tryRepairStructuredSummaryJson(raw, meta = {}) {
+  const parsed = tryParseModelJsonObject(raw);
+  if (parsed && Object.keys(parsed).length > 0) return parsed;
+  if (!openai) return {};
+  const source = String(raw || '').trim();
+  if (!source) return {};
+  try {
+    const repair = await openai.chat.completions.create({
+      model: getSummaryChatModelCandidates()[0] || getSummaryChatModel(),
+      messages: [
+        {
+          role: 'system',
+          content:
+            'Return one valid JSON object only (no markdown) with keys: summary, keyPoints, actionItems, decisions, nextSteps, importantNotes. ' +
+            'Use empty string/arrays for missing sections.',
+        },
+        {
+          role: 'user',
+          content:
+            `Meeting: ${String(meta.meetingTitle || 'Meeting')}\n` +
+            `Language hint: ${String(meta.detectedLanguage || 'unknown')}\n` +
+            `Education: ${meta.isEducation ? 'yes' : 'no'}\n\n` +
+            `Convert this into valid JSON:\n${source}`,
+        },
+      ],
+      temperature: 0,
+      response_format: { type: 'json_object' },
+    });
+    return tryParseModelJsonObject(String(repair.choices?.[0]?.message?.content || ''));
+  } catch (err) {
+    const statusCode = Number(err?.status || err?.response?.status || 0);
+    if (statusCode === 400) {
+      try {
+        const repairLoose = await openai.chat.completions.create({
+          model: getSummaryChatModelCandidates()[0] || getSummaryChatModel(),
+          messages: [
+            { role: 'system', content: 'Return one valid JSON object only with keys summary,keyPoints,actionItems,decisions,nextSteps,importantNotes.' },
+            { role: 'user', content: source },
+          ],
+          temperature: 0,
+        });
+        return tryParseModelJsonObject(String(repairLoose.choices?.[0]?.message?.content || ''));
+      } catch (_) {
+        return {};
+      }
+    }
+    return {};
+  }
+}
+
 /**
  * Latin-keyword grounding assumes the transcript shares enough Latin tokens with the summary.
  * Hindi / Devanagari (and similar) transcripts fail that check and incorrectly strip valid English
@@ -1187,6 +1237,8 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
 
     let summaryResponse = null;
     let summaryError = null;
+    let useStrictJsonResponseFormat = true;
+    let summaryPromptTranscript = transcriptForSummaryPrompt;
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -1194,8 +1246,8 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
       console.log(
         `   Generating summary (attempt ${attempt}/${maxRetries})… model=${modelForAttempt} mode=${isEducation ? 'education' : 'workplace'}`
       );
-        summaryResponse = await openai.chat.completions.create({
-        model: modelForAttempt,
+        const reqBody = {
+          model: modelForAttempt,
           messages: [
         {
           role: 'system',
@@ -1248,7 +1300,7 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
                     formatParticipantLinesForSummaryPrompt(meetingObj.participants) +
                     `\n\nEnsure names in the summary and action items match the transcript; do not invent people who did not speak.\n\n`
               : '') +
-            `Transcript:\n\n${transcriptForSummaryPrompt}\n\n` +
+            `Transcript:\n\n${summaryPromptTranscript}\n\n` +
             `Follow these rules strictly:\n` +
             `- Output language: write every JSON string in English regardless of the detected primary transcription language (${detectedLanguage}) or the mix of languages in the audio—comprehend all of it, report only in English.\n` +
             `- Focus ONLY on what is actually discussed in this transcript.\n` +
@@ -1294,14 +1346,40 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
               `}`,
           },
         ],
-        temperature: 0.1,
-        response_format: { type: 'json_object' },
-        });
+          temperature: 0.1,
+        };
+        if (useStrictJsonResponseFormat) {
+          reqBody.response_format = { type: 'json_object' };
+        }
+        summaryResponse = await openai.chat.completions.create(reqBody);
         console.log('✅ Summary generation completed successfully');
       break;
       } catch (apiError) {
         summaryError = apiError;
       const retryable = isRetryableOpenAiError(apiError);
+      const statusCode = Number(apiError?.status || apiError?.response?.status || 0);
+      const errMsg = String(apiError?.message || '');
+      const isBadRequest = statusCode === 400;
+      const responseFormatRejected =
+        /response_format|json_object|unsupported|invalid.*response/i.test(errMsg);
+      const contextTooLarge =
+        /maximum context|context length|max tokens|token limit|too long/i.test(errMsg);
+
+      if (isBadRequest && responseFormatRejected && useStrictJsonResponseFormat && attempt < maxRetries) {
+        useStrictJsonResponseFormat = false;
+        console.warn('⚠️ response_format rejected by provider/model; retrying without strict JSON mode.');
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        continue;
+      }
+      if (isBadRequest && contextTooLarge && attempt < maxRetries) {
+        const nextCap = Math.max(16000, Math.floor(summaryPromptTranscript.length * 0.75));
+        if (nextCap < summaryPromptTranscript.length) {
+          summaryPromptTranscript = `${summaryPromptTranscript.slice(0, nextCap)}\n\n[…]`;
+          console.warn(`⚠️ Summary prompt too long; shrinking to ${nextCap} chars and retrying.`);
+          await new Promise((resolve) => setTimeout(resolve, 400));
+          continue;
+        }
+      }
         
       if (retryable && attempt < maxRetries) {
           const waitTime = Math.pow(2, attempt) * 1000;
@@ -1321,7 +1399,11 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
     }
 
   const rawContent = summaryResponse.choices[0].message.content || '';
-  let summaryData = tryParseModelJsonObject(rawContent);
+  let summaryData = await tryRepairStructuredSummaryJson(rawContent, {
+    meetingTitle,
+    detectedLanguage,
+    isEducation,
+  });
   if (!rawContent.trim() || Object.keys(summaryData).length === 0) {
     console.warn('⚠️ Empty or unparseable model JSON; applying transcript safeguards.');
   }
