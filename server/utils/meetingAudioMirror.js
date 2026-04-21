@@ -2,6 +2,9 @@
  * Optional second copy of meeting audio to a persistent directory (e.g. Railway volume mount).
  * Set MEETING_AUDIO_MIRROR_DIR to an absolute path on durable storage so redeploys do not lose files
  * that only lived under the default ./uploads folder.
+ *
+ * `resolveUploadPath` checks this directory by **basename** when the primary uploads path is missing,
+ * so "Regenerate summary" can still find audio after a deploy if the mirror survived.
  */
 const fs = require('fs');
 const path = require('path');

@@ -584,6 +584,11 @@ const MeetingDetail = () => {
                   If you have a recording, you can also use <strong>Retry transcription</strong> in Meeting Records
                   (admin), then open the summary page again.
                 </p>
+                {String(meeting.transcriptionFailureDetail || '').trim() ? (
+                  <p className="meeting-detail-hint meeting-detail-failure-detail" role="note">
+                    {String(meeting.transcriptionFailureDetail || '').trim()}
+                  </p>
+                ) : null}
                 <button
                   type="button"
                   className="meeting-detail-btn meeting-detail-btn--secondary"

@@ -270,6 +270,12 @@ const meetingSchema = new mongoose.Schema({
     type: Date,
     default: null,
   },
+  /** Sanitized provider/server message for support (not shown as primary user copy). */
+  transcriptionFailureDetail: {
+    type: String,
+    default: null,
+    maxlength: 2000,
+  },
   authorizedEditorEmail: {
     type: String,
     default: null,

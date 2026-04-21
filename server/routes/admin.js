@@ -903,10 +903,11 @@ router.post('/meetings/:id/retry-transcription', authenticateAdmin, async (req, 
     Object.assign(meeting, clearTranscriptionFailureFields());
     await meeting.save();
 
-    const { transcribeAndSummarize, generateMeetingSummaryFromTranscript } = require('../utils/meetingTranscription');
+    const { generateMeetingSummaryFromTranscript } = require('../utils/meetingTranscription');
+    const { transcribeAndSummarizeWithLongAudioSupport } = require('../utils/longAudioTranscribe');
 
     const retryPromise = audioOnDisk
-      ? transcribeAndSummarize(audioFilePath, meeting, {
+      ? transcribeAndSummarizeWithLongAudioSupport(audioFilePath, meeting, {
           productType: req.admin?.productType,
         })
       : generateMeetingSummaryFromTranscript(storedTranscript, meeting, {

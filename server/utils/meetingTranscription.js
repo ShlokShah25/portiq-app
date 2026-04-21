@@ -59,10 +59,18 @@ try {
 // Initialize OpenAI client
 let openai = null;
 if (process.env.OPENAI_API_KEY) {
+  /** Long lectures need a higher ceiling than the SDK default (~10m). Cap at 30m. */
+  const OPENAI_TIMEOUT_MS = Math.min(
+    30 * 60 * 1000,
+    Math.max(120000, parseInt(process.env.OPENAI_TIMEOUT_MS || '1200000', 10) || 1200000)
+  );
   openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
+    apiKey: process.env.OPENAI_API_KEY,
+    timeout: OPENAI_TIMEOUT_MS,
   });
-  console.log('✅ OpenAI client initialized for meeting transcription');
+  console.log(
+    `✅ OpenAI client initialized for meeting transcription (request timeout ${OPENAI_TIMEOUT_MS / 1000}s; set OPENAI_TIMEOUT_MS to override)`
+  );
 } else {
   console.warn('⚠️  OPENAI_API_KEY not set. Meeting transcription will not work.');
 }
@@ -1754,7 +1762,14 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
       throw new Error('Audio file is empty (0 bytes)');
     }
 
-    mirrorMeetingAudioToPersistentDir(audioFilePath);
+    const skipMeetingSideEffects = !!(
+      options &&
+      options.longAudioPipeline &&
+      options.longAudioPipeline.skipMeetingSideEffects === true
+    );
+    if (!skipMeetingSideEffects) {
+      mirrorMeetingAudioToPersistentDir(audioFilePath);
+    }
 
     const ensured = await ensureWhisperSizedAudio(audioFilePath, ffmpeg);
     const finalAudioPath = ensured.path;
@@ -1834,19 +1849,20 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
     console.log(`✅ Transcription text length: ${transcriptText.length} characters`);
     console.log(`✅ Detected transcription language: ${detectedLanguage}`);
 
-    await checkpointTranscriptionToDb(meetingObj._id, transcriptText);
+    if (!skipMeetingSideEffects && meetingObj._id) {
+      await checkpointTranscriptionToDb(meetingObj._id, transcriptText);
+    }
 
     let summaryResult;
     const maxSummaryAttempts = Math.min(
       6,
       Math.max(3, parseInt(process.env.SUMMARY_GENERATION_ATTEMPTS || '5', 10) || 5)
     );
+    const summaryCallOptions = { ...options, detectedLanguage };
+    delete summaryCallOptions.longAudioPipeline;
     for (let sumAttempt = 1; sumAttempt <= maxSummaryAttempts; sumAttempt++) {
       try {
-        summaryResult = await generateMeetingSummaryFromTranscript(transcriptText, meetingObj, {
-          ...options,
-          detectedLanguage,
-        });
+        summaryResult = await generateMeetingSummaryFromTranscript(transcriptText, meetingObj, summaryCallOptions);
         break;
       } catch (sumErr) {
         if (sumAttempt >= maxSummaryAttempts) {
@@ -1870,6 +1886,7 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
 
     let voiceEvidenceForScrub = null;
     if (
+      !skipMeetingSideEffects &&
       reauditOn &&
       summaryResult &&
       summaryMode !== 'interview' &&
@@ -1908,7 +1925,7 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
       }
     }
 
-    if (summaryResult && summaryMode !== 'interview' && !isEducation) {
+    if (!skipMeetingSideEffects && summaryResult && summaryMode !== 'interview' && !isEducation) {
       try {
         await scrubUnidentifiedWhenAllParticipantsVoiceEnrolled(meetingObj, summaryResult, {
           voiceEvidenceText: voiceEvidenceForScrub || undefined,
@@ -2389,20 +2406,21 @@ async function sendMeetingSummary(meeting, summaryData, options = {}) {
   const educationSubjectInsightHtml =
     isEducation && eduThought
       ? `
-      <div style="margin: 22px 0 0 0; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; background: linear-gradient(165deg, #ffffff 0%, #f8fafc 42%, #eef2ff 100%); box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);">
-        <div style="padding: 14px 18px 12px 18px; border-bottom: 1px solid #e2e8f0; background: rgba(37, 99, 235, 0.07);">
-          <p style="margin: 0; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: #64748b; font-weight: 600;">PortIQ</p>
-          <p style="margin: 8px 0 0 0; font-size: 17px; font-weight: 700; color: #0f172a; letter-spacing: -0.02em;">Subject insight</p>
+      <!-- Subject insight: solid backgrounds + high contrast for mobile mail clients (Gmail/iOS often break gradients). -->
+      <div style="margin: 22px 0 0 0; border: 1px solid #cbd5e1; border-radius: 14px; overflow: hidden; background-color: #ffffff;">
+        <div style="padding: 14px 18px 12px 18px; border-bottom: 1px solid #e2e8f0; background-color: #eff6ff;">
+          <p style="margin: 0; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #1e40af; font-weight: 700;">PortIQ</p>
+          <p style="margin: 8px 0 0 0; font-size: 18px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em; line-height: 1.25;">Subject insight</p>
           ${
             educationSubjectLabel
-              ? `<p style="margin: 8px 0 0 0; font-size: 12px; color: #475569;">For this lecture · <strong style="color: #1e293b;">${escHtml(
+              ? `<p style="margin: 8px 0 0 0; font-size: 14px; line-height: 1.45; color: #0f172a;">For this lecture · <strong style="color: #020617;">${escHtml(
                   educationSubjectLabel
                 )}</strong></p>`
-              : `<p style="margin: 8px 0 0 0; font-size: 12px; color: #475569;">One idea to carry from this session</p>`
+              : `<p style="margin: 8px 0 0 0; font-size: 14px; line-height: 1.45; color: #0f172a;">One idea to carry from this session</p>`
           }
         </div>
-        <div style="padding: 16px 18px 18px 18px;">
-          <p style="margin: 0; font-size: 15px; line-height: 1.65; color: #334155;">${escHtml(eduThought)}</p>
+        <div style="padding: 18px 18px 20px 18px; background-color: #f8fafc;">
+          <p style="margin: 0; font-size: 17px; line-height: 1.65; color: #020617; font-weight: 500; -webkit-text-size-adjust: 100%;">${escHtml(eduThought)}</p>
         </div>
       </div>
     `

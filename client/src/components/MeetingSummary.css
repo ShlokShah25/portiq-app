@@ -397,6 +397,16 @@
   line-height: 1.55;
 }
 
+.meeting-summary-failure-detail {
+  margin: 0;
+  max-width: 42rem;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-muted);
+  opacity: 0.92;
+  word-break: break-word;
+}
+
 .meeting-summary-retry-row {
   margin-top: 4px;
 }

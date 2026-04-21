@@ -4,12 +4,12 @@ const router = express.Router();
 const Meeting = require('../models/Meeting');
 const VoiceProfile = require('../models/VoiceProfile');
 const {
-  transcribeAndSummarize,
   generateMeetingSummaryFromTranscript,
   sendMeetingSummary,
   getMailTransporter,
   transcribeLiveChunkFile,
 } = require('../utils/meetingTranscription');
+const { transcribeAndSummarizeWithLongAudioSupport } = require('../utils/longAudioTranscribe');
 const { getPlanConstraints } = require('../utils/planConstraints');
 const { resolveUploadPath } = require('../utils/resolveUploadPath');
 const {
@@ -1030,8 +1030,7 @@ router.post('/:id/end', withMeetingAudioUpload, async (req, res) => {
     meeting.status = 'Completed';
     meeting.endTime = new Date();
     meeting.transcriptionStatus = 'Processing';
-    meeting.transcriptionFailureCode = null;
-    meeting.transcriptionFailureAt = null;
+    Object.assign(meeting, clearTranscriptionFailureFields());
     clearLiveVoiceSessionContext(meeting._id);
 
     // Apply duration limit per plan (backend safety net).
@@ -1064,7 +1063,7 @@ router.post('/:id/end', withMeetingAudioUpload, async (req, res) => {
 
       // Process transcription asynchronously. Use findByIdAndUpdate instead of
       // saving the in-memory document to avoid VersionError on stale docs.
-      transcribeAndSummarize(audioFilePath, meeting, {
+      transcribeAndSummarizeWithLongAudioSupport(audioFilePath, meeting, {
         productType: admin?.productType,
       })
         .then(async (summaryData) => {
@@ -1209,7 +1208,7 @@ router.post('/:id/retry-transcription', async (req, res) => {
       $set: { transcriptionStatus: 'Processing', ...clearTranscriptionFailureFields() },
     });
 
-    transcribeAndSummarize(audioFilePath, meeting, {
+    transcribeAndSummarizeWithLongAudioSupport(audioFilePath, meeting, {
       productType: admin?.productType,
     })
       .then(async (summaryData) => {

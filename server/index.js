@@ -203,9 +203,10 @@ mongoose.connect(mongoUri, mongoOptions)
     (process.env.RAILWAY_ENVIRONMENT || process.env.RENDER || process.env.FLY_APP_NAME)
   ) {
     console.warn(
-      '[portiq] Production on ephemeral disk: set MEETING_AUDIO_MIRROR_DIR to a persistent volume path, ' +
-        'or mount ./uploads to a volume. Raw transcripts are now checkpointed to MongoDB after Whisper; ' +
-        'audio files still need durable storage for re-transcription.'
+      '[portiq] Production on ephemeral disk: set MEETING_AUDIO_MIRROR_DIR to a persistent volume path ' +
+        '(same basename as uploads/meetings/*), or mount ./uploads to a volume. Transcripts are checkpointed ' +
+        'to Mongo after Whisper; audio still needs durable storage for re-transcription — resolveUploadPath ' +
+        'falls back to MEETING_AUDIO_MIRROR_DIR when the default file is gone.'
     );
   }
 

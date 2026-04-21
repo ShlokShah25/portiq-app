@@ -595,6 +595,12 @@ const MeetingSummary = () => {
                   <p className="meeting-summary-empty-message">
                     {getSummaryEmptyBodyMessage(meeting)}
                   </p>
+                  {meeting.transcriptionStatus === 'Failed' &&
+                    String(meeting.transcriptionFailureDetail || '').trim() && (
+                      <p className="meeting-summary-failure-detail" role="note">
+                        {String(meeting.transcriptionFailureDetail || '').trim()}
+                      </p>
+                    )}
                   {showTranscriptFallback && (
                     <details className="meeting-summary-transcript-fallback">
                       <summary className="meeting-summary-transcript-fallback-summary">

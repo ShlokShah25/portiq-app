@@ -10,7 +10,8 @@ const crypto = require('crypto');
 const WHISPER_MAX_BYTES = 25 * 1024 * 1024;
 
 /** Bitrates to try, high → low (speech remains usable at lower rates). */
-const BITRATE_LADDER = ['64k', '56k', '48k', '40k', '32k', '24k', '20k', '16k', '12k'];
+/** Extra-low rungs help hour-long stereo WebM after mono+16kHz re-encode (speech-only). */
+const BITRATE_LADDER = ['64k', '56k', '48k', '40k', '32k', '24k', '20k', '16k', '12k', '10k', '8k'];
 
 function unlinkQuiet(p) {
   try {
