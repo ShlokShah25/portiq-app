@@ -1035,7 +1035,7 @@ const MeetingInProgress = () => {
                     </div>
                     <div className="mip-participant-text">
                       <div className="mip-participant-name">{p.name || 'Unnamed'}</div>
-                      {p.email ? (
+                      {!isEducation && p.email ? (
                         <div className="mip-participant-email">{p.email}</div>
                       ) : null}
                     </div>

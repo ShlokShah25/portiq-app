@@ -166,6 +166,7 @@ const { enqueueJoinMeeting } = require('../utils/conferenceBotQueue');
 const {
   recoverSummaryFromCheckpointedTranscript,
   buildPipelineUpdateFromSummaryData,
+  buildDeterministicFallbackSummaryData,
 } = require('../utils/meetingPipelineRecovery');
 const { attachSummaryUiState } = require('../utils/meetingSummaryUiState');
 const {
@@ -181,6 +182,23 @@ const {
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+
+async function persistDeterministicSummaryFallback(meetingId, options = {}) {
+  if (!meetingId) return false;
+  try {
+    const fresh = await Meeting.findById(meetingId).lean();
+    const transcriptText = String(fresh?.transcription || '').trim();
+    if (!transcriptText) return false;
+    const fallback = buildDeterministicFallbackSummaryData(transcriptText, fresh, options);
+    const update = buildPipelineUpdateFromSummaryData(fallback);
+    await Meeting.findByIdAndUpdate(meetingId, { $set: update }, { new: true });
+    console.warn(`⚠️ Persisted deterministic summary fallback for meeting ${meetingId}`);
+    return true;
+  } catch (err) {
+    console.error(`❌ Deterministic summary fallback failed for meeting ${meetingId}:`, err.message || err);
+    return false;
+  }
+}
 
 // Configure multer for audio uploads
 const storage = multer.diskStorage({
@@ -1132,6 +1150,10 @@ router.post('/:id/end', withMeetingAudioUpload, async (req, res) => {
               productType: admin?.productType,
             });
             if (recovered) return;
+            const fallbackSaved = await persistDeterministicSummaryFallback(meeting._id, {
+              productType: admin?.productType,
+            });
+            if (fallbackSaved) return;
           } catch (recErr) {
             console.error('Post-failure summary recovery error:', recErr);
           }
@@ -1225,6 +1247,10 @@ router.post('/:id/retry-transcription', async (req, res) => {
             productType: admin?.productType,
           });
           if (recovered) return;
+          const fallbackSaved = await persistDeterministicSummaryFallback(meeting._id, {
+            productType: admin?.productType,
+          });
+          if (fallbackSaved) return;
         } catch (recErr) {
           console.error('Post-failure summary recovery error:', recErr);
         }

@@ -557,24 +557,11 @@ const MeetingSummary = () => {
 
           {canEditAndSend && allowsTranslatedSummary && !meeting.editorVerificationRequired && (
             <div className="meeting-summary-language-row">
-              <label className="meeting-summary-language-label">
-                {isEducationMode
-                  ? 'Also append translated summary in the class email:'
-                  : 'Also send translated summary in:'}
-              </label>
-              {isEducationMode && (
-                <p
-                  style={{
-                    margin: '0 0 8px 0',
-                    fontSize: '12px',
-                    color: 'rgba(148, 163, 184, 0.95)',
-                    lineHeight: 1.45,
-                  }}
-                >
-                  The main message and PDF stay in English; the language you pick is added as an extra section in the
-                  same email for students.
-                </p>
-              )}
+              {!isEducationMode ? (
+                <label className="meeting-summary-language-label">
+                  Also send translated summary in:
+                </label>
+              ) : null}
               <select
                 className="meeting-summary-language-select"
                 value={translationLanguage}

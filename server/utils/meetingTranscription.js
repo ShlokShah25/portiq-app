@@ -693,6 +693,43 @@ function tryParseModelJsonObject(raw) {
   return {};
 }
 
+async function tryRepairStructuredSummaryJsonAsync(raw, meta = {}) {
+  const parsed = tryParseModelJsonObject(raw);
+  if (parsed && Object.keys(parsed).length > 0) return parsed;
+  const source = String(raw || '').trim();
+  if (!source || !openai) return {};
+  try {
+    const repairModel = getSummaryChatModelCandidates()[0] || getSummaryChatModel();
+    const repair = await openai.chat.completions.create({
+      model: repairModel,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'Convert the provided text into one strict JSON object only (no markdown). ' +
+            'Use this schema with the same keys and types: ' +
+            '{"summary":"string","keyPoints":["string"],"actionItems":[{"task":"string","assignee":"string","dueDate":"YYYY-MM-DD or null","notes":"string"}],"decisions":["string"],"nextSteps":["string"],"importantNotes":["string"]}. ' +
+            'If a section is missing, return empty string or empty array accordingly.',
+        },
+        {
+          role: 'user',
+          content:
+            `Meeting title: ${String(meta.meetingTitle || 'Meeting')}\n` +
+            `Detected language: ${String(meta.detectedLanguage || 'unknown')}\n` +
+            `Education mode: ${meta.isEducation ? 'yes' : 'no'}\n\n` +
+            `Source text to repair into strict JSON:\n\n${source}`,
+        },
+      ],
+      temperature: 0,
+      response_format: { type: 'json_object' },
+    });
+    return tryParseModelJsonObject(String(repair.choices?.[0]?.message?.content || ''));
+  } catch (err) {
+    console.warn('⚠️ Structured summary JSON repair failed:', err?.message || err);
+    return {};
+  }
+}
+
 /**
  * Latin-keyword grounding assumes the transcript shares enough Latin tokens with the summary.
  * Hindi / Devanagari (and similar) transcripts fail that check and incorrectly strip valid English
@@ -989,22 +1026,9 @@ async function reconcileSummaryPayloadAfterGroundingAsync(
   if (summaryPayloadHasDisplayableContent(summaryData)) {
     return;
   }
-  const t = String(transcriptTextTrim || '').trim();
-  if (t) {
-    console.warn(
-      '⚠️ Grounding removed all displayable summary content; falling back to English recap from transcript.'
-    );
-    await applyTranscriptExcerptFallbackSummaryAsync(summaryData, transcriptTextTrim, meta);
-    summaryData.keyPoints = [];
-    summaryData.decisions = [];
-    summaryData.nextSteps = [];
-    summaryData.importantNotes = [];
-    summaryData.actionItems = [];
-    return;
-  }
   if (summaryPayloadHasDisplayableContent(preFilter)) {
     console.warn(
-      '⚠️ Grounding filter removed all displayable summary content and no transcript text is available; using unfiltered model output (API response was non-empty).'
+      '⚠️ Grounding removed displayable content; restoring pre-filter AI structured summary.'
     );
     summaryData.summary = preFilter.summary;
     summaryData.keyPoints = [...preFilter.keyPoints];
@@ -1017,6 +1041,19 @@ async function reconcileSummaryPayloadAfterGroundingAsync(
       summary: summaryData.summary,
       nextSteps: summaryData.nextSteps,
     });
+    return;
+  }
+  const t = String(transcriptTextTrim || '').trim();
+  if (t) {
+    console.warn(
+      '⚠️ Grounding removed all displayable summary content; falling back to English recap from transcript.'
+    );
+    await applyTranscriptExcerptFallbackSummaryAsync(summaryData, transcriptTextTrim, meta);
+    summaryData.keyPoints = [];
+    summaryData.decisions = [];
+    summaryData.nextSteps = [];
+    summaryData.importantNotes = [];
+    summaryData.actionItems = [];
     return;
   }
   console.warn(
@@ -1349,7 +1386,11 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
     }
 
   const rawContent = summaryResponse.choices[0].message.content || '';
-  let summaryData = tryParseModelJsonObject(rawContent);
+  let summaryData = await tryRepairStructuredSummaryJsonAsync(rawContent, {
+    meetingTitle,
+    detectedLanguage,
+    isEducation,
+  });
   if (!rawContent.trim() || Object.keys(summaryData).length === 0) {
     console.warn('⚠️ Empty or unparseable model JSON; applying transcript safeguards.');
   }
