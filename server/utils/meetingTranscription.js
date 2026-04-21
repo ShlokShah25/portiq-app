@@ -84,6 +84,18 @@ function isRetryableOpenAiError(apiError) {
   return false;
 }
 
+function isProviderOutageLikeError(err) {
+  if (!err) return false;
+  const s = Number(err.status || err.response?.status || 0);
+  if (s === 408 || s === 429 || s === 500 || s === 502 || s === 503 || s === 504) return true;
+  const code = String(err.code || '');
+  if (['ECONNRESET', 'ETIMEDOUT', 'ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN'].includes(code)) {
+    return true;
+  }
+  const msg = String(err.message || '');
+  return /rate limit|timeout|timed out|server error|service unavailable|overloaded/i.test(msg);
+}
+
 function getSummaryChatModel() {
   return process.env.OPENAI_SUMMARY_MODEL || 'gpt-4o-mini';
 }
@@ -739,6 +751,61 @@ async function tryRepairStructuredSummaryJsonAsync(raw, meta = {}) {
   } catch (err) {
     console.warn('⚠️ Structured summary JSON repair failed:', err?.message || err);
     return {};
+  }
+}
+
+function normalizeStructuredSummaryShape(data) {
+  const out = data && typeof data === 'object' ? { ...data } : {};
+  if (typeof out.summary !== 'string') out.summary = '';
+  if (!Array.isArray(out.keyPoints)) out.keyPoints = [];
+  if (!Array.isArray(out.actionItems)) out.actionItems = [];
+  if (!Array.isArray(out.decisions)) out.decisions = [];
+  if (!Array.isArray(out.nextSteps)) out.nextSteps = [];
+  if (!Array.isArray(out.importantNotes)) out.importantNotes = [];
+  return out;
+}
+
+async function generateLenientStructuredSummaryFromTranscript(transcriptText, meta = {}) {
+  if (!openai) return null;
+  const source = String(transcriptText || '').trim();
+  if (!source) return null;
+  const isEducation = !!meta.isEducation;
+  const meetingTitle = String(meta.meetingTitle || 'Meeting').trim();
+  const detectedLanguage = String(meta.detectedLanguage || 'unknown').trim();
+  const candidates = getSummaryChatModelCandidates();
+  const model = candidates[0] || getSummaryChatModel();
+  const cap = Math.min(45000, Math.max(12000, source.length));
+  const clipped = source.length > cap ? `${source.slice(0, cap)}\n\n[…]` : source;
+  try {
+    const res = await openai.chat.completions.create({
+      model,
+      messages: [
+        {
+          role: 'system',
+          content:
+            `You are generating structured ${isEducation ? 'lecture notes' : 'meeting notes'} in English. ` +
+            'Return ONE JSON object only (no markdown) with keys: summary, keyPoints, actionItems, decisions, nextSteps, importantNotes. ' +
+            'Keep each key concise but concrete. Do not invent facts.',
+        },
+        {
+          role: 'user',
+          content:
+            `Title: ${meetingTitle}\n` +
+            `Detected language: ${detectedLanguage}\n\n` +
+            `Transcript:\n${clipped}\n\n` +
+            `JSON schema:\n` +
+            `{"summary":"string","keyPoints":["string"],"actionItems":[{"task":"string","assignee":"string","dueDate":"YYYY-MM-DD or null","notes":"string"}],"decisions":["string"],"nextSteps":["string"],"importantNotes":["string"]}`,
+        },
+      ],
+      temperature: 0.1,
+    });
+    const raw = String(res.choices?.[0]?.message?.content || '');
+    const parsed = await tryRepairStructuredSummaryJsonAsync(raw, meta);
+    const normalized = normalizeStructuredSummaryShape(parsed);
+    return summaryPayloadHasDisplayableContent(normalized) ? normalized : null;
+  } catch (err) {
+    console.warn('⚠️ Lenient structured summary pass failed:', err?.message || err);
+    return null;
   }
 }
 
@@ -1409,7 +1476,33 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
     
     if (!summaryResponse) {
       console.warn(
-        '⚠️ Structured summary generation failed after retries; using transcript fallback summary to avoid empty meeting output.'
+        '⚠️ Structured summary generation failed after retries; trying lenient structured pass before fallback.'
+      );
+      const lenient = await generateLenientStructuredSummaryFromTranscript(transcriptTextTrim, {
+        meetingTitle,
+        isEducation,
+        detectedLanguage,
+      });
+      if (lenient) {
+        return {
+          transcription: transcriptTextTrim,
+          summary: lenient.summary || '',
+          keyPoints: lenient.keyPoints || [],
+          actionItems: lenient.actionItems || [],
+          decisions: lenient.decisions || [],
+          nextSteps: lenient.nextSteps || [],
+          importantNotes: lenient.importantNotes || [],
+          hiringRecommendation: '',
+          hiringRecommendationReason: '',
+          evaluationSignals: null,
+        };
+      }
+      const outageLikely = isProviderOutageLikeError(summaryError);
+      if (!outageLikely) {
+        throw summaryError || new Error('Structured summary generation failed without provider-outage signal');
+      }
+      console.warn(
+        '⚠️ Lenient structured pass also failed during provider outage; using transcript fallback summary to avoid empty meeting output.'
       );
       const fallbackSummaryData = {
         transcription: transcriptTextTrim,
@@ -1467,7 +1560,17 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
   );
 
   if (!summaryPayloadHasDisplayableContent(summaryData)) {
-    await applyTranscriptExcerptFallbackSummaryAsync(summaryData, transcriptTextTrim, groundingMeta);
+    const lenient = await generateLenientStructuredSummaryFromTranscript(transcriptTextTrim, groundingMeta);
+    if (lenient) {
+      summaryData = normalizeStructuredSummaryShape(lenient);
+      summaryData.actionItems = enrichActionItemsWithDueDates(summaryData.actionItems, anchorRef, {
+        keyPoints: summaryData.keyPoints,
+        summary: summaryData.summary,
+        nextSteps: summaryData.nextSteps,
+      });
+    } else {
+      throw new Error('AI structured summary returned no displayable content after strict + lenient passes');
+    }
   }
 
   if (isEducation) {
