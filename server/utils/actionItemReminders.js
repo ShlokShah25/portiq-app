@@ -51,6 +51,36 @@ function getLocalHHMM(date) {
   return `${h}:${m}`;
 }
 
+function getReminderCopyForProduct(productType, overdue = false) {
+  const isEducation = String(productType || '').toLowerCase() === 'education';
+  if (isEducation) {
+    return {
+      subjectPrefix: overdue ? 'Overdue: Assignment' : 'Reminder: Assignment due soon',
+      itemLabel: 'Assignment',
+      sessionLabel: 'lecture',
+      summaryLabel: 'lecture notes',
+      assistantLabel: 'PortIQ Education Assistant',
+      intro: overdue
+        ? 'This is a follow-up reminder for an assignment from'
+        : 'This is a gentle reminder about an assignment identified in the AI-generated notes for',
+      caution:
+        'This reminder is based on AI-generated lecture notes and may not be 100% accurate. Please review before taking action.',
+    };
+  }
+  return {
+    subjectPrefix: overdue ? 'Overdue: Action item' : 'Reminder: Action item due soon',
+    itemLabel: 'Action item',
+    sessionLabel: 'meeting',
+    summaryLabel: 'AI summary',
+    assistantLabel: 'PortIQ Meeting Assistant',
+    intro: overdue
+      ? 'This is a follow-up reminder for an action item from'
+      : 'This is a gentle reminder about an action item identified in the AI-generated summary for',
+    caution:
+      'This reminder is based on the AI meeting summary and may not be 100% accurate. Please review the summary and action items before taking any decisions.',
+  };
+}
+
 async function startActionItemReminderCron() {
   if (!isEmailConfigured()) {
     console.warn('⚠️  Email not configured. Action-item reminder cron will not send emails.');
@@ -105,7 +135,9 @@ async function startActionItemReminderCron() {
           ? await Admin.find({ _id: { $in: adminIds } }).lean()
           : [];
       const reminderAllowedByAdminId = new Map();
+      const productTypeByAdminId = new Map();
       for (const a of admins) {
+        productTypeByAdminId.set(String(a._id), String(a.productType || '').toLowerCase());
         reminderAllowedByAdminId.set(
           String(a._id),
           !!getPlanConstraints(a).allowsActionItemReminders
@@ -122,6 +154,10 @@ async function startActionItemReminderCron() {
         ) {
           continue;
         }
+        const meetingProductType = productTypeByAdminId.get(String(meeting.adminId || '')) || 'workplace';
+        const reminderCopy = getReminderCopyForProduct(meetingProductType, false);
+        const overdueReminderCopy = getReminderCopyForProduct(meetingProductType, true);
+        const isEducation = meetingProductType === 'education';
 
         for (const actionItem of meeting.actionItems || []) {
           if (!actionItem || !actionItem.dueDate) continue;
@@ -153,31 +189,30 @@ async function startActionItemReminderCron() {
               const to = Array.from(recipientEmails);
               if (to.length > 0) {
                 const humanDueDate = dueDate.toLocaleString();
-                const subject = `Reminder: Action item due soon – ${meeting.title} – ${formatMeetingSubjectDate(meeting)}`;
+                const subject = `${reminderCopy.subjectPrefix} – ${meeting.title} – ${formatMeetingSubjectDate(meeting)}`;
                 const summaryUrl = getSummaryUrl(meeting._id);
                 const html = `
                   <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; color: #111827; line-height: 1.6;">
                     <p>Hello,</p>
                     <p>
-                      This is a gentle reminder about an action item identified in the AI-generated
-                      summary for the meeting <strong>${meeting.title}</strong>.
+                      ${reminderCopy.intro}
+                      the ${reminderCopy.sessionLabel} <strong>${meeting.title}</strong>.
                     </p>
                     <p>
-                      <strong>Action item:</strong><br/>
+                      <strong>${reminderCopy.itemLabel}:</strong><br/>
                       ${actionItem.task || 'No description provided.'}
                     </p>
                     ${actionItem.assignee ? `<p><strong>Assignee:</strong> ${actionItem.assignee}</p>` : ''}
                     <p><strong>Due date:</strong> ${humanDueDate}</p>
                     <p>
-                      You can review the full AI summary and all action items here:<br/>
+                      You can review the full ${reminderCopy.summaryLabel} here:<br/>
                       <a href="${summaryUrl}" target="_blank" rel="noopener noreferrer">${summaryUrl}</a>
                     </p>
                     <p style="margin-top: 16px; font-size: 12px; color: #6b7280;">
-                      This reminder is based on the AI meeting summary and may not be 100% accurate.
-                      Please review the summary and action items before taking any decisions.
+                      ${reminderCopy.caution}
                     </p>
                     <p style="margin-top: 16px; font-size: 12px; color: #6b7280;">
-                      – PortIQ Meeting Assistant
+                      – ${reminderCopy.assistantLabel}
                     </p>
                   </div>
                 `;
@@ -215,37 +250,49 @@ async function startActionItemReminderCron() {
 
           // Overdue reminder: send once when the item becomes overdue (day after due date).
           // We run the cron at a configured time each day, so checking dueDate vs startOfToday is enough.
-          if (actionItem.status !== 'done' && !actionItem.overdueReminderSent) {
+          const shouldSendOverdueReminder =
+            actionItem.status !== 'done' &&
+            dueDate < new Date(now.getFullYear(), now.getMonth(), now.getDate()) &&
+            (
+              // Workplace: keep one-time overdue reminder behavior.
+              (!isEducation && !actionItem.overdueReminderSent) ||
+              // Education: resend once per day until assignment is marked done (if ever).
+              (isEducation &&
+                (!actionItem.overdueReminderSentAt ||
+                  new Date(actionItem.overdueReminderSentAt) < startOfToday))
+            );
+
+          if (shouldSendOverdueReminder) {
             const now2 = new Date();
-            if (dueDate < new Date(now2.getFullYear(), now2.getMonth(), now2.getDate())) {
-              if (!isEmailConfigured()) continue;
+            if (!isEmailConfigured()) continue;
 
-              if (actionItem.reviewReminderSent && actionItem.overdueReminderSent) {
-                continue;
-              }
+            if (!isEducation && actionItem.reviewReminderSent && actionItem.overdueReminderSent) {
+              continue;
+            }
 
-              // Only send overdue reminders for items that are already past due.
-              // Prevent duplicates by boolean flag.
-              const recipientEmails2 = new Set();
-              (meeting.participants || [])
-                .filter(p => p && p.email && /\S+@\S+\.\S+/.test(p.email))
-                .forEach(p => recipientEmails2.add(p.email.trim()));
+            // Only send overdue reminders for items that are already past due.
+            // Workplace: prevent duplicates by boolean flag.
+            // Education: allow one reminder per day until done.
+            const recipientEmails2 = new Set();
+            (meeting.participants || [])
+              .filter(p => p && p.email && /\S+@\S+\.\S+/.test(p.email))
+              .forEach(p => recipientEmails2.add(p.email.trim()));
 
-              if (looksLikeEmail(meeting.organizer)) {
-                recipientEmails2.add(meeting.organizer.trim());
-              }
+            if (looksLikeEmail(meeting.organizer)) {
+              recipientEmails2.add(meeting.organizer.trim());
+            }
 
-              const to2 = Array.from(recipientEmails2);
-              if (to2.length > 0) {
-                const subject2 = `Overdue: Action item – ${meeting.title} – ${formatMeetingSubjectDate(meeting)}`;
-                const overdueHtml = `
+            const to2 = Array.from(recipientEmails2);
+            if (to2.length > 0) {
+              const subject2 = `${overdueReminderCopy.subjectPrefix} – ${meeting.title} – ${formatMeetingSubjectDate(meeting)}`;
+              const overdueHtml = `
                   <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; color: #111827; line-height: 1.6;">
                     <p>Hello,</p>
                     <p>
-                      This is a follow-up reminder for an action item from
+                      ${overdueReminderCopy.intro}
                       <strong>${meeting.title}</strong> that is now overdue.
                     </p>
-                    <p><strong>Action item:</strong><br/>${actionItem.task || 'No description provided.'}</p>
+                    <p><strong>${overdueReminderCopy.itemLabel}:</strong><br/>${actionItem.task || 'No description provided.'}</p>
                     ${
                       actionItem.assignee
                         ? `<p><strong>Assignee:</strong> ${actionItem.assignee}</p>`
@@ -253,11 +300,14 @@ async function startActionItemReminderCron() {
                     }
                     <p><strong>Due date:</strong> ${dueDate.toLocaleString()}</p>
                     <p>
-                      Review the full AI summary and all action items here:<br/>
+                      Review the full ${overdueReminderCopy.summaryLabel} here:<br/>
                       <a href="${getSummaryUrl(meeting._id)}" target="_blank" rel="noopener noreferrer">${getSummaryUrl(meeting._id)}</a>
                     </p>
                     <p style="margin-top: 16px; font-size: 12px; color: #6b7280;">
-                      – PortIQ Meeting Assistant
+                      ${overdueReminderCopy.caution}
+                    </p>
+                    <p style="margin-top: 16px; font-size: 12px; color: #6b7280;">
+                      – ${overdueReminderCopy.assistantLabel}
                     </p>
                   </div>
                 `;
@@ -276,17 +326,17 @@ async function startActionItemReminderCron() {
                     meeting.markModified('actionItems');
                     await meeting.save();
                     remindersSent += 1;
-                    console.log(`✅ Sent overdue action-item reminder for meeting "${meeting.title}"`);
+                    console.log(`✅ Sent overdue reminder for ${isEducation ? 'assignment' : 'action item'} in "${meeting.title}"`);
                   }
                 } catch (err2) {
                   console.error(
-                    `❌ Error sending overdue action-item reminder for meeting "${meeting.title}":`,
+                    `❌ Error sending overdue reminder for "${meeting.title}":`,
                     err2.message
                   );
                 }
               }
             }
-          }
+          
         }
       }
 
