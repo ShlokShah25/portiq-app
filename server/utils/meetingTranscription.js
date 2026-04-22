@@ -984,7 +984,7 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
     : 'You are an AI meeting assistant for professional, high-fidelity minutes. ';
 
   const systemEducationFocus = isEducation
-    ? 'This output is for teaching and learning outcomes: help teachers teach better and help students revise effectively. Preserve learning goals when stated, definitions and distinctions as spoken, examples walked through, lists or taxonomies the speaker used, formulas or steps if verbalized, caveats and misconceptions addressed, and questions raised by learners. ' +
+    ? 'This output is for teaching and learning outcomes: help teachers teach better and help students revise effectively. Preserve learning goals when stated, definitions and distinctions as spoken, examples walked through, lists or taxonomies the speaker used, formulas or steps if verbalized, caveats and misconceptions addressed, and questions raised by learners. For formulas/equations, capture them in readable math-style text (for example: "speed = distance / time"), define symbols/variables as spoken, and keep units/conditions if mentioned. ' +
       'Treat the transcript as a sequence of teaching beats: walk through that sequence (or a clear teaching order) and unpack each major beat with depth—definitions, reasoning, comparisons, worked steps, and caveats—rather than skimming in broad strokes. ' +
       'You may add a light student-facing assist layer: short clarifying phrases that connect ideas, restate why something matters, or signpost how points fit together—only when that glue is clearly supported by what was said; never invent teaching content or facts not grounded in the transcript. '
     : 'This output is for operational clarity and execution quality: preserve the real business substance of the session, including context, rationale, trade-offs, dependencies, risks, blockers, stakeholder concerns, and concrete commitments. Keep nuanced reasoning when it changes decisions or priorities. ';
@@ -994,7 +994,7 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
     : 'When people discuss a topic in depth (problem analysis, options, constraints, or escalation), keep that depth in the summary and key points—not a vague line like "discussed X". ';
 
   const summarySchemaHint = isEducation
-    ? '"summary": "Coherent English narrative in lecture-recap style (typically 16–30 sentences when the session is substantive—longer when the transcript is dense). Follow the class in order: move through topics roughly as they arose (or in a teaching order that preserves dependencies), and devote several sentences to each major idea before advancing. For each segment: state what was taught, then unpack definitions, comparisons, examples, formulas/steps verbalized, and how it builds on prior material. Brief clarifying bridges are fine only when grounded in the transcript. Scale length with transcript substance—not with the calendar title.",'
+    ? '"summary": "Coherent English narrative in lecture-recap style (typically 16–30 sentences when the session is substantive—longer when the transcript is dense). Follow the class in order: move through topics roughly as they arose (or in a teaching order that preserves dependencies), and devote several sentences to each major idea before advancing. For each segment: state what was taught, then unpack definitions, comparisons, examples, formulas/steps verbalized, and how it builds on prior material. When formulas appear, present them in readable equation-style text plus variable meaning exactly as taught. Brief clarifying bridges are fine only when grounded in the transcript. Scale length with transcript substance—not with the calendar title.",'
     : '"summary": "Coherent English narrative (typically 8–16 sentences when the session is substantive). Cover the true business content: context, what changed, key decisions, trade-offs, risks, owners, and expected outcomes. Scale length with transcript depth—not with the calendar title.",';
 
   const keyPointsSchemaHint = isEducation
@@ -1017,6 +1017,8 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
       `- Where it helps a student revise, use a second (or third) sentence in the same key-point string for significance, prerequisite, contrast, or a mnemonic the teacher actually used—never invent pedagogy.\n` +
       `- Prefer concrete student-facing phrasing only when the instructor’s wording or intent supports it (e.g. "Contrast this with…", "The takeaway for exams is…" only if said or clearly implied).\n` +
       `- If assignments, presentations, quizzes, homework, submissions, or project work are mentioned, ensure they appear as concrete action items with due dates when stated.\n` +
+      `- If a quiz/test is mentioned, capture the quiz type exactly when stated (e.g. oral, written, MCQ, practical, unit test, surprise test). If type is unclear, write "quiz type not specified" rather than inventing one.\n` +
+      `- Keep formulas readable: write equation-style text (for example "F = m * a"), include variable meaning/units if the teacher states them, and do not invent symbols or numeric values.\n` +
       `- Keep wording classroom-friendly and instructional, not corporate.\n`
     : `- Workplace mode: structure bullets for execution clarity where transcript supports it (e.g. decision rationale, owner-accountability, timelines, dependency chains, go/no-go conditions).\n` +
       `- Keep exact business terms as spoken (project names, system names, ticket refs, metrics, and deadlines).\n` +
@@ -1114,6 +1116,7 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
             `- In actionItems, each task must be a specific, actionable task tied to what was actually discussed (no generic or invented tasks). Include the assignee name if mentioned.\n` +
               `- If there are no explicit action items in the transcript, set actionItems to []. Do not infer.\n` +
               `- For actionItems, set dueDate to YYYY-MM-DD only when a calendar deadline is clearly tied to THAT specific task.\n` +
+              `- Do not turn a due date into generic teaching commentary (for example "deadlines improve time management") unless that exact idea was explicitly spoken.\n` +
               `- Map relative language using the meeting anchor above: "tonight", "today", "this evening", "EOD", "by end of day", Romanized Hindi/Hinglish like "aaj raat", "aaj sham/shaam" → ${anchorLocalYmd}. "tomorrow" / "kal" (when meaning next day) → ${anchorTomorrowYmd}.\n` +
               `- For absolute phrases ("24 March", "March 24th") use the meeting anchor year if the year is unstated. If no deadline is stated for that task ("soon", "ASAP" alone), use null.\n` +
               `- Never copy unrelated dates from examples, statistics, or other topics into an action item's dueDate.\n` +
