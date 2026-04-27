@@ -7,6 +7,7 @@ import { T } from '../config/terminology';
 import { getClassrooms } from '../utils/classroomsStorage';
 import { PORTIQ_MEETINGS_HINT, PORTIQ_PRICE_ROW } from '../config/productPitch';
 import MeetingSummaryReadonlyBody from './MeetingSummaryReadonlyBody';
+import { stripEducationSummaryForDisplay } from '../utils/educationSummaryDisplay';
 import {
   VOICE_ENROLLMENT_API_TEMPLATE,
   VOICE_ENROLLMENT_BOOK_PHRASE,
@@ -1503,15 +1504,28 @@ const MeetingsScreen = () => {
                           </div>
                         ) : (
                           <div>
+                            {(() => {
+                              const eduStrip = isEducation
+                                ? stripEducationSummaryForDisplay({
+                                    summary: editableSummary.summary || '',
+                                    keyPoints: editableSummary.keyPoints || [],
+                                    decisions: editableSummary.decisions || [],
+                                    nextSteps: editableSummary.nextSteps || [],
+                                    importantNotes: editableSummary.importantNotes || [],
+                                    actionItems: editableSummary.actionItems || [],
+                                  })
+                                : null;
+                              return (
                             <MeetingSummaryReadonlyBody
                               meeting={selectedMeeting}
                               meetingId={selectedMeeting._id}
-                              summaryText={editableSummary.summary}
-                              keyPoints={editableSummary.keyPoints}
-                              actionItems={editableSummary.actionItems}
-                              decisions={editableSummary.decisions}
-                              nextSteps={editableSummary.nextSteps}
-                              importantNotes={editableSummary.importantNotes}
+                              summaryText={eduStrip ? eduStrip.summary : editableSummary.summary}
+                              revisionQuestions={eduStrip ? eduStrip.revisionQuestions : null}
+                              keyPoints={eduStrip ? eduStrip.keyPoints : editableSummary.keyPoints}
+                              actionItems={eduStrip ? eduStrip.actionItems : editableSummary.actionItems}
+                              decisions={eduStrip ? eduStrip.decisions : editableSummary.decisions}
+                              nextSteps={eduStrip ? eduStrip.nextSteps : editableSummary.nextSteps}
+                              importantNotes={eduStrip ? eduStrip.importantNotes : editableSummary.importantNotes}
                               summaryMode={editableSummary.summaryMode}
                               hiringRecommendation={editableSummary.hiringRecommendation}
                               hiringRecommendationReason={editableSummary.hiringRecommendationReason}
@@ -1520,6 +1534,8 @@ const MeetingsScreen = () => {
                               readOnlyEducationAssignments={isEducation}
                               onMeetingPatched={syncMeetingAfterActionItemPatch}
                             />
+                              );
+                            })()}
                             
                             {/* Add Additional Participants Section - Only after summary is visible */}
                             {!isInterviewMeeting(selectedMeeting) && (
@@ -1718,15 +1734,28 @@ const MeetingsScreen = () => {
                     <h3 className="meeting-summary-page-title">
                       {isEducation ? 'Lecture notes' : 'Meeting summary'}
                     </h3>
+                    {(() => {
+                      const eduSent = isEducation
+                        ? stripEducationSummaryForDisplay({
+                            summary: selectedMeeting.summary || '',
+                            keyPoints: selectedMeeting.keyPoints || [],
+                            decisions: selectedMeeting.decisions || [],
+                            nextSteps: selectedMeeting.nextSteps || [],
+                            importantNotes: selectedMeeting.importantNotes || [],
+                            actionItems: selectedMeeting.actionItems || [],
+                          })
+                        : null;
+                      return (
                     <MeetingSummaryReadonlyBody
                       meeting={selectedMeeting}
                       meetingId={selectedMeeting._id}
-                      summaryText={selectedMeeting.summary}
-                      keyPoints={selectedMeeting.keyPoints}
-                      actionItems={selectedMeeting.actionItems}
-                      decisions={selectedMeeting.decisions}
-                      nextSteps={selectedMeeting.nextSteps}
-                      importantNotes={selectedMeeting.importantNotes}
+                      summaryText={eduSent ? eduSent.summary : selectedMeeting.summary}
+                      revisionQuestions={eduSent ? eduSent.revisionQuestions : null}
+                      keyPoints={eduSent ? eduSent.keyPoints : selectedMeeting.keyPoints}
+                      actionItems={eduSent ? eduSent.actionItems : selectedMeeting.actionItems}
+                      decisions={eduSent ? eduSent.decisions : selectedMeeting.decisions}
+                      nextSteps={eduSent ? eduSent.nextSteps : selectedMeeting.nextSteps}
+                      importantNotes={eduSent ? eduSent.importantNotes : selectedMeeting.importantNotes}
                       readOnlyEducationAssignments={isEducation}
                       summaryMode={
                         selectedMeeting.summaryMode === 'interview' ? 'interview' : 'standard'
@@ -1737,6 +1766,8 @@ const MeetingsScreen = () => {
                       isEducation={isEducation}
                       onMeetingPatched={(m) => setSelectedMeeting(m)}
                     />
+                      );
+                    })()}
                   </div>
                 )}
               </div>

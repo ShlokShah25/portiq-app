@@ -179,6 +179,7 @@ const MeetingSummary = () => {
     : null;
 
   const summaryText = eduStripped ? eduStripped.summary : rawSummaryText;
+  const revisionQuestions = eduStripped ? eduStripped.revisionQuestions : null;
   const keyPoints = eduStripped ? eduStripped.keyPoints : rawKeyPoints;
   const actionItems = eduStripped ? eduStripped.actionItems : rawActionItems;
   const decisions = eduStripped ? eduStripped.decisions : rawDecisions;
@@ -213,6 +214,7 @@ const MeetingSummary = () => {
   // Use explicit length checks — a bare `.length` chain can evaluate to `0`, which React then renders.
   const hasContent =
     !!String(summaryText || '').trim() ||
+    !!String(revisionQuestions || '').trim() ||
     keyPoints.length > 0 ||
     actionItems.length > 0 ||
     decisionsDisplay.length > 0 ||
@@ -900,6 +902,7 @@ const MeetingSummary = () => {
                   meeting={meeting}
                   meetingId={id}
                   summaryText={summaryText}
+                  revisionQuestions={revisionQuestions}
                   keyPoints={keyPoints}
                   actionItems={actionItems}
                   decisions={decisions}

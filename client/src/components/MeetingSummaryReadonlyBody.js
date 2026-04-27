@@ -4,6 +4,7 @@ import {
   CheckSquare,
   FileText,
   ListChecks,
+  ListOrdered,
   CheckCircle,
   Square,
   Award,
@@ -27,6 +28,8 @@ export default function MeetingSummaryReadonlyBody({
   meeting,
   meetingId,
   summaryText = '',
+  /** Education: revision block split from summary in display layer (optional). */
+  revisionQuestions = null,
   keyPoints = [],
   actionItems = [],
   decisions = [],
@@ -102,9 +105,11 @@ export default function MeetingSummaryReadonlyBody({
     typeof evaluationSignals === 'object' &&
     Object.keys(evaluationSignals).length > 0;
 
+  const revisionBlock = String(revisionQuestions || '').trim();
   const hasRestContent =
     hasInterviewRoster ||
     !!(summaryText && String(summaryText).trim()) ||
+    !!revisionBlock ||
     (keyPoints && keyPoints.length) ||
     decisionsDisplay.length ||
     (nextSteps && nextSteps.length) ||
@@ -564,6 +569,19 @@ export default function MeetingSummaryReadonlyBody({
                 <li key={idx}>{n}</li>
               ))}
             </ul>
+          </section>
+        )}
+
+        {isEducation && revisionBlock && (
+          <section
+            className={`meeting-summary-section meeting-summary-section--revision${staggerSections ? ' meeting-summary-section--ux-reveal' : ''}`}
+            style={staggerSections ? { animationDelay: '260ms' } : undefined}
+          >
+            <h2 className="meeting-summary-heading meeting-summary-heading--with-icon">
+              <ListOrdered className="meeting-summary-heading-icon" strokeWidth={1.5} aria-hidden />
+              Revision questions
+            </h2>
+            <div className="meeting-summary-revision-body">{revisionBlock}</div>
           </section>
         )}
 

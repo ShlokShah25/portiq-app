@@ -575,6 +575,23 @@
   margin-top: 2px;
 }
 
+.meeting-summary-section--revision {
+  margin-top: 8px;
+  padding: 16px 18px 18px;
+  border-radius: 14px;
+  border: 1px solid var(--badge-border);
+  background: var(--surface-secondary, rgba(15, 23, 42, 0.04));
+}
+
+.meeting-summary-revision-body {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .meeting-summary-section--interview-roster {
   padding-top: 16px;
   margin-top: 4px;

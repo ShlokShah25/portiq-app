@@ -17,6 +17,43 @@ function stripStringArray(arr) {
     .filter((x) => x.length > 0);
 }
 
+/** Display-only: simpler words for common corporate terms (does not change stored AI output). */
+const EDU_DISPLAY_VOCAB_REPLACEMENTS = [
+  [/\bstakeholders\b/gi, 'people involved'],
+  [/\bstakeholder\b/gi, 'someone involved'],
+  [/\butilize\b/gi, 'use'],
+  [/\butilizes\b/gi, 'uses'],
+  [/\butilized\b/gi, 'used'],
+  [/\bleverage\b/gi, 'use'],
+  [/\bleverages\b/gi, 'uses'],
+  [/\bleveraged\b/gi, 'used'],
+  [/\bfacilitate\b/gi, 'help'],
+  [/\bfacilitates\b/gi, 'helps'],
+  [/\bfacilitated\b/gi, 'helped'],
+];
+
+function softenStudentFacingVocab(s) {
+  let t = String(s || '');
+  for (const [re, rep] of EDU_DISPLAY_VOCAB_REPLACEMENTS) {
+    t = t.replace(re, rep);
+  }
+  return t;
+}
+
+/**
+ * Pull "Revision questions:" out of the summary body so the UI can render it as its own section.
+ * Model text may embed this block at the end of the narrative paragraph.
+ */
+function splitRevisionQuestionsFromSummary(text) {
+  const s = String(text || '');
+  const re = /\s*Revision questions\s*:\s*/i;
+  const m = re.exec(s);
+  if (!m) return { summaryBody: s.trim(), revisionBlock: null };
+  const head = s.slice(0, m.index).trimEnd();
+  const tail = s.slice(m.index + m[0].length).trim();
+  return { summaryBody: head, revisionBlock: tail || null };
+}
+
 /**
  * Returns a shallow copy of summary fields with bracket speaker labels removed.
  * Use in education mode so lecture notes read as neutral notes (no "[Unidentified speaker]:").
@@ -29,19 +66,25 @@ export function stripEducationSummaryForDisplay({
   importantNotes = [],
   actionItems = [],
 }) {
+  const summaryStripped = stripSpeakerPrefixesFromLine(summary);
+  const { summaryBody, revisionBlock } = splitRevisionQuestionsFromSummary(summaryStripped);
+
   return {
-    summary: stripSpeakerPrefixesFromLine(summary),
-    keyPoints: stripStringArray(keyPoints),
-    decisions: stripStringArray(decisions),
-    nextSteps: stripStringArray(nextSteps),
-    importantNotes: stripStringArray(importantNotes),
+    summary: softenStudentFacingVocab(summaryBody),
+    revisionQuestions: revisionBlock ? softenStudentFacingVocab(revisionBlock) : null,
+    keyPoints: stripStringArray(keyPoints).map((x) => softenStudentFacingVocab(x)),
+    decisions: stripStringArray(decisions).map((x) => softenStudentFacingVocab(x)),
+    nextSteps: stripStringArray(nextSteps).map((x) => softenStudentFacingVocab(x)),
+    importantNotes: stripStringArray(importantNotes).map((x) => softenStudentFacingVocab(x)),
     actionItems: Array.isArray(actionItems)
       ? actionItems.map((item) => ({
           ...item,
-          task: stripSpeakerPrefixesFromLine(item?.task != null ? item.task : ''),
+          task: softenStudentFacingVocab(
+            stripSpeakerPrefixesFromLine(item?.task != null ? item.task : '')
+          ),
           notes:
             item?.notes != null && String(item.notes).trim()
-              ? stripSpeakerPrefixesFromLine(item.notes)
+              ? softenStudentFacingVocab(stripSpeakerPrefixesFromLine(item.notes))
               : item?.notes,
         }))
       : [],
