@@ -248,19 +248,13 @@ async function startActionItemReminderCron() {
             }
           }
 
-          // Overdue reminder: send once when the item becomes overdue (day after due date).
-          // We run the cron at a configured time each day, so checking dueDate vs startOfToday is enough.
+          // Overdue reminder: workplace only.
+          // Education mode should send only day-before reminders (no overdue nudges).
           const shouldSendOverdueReminder =
+            !isEducation &&
             actionItem.status !== 'done' &&
             dueDate < new Date(now.getFullYear(), now.getMonth(), now.getDate()) &&
-            (
-              // Workplace: keep one-time overdue reminder behavior.
-              (!isEducation && !actionItem.overdueReminderSent) ||
-              // Education: resend once per day until assignment is marked done (if ever).
-              (isEducation &&
-                (!actionItem.overdueReminderSentAt ||
-                  new Date(actionItem.overdueReminderSentAt) < startOfToday))
-            );
+            !actionItem.overdueReminderSent;
 
           if (shouldSendOverdueReminder) {
             const now2 = new Date();
@@ -270,9 +264,7 @@ async function startActionItemReminderCron() {
               continue;
             }
 
-            // Only send overdue reminders for items that are already past due.
-            // Workplace: prevent duplicates by boolean flag.
-            // Education: allow one reminder per day until done.
+            // Only send overdue reminders for items already past due (workplace only).
             const recipientEmails2 = new Set();
             (meeting.participants || [])
               .filter(p => p && p.email && /\S+@\S+\.\S+/.test(p.email))
