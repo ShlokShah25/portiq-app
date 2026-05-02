@@ -19,6 +19,7 @@ const AdminLogin = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
 
   const syncProductAndMaybeReload = (nextPath, serverProduct) => {
     const prevProduct = window.localStorage.getItem(PRODUCT_KEY) || 'workplace';
@@ -70,18 +71,61 @@ const AdminLogin = () => {
     const urlToken = params.get('token') || params.get('social_token');
     const next = params.get('next') || '/dashboard';
 
+    if (!urlToken) {
+      const reason = params.get('reason');
+      if (reason === 'no_access') {
+        setError(
+          'Your plan or trial is not active for this workspace. Sign in again after renewing on the Portiq website.'
+        );
+      } else if (reason === 'session_expired') {
+        setError('Your session expired. Please sign in again.');
+      } else if (reason === 'no_subscription') {
+        setError(
+          'You need an active subscription or trial to use the app. Please sign in after subscribing.'
+        );
+      }
+    }
+
     if (urlToken) {
       window.localStorage.setItem('clientAdminToken', urlToken);
       axios.defaults.headers.common['Authorization'] = `Bearer ${urlToken}`;
       (async () => {
         try {
           const profileRes = await axios.get('/admin/profile');
-          const serverProduct = String(profileRes.data?.admin?.productType || 'workplace').toLowerCase();
+          const admin = profileRes.data?.admin || {};
+          if (!admin.hasDashboardAccess) {
+            try {
+              window.localStorage.removeItem('clientAdminToken');
+              window.localStorage.removeItem('portiq_has_subscription');
+            } catch (_) {
+              /* ignore */
+            }
+            delete axios.defaults.headers.common.Authorization;
+            setError(
+              'Your plan or trial is not active for this workspace. Sign in again after renewing on the Portiq website.'
+            );
+            navigate('/admin-login?reason=no_access', { replace: true });
+            return;
+          }
+          const serverProduct = String(admin.productType || 'workplace').toLowerCase();
           if (syncProductAndMaybeReload(next, serverProduct)) {
             return;
           }
-        } catch (_) {
-          // best effort only
+        } catch (err) {
+          try {
+            window.localStorage.removeItem('clientAdminToken');
+            window.localStorage.removeItem('portiq_has_subscription');
+          } catch (_) {
+            /* ignore */
+          }
+          delete axios.defaults.headers.common.Authorization;
+          const msg =
+            err.response?.data?.error ||
+            'Your session is invalid or expired. Please sign in again.';
+          const details = err.response?.data?.details;
+          setError([msg, details].filter(Boolean).join(' '));
+          navigate('/admin-login', { replace: true });
+          return;
         }
         navigate(next, { replace: true });
       })();
@@ -131,7 +175,7 @@ const AdminLogin = () => {
         const trimmed = identifier.trim();
         const payload = trimmed ? { username: trimmed, password } : { password };
 
-      const res = await axios.post('/admin/login', payload);
+        const res = await axios.post('/admin/login', { ...payload, rememberMe });
       const token = res.data?.token;
       const serverAdmin = res.data?.admin || {};
       if (!token) {
@@ -154,8 +198,17 @@ const AdminLogin = () => {
       }
       navigate('/dashboard', { replace: true });
     } catch (err) {
+      const code = err.response?.data?.code;
+      const details = err.response?.data?.details;
+      if (err.response?.status === 403 && code === 'NO_APP_ACCESS') {
+        setError([err.response?.data?.error, details].filter(Boolean).join(' '));
+        return;
+      }
       if (err.response?.status === 403 && /subscription/i.test(err.response?.data?.error || '')) {
-        window.location.href = WEBSITE_URL + '/#pricing';
+        setError(
+          [err.response?.data?.error, details].filter(Boolean).join(' ') ||
+            'No active subscription. Please subscribe on the Portiq website, then sign in again.'
+        );
         return;
       }
       console.error('Admin login error', err);
@@ -298,6 +351,17 @@ const AdminLogin = () => {
             />
           </label>
 
+          {authMode === 'signin' && (
+            <label className="admin-login-remember">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+              />
+              <span>Stay signed in for 30 days on this device</span>
+            </label>
+          )}
+
           {error && <div className="admin-login-error">{error}</div>}
           {success && <div className="admin-login-success">{success}</div>}
 
@@ -380,10 +444,12 @@ const AdminLogin = () => {
                 process.env.REACT_APP_APP_BASE_URL ||
                 window.location.origin;
               const next = '/dashboard';
-              window.location.href = `${base.replace(
-                /\/$/,
-                ''
-              )}/api/auth/google?next=${encodeURIComponent(next)}`;
+              const qs = new URLSearchParams();
+              qs.set('next', next);
+              if (authMode === 'signin' && rememberMe) {
+                qs.set('rememberMe', '1');
+              }
+              window.location.href = `${base.replace(/\/$/, '')}/api/auth/google?${qs.toString()}`;
             }}
           >
             <span className="admin-login-oauth-icon">

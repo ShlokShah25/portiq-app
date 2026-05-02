@@ -12,6 +12,41 @@ function getJwtSecret() {
   return process.env.JWT_SECRET || 'your_secret_key';
 }
 
+/** @returns {{ mode: 'website' } | { mode: 'app', next: string, rememberMe: boolean }} */
+function parseGoogleOAuthState(state) {
+  const raw = state == null ? '' : String(state);
+  if (raw === 'website') {
+    return { mode: 'website' };
+  }
+  try {
+    const decoded = decodeURIComponent(raw);
+    if (decoded.startsWith('p1.')) {
+      const json = JSON.parse(Buffer.from(decoded.slice(3), 'base64url').toString('utf8'));
+      if (String(json.next) === 'website') {
+        return { mode: 'website' };
+      }
+      const next =
+        typeof json.next === 'string' && json.next.startsWith('/') ? json.next : '/dashboard';
+      return { mode: 'app', next, rememberMe: !!json.rememberMe };
+    }
+  } catch (_) {
+    /* fall through */
+  }
+  let next = '/dashboard';
+  try {
+    next = decodeURIComponent(raw) || '/dashboard';
+  } catch (_) {
+    next = '/dashboard';
+  }
+  if (next === 'website') {
+    return { mode: 'website' };
+  }
+  if (!next.startsWith('/')) {
+    next = '/dashboard';
+  }
+  return { mode: 'app', next, rememberMe: false };
+}
+
 /**
  * Forgot password - send reset link
  */
@@ -111,7 +146,15 @@ router.get('/google', (req, res) => {
     return res.status(500).send('Google OAuth is not configured.');
   }
 
-  const state = encodeURIComponent(req.query.next || '/dashboard');
+  const nextPath = String(req.query.next || '/dashboard').trim() || '/dashboard';
+  const rememberMe =
+    req.query.rememberMe === '1' ||
+    String(req.query.rememberMe || '').toLowerCase() === 'true';
+  const statePayload = Buffer.from(
+    JSON.stringify({ next: nextPath, rememberMe }),
+    'utf8'
+  ).toString('base64url');
+  const state = encodeURIComponent(`p1.${statePayload}`);
   const scope = encodeURIComponent('openid email profile');
 
   const url =
@@ -186,9 +229,11 @@ router.get('/google/callback', async (req, res) => {
       .sort({ hasActiveSubscription: -1, updatedAt: -1 })
       .limit(1);
 
+    const oauthState = parseGoogleOAuthState(state);
+
     let admin = existing[0];
     if (!admin) {
-      if (state === 'website') {
+      if (oauthState.mode === 'website') {
         // Sign up with Google: create account and send to website with session token
         const crypto = require('crypto');
         const randomPassword = crypto.randomBytes(24).toString('hex');
@@ -213,7 +258,7 @@ router.get('/google/callback', async (req, res) => {
       }
     }
 
-    if (state === 'website') {
+    if (oauthState.mode === 'website') {
       const websiteSessionToken = jwt.sign(
         { adminId: admin._id.toString(), purpose: 'website_session' },
         getJwtSecret(),
@@ -227,25 +272,29 @@ router.get('/google/callback', async (req, res) => {
     // App Google login: same subscription gate as password (avoid JWT that dies on first /admin/* call).
     if (!hasDashboardAccess(admin)) {
       return res.redirect(
-        `${marketingBase}?login=no_subscription&email=${encodeURIComponent(
+        `${appBase.replace(/\/$/, '')}/admin-login?reason=no_access&email=${encodeURIComponent(
           emailNorm
         )}`
       );
     }
 
+    const staySignedIn = oauthState.mode === 'app' && oauthState.rememberMe;
     const appToken = jwt.sign(
       {
         id: admin._id.toString(),
         username: admin.username,
         role: admin.role,
+        productType: admin.productType,
+        plan: admin.plan,
       },
       getJwtSecret(),
-      { expiresIn: '24h' }
+      { expiresIn: staySignedIn ? '30d' : '24h' }
     );
 
-    const nextPath = state || '/dashboard';
+    const nextPath = oauthState.mode === 'app' ? oauthState.next : '/dashboard';
+    const appBaseNorm = appBase.replace(/\/$/, '');
     const redirectUrl =
-      `${appBase}/admin-login?social_token=${encodeURIComponent(appToken)}` +
+      `${appBaseNorm}/admin-login?social_token=${encodeURIComponent(appToken)}` +
       `&next=${encodeURIComponent(nextPath)}`;
 
     res.redirect(redirectUrl);

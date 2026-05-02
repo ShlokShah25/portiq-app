@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useLocation, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { useTheme } from '../contexts/ThemeContext';
 import { ParticipantBookPanel } from './Participants';
@@ -29,6 +29,7 @@ function normalizeSettingsSection(tab) {
 const Settings = () => {
   const { theme, toggleTheme } = useTheme();
   const location = useLocation();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [username, setUsername] = useState('Unknown user');
@@ -102,6 +103,17 @@ const Settings = () => {
           admin.trialMeetingsRemaining != null ? Number(admin.trialMeetingsRemaining) : null
         );
       } catch (e) {
+        const status = e.response?.status;
+        if (status === 401) {
+          try {
+            window.localStorage.removeItem('clientAdminToken');
+            window.localStorage.removeItem('portiq_has_subscription');
+          } catch (_) {
+            /* ignore */
+          }
+          navigate('/admin-login?reason=session_expired', { replace: true });
+          return;
+        }
         const product =
           (typeof window !== 'undefined' && window.localStorage.getItem('portiq_product')) || 'workplace';
         setProductLabel(product === 'education' ? 'Portiq Education' : 'Portiq Workplace');

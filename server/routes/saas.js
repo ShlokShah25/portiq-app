@@ -3,14 +3,15 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const { sendEmail, isEmailConfigured, getDefaultFrom } = require('../utils/emailService');
 const Admin = require('../models/Admin');
-const { trialMeetingsRemaining } = require('../utils/subscriptionGate');
+const { trialMeetingsRemaining, hasDashboardAccess } = require('../utils/subscriptionGate');
 
 function jwtSecret() {
   return process.env.JWT_SECRET || 'your_secret_key';
 }
 
 /** Same claims as /api/admin/login — works with app Bearer auth & website session. */
-function issuePortiqAccessToken(admin) {
+function issuePortiqAccessToken(admin, opts = {}) {
+  const staySignedIn = !!opts.rememberMe;
   return jwt.sign(
     {
       id: admin._id.toString(),
@@ -20,7 +21,7 @@ function issuePortiqAccessToken(admin) {
       plan: admin.plan,
     },
     jwtSecret(),
-    { expiresIn: '24h' }
+    { expiresIn: staySignedIn ? '30d' : '24h' }
   );
 }
 
@@ -85,6 +86,14 @@ router.post('/signup', async (req, res) => {
 
     await admin.save();
 
+    if (!hasDashboardAccess(admin)) {
+      return res.status(403).json({
+        error: 'No active plan or trial.',
+        details: 'This account cannot access the app right now.',
+        code: 'NO_APP_ACCESS',
+      });
+    }
+
     const token = issuePortiqAccessToken(admin);
 
     // Best-effort welcome email (non-blocking for response)
@@ -133,7 +142,7 @@ router.post('/signup', async (req, res) => {
  */
 router.post('/login', async (req, res) => {
   try {
-    const { username, password } = req.body || {};
+    const { username, password, rememberMe } = req.body || {};
     if (!username || !password) {
       return res.status(400).json({ error: 'Email/username and password are required.' });
     }
@@ -150,7 +159,16 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
-    const token = issuePortiqAccessToken(admin);
+    if (!hasDashboardAccess(admin)) {
+      return res.status(403).json({
+        error: 'No active plan or trial.',
+        details:
+          'Your subscription is inactive or your trial has ended. Renew your plan on the Portiq website, then sign in again.',
+        code: 'NO_APP_ACCESS',
+      });
+    }
+
+    const token = issuePortiqAccessToken(admin, { rememberMe });
 
     return res.status(200).json({
       success: true,
@@ -191,6 +209,14 @@ router.get('/session', async (req, res) => {
       return res.status(401).json({ error: 'User not found.' });
     }
 
+    if (!hasDashboardAccess(admin)) {
+      return res.status(403).json({
+        error: 'No active plan or trial.',
+        details: 'This account cannot access the app right now.',
+        code: 'NO_APP_ACCESS',
+      });
+    }
+
     const accessToken = issuePortiqAccessToken(admin);
 
     return res.status(200).json({
@@ -218,6 +244,14 @@ router.post('/create-autologin-token', async (req, res) => {
     const admin = await Admin.findOne({ username });
     if (!admin) {
       return res.status(404).json({ error: 'Admin not found' });
+    }
+
+    if (!hasDashboardAccess(admin)) {
+      return res.status(403).json({
+        error: 'No active plan or trial.',
+        details: 'This account cannot access the app right now.',
+        code: 'NO_APP_ACCESS',
+      });
     }
 
     const secret = process.env.JWT_SECRET || 'your_secret_key';

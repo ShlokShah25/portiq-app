@@ -29,10 +29,18 @@ function trialMeetingsRemaining(admin) {
 }
 
 /**
- * App shell (sidebar, dashboard) — paid, complimentary, legacy, trial, and post-trial users.
+ * App shell (sidebar, dashboard): legacy demo, paid, complimentary, or free trial with meetings left.
+ * Inactive paid (Razorpay row but not active), exhausted trial, or no entitlements → no access (must use login flow).
  */
 function hasDashboardAccess(admin) {
-  return !!admin;
+  if (!admin) return false;
+  if (isLegacyAdmin(admin)) return true;
+  if (admin.complimentaryAccess) return true;
+  if (admin.hasActiveSubscription) return true;
+  if (admin.razorpaySubscriptionId && !admin.hasActiveSubscription) return false;
+  const remaining = trialMeetingsRemaining(admin);
+  if (remaining != null && remaining > 0) return true;
+  return false;
 }
 
 /**

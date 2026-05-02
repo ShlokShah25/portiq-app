@@ -56,22 +56,51 @@ const ResetPassword = lazyWithRetry(() => import('./components/ResetPassword'), 
 // - In production (Railway): use same-origin `/api` so CORS is not needed.
 const isBrowser = typeof window !== 'undefined';
 const isLocalhost = isBrowser && window.location.hostname === 'localhost';
-const WEBSITE_URL = process.env.REACT_APP_WEBSITE_URL || 'https://portiqtechnologies.com';
-
 axios.defaults.baseURL = isLocalhost
   ? (process.env.REACT_APP_API_URL || 'http://localhost:5001/api')
   : '/api';
 
-// Add response interceptor: 403 NO_SUBSCRIPTION → redirect to website pricing
+// Add response interceptor: expired / no subscription → sign-in screen
+function pathIsAdminLogin() {
+  if (typeof window === 'undefined') return false;
+  const p = window.location.pathname || '';
+  return p.endsWith('/admin-login') || p.includes('/admin-login');
+}
+
 axios.interceptors.response.use(
   response => response,
   error => {
+    const reqUrl = String(error.config?.url || '');
+    const isPreAuthRequest =
+      reqUrl.includes('/admin/login') ||
+      reqUrl.includes('/saas/login') ||
+      reqUrl.includes('/saas/signup') ||
+      reqUrl.includes('/auth/forgot') ||
+      reqUrl.includes('/auth/reset');
+
+    if (error.response?.status === 401 && !isPreAuthRequest) {
+      try {
+        window.localStorage.removeItem('clientAdminToken');
+        window.localStorage.removeItem('portiq_has_subscription');
+      } catch (e) {
+        /* ignore */
+      }
+      if (!pathIsAdminLogin()) {
+        const base = process.env.PUBLIC_URL || '';
+        window.location.assign(`${base}/admin-login?reason=session_expired`);
+      }
+      return Promise.reject(error);
+    }
+
     if (error.response?.status === 403 && error.response?.data?.code === 'NO_SUBSCRIPTION') {
       try {
         window.localStorage.removeItem('clientAdminToken');
         window.localStorage.removeItem('portiq_has_subscription');
-      } catch (e) {}
-      window.location.href = WEBSITE_URL + '/#pricing';
+      } catch (e) {
+        /* ignore */
+      }
+      const base = process.env.PUBLIC_URL || '';
+      window.location.href = `${base}/admin-login?reason=no_subscription`;
       return Promise.reject(error);
     }
     if (error.response?.status === 403 && error.response?.data?.code === 'TRIAL_LIMIT_REACHED') {

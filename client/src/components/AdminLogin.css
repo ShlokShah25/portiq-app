@@ -75,6 +75,22 @@
   gap: 14px;
 }
 
+.admin-login-remember {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: -4px 0 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.admin-login-remember input {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
 .admin-login-auth-toggle {
   display: inline-flex;
   padding: 3px;

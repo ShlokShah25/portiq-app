@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import Sidebar from './Sidebar';
@@ -11,12 +11,62 @@ import './AppShell.css';
 export default function ProtectedLayout({ config }) {
   const location = useLocation();
   const mainRef = useRef(null);
+  const [sessionReady, setSessionReady] = useState(false);
+  const [sessionDenied, setSessionDenied] = useState(false);
   const token =
     typeof window !== 'undefined' ? window.localStorage.getItem('clientAdminToken') : null;
   if (!token) {
     return <Navigate to="/admin-login" replace />;
   }
   axios.defaults.headers.common.Authorization = `Bearer ${token}`;
+
+  useEffect(() => {
+    let cancelled = false;
+    setSessionReady(false);
+    setSessionDenied(false);
+    (async () => {
+      try {
+        const res = await axios.get('/admin/profile');
+        const dash = res.data?.admin?.hasDashboardAccess;
+        if (cancelled) return;
+        if (!dash) {
+          try {
+            window.localStorage.removeItem('clientAdminToken');
+            window.localStorage.removeItem('portiq_has_subscription');
+          } catch (_) {
+            /* ignore */
+          }
+          setSessionDenied(true);
+          return;
+        }
+        setSessionReady(true);
+      } catch (err) {
+        if (cancelled) return;
+        try {
+          window.localStorage.removeItem('clientAdminToken');
+          window.localStorage.removeItem('portiq_has_subscription');
+        } catch (_) {
+          /* ignore */
+        }
+        setSessionDenied(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  if (sessionDenied) {
+    return <Navigate to="/admin-login?reason=no_access" replace />;
+  }
+  if (!sessionReady) {
+    return (
+      <div className="app-loading" role="status" aria-live="polite">
+        <div className="loading-spinner" />
+        <p>Checking your session…</p>
+      </div>
+    );
+  }
 
   const getFocusableFields = useCallback(() => {
     const root = mainRef.current;
