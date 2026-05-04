@@ -15,15 +15,17 @@ export default function ProtectedLayout({ config }) {
   const [sessionDenied, setSessionDenied] = useState(false);
   const token =
     typeof window !== 'undefined' ? window.localStorage.getItem('clientAdminToken') : null;
-  if (!token) {
-    return <Navigate to="/admin-login" replace />;
-  }
-  axios.defaults.headers.common.Authorization = `Bearer ${token}`;
 
   useEffect(() => {
+    if (!token) {
+      setSessionReady(false);
+      setSessionDenied(false);
+      return;
+    }
     let cancelled = false;
     setSessionReady(false);
     setSessionDenied(false);
+    axios.defaults.headers.common.Authorization = `Bearer ${token}`;
     (async () => {
       try {
         const res = await axios.get('/admin/profile');
@@ -56,18 +58,6 @@ export default function ProtectedLayout({ config }) {
     };
   }, [token]);
 
-  if (sessionDenied) {
-    return <Navigate to="/admin-login?reason=no_access" replace />;
-  }
-  if (!sessionReady) {
-    return (
-      <div className="app-loading" role="status" aria-live="polite">
-        <div className="loading-spinner" />
-        <p>Checking your session…</p>
-      </div>
-    );
-  }
-
   const getFocusableFields = useCallback(() => {
     const root = mainRef.current;
     if (!root) return [];
@@ -81,6 +71,7 @@ export default function ProtectedLayout({ config }) {
   }, []);
 
   useEffect(() => {
+    if (!token || !sessionReady || sessionDenied) return;
     const id = window.requestAnimationFrame(() => {
       const [first] = getFocusableFields();
       if (first && typeof first.focus === 'function') {
@@ -88,7 +79,7 @@ export default function ProtectedLayout({ config }) {
       }
     });
     return () => window.cancelAnimationFrame(id);
-  }, [location.pathname, getFocusableFields]);
+  }, [location.pathname, getFocusableFields, token, sessionReady, sessionDenied]);
 
   const onMainKeyDown = useCallback(
     (event) => {
@@ -103,14 +94,31 @@ export default function ProtectedLayout({ config }) {
       const idx = fields.indexOf(target);
       if (idx < 0 || idx >= fields.length - 1) return;
 
-      const next = fields[idx + 1];
-      if (next && typeof next.focus === 'function') {
+      const nextField = fields[idx + 1];
+      if (nextField && typeof nextField.focus === 'function') {
         event.preventDefault();
-        next.focus();
+        nextField.focus();
       }
     },
     [getFocusableFields]
   );
+
+  if (!token) {
+    return <Navigate to="/admin-login" replace />;
+  }
+  axios.defaults.headers.common.Authorization = `Bearer ${token}`;
+
+  if (sessionDenied) {
+    return <Navigate to="/admin-login?reason=no_access" replace />;
+  }
+  if (!sessionReady) {
+    return (
+      <div className="app-loading" role="status" aria-live="polite">
+        <div className="loading-spinner" />
+        <p>Checking your session…</p>
+      </div>
+    );
+  }
 
   return (
     <TrialExperienceProvider>
