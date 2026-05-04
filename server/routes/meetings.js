@@ -12,6 +12,7 @@ const {
 const { transcribeAndSummarizeWithLongAudioSupport } = require('../utils/longAudioTranscribe');
 const { getPlanConstraints } = require('../utils/planConstraints');
 const { resolveUploadPath } = require('../utils/resolveUploadPath');
+const { mirrorMeetingAudioToPersistentDir } = require('../utils/meetingAudioMirror');
 const {
   subscriptionDeniedResponse,
   subscriptionPaymentPendingResponse,
@@ -1055,6 +1056,8 @@ router.post('/:id/end', withMeetingAudioUpload, async (req, res) => {
       : (meeting.audioFile ? resolveUploadPath(meeting.audioFile) : null);
 
     if (audioFilePath && fs.existsSync(audioFilePath) && meeting.transcriptionEnabled) {
+      // Copy to persistent volume as soon as we have a path so redeploys cannot lose audio before transcription runs.
+      mirrorMeetingAudioToPersistentDir(audioFilePath);
       // If new file uploaded, update the audioFile path
       if (req.file) {
         meeting.audioFile = `/uploads/meetings/${req.file.filename}`;
@@ -1200,13 +1203,17 @@ router.post('/:id/retry-transcription', async (req, res) => {
     if (!audioFilePath || !fs.existsSync(audioFilePath)) {
       return res.status(404).json({
         error:
-          'Recording file is missing on this server (often after redeploy or disk reset). Upload a new recording or run a new meeting to transcribe again.',
+          'Recording file is missing on this server (often after redeploy if audio was only on temporary disk). Upload a new recording or run a new meeting to transcribe again.',
+        details:
+          'For redeploy-safe recordings: attach a persistent volume on your host and set MEETING_AUDIO_MIRROR_DIR or PORTIQ_PERSISTENT_AUDIO_DIR to that mount path (same basename as in uploads). Then new recordings are copied there automatically.',
       });
     }
 
     await Meeting.findByIdAndUpdate(meeting._id, {
       $set: { transcriptionStatus: 'Processing', ...clearTranscriptionFailureFields() },
     });
+
+    mirrorMeetingAudioToPersistentDir(audioFilePath);
 
     transcribeAndSummarizeWithLongAudioSupport(audioFilePath, meeting, {
       productType: admin?.productType,

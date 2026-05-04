@@ -15,6 +15,7 @@ const { execFile } = require('child_process');
 const util = require('util');
 
 const execFileAsync = util.promisify(execFile);
+const { getFfmpegPath, getFfprobePath } = require('./ffmpegPaths');
 const { transcribeAndSummarize } = require('./meetingTranscription');
 const { mirrorMeetingAudioToPersistentDir } = require('./meetingAudioMirror');
 const Meeting = require('../models/Meeting');
@@ -94,7 +95,7 @@ function getAudioDurationSeconds(inputPath) {
  */
 async function extractAudioChunkWav(inputPath, startSec, durationSec, outPath) {
   await execFileAsync(
-    'ffmpeg',
+    getFfmpegPath(),
     [
       '-y',
       '-hide_banner',

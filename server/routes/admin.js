@@ -15,6 +15,7 @@ const {
 } = require('../utils/subscriptionGate');
 const { alignDueYearToMeetingReference } = require('../utils/actionItemDueDate');
 const { resolveUploadPath } = require('../utils/resolveUploadPath');
+const { mirrorMeetingAudioToPersistentDir } = require('../utils/meetingAudioMirror');
 const {
   recoverSummaryFromCheckpointedTranscript,
   buildPipelineUpdateFromSummaryData,
@@ -106,7 +107,7 @@ function dashboardTaskRow(raw, m, status) {
  */
 router.post('/login', async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, password, rememberMe } = req.body || {};
 
     // If only password is provided, try to find admin with default username 'admin'
     let admin;
@@ -146,6 +147,16 @@ router.post('/login', async (req, res) => {
     admin.lastLogin = new Date();
     await admin.save();
 
+    if (!hasDashboardAccess(admin)) {
+      return res.status(403).json({
+        error: 'No active plan or trial.',
+        details:
+          'Your subscription is inactive or your trial has ended. Renew your plan on the Portiq website, then sign in again.',
+        code: 'NO_APP_ACCESS',
+      });
+    }
+
+    const staySignedIn = !!rememberMe;
     const token = jwt.sign(
       {
         id: admin._id.toString(),
@@ -155,7 +166,7 @@ router.post('/login', async (req, res) => {
         plan: admin.plan,
       },
       process.env.JWT_SECRET || 'your_secret_key',
-      { expiresIn: '24h' }
+      { expiresIn: staySignedIn ? '30d' : '24h' }
     );
 
     res.json({
@@ -892,9 +903,9 @@ router.post('/meetings/:id/retry-transcription', authenticateAdmin, async (req, 
       }
       return res.status(404).json({
         error:
-          'Recording file is missing on this server (often after redeploy or disk reset). Upload a new recording or run a new meeting to transcribe again.',
+          'Recording file is missing on this server (often after redeploy if audio was only on temporary disk). Upload a new recording or run a new meeting to transcribe again.',
         details:
-          'There is also no saved transcript in the database for this meeting, so the summary cannot be rebuilt automatically.',
+          'There is also no saved transcript in the database for this meeting, so the summary cannot be rebuilt automatically. To keep recordings across deploys, use a persistent volume and set MEETING_AUDIO_MIRROR_DIR or PORTIQ_PERSISTENT_AUDIO_DIR.',
       });
     }
 
@@ -905,6 +916,10 @@ router.post('/meetings/:id/retry-transcription', authenticateAdmin, async (req, 
 
     const { generateMeetingSummaryFromTranscript } = require('../utils/meetingTranscription');
     const { transcribeAndSummarizeWithLongAudioSupport } = require('../utils/longAudioTranscribe');
+
+    if (audioOnDisk && audioFilePath) {
+      mirrorMeetingAudioToPersistentDir(audioFilePath);
+    }
 
     const retryPromise = audioOnDisk
       ? transcribeAndSummarizeWithLongAudioSupport(audioFilePath, meeting, {

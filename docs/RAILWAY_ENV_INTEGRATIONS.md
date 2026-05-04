@@ -35,6 +35,28 @@ No trailing slash.
 | `JWT_SECRET` | Signs OAuth `state` and admin sessions — **must match** across deploys |
 | `MONGODB_URI` | Database |
 
+### ffmpeg (long lectures & large recordings)
+
+Long class recordings (**roughly over ~10 minutes**) and automatic compression for Whisper use **system `ffmpeg` and `ffprobe`** on the API server. This repo’s **`nixpacks.toml`** adds `ffmpeg` for Railway/Nixpacks builds.
+
+- After deploy, **`GET /api/health/ready`** includes `"ffmpeg": "available"` or `"missing"`.
+- If **`ffmpeg` is missing**, install ffmpeg on the host or set **`FFMPEG_PATH`** / **`FFPROBE_PATH`** to the full paths of those binaries (override when they are not on `PATH`).
+
+### Persisting lecture/meeting audio across redeploys
+
+Default uploads live under **`uploads/meetings/`** on the container filesystem — **that disk is wiped when the platform redeploys or restarts** unless you use durable storage.
+
+**Do this:** attach a **persistent volume** on Railway (or equivalent), mount it at e.g. **`/data/portiq-audio`**, then set **either**:
+
+| Variable | Purpose |
+|----------|---------|
+| `MEETING_AUDIO_MIRROR_DIR` | Absolute path to the volume (recommended). Each recording file is **copied here** (same filename as in `uploads/meetings/`). |
+| `PORTIQ_PERSISTENT_AUDIO_DIR` | **Alias** for the same path if you prefer this name. |
+
+When the primary upload path is gone after a redeploy, **`resolveUploadPath`** finds the file again **by basename** under this directory so **Regenerate summary** still works.
+
+Check **`GET /api/health/ready`** → **`meetingAudioMirrorDir`: `"configured"`** once set.
+
 ### Zoom — webhooks + OAuth
 
 | Variable | Example / notes |

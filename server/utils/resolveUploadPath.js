@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { getMeetingAudioMirrorRoot } = require('./meetingAudioMirror');
 
 /**
  * Resolve a path stored on Meeting.audioFile (e.g. `/uploads/meetings/x.webm` or `uploads/meetings/x.webm`)
@@ -18,7 +19,7 @@ function resolveUploadPath(storedPath) {
   } catch (_) {
     /* ignore */
   }
-  const mirrorRoot = process.env.MEETING_AUDIO_MIRROR_DIR;
+  const mirrorRoot = getMeetingAudioMirrorRoot();
   if (mirrorRoot) {
     try {
       const alt = path.join(path.resolve(mirrorRoot), path.basename(rel));

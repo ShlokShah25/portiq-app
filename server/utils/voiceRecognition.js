@@ -4,6 +4,7 @@ const os = require('os');
 const { exec, execFileSync } = require('child_process');
 const util = require('util');
 const execPromise = util.promisify(exec);
+const { getFfmpegPath } = require('./ffmpegPaths');
 
 /** Resolve a Python binary for voice_embedding.py (Railway often has `python` but not `python3`). */
 function resolvePythonBinaryForVoice() {
@@ -105,7 +106,7 @@ function tryFfmpegNormalizeVoiceAudioSync(inputPath, mode) {
   );
   try {
     execFileSync(
-      'ffmpeg',
+      getFfmpegPath(),
       [
         '-nostdin',
         '-y',
@@ -338,7 +339,7 @@ function ffmpegDecodeToMonoS16le16k(audioPath) {
   );
   try {
     execFileSync(
-      'ffmpeg',
+      getFfmpegPath(),
       ['-nostdin', '-y', '-i', audioPath, '-ac', '1', '-ar', '16000', '-f', 's16le', out],
       { stdio: ['ignore', 'ignore', 'pipe'], maxBuffer: 25 * 1024 * 1024, timeout: 120000 }
     );

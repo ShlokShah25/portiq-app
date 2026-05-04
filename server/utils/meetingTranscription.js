@@ -23,6 +23,7 @@ const {
   mapInterviewToPipelinePayload,
   buildInterviewUserJsonInstructions,
 } = require('./meetingSummaryModes');
+const { getFfmpegPath } = require('./ffmpegPaths');
 const { ensureWhisperSizedAudio, WHISPER_MAX_BYTES } = require('./audioCompressForWhisper');
 const { identifySpeaker } = require('./voiceRecognition');
 const {
@@ -1328,7 +1329,7 @@ function coalesceSegmentsForVoiceAttribution(segments, opts = {}) {
 
 function extractAudioSegmentWav(inputPath, startSec, durationSec, outPath) {
   execFileSync(
-    'ffmpeg',
+    getFfmpegPath(),
     [
       '-nostdin',
       '-y',

@@ -1,5 +1,8 @@
 # Railway / Nixpacks: Node app + Python stack for voice_embedding.py (pyannote / torch CPU).
 # HF_TOKEN must still be set in Railway variables; accept model terms on Hugging Face.
+#
+# `ffmpeg` is required for long lectures (>10 min chunking), Whisper file compression, and voice preprocessing.
+# If the deploy uses a builder without Nixpacks, install ffmpeg on the image or set FFMPEG_PATH / FFPROBE_PATH.
 
 [phases.setup]
 nixPkgs = ["...", "python311", "ffmpeg"]

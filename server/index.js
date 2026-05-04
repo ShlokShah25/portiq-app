@@ -8,6 +8,9 @@ const fs = require('fs');
 // Load environment variables
 dotenv.config();
 
+// Before routes: configure fluent-ffmpeg + log if system ffmpeg is missing (long audio, compression).
+require('./utils/ffmpegPaths').initFfmpegPaths();
+
 const app = express();
 
 // Middleware
@@ -138,15 +141,19 @@ app.get('/api/health/ready', (req, res) => {
   } catch (_) {
     uploadsOk = false;
   }
+  const { ffmpegAvailableSync, ffprobeAvailableSync } = require('./utils/ffmpegPaths');
+  const { getMeetingAudioMirrorRoot } = require('./utils/meetingAudioMirror');
+  const ffmpegOk = ffmpegAvailableSync() && ffprobeAvailableSync();
   const ok = mongoOk && openaiOk && uploadsOk;
-  const mirrorDir = process.env.MEETING_AUDIO_MIRROR_DIR;
+  const mirrorRoot = getMeetingAudioMirrorRoot();
   res.status(ok ? 200 : 503).json({
     ok,
     mongo: mongoOk ? 'connected' : 'disconnected',
     openai: openaiOk ? 'configured' : 'missing_key',
     uploadsMeetings: uploadsOk ? 'ready' : 'not_writable',
-    meetingAudioMirrorDir: mirrorDir ? 'configured' : 'not_set',
+    meetingAudioMirrorDir: mirrorRoot ? 'configured' : 'not_set',
     transcriptCheckpoint: 'enabled',
+    ffmpeg: ffmpegOk ? 'available' : 'missing',
   });
 });
 
@@ -197,16 +204,17 @@ mongoose.connect(mongoUri, mongoOptions)
   await Config.getConfig();
   console.log('✅ Configuration initialized');
 
+  const { getMeetingAudioMirrorRoot } = require('./utils/meetingAudioMirror');
   if (
     process.env.NODE_ENV === 'production' &&
-    !process.env.MEETING_AUDIO_MIRROR_DIR &&
+    !getMeetingAudioMirrorRoot() &&
     (process.env.RAILWAY_ENVIRONMENT || process.env.RENDER || process.env.FLY_APP_NAME)
   ) {
     console.warn(
-      '[portiq] Production on ephemeral disk: set MEETING_AUDIO_MIRROR_DIR to a persistent volume path ' +
+      '[portiq] Production on ephemeral disk: set MEETING_AUDIO_MIRROR_DIR or PORTIQ_PERSISTENT_AUDIO_DIR to a persistent volume path ' +
         '(same basename as uploads/meetings/*), or mount ./uploads to a volume. Transcripts are checkpointed ' +
         'to Mongo after Whisper; audio still needs durable storage for re-transcription — resolveUploadPath ' +
-        'falls back to MEETING_AUDIO_MIRROR_DIR when the default file is gone.'
+        'falls back to the mirror when the default file is gone.'
     );
   }
 
