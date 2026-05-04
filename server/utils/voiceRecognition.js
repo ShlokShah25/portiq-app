@@ -9,7 +9,11 @@ const { getFfmpegPath } = require('./ffmpegPaths');
 /** Resolve a Python binary for voice_embedding.py (Railway often has `python` but not `python3`). */
 function resolvePythonBinaryForVoice() {
   const fromEnv = String(process.env.PYTHON_BIN || process.env.PYTHON || '').trim();
-  if (fromEnv) return fromEnv;
+  if (fromEnv) {
+    if (path.isAbsolute(fromEnv)) return fromEnv;
+    const cwd = typeof process.cwd === 'function' ? process.cwd() : '';
+    return cwd ? path.join(cwd, fromEnv) : fromEnv;
+  }
   for (const bin of ['python3', 'python']) {
     try {
       execFileSync(bin, ['-c', 'import sys; sys.exit(0)'], { stdio: 'ignore' });

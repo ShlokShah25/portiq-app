@@ -10,11 +10,13 @@ nixPkgs = ["...", "python311", "ffmpeg"]
 [phases.install]
 cmds = [
   "...",
-  # Nix python311 has no pip module by default — bootstrap pip (stdlib only), then voice deps.
-  "python3 -c \"import urllib.request; open('/tmp/get-pip.py','wb').write(urllib.request.urlopen('https://bootstrap.pypa.io/get-pip.py').read())\" && python3 /tmp/get-pip.py --user",
-  "python3 -m pip install --user --upgrade pip setuptools wheel",
-  "python3 -m pip install --user -r server/requirements-voice.txt || PIP_BREAK_SYSTEM_PACKAGES=1 python3 -m pip install --user -r server/requirements-voice.txt",
+  # Nix python is PEP 668 "externally managed" — install voice deps in a project venv (not system pip).
+  "python3 -m venv .venv-voice",
+  ".venv-voice/bin/python -m pip install --upgrade pip setuptools wheel",
+  ".venv-voice/bin/python -m pip install -r server/requirements-voice.txt",
 ]
 
 [variables]
 PYTHONUNBUFFERED = "1"
+# Used by server/utils/voiceRecognition.js (resolved relative to process.cwd() at runtime).
+PYTHON_BIN = ".venv-voice/bin/python"

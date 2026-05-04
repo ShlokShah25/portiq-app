@@ -20,6 +20,7 @@ admin/build/
 uploads/
 
 # Python (voice embedding helpers, etc.)
+.venv-voice/
 __pycache__/
 *.py[cod]
 *.pyo
