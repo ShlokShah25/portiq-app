@@ -1,21 +1,42 @@
 import React from 'react';
 
 /**
- * Inline lecture-notes editor: large recap, revision questions, study bullets, assignments,
- * concepts; decisions/next steps in an optional collapse.
+ * PortIQ lecture editor: quick revision (keyPoints), layered summary + revision questions,
+ * then assignments, concepts, optional admin sections.
  */
 export default function EducationNotesEditorFields({ editableSummary, setEditableSummary }) {
   return (
     <div className="meetings-edu-notes-editor">
       <p className="meetings-edu-notes-editor__lead">
-        Adjust the recap and study sections below. Blank lines are trimmed when you save. Use{' '}
+        PortIQ format: quick scan lines first, then structured notes + detailed explanation in the
+        large box. Blank lines in line-based fields are trimmed when you save. Use{' '}
         <strong>Save review</strong> to checkpoint work, then send when ready.
       </p>
+      <div className="meeting-summary-edit-field">
+        <label htmlFor="edu-notes-quick">Quick revision (exam scan)</label>
+        <small className="meeting-summary-edit-hint">
+          5–8 one-line bullets—definitions, must-know facts, formula names—no long explanations here.
+        </small>
+        <textarea
+          id="edu-notes-quick"
+          value={(editableSummary.keyPoints || []).join('\n')}
+          onChange={(e) =>
+            setEditableSummary({
+              ...editableSummary,
+              keyPoints: e.target.value.split('\n'),
+            })
+          }
+          rows={8}
+          className="meeting-summary-textarea"
+          spellCheck
+        />
+      </div>
       <div className="meetings-edu-notes-editor__grid">
         <div className="meeting-summary-edit-field meetings-edu-notes-editor__primary">
-          <label htmlFor="edu-notes-summary">Lecture recap</label>
+          <label htmlFor="edu-notes-summary">Structured notes & detailed explanation</label>
           <small className="meeting-summary-edit-hint">
-            Main narrative for students—paragraphs are fine.
+            STRUCTURED NOTES (Definitions, Objectives, Functions, Key Concepts) then DETAILED
+            EXPLANATION—keep section titles and line breaks as students will see them.
           </small>
           <textarea
             id="edu-notes-summary"
@@ -31,7 +52,7 @@ export default function EducationNotesEditorFields({ editableSummary, setEditabl
         <div className="meeting-summary-edit-field">
           <label htmlFor="edu-notes-revision">Revision questions</label>
           <small className="meeting-summary-edit-hint">
-            Numbered questions students can answer from this class (one per line).
+            4–6 numbered exam-style questions (definition, short answer, conceptual)—one per line.
           </small>
           <textarea
             id="edu-notes-revision"
@@ -44,29 +65,10 @@ export default function EducationNotesEditorFields({ editableSummary, setEditabl
             }
             rows={12}
             className="meeting-summary-textarea meeting-summary-textarea--revision"
-            placeholder={'1. Define …\n2. Compare …\n3. Apply …'}
+            placeholder={'1. Define …\n2. What are the objectives of …?\n3. Explain how …'}
             spellCheck
           />
         </div>
-      </div>
-      <div className="meeting-summary-edit-field">
-        <label htmlFor="edu-notes-keypoints">Study bullets</label>
-        <small className="meeting-summary-edit-hint">
-          One teaching point per line—in class order when possible.
-        </small>
-        <textarea
-          id="edu-notes-keypoints"
-          value={(editableSummary.keyPoints || []).join('\n')}
-          onChange={(e) =>
-            setEditableSummary({
-              ...editableSummary,
-              keyPoints: e.target.value.split('\n'),
-            })
-          }
-          rows={12}
-          className="meeting-summary-textarea"
-          spellCheck
-        />
       </div>
       <div className="meeting-summary-edit-field">
         <label htmlFor="edu-notes-actions">Assignments & reminders</label>
@@ -117,7 +119,7 @@ export default function EducationNotesEditorFields({ editableSummary, setEditabl
       <div className="meeting-summary-edit-field">
         <label htmlFor="edu-notes-important">Important concepts & caveats</label>
         <small className="meeting-summary-edit-hint">
-          Misconceptions, exam tips, or nuances worth highlighting.
+          Misconceptions, exam traps, or nuances worth highlighting.
         </small>
         <textarea
           id="edu-notes-important"

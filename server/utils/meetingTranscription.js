@@ -620,6 +620,7 @@ function lineHasDisplayableMeaning(text) {
  */
 function summaryPayloadHasDisplayableContent(data) {
   if (!data) return false;
+  if (lineHasDisplayableMeaning(data.revisionQuestions)) return true;
   if (lineHasDisplayableMeaning(data.summary)) return true;
   if ((data.keyPoints || []).some((k) => lineHasDisplayableMeaning(k))) return true;
   if ((data.decisions || []).some((d) => lineHasDisplayableMeaning(d))) return true;
@@ -636,6 +637,8 @@ function summaryPayloadHasDisplayableContent(data) {
 function deepCopySummaryPayload(data) {
   return {
     summary: typeof data.summary === 'string' ? data.summary : '',
+    revisionQuestions:
+      data.revisionQuestions != null ? String(data.revisionQuestions) : '',
     keyPoints: [...(data.keyPoints || [])],
     decisions: [...(data.decisions || [])],
     nextSteps: [...(data.nextSteps || [])],
@@ -843,6 +846,7 @@ async function reconcileSummaryPayloadAfterGroundingAsync(
       '⚠️ Grounding filter removed all displayable summary content and no transcript text is available; using unfiltered model output (API response was non-empty).'
     );
     summaryData.summary = preFilter.summary;
+    summaryData.revisionQuestions = preFilter.revisionQuestions;
     summaryData.keyPoints = [...preFilter.keyPoints];
     summaryData.decisions = [...preFilter.decisions];
     summaryData.nextSteps = [...preFilter.nextSteps];
@@ -863,6 +867,34 @@ async function reconcileSummaryPayloadAfterGroundingAsync(
 
 const EDUCATION_SPEAKER_BRACKET_PREFIX = /\[[^\]\r\n]{1,120}\]\s*:\s*/g;
 
+/**
+ * Education: merge revision questions from JSON field and/or trailing "Revision questions:" block in summary.
+ * Preferred source is top-level revisionQuestions; summary narrative must not duplicate that block.
+ */
+function coalesceEducationRevisionQuestions(summaryData) {
+  if (!summaryData || typeof summaryData !== 'object') return;
+  let rq = summaryData.revisionQuestions;
+  if (Array.isArray(rq)) {
+    rq = rq
+      .map((x) => String(x || '').trim())
+      .filter(Boolean)
+      .map((line, i) => (/^\d+[.)]\s/.test(line) ? line : `${i + 1}. ${line}`))
+      .join('\n');
+  } else {
+    rq = String(rq || '').trim();
+  }
+  const sum = String(summaryData.summary || '');
+  const re = /\s*Revision questions\s*:\s*/i;
+  const m = re.exec(sum);
+  if (m) {
+    const head = sum.slice(0, m.index).trimEnd();
+    const tail = sum.slice(m.index + m[0].length).trim();
+    summaryData.summary = head;
+    if (!rq && tail) rq = tail;
+  }
+  summaryData.revisionQuestions = rq;
+}
+
 /** Remove bracket speaker labels from education lecture notes (summary + structured fields). */
 function stripEducationSpeakerLabelsFromSummaryData(summaryData) {
   if (!summaryData || typeof summaryData !== 'object') return;
@@ -880,6 +912,9 @@ function stripEducationSpeakerLabelsFromSummaryData(summaryData) {
       .map((x) => strip(x))
       .filter((x) => x.length > 0);
   summaryData.summary = strip(summaryData.summary);
+  if (typeof summaryData.revisionQuestions === 'string' && summaryData.revisionQuestions.trim()) {
+    summaryData.revisionQuestions = strip(summaryData.revisionQuestions);
+  }
   summaryData.keyPoints = stripArr(summaryData.keyPoints);
   summaryData.decisions = stripArr(summaryData.decisions);
   summaryData.nextSteps = stripArr(summaryData.nextSteps);
@@ -985,43 +1020,47 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
     : 'You are an AI meeting assistant for professional, high-fidelity minutes. ';
 
   const systemEducationFocus = isEducation
-    ? 'This output is for teaching and learning outcomes: help teachers teach better and help students revise effectively. Preserve learning goals when stated, definitions and distinctions as spoken, examples walked through, lists or taxonomies the speaker used, formulas or steps if verbalized, caveats and misconceptions addressed, and questions raised by learners. For formulas/equations, capture them in readable math-style text (for example: "speed = distance / time"), define symbols/variables as spoken, and keep units/conditions if mentioned. ' +
-      'Treat the transcript as a sequence of teaching beats: walk through that sequence (or a clear teaching order) and unpack each major beat with depth—definitions, reasoning, comparisons, worked steps, and caveats—rather than skimming in broad strokes. ' +
-      'You may add a light student-facing assist layer: short clarifying phrases that connect ideas, restate why something matters, or signpost how points fit together—only when that glue is clearly supported by what was said; never invent teaching content or facts not grounded in the transcript. '
+    ? 'This output is for PortIQ education: teaching quality AND student exam readiness. Produce a layered deliverable—(1) keyPoints = a 30-second quick revision scan, (2) summary = structured notes plus full detailed explanation, (3) revisionQuestions = exam-style prompts—without removing depth: every definition, derivation, example, formula, contrast, and pitfall the class actually heard must still appear in the structured or detailed layers. Prioritise what the instructor is trying to get across: learning goals (when stated), how each idea is introduced, prerequisite vs new material, and how one idea sets up the next. Preserve definitions and distinctions as spoken, examples walked through, lists or taxonomies, formulas or steps if verbalized, caveats and misconceptions, checks for understanding, and learner questions. Call out exam-relevant stress when the teacher does. For formulas/equations, use readable math-style text (for example: "speed = distance / time"), define symbols/variables as spoken, and keep units/conditions if mentioned. ' +
+      'Treat the transcript as a sequence of teaching beats and preserve the full logical thread in the DETAILED EXPLANATION part—never replace deep explanation with skim-only bullets. ' +
+      'You may add a light student-facing assist layer in the detailed layer only when clearly supported by the transcript; never invent facts. '
     : 'This output is for operational clarity and execution quality: preserve the real business substance of the session, including context, rationale, trade-offs, dependencies, risks, blockers, stakeholder concerns, and concrete commitments. Keep nuanced reasoning when it changes decisions or priorities. ';
 
   const systemElaborationDepth = isEducation
-    ? 'Point-by-point depth is required: when the instructor explains a concept at length, keep the full logical thread in the summary and key points—not a single vague line like "discussed X" or "covered Y". For each important idea, include as much of the how/why/what-next as the transcript provides (rationale, contrast, sequence, edge cases, numbers, or a worked example). Prefer several sentences per major topic over one thin sentence. '
+    ? 'Depth is mandatory in the summary’s DETAILED EXPLANATION layer: when the instructor explains at length, keep the full how/why/what-next (rationale, contrast, sequence, edge cases, numbers, worked examples)—never one vague line like "discussed X". keyPoints are intentionally short one-line recall bullets only; all elaboration belongs under STRUCTURED NOTES and DETAILED EXPLANATION inside summary. Prefer several short paragraphs per major topic in DETAILED EXPLANATION over one dense block. '
     : 'When people discuss a topic in depth (problem analysis, options, constraints, or escalation), keep that depth in the summary and key points—not a vague line like "discussed X". ';
 
+  const revisionQuestionsSchemaHint = isEducation
+    ? '"revisionQuestions": "REQUIRED. One string only. Put 4–6 numbered lines (1. ... 2. ...). Mix question types the way exams do: at least one definition-style (e.g. Define X…), at least one short-answer or list-the-items style, and the rest conceptual or apply-the-idea. Each must be answerable only from this lecture. No new topics. If the class was very short, use at least 3 questions.",'
+    : '';
+
   const summarySchemaHint = isEducation
-    ? '"summary": "Coherent English narrative in lecture-recap style (typically 16–30 sentences when the session is substantive—longer when the transcript is dense). Follow the class in order: move through topics roughly as they arose (or in a teaching order that preserves dependencies), and devote several sentences to each major idea before advancing. For each segment: state what was taught, then unpack definitions, comparisons, examples, formulas/steps verbalized, and how it builds on prior material. When formulas appear, present them in readable equation-style text plus variable meaning exactly as taught. End with a short section titled \\"Revision questions:\\" (3-6 numbered questions grounded in the lecture). Brief clarifying bridges are fine only when grounded in the transcript. Scale length with transcript substance—not with the calendar title.",'
+    ? '"summary": "ONE plain-text string, two layers only (no markdown/HTML, no revision questions). First layer — STRUCTURED NOTES: start with that exact title on its own line, blank line, then four subsections in this fixed order, each subsection title on its own line followed by bullet lines starting with \\"- \\": Definitions, Objectives, Functions, Key Concepts. Under each title put every relevant point from the transcript for that bucket (exam-style bullets; one idea per line when possible). If nothing applies for a subsection, write the title then one line: (nothing covered in this session). Second layer — DETAILED EXPLANATION: start with that exact title on its own line, blank line, then paragraph-style notes with the SAME conceptual depth as a strong lecture recap: reasoning chains, worked steps, examples, formulas in readable form, contrasts, pitfalls, misconceptions—nothing may be dropped for brevity. Use SHORT paragraphs only (2–4 sentences each), blank line between paragraphs, simpler student-friendly wording without oversimplifying ideas. Follow teaching order. Scale total length with transcript density. Do NOT put QUICK REVISION bullets here (those go only in keyPoints). Do NOT embed revision questions here.",'
     : '"summary": "Coherent English narrative (typically 8–16 sentences when the session is substantive). Cover the true business content: context, what changed, key decisions, trade-offs, risks, owners, and expected outcomes. Scale length with transcript depth—not with the calendar title.",';
 
   const keyPointsSchemaHint = isEducation
-    ? '"keyPoints": ["Ordered study-style bullets (match transcript/teaching order when possible). ONE distinct teaching point per string—do not merge unrelated ideas. Each item: at least two sentences whenever the transcript has enough substance: (1) state the point clearly; (2) deepen with mechanism, rationale, contrast, steps, numbers, example, or pitfall exactly as the instructor developed it. If a single idea was explained at length, use multiple consecutive bullets for sub-parts rather than one shallow line."],'
+    ? '"keyPoints": ["EXACTLY 5–8 strings for QUICK REVISION / last-minute scan (PortIQ layer 1). Each string is ONE line only: a crisp definition, named concept, objective, formula label, or must-recall fact—exam recall, not explanation. Match teaching order when possible. Do NOT paste long explanations here (depth lives in summary). No speaker labels."],'
     : '"keyPoints": ["Concrete, execution-focused bullets tied to the transcript; split long analytical discussions into multiple specific bullets when needed"],';
 
   const userElaborationRules = isEducation
-    ? `- Line-by-line / point-by-point: mirror the instructor’s progression through material; do not jump to only “headline” topics—recover the chain of reasoning and examples between them when the transcript supports it.\n` +
-      `- When an explanation was long, split across several key points so definitions, derivations, and examples stay clear and each bullet stays focused.\n` +
-      `- In the summary narrative, use short bridges only when the transcript makes the link explicit (e.g. how a new step follows from a definition already given).\n` +
-      `- Prefer more bullets with depth over few generic bullets; skim-level recap is not acceptable when the transcript is detailed.\n` +
-      `- Put nuances or clarified misunderstandings in importantNotes when they do not fit a crisp key point.\n`
+    ? `- Mirror the instructor’s progression: STRUCTURED NOTES bullets follow class order; DETAILED EXPLANATION then unpacks the same ideas with full reasoning and examples—recover middle steps of arguments the class heard.\n` +
+      `- When an explanation was long, use several short paragraphs in DETAILED EXPLANATION (not one huge paragraph).\n` +
+      `- keyPoints must stay one line each—never move paragraph-level explanation into keyPoints.\n` +
+      `- In DETAILED EXPLANATION, use short bridges only when the transcript makes the link explicit.\n` +
+      `- Put edge-case nuance or red-flag exam traps in importantNotes when they do not fit STRUCTURED NOTES bullets.\n`
     : `- When analysis was long, split across several key points so problem framing, constraints, and decisions stay clear.\n` +
       `- Put nuanced caveats, unresolved concerns, or dependency risks in importantNotes when they do not fit a crisp key point.\n`;
 
   const userEducationRules = isEducation
-    ? `- Education mode: structure bullets like ordered revision notes (e.g. types of X, steps, criteria)—each bullet is one teachable unit, explained deeply from the transcript.\n` +
-      `- If the instructor named terms, keep those terms and the gist of each definition as stated; expand with the instructor’s own elaboration, not invented theory.\n` +
-      `- Every substantive teaching move in the audio should map to at least one key point or to several sentences in the summary; do not omit middle steps of an argument the class actually heard.\n` +
-      `- Where it helps a student revise, use a second (or third) sentence in the same key-point string for significance, prerequisite, contrast, or a mnemonic the teacher actually used—never invent pedagogy.\n` +
-      `- Prefer concrete student-facing phrasing only when the instructor’s wording or intent supports it (e.g. "Contrast this with…", "The takeaway for exams is…" only if said or clearly implied).\n` +
+    ? `- PORTIQ layered output: keyPoints = quick revision only (5–8 one-line strings). summary = STRUCTURED NOTES (four titled subsections with bullets) then DETAILED EXPLANATION (short paragraphs, full depth). revisionQuestions = separate field (4–6 numbered exam-style questions). Never duplicate revision questions inside summary.\n` +
+      `- STRUCTURED NOTES bullets: one teachable unit per line under the right heading (Definitions / Objectives / Functions / Key Concepts), exam-note style.\n` +
+      `- If the instructor named terms, keep those terms; expand only with the instructor’s own elaboration in DETAILED EXPLANATION or structured bullets, not invented theory.\n` +
+      `- Every substantive teaching move must appear in structured bullets and/or DETAILED EXPLANATION; do not omit middle steps.\n` +
+      `- Prefer concrete student-facing phrasing in DETAILED EXPLANATION when the transcript supports it (e.g. exam takeaway) without inventing pedagogy.\n` +
       `- If assignments, presentations, quizzes, homework, submissions, or project work are mentioned, ensure they appear as concrete action items with due dates when stated.\n` +
       `- If a quiz/test is mentioned, capture the quiz type exactly when stated (e.g. oral, written, MCQ, practical, unit test, surprise test). If type is unclear, write "quiz type not specified" rather than inventing one.\n` +
       `- Keep formulas readable: write equation-style text (for example "F = m * a"), include variable meaning/units if the teacher states them, and do not invent symbols or numeric values.\n` +
       `- Use clear keyword emphasis in plain text: use labels like "Keyword: inertia", "Formula:", "Definition:", "Exam focus:" where appropriate; do not use markdown or HTML formatting.\n` +
-      `- At the end of summary, add a "Revision questions:" subsection with 3-6 concise numbered questions derived only from taught content (no invented topics).\n` +
+      `- REQUIRED: fill the JSON field revisionQuestions with numbered revision/application questions (see schema)—never omit it for education mode.\n` +
       `- Keep wording classroom-friendly and instructional, not corporate.\n`
     : `- Workplace mode: structure bullets for execution clarity where transcript supports it (e.g. decision rationale, owner-accountability, timelines, dependency chains, go/no-go conditions).\n` +
       `- Keep exact business terms as spoken (project names, system names, ticket refs, metrics, and deadlines).\n` +
@@ -1029,7 +1068,7 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
       `- Keep wording professional and operational, not generic or motivational.\n`;
 
   const meetingOrLectureFullPictureRule = isEducation
-    ? `- The summary narrative must be an ordered lecture recap: learning goals when stated, then each main topic in the sequence the class followed (preserve dependencies between ideas), with several sentences devoted to each major topic so a student can follow the reasoning, examples, formulas/steps, and caveats—not a thin topic list.\n`
+    ? `- The summary must give a full picture: STRUCTURED NOTES capture every bucketed idea; DETAILED EXPLANATION then walks the class in order with learning goals when stated, dependencies between ideas, reasoning, examples, formulas/steps, and caveats—not a thin topic list.\n`
     : `- The executive summary must cover the full picture of the meeting: why it was held, what was discussed across all topics, key concerns, and overall outcome.\n`;
 
   const coverageMandatoryRule = isEducation
@@ -1057,7 +1096,9 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
               'Read and interpret every language and script that appears, including mixed registers and transliterated names. ' +
               'OUTPUT LANGUAGE (mandatory): The entire JSON response must be professional English only. Translate and paraphrase all substantive content into English. Do not leave the summary, key points, decisions, next steps, important notes, or action item text in Hindi or any non-English script, and do not paste long stretches of raw non-English transcript as filler. ' +
               'Exception: you may keep a short technical term or vocabulary item in its original form inside an otherwise English sentence when the transcript is explicitly teaching that word. ' +
-              'CRITICAL: Every JSON string (summary, each keyPoint, decisions, nextSteps, importantNotes, actionItems.task and actionItems.notes) must read as fluent English prose grounded in the transcript. ' +
+              'CRITICAL: Every JSON string (summary, each keyPoint, decisions, nextSteps, importantNotes, actionItems.task and actionItems.notes' +
+              (isEducation ? ', revisionQuestions' : '') +
+              ') must read as fluent English prose grounded in the transcript. ' +
               'HALLUCINATION GUARD: Never fabricate quotes, translations, or foreign-language phrases that do not appear in the transcript. If you paraphrase non-English speech, stay tightly tied to words that are actually there. ' +
               'Prioritize completeness over brevity: include every relevant discussion point, decision, risk, and commitment. ' +
               (isEducation
@@ -1112,8 +1153,8 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
               userElaborationRules +
               userEducationRules +
               (isEducation
-                ? `- Key points must be plain strings with NO speaker labels — start each bullet directly with the teaching point.\n` +
-                  `- The summary must read as continuous lecture notes without [Speaker]: prefixes or dialogue attribution.\n`
+                ? `- keyPoints must be plain one-line strings with NO speaker labels — each line starts directly with the recall point.\n` +
+                  `- The summary must use the exact section titles STRUCTURED NOTES, Definitions, Objectives, Functions, Key Concepts, and DETAILED EXPLANATION as specified—plain text only; no [Speaker]: prefixes anywhere.\n`
                 : `- CRITICAL: Every key point MUST start with a bracketed speaker label, then a colon and space: "[Speaker Name]: …" or "[Unidentified speaker]: …" or "[Speaker 1]: …". Use roster or voice-profile names only when the transcript clearly supports that speaker; never invent names. Do not emit a key point without a speaker prefix.\n` +
                   `- Executive summary: write in full sentences; when stating who said or decided something, use the same bracketed speaker labels.\n`) +
             `- In actionItems, each task must be a specific, actionable task tied to what was actually discussed (no generic or invented tasks). Include the assignee name if mentioned.\n` +
@@ -1128,13 +1169,16 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
               `- In importantNotes, include risks, blockers, dependencies, unresolved questions, and critical assumptions if discussed. If none exist, set importantNotes to []. Do not infer.\n` +
             `- Do not hallucinate information that was not discussed.\n` +
             `- Only include decisions or actions that are clearly mentioned.\n` +
-            `- If a section has no information, set it to "Not specified".\n` +
+            (isEducation
+              ? `- If decisions, nextSteps, or importantNotes have nothing in the transcript, use [] (empty arrays), not placeholder text.\n`
+              : `- If a section has no information, set it to "Not specified".\n`) +
             (isEducation
               ? `- Do not frame content as who said what; focus on what was taught and clarified.\n\n`
               : `- When participant names are mentioned in the transcript, use them to attribute statements. Match names from the participant list provided.\n\n`) +
             `Return ONLY a JSON object with the following structure:\n` +
             `{\n` +
               `  ${summarySchemaHint}\n` +
+              `  ${revisionQuestionsSchemaHint}` +
               `  ${keyPointsSchemaHint}\n` +
             `  "actionItems": [\n` +
               `    {"task": "task description", "assignee": "person name if mentioned", "dueDate": "YYYY-MM-DD or null", "notes": "extra detail if needed"}\n` +
@@ -1146,6 +1190,7 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
           },
         ],
         temperature: 0.1,
+        ...(isEducation ? { max_tokens: 7000 } : {}),
         response_format: { type: 'json_object' },
         });
         console.log('✅ Summary generation completed successfully');
@@ -1174,6 +1219,7 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
       const fallbackSummaryData = {
         transcription: transcriptTextTrim,
         summary: '',
+        revisionQuestions: '',
         keyPoints: [],
         actionItems: [],
         decisions: [],
@@ -1199,6 +1245,10 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
     if (!Array.isArray(summaryData.decisions)) summaryData.decisions = [];
     if (!Array.isArray(summaryData.nextSteps)) summaryData.nextSteps = [];
     if (!Array.isArray(summaryData.importantNotes)) summaryData.importantNotes = [];
+
+  if (isEducation) {
+    coalesceEducationRevisionQuestions(summaryData);
+  }
 
   const preFilter = deepCopySummaryPayload(summaryData);
   applyGroundingFiltersToSummaryData(summaryData, transcriptTextTrim, { detectedLanguage });
@@ -1235,6 +1285,7 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
     return {
     transcription: transcriptTextTrim,
       summary: summaryData.summary || '',
+      revisionQuestions: String(summaryData.revisionQuestions || '').trim(),
       keyPoints: summaryData.keyPoints || [],
       actionItems: summaryData.actionItems || [],
       decisions: summaryData.decisions || [],
@@ -2655,4 +2706,5 @@ module.exports = {
   sendMeetingSummary,
   getMailTransporter,
   transcribeLiveChunkFile,
+  coalesceEducationRevisionQuestions,
 };

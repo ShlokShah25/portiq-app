@@ -485,38 +485,77 @@ export default function MeetingSummaryReadonlyBody({
           </section>
         )}
 
-        {!!summaryText && String(summaryText).trim() && (
-          <section
-            className={`meeting-summary-section meeting-summary-section--minutes${staggerSections ? ' meeting-summary-section--ux-reveal' : ''}`}
-            style={
-              staggerSections
-                ? { animationDelay: hasHiringBlock ? '100ms' : showReadyBadge ? '80ms' : '40ms' }
-                : undefined
-            }
-          >
-            <h2 className="meeting-summary-heading meeting-summary-heading--with-icon">
-              <FileText className="meeting-summary-heading-icon" strokeWidth={1.5} aria-hidden />
-              {isInterview ? 'Summary' : isEducation ? 'What we covered' : 'Minutes of the meeting'}
-            </h2>
-            <p className="meeting-summary-body">{summaryText}</p>
-          </section>
-        )}
+        {isEducation ? (
+          <>
+            {keyPoints && keyPoints.length > 0 && (
+              <section
+                className={`meeting-summary-section meeting-summary-section--keypoints${staggerSections ? ' meeting-summary-section--ux-reveal' : ''}`}
+                style={
+                  staggerSections
+                    ? { animationDelay: hasHiringBlock ? '100ms' : showReadyBadge ? '80ms' : '40ms' }
+                    : undefined
+                }
+              >
+                <h2 className="meeting-summary-heading meeting-summary-heading--with-icon">
+                  <ListChecks className="meeting-summary-heading-icon" strokeWidth={1.5} aria-hidden />
+                  Quick revision
+                </h2>
+                <ul className="meeting-summary-list meeting-summary-list--checks">
+                  {keyPoints.map((p, idx) => (
+                    <li key={idx}>{p}</li>
+                  ))}
+                </ul>
+              </section>
+            )}
+            {!!summaryText && String(summaryText).trim() && (
+              <section
+                className={`meeting-summary-section meeting-summary-section--minutes${staggerSections ? ' meeting-summary-section--ux-reveal' : ''}`}
+                style={staggerSections ? { animationDelay: '120ms' } : undefined}
+              >
+                <h2 className="meeting-summary-heading meeting-summary-heading--with-icon">
+                  <FileText className="meeting-summary-heading-icon" strokeWidth={1.5} aria-hidden />
+                  Structured notes & detailed explanation
+                </h2>
+                <p className="meeting-summary-body meeting-summary-body--prewrap">{summaryText}</p>
+              </section>
+            )}
+          </>
+        ) : (
+          <>
+            {!!summaryText && String(summaryText).trim() && (
+              <section
+                className={`meeting-summary-section meeting-summary-section--minutes${staggerSections ? ' meeting-summary-section--ux-reveal' : ''}`}
+                style={
+                  staggerSections
+                    ? { animationDelay: hasHiringBlock ? '100ms' : showReadyBadge ? '80ms' : '40ms' }
+                    : undefined
+                }
+              >
+                <h2 className="meeting-summary-heading meeting-summary-heading--with-icon">
+                  <FileText className="meeting-summary-heading-icon" strokeWidth={1.5} aria-hidden />
+                  {isInterview ? 'Summary' : 'Minutes of the meeting'}
+                </h2>
+                <p className="meeting-summary-body">{summaryText}</p>
+              </section>
+            )}
 
-        {keyPoints && keyPoints.length > 0 && (
-          <section
-            className={`meeting-summary-section meeting-summary-section--keypoints${staggerSections ? ' meeting-summary-section--ux-reveal' : ''}`}
-            style={staggerSections ? { animationDelay: '120ms' } : undefined}
-          >
-            <h2 className="meeting-summary-heading meeting-summary-heading--with-icon">
-              <ListChecks className="meeting-summary-heading-icon" strokeWidth={1.5} aria-hidden />
-              {isInterview ? 'Key strengths' : isEducation ? 'Main ideas to remember' : 'Key Points'}
-            </h2>
-            <ul className="meeting-summary-list meeting-summary-list--checks">
-              {keyPoints.map((p, idx) => (
-                <li key={idx}>{p}</li>
-              ))}
-            </ul>
-          </section>
+            {keyPoints && keyPoints.length > 0 && (
+              <section
+                className={`meeting-summary-section meeting-summary-section--keypoints${staggerSections ? ' meeting-summary-section--ux-reveal' : ''}`}
+                style={staggerSections ? { animationDelay: '120ms' } : undefined}
+              >
+                <h2 className="meeting-summary-heading meeting-summary-heading--with-icon">
+                  <ListChecks className="meeting-summary-heading-icon" strokeWidth={1.5} aria-hidden />
+                  {isInterview ? 'Key strengths' : 'Key Points'}
+                </h2>
+                <ul className="meeting-summary-list meeting-summary-list--checks">
+                  {keyPoints.map((p, idx) => (
+                    <li key={idx}>{p}</li>
+                  ))}
+                </ul>
+              </section>
+            )}
+          </>
         )}
 
         {decisionsDisplay.length > 0 && (

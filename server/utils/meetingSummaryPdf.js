@@ -63,9 +63,9 @@ function writeMeetingMinutesPdfContent(doc, meeting, summaryData, durationMinute
         teacher: 'Teacher',
         when: 'When',
         sessionLength: 'Session length',
-        summary: 'What we covered today',
+        summary: 'Structured notes & detailed explanation',
         summaryEmpty: 'No class recap has been added yet.',
-        keyPoints: 'Main ideas to remember',
+        keyPoints: 'Quick revision',
         tasks: 'Assignments & follow-ups',
         decisions: 'Takeaways & clarifications',
         importantNotes: 'Extra notes from class',
@@ -123,20 +123,37 @@ function writeMeetingMinutesPdfContent(doc, meeting, summaryData, durationMinute
 
   doc.moveDown();
 
-  doc
-    .fontSize(13)
-    .text(labels.summary, { underline: true })
-    .moveDown(0.5)
-    .fontSize(12)
-    .text(summaryData.summary || labels.summaryEmpty)
-    .moveDown();
+  if (isEducation) {
+    if ((summaryData.keyPoints || []).length) {
+      doc.fontSize(13).text(labels.keyPoints, { underline: true }).moveDown(0.5).fontSize(12);
+      (summaryData.keyPoints || []).forEach((p) => {
+        doc.text(`• ${p}`);
+      });
+      doc.moveDown();
+    }
+    doc
+      .fontSize(13)
+      .text(labels.summary, { underline: true })
+      .moveDown(0.5)
+      .fontSize(12)
+      .text(summaryData.summary || labels.summaryEmpty, { align: 'left' })
+      .moveDown();
+  } else {
+    doc
+      .fontSize(13)
+      .text(labels.summary, { underline: true })
+      .moveDown(0.5)
+      .fontSize(12)
+      .text(summaryData.summary || labels.summaryEmpty)
+      .moveDown();
 
-  if ((summaryData.keyPoints || []).length) {
-    doc.fontSize(13).text(labels.keyPoints, { underline: true }).moveDown(0.5).fontSize(12);
-    (summaryData.keyPoints || []).forEach((p) => {
-      doc.text(`• ${p}`);
-    });
-    doc.moveDown();
+    if ((summaryData.keyPoints || []).length) {
+      doc.fontSize(13).text(labels.keyPoints, { underline: true }).moveDown(0.5).fontSize(12);
+      (summaryData.keyPoints || []).forEach((p) => {
+        doc.text(`• ${p}`);
+      });
+      doc.moveDown();
+    }
   }
 
   if ((summaryData.actionItems || []).length) {

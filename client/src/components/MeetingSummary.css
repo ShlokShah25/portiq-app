@@ -354,6 +354,104 @@
   box-shadow: 0 0 0 3px var(--accent-blue-dim);
 }
 
+.meeting-summary-textarea--lecture {
+  min-height: 320px;
+  line-height: 1.65;
+  font-size: 15px;
+}
+
+.meeting-summary-textarea--revision {
+  min-height: 220px;
+  line-height: 1.55;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 13px;
+}
+
+.meeting-summary-textarea--mono {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 13px;
+}
+
+.meetings-edu-notes-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  margin-top: 8px;
+}
+
+.meetings-edu-notes-editor__lead {
+  margin: 0;
+  padding: 12px 14px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  background: var(--accent-blue-dim);
+  border: 1px solid var(--badge-border);
+  border-radius: 10px;
+}
+
+.meetings-edu-notes-editor__lead strong {
+  color: var(--badge-text);
+  font-weight: 600;
+}
+
+.meetings-edu-notes-editor__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 22px;
+  align-items: start;
+}
+
+@media (min-width: 960px) {
+  .meetings-edu-notes-editor__grid {
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  }
+}
+
+.meetings-edu-notes-editor__details {
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  padding: 12px 14px 16px;
+  background: var(--surface-secondary);
+}
+
+.meetings-edu-notes-editor__summary {
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  list-style: none;
+}
+
+.meetings-edu-notes-editor__summary::-webkit-details-marker {
+  display: none;
+}
+
+.meetings-edu-notes-editor__summary::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 8px;
+  border-right: 2px solid var(--text-muted);
+  border-bottom: 2px solid var(--text-muted);
+  transform: rotate(-45deg);
+  vertical-align: middle;
+  transition: transform 0.15s ease;
+}
+
+.meetings-edu-notes-editor__details[open] .meetings-edu-notes-editor__summary::before {
+  transform: rotate(45deg);
+  margin-bottom: 2px;
+}
+
+.meetings-edu-notes-editor__details-hint {
+  margin: 10px 0 14px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
 .meeting-summary-pending-banner {
   padding: 14px 18px;
   background: var(--accent-blue-dim);
@@ -814,6 +912,11 @@
   line-height: 1.75;
   color: var(--text-secondary);
   margin: 0;
+}
+
+.meeting-summary-body--prewrap {
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .meeting-summary-list {

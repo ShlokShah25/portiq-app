@@ -16,7 +16,7 @@ const util = require('util');
 
 const execFileAsync = util.promisify(execFile);
 const { getFfmpegPath, getFfprobePath } = require('./ffmpegPaths');
-const { transcribeAndSummarize } = require('./meetingTranscription');
+const { transcribeAndSummarize, coalesceEducationRevisionQuestions } = require('./meetingTranscription');
 const { mirrorMeetingAudioToPersistentDir } = require('./meetingAudioMirror');
 const Meeting = require('../models/Meeting');
 const Admin = require('../models/Admin');
@@ -172,13 +172,18 @@ async function aggregateFinalFromMids(openai, midSummaries, meetingTitle, isEduc
     .join('\n\n---\n\n');
 
   const sys = isEducation
-    ? 'You merge section summaries of ONE lecture into a final structured recap for students and teachers. Output ONLY valid JSON (no markdown fences). All string values must be professional English.'
+    ? 'You merge section summaries of ONE PortIQ lecture into final JSON for students. Preserve all teaching depth from the inputs. Output format: keyPoints = exactly 5–8 ONE-line quick revision bullets (exam recall only). summary = plain text with two layers: (1) STRUCTURED NOTES with titled subsections Definitions, Objectives, Functions, Key Concepts each followed by "- " bullets; (2) DETAILED EXPLANATION with short paragraphs (2–4 sentences each), full reasoning and examples, student-friendly wording—no loss of substance. revisionQuestions = 4–6 numbered exam-style questions (definition, short answer, conceptual). No markdown fences in JSON strings. English only.'
     : 'You merge section summaries of ONE meeting into final structured minutes. Output ONLY valid JSON (no markdown fences). All string values must be professional English.';
+
+  const jsonKeysLine = isEducation
+    ? 'Return ONLY a JSON object with keys: keyPoints (array of 5–8 strings, each one line—quick revision scan only), summary (string; STRUCTURED NOTES block then DETAILED EXPLANATION block exactly as in the single-lecture PortIQ spec—no revision questions inside summary), revisionQuestions (string; REQUIRED—4–6 numbered lines "1. ..."), actionItems (array of objects with task, assignee, dueDate as YYYY-MM-DD or null, notes), decisions (array of strings), nextSteps (array of strings), importantNotes (array of strings).\n'
+    : 'Return ONLY a JSON object with keys: summary (string), keyPoints (array of strings), actionItems (array of objects with task, assignee, dueDate as YYYY-MM-DD or null, notes), decisions (array of strings), nextSteps (array of strings), importantNotes (array of strings).\n';
 
   const user =
     `Session title (may be a placeholder; rely on section content): ${String(meetingTitle || 'Session').trim()}\n\n` +
     'Combine these section summaries into a final structured summary with clear key points.\n' +
-    'Return ONLY a JSON object with keys: summary (string), keyPoints (array of strings), actionItems (array of objects with task, assignee, dueDate as YYYY-MM-DD or null, notes), decisions (array of strings), nextSteps (array of strings), importantNotes (array of strings).\n\n' +
+    jsonKeysLine +
+    '\n' +
     joined;
 
   const res = await openai.chat.completions.create({
@@ -188,14 +193,27 @@ async function aggregateFinalFromMids(openai, midSummaries, meetingTitle, isEduc
       { role: 'user', content: user },
     ],
     temperature: 0.15,
-    max_tokens: 4500,
+    max_tokens: isEducation ? 7000 : 4500,
     response_format: { type: 'json_object' },
   });
   const raw = String(res.choices?.[0]?.message?.content || '').trim();
   const parsed = tryParseJsonObject(raw);
   if (!parsed || typeof parsed !== 'object') return null;
-  return {
+  let revisionQuestions = '';
+  if (isEducation) {
+    if (typeof parsed.revisionQuestions === 'string') {
+      revisionQuestions = parsed.revisionQuestions.trim();
+    } else if (Array.isArray(parsed.revisionQuestions)) {
+      revisionQuestions = parsed.revisionQuestions
+        .map((x) => String(x || '').trim())
+        .filter(Boolean)
+        .map((line, i) => (/^\d+[.)]\s/.test(line) ? line : `${i + 1}. ${line}`))
+        .join('\n');
+    }
+  }
+  const out = {
     summary: typeof parsed.summary === 'string' ? parsed.summary : '',
+    revisionQuestions,
     keyPoints: Array.isArray(parsed.keyPoints) ? parsed.keyPoints.map((x) => String(x || '').trim()).filter(Boolean) : [],
     actionItems: Array.isArray(parsed.actionItems) ? parsed.actionItems : [],
     decisions: Array.isArray(parsed.decisions) ? parsed.decisions.map((x) => String(x || '').trim()).filter(Boolean) : [],
@@ -204,6 +222,8 @@ async function aggregateFinalFromMids(openai, midSummaries, meetingTitle, isEduc
       ? parsed.importantNotes.map((x) => String(x || '').trim()).filter(Boolean)
       : [],
   };
+  if (isEducation) coalesceEducationRevisionQuestions(out);
+  return out;
 }
 
 function normalizeActionItems(raw) {
@@ -380,6 +400,7 @@ async function runLongAudioPipeline(audioFilePath, meeting, options) {
       return {
         transcription: fullTranscription,
         summary: fallbackSummary,
+        revisionQuestions: '',
         keyPoints: [],
         actionItems: [],
         decisions: [],
@@ -398,6 +419,7 @@ async function runLongAudioPipeline(audioFilePath, meeting, options) {
     return {
       transcription: fullTranscription,
       summary: finalParsed.summary || '',
+      revisionQuestions: String(finalParsed.revisionQuestions || '').trim(),
       keyPoints: finalParsed.keyPoints || [],
       actionItems: normalizeActionItems(finalParsed.actionItems),
       decisions: finalParsed.decisions || [],
