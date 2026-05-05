@@ -31,7 +31,7 @@ export default function EducationMarkdownToolbar({ textareaId, value, onChange }
         type="button"
         className="education-md-toolbar__btn"
         onClick={() => run((v, s, e) => wrapSelection(v, s, e, '**', '**'))}
-        title="Bold (**)"
+        title="Bold — formatting appears in preview above"
       >
         <strong>B</strong>
       </button>

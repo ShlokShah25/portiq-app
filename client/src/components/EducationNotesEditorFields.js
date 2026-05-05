@@ -1,5 +1,5 @@
 import React from 'react';
-import EducationMarkdownToolbar from './EducationMarkdownToolbar';
+import EducationMarkdownLiveField from './EducationMarkdownLiveField';
 
 /**
  * PortIQ lecture editor: quick revision (keyPoints), layered summary + revision questions,
@@ -11,88 +11,55 @@ export default function EducationNotesEditorFields({ editableSummary, setEditabl
     <div className="meetings-edu-notes-editor">
       <p className="meetings-edu-notes-editor__lead">
         Output is four layers: <strong>Quick revision</strong> (key points), <strong>Structured notes</strong> and{' '}
-        <strong>detailed explanation</strong> in the long text, then <strong>revision questions</strong>. Use{' '}
-        <strong>Markdown</strong> sparingly—<code>**bold**</code> for key terms and headings, lists, pipe tables only for
-        comparisons. Blank lines in line-based fields are trimmed when you save. Use <strong>Save review</strong> to
-        checkpoint work, then send when ready.
+        <strong>detailed explanation</strong> in the long text, then <strong>revision questions</strong>. Keep editing
+        simple: use toolbar buttons for bold/lists/tables; a live preview is shown only for the long summary block. Use{' '}
+        <strong>Save review</strong> to checkpoint work, then send when ready.
       </p>
       <div className="meeting-summary-edit-field">
-        <label htmlFor="edu-notes-quick">Quick revision (exam scan)</label>
-        <small className="meeting-summary-edit-hint">
-          5–8 one-line bullets—definitions, must-know facts, formula names—no long explanations here.
-        </small>
-        <EducationMarkdownToolbar
-          textareaId="edu-notes-quick"
+        <EducationMarkdownLiveField
+          id="edu-notes-quick"
+          label="Quick revision (exam scan)"
+          hint="5–8 one-line bullets—definitions, must-know facts, formula names—no long explanations here."
           value={kpText}
-          onChange={(next) =>
+          onMarkdownChange={(next) =>
             setEditableSummary({
               ...editableSummary,
               keyPoints: next.split('\n'),
             })
           }
-        />
-        <textarea
-          id="edu-notes-quick"
-          value={(editableSummary.keyPoints || []).join('\n')}
-          onChange={(e) =>
-            setEditableSummary({
-              ...editableSummary,
-              keyPoints: e.target.value.split('\n'),
-            })
-          }
-          rows={8}
-          className="meeting-summary-textarea"
-          spellCheck
+          rows={6}
+          showPreview={false}
+          previewHintEmpty="Add one point per line. Use the B button or type **term** for bold (see preview above)."
         />
       </div>
       <div className="meetings-edu-notes-editor__grid">
         <div className="meeting-summary-edit-field meetings-edu-notes-editor__primary">
-          <label htmlFor="edu-notes-summary">Structured notes & detailed explanation</label>
-          <small className="meeting-summary-edit-hint">
-            STRUCTURED NOTES (Definitions, Objectives, Functions, Key Concepts) then DETAILED
-            EXPLANATION—use markdown bold for key terms and tables to compare ideas when helpful.
-          </small>
-          <EducationMarkdownToolbar
-            textareaId="edu-notes-summary"
-            value={editableSummary.summary}
-            onChange={(next) => setEditableSummary({ ...editableSummary, summary: next })}
-          />
-          <textarea
+          <EducationMarkdownLiveField
             id="edu-notes-summary"
+            label="Structured notes & detailed explanation"
+            hint="STRUCTURED NOTES (Definitions, Objectives, Functions, Key Concepts) then DETAILED EXPLANATION—bold key terms; tables only for comparisons."
             value={editableSummary.summary}
-            onChange={(e) =>
-              setEditableSummary({ ...editableSummary, summary: e.target.value })
-            }
-            rows={18}
-            className="meeting-summary-textarea meeting-summary-textarea--lecture"
-            spellCheck
+            onMarkdownChange={(next) => setEditableSummary({ ...editableSummary, summary: next })}
+            rows={14}
+            textareaClassName="meeting-summary-textarea--lecture"
+            showPreview
+            previewHintEmpty="Notes from the class will appear here after generation, or start typing (preview updates live)."
           />
         </div>
         <div className="meeting-summary-edit-field">
-          <label htmlFor="edu-notes-revision">Revision questions</label>
-          <small className="meeting-summary-edit-hint">
-            4–6 numbered exam-style questions (definition, short answer, conceptual)—one per line.
-          </small>
-          <EducationMarkdownToolbar
-            textareaId="edu-notes-revision"
+          <EducationMarkdownLiveField
+            id="edu-notes-revision"
+            label="Revision questions"
+            hint="4–6 numbered exam-style questions (definition, short answer, conceptual)—one per line."
             value={String(editableSummary.revisionQuestions ?? '')}
-            onChange={(next) =>
+            onMarkdownChange={(next) =>
               setEditableSummary({ ...editableSummary, revisionQuestions: next })
             }
-          />
-          <textarea
-            id="edu-notes-revision"
-            value={String(editableSummary.revisionQuestions ?? '')}
-            onChange={(e) =>
-              setEditableSummary({
-                ...editableSummary,
-                revisionQuestions: e.target.value,
-              })
-            }
-            rows={12}
-            className="meeting-summary-textarea meeting-summary-textarea--revision"
-            placeholder={'1. Define …\n2. What are the objectives of …?\n3. Explain how …'}
-            spellCheck
+            rows={10}
+            textareaClassName="meeting-summary-textarea--revision"
+            showPreview={false}
+            placeholder=""
+            previewHintEmpty="Revision questions are generated with the lecture when possible, or add numbered questions here (e.g. 1. Define …)."
           />
         </div>
       </div>

@@ -16,6 +16,7 @@ function effectiveSummaryDataForExport(meeting) {
   if (!meeting) {
     return {
       summary: '',
+      revisionQuestions: '',
       keyPoints: [],
       actionItems: [],
       decisions: [],
@@ -26,6 +27,10 @@ function effectiveSummaryDataForExport(meeting) {
   const summary = meeting.pendingSummary || meeting.summary || '';
   const keyPoints =
     meeting.pendingKeyPoints?.length > 0 ? meeting.pendingKeyPoints : meeting.keyPoints || [];
+  const revisionQuestions =
+    meeting.pendingRevisionQuestions != null && String(meeting.pendingRevisionQuestions).trim()
+      ? String(meeting.pendingRevisionQuestions)
+      : meeting.revisionQuestions || '';
   const actionItems =
     meeting.pendingActionItems?.length > 0
       ? meeting.pendingActionItems
@@ -38,7 +43,7 @@ function effectiveSummaryDataForExport(meeting) {
     meeting.pendingImportantNotes?.length > 0
       ? meeting.pendingImportantNotes
       : meeting.importantNotes || [];
-  return { summary, keyPoints, actionItems, decisions, nextSteps, importantNotes };
+  return { summary, revisionQuestions, keyPoints, actionItems, decisions, nextSteps, importantNotes };
 }
 
 function formatDueForPdf(dueDate) {
@@ -46,6 +51,189 @@ function formatDueForPdf(dueDate) {
   const d = dueDate instanceof Date ? dueDate : new Date(dueDate);
   if (Number.isNaN(d.getTime())) return String(dueDate);
   return d.toLocaleDateString();
+}
+
+function stripInlineMarkdown(text) {
+  return String(text || '')
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/_(.*?)_/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/~~(.*?)~~/g, '$1')
+    .trim();
+}
+
+function looksLikeTableLine(line) {
+  return line.includes('|') && line.split('|').length >= 3;
+}
+
+function isTableSeparatorLine(line) {
+  return /^\s*\|?[\s:-]+\|[\s|:-]*\|?\s*$/.test(line);
+}
+
+function renderTableBlock(doc, lines) {
+  if (!lines.length) return;
+  const rows = lines
+    .map((line) =>
+      line
+        .trim()
+        .replace(/^\|/, '')
+        .replace(/\|$/, '')
+        .split('|')
+        .map((cell) => stripInlineMarkdown(cell))
+    )
+    .filter((cells) => cells.some((c) => c));
+  if (!rows.length) return;
+
+  const header = rows[0] || [];
+  const dataRows = rows.slice(1).filter((cells) => !isTableSeparatorLine(cells.join(' | ')));
+
+  doc.font('Helvetica-Oblique').text('Comparison table:', { indent: 10 });
+  doc.font('Helvetica');
+
+  dataRows.forEach((cells) => {
+    const pairs = cells
+      .map((value, idx) => {
+        const key = header[idx] || `Column ${idx + 1}`;
+        return `${key}: ${value || '-'}`;
+      })
+      .filter(Boolean);
+    doc.text(`- ${pairs.join(' | ')}`, { indent: 22 });
+  });
+  doc.moveDown(0.3);
+}
+
+function renderMarkdownToPdf(doc, markdownText) {
+  const rawLines = String(markdownText || '').replace(/\r/g, '').split('\n');
+  let idx = 0;
+  while (idx < rawLines.length) {
+    const raw = rawLines[idx];
+    const line = raw.trim();
+    if (!line) {
+      doc.moveDown(0.35);
+      idx += 1;
+      continue;
+    }
+
+    if (looksLikeTableLine(line)) {
+      const tableLines = [];
+      while (idx < rawLines.length && looksLikeTableLine(rawLines[idx].trim())) {
+        tableLines.push(rawLines[idx].trim());
+        idx += 1;
+      }
+      renderTableBlock(doc, tableLines);
+      continue;
+    }
+
+    const headingMatch = line.match(/^#{1,3}\s+(.+)$/);
+    if (headingMatch) {
+      doc.font('Helvetica-Bold').text(stripInlineMarkdown(headingMatch[1]));
+      doc.font('Helvetica');
+      idx += 1;
+      continue;
+    }
+
+    const bulletMatch = line.match(/^-\s+(.+)$/);
+    if (bulletMatch) {
+      doc.text(`• ${stripInlineMarkdown(bulletMatch[1])}`, { indent: 8 });
+      idx += 1;
+      continue;
+    }
+
+    const numberMatch = line.match(/^(\d+)[.)]\s+(.+)$/);
+    if (numberMatch) {
+      doc.text(`${numberMatch[1]}. ${stripInlineMarkdown(numberMatch[2])}`, { indent: 8 });
+      idx += 1;
+      continue;
+    }
+
+    doc.text(stripInlineMarkdown(line));
+    idx += 1;
+  }
+}
+
+function ensureVerticalRoom(doc, minHeight = 72) {
+  const bottomY = doc.page.height - doc.page.margins.bottom;
+  if (doc.y + minHeight > bottomY) doc.addPage();
+}
+
+function drawPremiumHeader(doc, labels, meeting, durationMinutes, companyName, logoPath) {
+  const left = doc.page.margins.left;
+  const width = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  const top = doc.y;
+  const bandHeight = 108;
+
+  doc.save();
+  doc.roundedRect(left, top, width, bandHeight, 10).fill('#F6F8FC');
+  doc.restore();
+
+  let textLeft = left + 16;
+  if (logoPath && fs.existsSync(logoPath)) {
+    try {
+      doc.image(logoPath, left + 16, top + 14, { fit: [78, 34], align: 'left' });
+      textLeft = left + 106;
+    } catch (e) {
+      console.warn('⚠️  Failed to load company logo for PDF:', e.message);
+    }
+  }
+
+  doc
+    .fillColor('#0F172A')
+    .font('Helvetica-Bold')
+    .fontSize(14)
+    .text(companyName, textLeft, top + 12, { width: width - (textLeft - left) - 16 });
+
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(16)
+    .text(labels.documentTitle, textLeft, top + 34, { width: width - (textLeft - left) - 16 });
+
+  const meetingDate = meeting.startTime ? new Date(meeting.startTime) : new Date();
+  const metaLines = [
+    `${labels.classTopic}: ${meeting.title || '-'}`,
+    `${labels.location}: ${meeting.meetingRoom || '-'}`,
+    `${labels.teacher}: ${meeting.organizer || '-'}`,
+    `${labels.when}: ${meetingDate.toLocaleString()}`,
+  ];
+  if (durationMinutes != null) metaLines.push(`${labels.sessionLength}: ${durationMinutes} minutes`);
+
+  doc
+    .fillColor('#334155')
+    .font('Helvetica')
+    .fontSize(10.5)
+    .text(metaLines.join('   |   '), left + 16, top + 72, {
+      width: width - 32,
+      lineBreak: true,
+    });
+
+  doc.y = top + bandHeight + 14;
+  doc.fillColor('#111827');
+}
+
+function drawSectionHeading(doc, heading) {
+  ensureVerticalRoom(doc, 40);
+  const left = doc.page.margins.left;
+  const width = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  const y = doc.y;
+
+  doc.save();
+  doc.roundedRect(left, y, width, 24, 6).fill('#EEF2FF');
+  doc.restore();
+  doc
+    .fillColor('#1E293B')
+    .font('Helvetica-Bold')
+    .fontSize(11.5)
+    .text(heading, left + 10, y + 7, { width: width - 20, lineBreak: false });
+  doc.y = y + 30;
+  doc.fillColor('#111827').font('Helvetica').fontSize(11.5);
+}
+
+function drawBulletList(doc, items) {
+  (items || []).forEach((item) => {
+    ensureVerticalRoom(doc, 24);
+    doc.text(`• ${stripInlineMarkdown(item)}`);
+  });
+  doc.moveDown(0.35);
 }
 
 /**
@@ -64,6 +252,7 @@ function writeMeetingMinutesPdfContent(doc, meeting, summaryData, durationMinute
         when: 'When',
         sessionLength: 'Session length',
         summary: 'Structured notes & detailed explanation',
+        revisionQuestions: 'Revision questions',
         summaryEmpty: 'No class recap has been added yet.',
         keyPoints: 'Quick revision',
         tasks: 'Assignments & follow-ups',
@@ -96,69 +285,40 @@ function writeMeetingMinutesPdfContent(doc, meeting, summaryData, durationMinute
       };
   const companyName = process.env.COMPANY_NAME || 'Your Company';
   const logoPath = process.env.COMPANY_LOGO_PATH;
-
-  if (logoPath && fs.existsSync(logoPath)) {
-    try {
-      doc.image(logoPath, { fit: [100, 40], align: 'left' });
-    } catch (e) {
-      console.warn('⚠️  Failed to load company logo for PDF:', e.message);
-    }
-    doc.moveDown();
-  }
-
-  doc.fontSize(18).text(companyName, { align: 'left' }).moveDown(0.5);
-  doc.fontSize(16).text(labels.documentTitle, { align: 'left' }).moveDown();
-
-  const meetingDate = meeting.startTime ? new Date(meeting.startTime) : new Date();
-  doc
-    .fontSize(12)
-    .text(`${labels.classTopic}: ${meeting.title || ''}`)
-    .text(`${labels.location}: ${meeting.meetingRoom || ''}`)
-    .text(`${labels.teacher}: ${meeting.organizer || ''}`)
-    .text(`${labels.when}: ${meetingDate.toLocaleString()}`);
-
-  if (durationMinutes != null) {
-    doc.text(`${labels.sessionLength}: ${durationMinutes} minutes`);
-  }
-
-  doc.moveDown();
+  drawPremiumHeader(doc, labels, meeting, durationMinutes, companyName, logoPath);
 
   if (isEducation) {
     if ((summaryData.keyPoints || []).length) {
-      doc.fontSize(13).text(labels.keyPoints, { underline: true }).moveDown(0.5).fontSize(12);
-      (summaryData.keyPoints || []).forEach((p) => {
-        doc.text(`• ${p}`);
-      });
+      drawSectionHeading(doc, labels.keyPoints);
+      drawBulletList(doc, summaryData.keyPoints || []);
+    }
+    drawSectionHeading(doc, labels.summary);
+    if (summaryData.summary) {
+      renderMarkdownToPdf(doc, summaryData.summary);
+    } else {
+      doc.text(labels.summaryEmpty);
+    }
+    doc.moveDown();
+
+    if (String(summaryData.revisionQuestions || '').trim()) {
+      drawSectionHeading(doc, labels.revisionQuestions);
+      renderMarkdownToPdf(doc, summaryData.revisionQuestions);
       doc.moveDown();
     }
-    doc
-      .fontSize(13)
-      .text(labels.summary, { underline: true })
-      .moveDown(0.5)
-      .fontSize(12)
-      .text(summaryData.summary || labels.summaryEmpty, { align: 'left' })
-      .moveDown();
   } else {
-    doc
-      .fontSize(13)
-      .text(labels.summary, { underline: true })
-      .moveDown(0.5)
-      .fontSize(12)
-      .text(summaryData.summary || labels.summaryEmpty)
-      .moveDown();
+    drawSectionHeading(doc, labels.summary);
+    doc.text(summaryData.summary || labels.summaryEmpty).moveDown();
 
     if ((summaryData.keyPoints || []).length) {
-      doc.fontSize(13).text(labels.keyPoints, { underline: true }).moveDown(0.5).fontSize(12);
-      (summaryData.keyPoints || []).forEach((p) => {
-        doc.text(`• ${p}`);
-      });
-      doc.moveDown();
+      drawSectionHeading(doc, labels.keyPoints);
+      drawBulletList(doc, summaryData.keyPoints || []);
     }
   }
 
   if ((summaryData.actionItems || []).length) {
-    doc.fontSize(13).text(labels.tasks, { underline: true }).moveDown(0.5).fontSize(12);
+    drawSectionHeading(doc, labels.tasks);
     (summaryData.actionItems || []).forEach((a) => {
+      ensureVerticalRoom(doc, 50);
       const task =
         a.task ||
         (typeof a === 'string' ? a : a?.toString?.() || labels.defaultTask);
@@ -176,26 +336,18 @@ function writeMeetingMinutesPdfContent(doc, meeting, summaryData, durationMinute
   }
 
   if ((summaryData.decisions || []).length) {
-    doc.fontSize(13).text(labels.decisions, { underline: true }).moveDown(0.5).fontSize(12);
-    (summaryData.decisions || []).forEach((d) => {
-      doc.text(`• ${d}`);
-    });
-    doc.moveDown();
+    drawSectionHeading(doc, labels.decisions);
+    drawBulletList(doc, summaryData.decisions || []);
   }
 
   if ((summaryData.importantNotes || []).length) {
-    doc.fontSize(13).text(labels.importantNotes, { underline: true }).moveDown(0.5).fontSize(12);
-    (summaryData.importantNotes || []).forEach((n) => {
-      doc.text(`• ${n}`);
-    });
-    doc.moveDown();
+    drawSectionHeading(doc, labels.importantNotes);
+    drawBulletList(doc, summaryData.importantNotes || []);
   }
 
   if ((summaryData.nextSteps || []).length) {
-    doc.fontSize(13).text(labels.nextSteps, { underline: true }).moveDown(0.5).fontSize(12);
-    (summaryData.nextSteps || []).forEach((s) => {
-      doc.text(`• ${s}`);
-    });
+    drawSectionHeading(doc, labels.nextSteps);
+    drawBulletList(doc, summaryData.nextSteps || []);
   }
 }
 
