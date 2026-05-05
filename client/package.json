@@ -9,9 +9,12 @@
     "qrcode.react": "^3.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-markdown": "^9.1.0",
     "react-router-dom": "^6.20.0",
     "react-scripts": "5.0.1",
-    "react-webcam": "^7.1.1"
+    "react-webcam": "^7.1.1",
+    "rehype-sanitize": "^6.0.0",
+    "remark-gfm": "^4.0.1"
   },
   "scripts": {
     "start": "PORT=3002 react-scripts start",

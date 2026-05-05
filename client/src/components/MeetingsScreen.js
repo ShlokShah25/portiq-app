@@ -26,6 +26,8 @@ import {
 import './MeetingSummary.css';
 import './MeetingsScreen.css';
 import './MeetingUiBadges.css';
+import { normalizeSummaryLineArrays } from '../utils/summaryEditNormalize';
+import EducationNotesEditorFields from './EducationNotesEditorFields';
 
 const MARKETING_URL =
   process.env.REACT_APP_MARKETING_URL ||
@@ -391,6 +393,10 @@ const MeetingsScreen = () => {
       hiringRecommendation,
       hiringRecommendationReason,
       evaluationSignals: evaluationSignals || null,
+      revisionQuestions:
+        m.pendingRevisionQuestions != null && String(m.pendingRevisionQuestions).trim()
+          ? m.pendingRevisionQuestions
+          : m.revisionQuestions || '',
     };
   }, []);
 
@@ -400,7 +406,7 @@ const MeetingsScreen = () => {
     setError('');
     try {
       const otpHeaders = editorOtpHeaders(selectedMeeting._id);
-      const pendingBody = {
+      const pendingBody = normalizeSummaryLineArrays({
         summary: editableSummary.summary,
         keyPoints: editableSummary.keyPoints,
         actionItems: editableSummary.actionItems,
@@ -408,7 +414,10 @@ const MeetingsScreen = () => {
         nextSteps: editableSummary.nextSteps,
         importantNotes: editableSummary.importantNotes,
         markEducationReviewComplete: true,
-      };
+      });
+      if (isEducation) {
+        pendingBody.revisionQuestions = String(editableSummary.revisionQuestions ?? '').trim();
+      }
       if (editableSummary.summaryMode === 'interview') {
         pendingBody.hiringRecommendation = editableSummary.hiringRecommendation || '';
         pendingBody.hiringRecommendationReason = editableSummary.hiringRecommendationReason || '';
@@ -428,7 +437,7 @@ const MeetingsScreen = () => {
     } finally {
       setInlineSummaryBusy(false);
     }
-  }, [selectedMeeting, editableSummary, meetingToEditableSummary]);
+  }, [selectedMeeting, editableSummary, meetingToEditableSummary, isEducation]);
 
   const handleInlineApproveAndSend = useCallback(async () => {
     if (!selectedMeeting?._id) return;
@@ -448,14 +457,17 @@ const MeetingsScreen = () => {
             }));
 
       if (editableSummary) {
-        const pendingBody = {
+        const pendingBody = normalizeSummaryLineArrays({
           summary: editableSummary.summary,
           keyPoints: editableSummary.keyPoints,
           actionItems: editableSummary.actionItems,
           decisions: editableSummary.decisions,
           nextSteps: editableSummary.nextSteps,
           importantNotes: editableSummary.importantNotes,
-        };
+        });
+        if (isEducation) {
+          pendingBody.revisionQuestions = String(editableSummary.revisionQuestions ?? '').trim();
+        }
         if (editableSummary.summaryMode === 'interview') {
           pendingBody.hiringRecommendation = editableSummary.hiringRecommendation || '';
           pendingBody.hiringRecommendationReason = editableSummary.hiringRecommendationReason || '';
@@ -1355,21 +1367,27 @@ const MeetingsScreen = () => {
                         <line x1="16" y1="17" x2="8" y2="17"></line>
                         <polyline points="10 9 9 9 8 9"></polyline>
                       </svg>
-                      {T.meetingSummary()}
+                      {editingSummary && isEducation ? 'Edit lecture notes' : T.meetingSummary()}
                     </h3>
                         
                         {editingSummary ? (
+                          isEducation ? (
+                            <EducationNotesEditorFields
+                              editableSummary={editableSummary}
+                              setEditableSummary={setEditableSummary}
+                            />
+                          ) : (
                           <div className="meeting-summary-edit">
                             <div className="meeting-summary-edit-field">
                               <label>
-                                {(FEATURE_INTERVIEW_UI && editableSummary.summaryMode === 'interview') || isEducation
+                                {FEATURE_INTERVIEW_UI && editableSummary.summaryMode === 'interview'
                                   ? 'Summary'
                                   : 'Minutes of the meeting'}
                               </label>
                               <textarea
                                 value={editableSummary.summary}
                                 onChange={e => setEditableSummary({ ...editableSummary, summary: e.target.value })}
-                                rows="5"
+                                rows="8"
                                 className="meeting-summary-textarea"
                               />
                             </div>
@@ -1419,7 +1437,7 @@ const MeetingsScreen = () => {
                               </label>
                               <textarea
                                 value={(editableSummary.keyPoints || []).join('\n')}
-                                onChange={e => setEditableSummary({ ...editableSummary, keyPoints: e.target.value.split('\n').filter(l => l.trim()) })}
+                                onChange={e => setEditableSummary({ ...editableSummary, keyPoints: e.target.value.split('\n') })}
                                 rows="6"
                                 className="meeting-summary-textarea"
                               />
@@ -1472,7 +1490,7 @@ const MeetingsScreen = () => {
                               <label>Decisions (one per line)</label>
                               <textarea
                                 value={(editableSummary.decisions || []).join('\n')}
-                                onChange={e => setEditableSummary({ ...editableSummary, decisions: e.target.value.split('\n').filter(l => l.trim()) })}
+                                onChange={e => setEditableSummary({ ...editableSummary, decisions: e.target.value.split('\n') })}
                                 rows="4"
                                 className="meeting-summary-textarea"
                               />
@@ -1481,7 +1499,7 @@ const MeetingsScreen = () => {
                               <label>Next Steps (one per line)</label>
                               <textarea
                                 value={(editableSummary.nextSteps || []).join('\n')}
-                                onChange={e => setEditableSummary({ ...editableSummary, nextSteps: e.target.value.split('\n').filter(l => l.trim()) })}
+                                onChange={e => setEditableSummary({ ...editableSummary, nextSteps: e.target.value.split('\n') })}
                                 rows="4"
                                 className="meeting-summary-textarea"
                               />
@@ -1490,24 +1508,24 @@ const MeetingsScreen = () => {
                               <label>
                                 {FEATURE_INTERVIEW_UI && editableSummary.summaryMode === 'interview'
                                   ? 'Concerns / red flags (one per line)'
-                                  : isEducation
-                                    ? 'Important Concepts (one per line)'
-                                    : 'Important Notes (one per line)'}
+                                  : 'Important Notes (one per line)'}
                               </label>
                               <textarea
                                 value={(editableSummary.importantNotes || []).join('\n')}
-                                onChange={e => setEditableSummary({ ...editableSummary, importantNotes: e.target.value.split('\n').filter(l => l.trim()) })}
+                                onChange={e => setEditableSummary({ ...editableSummary, importantNotes: e.target.value.split('\n') })}
                                 rows="4"
                                 className="meeting-summary-textarea"
                               />
                             </div>
                           </div>
+                          )
                         ) : (
                           <div>
                             {(() => {
                               const eduStrip = isEducation
                                 ? stripEducationSummaryForDisplay({
                                     summary: editableSummary.summary || '',
+                                    revisionQuestions: editableSummary.revisionQuestions,
                                     keyPoints: editableSummary.keyPoints || [],
                                     decisions: editableSummary.decisions || [],
                                     nextSteps: editableSummary.nextSteps || [],
@@ -1738,6 +1756,11 @@ const MeetingsScreen = () => {
                       const eduSent = isEducation
                         ? stripEducationSummaryForDisplay({
                             summary: selectedMeeting.summary || '',
+                            revisionQuestions:
+                              selectedMeeting.pendingRevisionQuestions != null &&
+                              String(selectedMeeting.pendingRevisionQuestions).trim()
+                                ? selectedMeeting.pendingRevisionQuestions
+                                : selectedMeeting.revisionQuestions,
                             keyPoints: selectedMeeting.keyPoints || [],
                             decisions: selectedMeeting.decisions || [],
                             nextSteps: selectedMeeting.nextSteps || [],

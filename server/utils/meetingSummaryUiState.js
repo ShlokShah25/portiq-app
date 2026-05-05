@@ -29,9 +29,14 @@ function meetingHasSummaryContent(m) {
     String(m.pendingHiringRecommendation || m.hiringRecommendation || '').trim() ||
     String(m.pendingHiringRecommendationReason || m.hiringRecommendationReason || '').trim();
 
+  const revision =
+    String(m.pendingRevisionQuestions != null ? m.pendingRevisionQuestions : m.revisionQuestions || '')
+      .trim();
+
   return (
     !!summaryText ||
     keyPoints.length > 0 ||
+    !!revision ||
     actionItems.length > 0 ||
     decisionsDisplay.length > 0 ||
     nextSteps.length > 0 ||

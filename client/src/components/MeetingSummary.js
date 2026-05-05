@@ -13,6 +13,8 @@ import './MeetingSummary.css';
 import MeetingSummaryReadonlyBody from './MeetingSummaryReadonlyBody';
 import { formatApiError } from '../utils/apiErrorMessage';
 import { stripEducationSummaryForDisplay } from '../utils/educationSummaryDisplay';
+import { normalizeSummaryLineArrays } from '../utils/summaryEditNormalize';
+import EducationNotesEditorFields from './EducationNotesEditorFields';
 
 /** True when this meeting is a lecture/class (metadata on the meeting doc), independent of client shell. */
 function meetingHasEducationContext(m) {
@@ -167,9 +169,15 @@ const MeetingSummary = () => {
       ? meeting.pendingImportantNotes
       : meeting.importantNotes || [];
 
+  const rawRevisionQuestions =
+    meeting.pendingRevisionQuestions != null && String(meeting.pendingRevisionQuestions).trim()
+      ? meeting.pendingRevisionQuestions
+      : meeting.revisionQuestions;
+
   const eduStripped = isEducationMode
     ? stripEducationSummaryForDisplay({
         summary: rawSummaryText,
+        revisionQuestions: rawRevisionQuestions,
         keyPoints: rawKeyPoints,
         decisions: rawDecisions,
         nextSteps: rawNextSteps,
@@ -321,6 +329,10 @@ const MeetingSummary = () => {
     }
     setEditableSummary({
       summary: summaryText,
+      revisionQuestions:
+        meeting.pendingRevisionQuestions != null && String(meeting.pendingRevisionQuestions).trim()
+          ? meeting.pendingRevisionQuestions
+          : meeting.revisionQuestions || '',
       keyPoints: [...keyPoints],
       actionItems: (actionItems || []).map((item) => ({
         ...(item._id ? { _id: item._id } : {}),
@@ -346,7 +358,7 @@ const MeetingSummary = () => {
     setActionError('');
     const otpHeaders = editorOtpHeaders(id);
     try {
-      const pendingBody = {
+      const pendingBody = normalizeSummaryLineArrays({
         summary: editableSummary.summary,
         keyPoints: editableSummary.keyPoints,
         actionItems: editableSummary.actionItems,
@@ -354,7 +366,10 @@ const MeetingSummary = () => {
         nextSteps: editableSummary.nextSteps,
         importantNotes: editableSummary.importantNotes,
         markEducationReviewComplete: true,
-      };
+      });
+      if (isEducationMode) {
+        pendingBody.revisionQuestions = String(editableSummary.revisionQuestions ?? '').trim();
+      }
       if (editableSummary.summaryMode === 'interview') {
         pendingBody.hiringRecommendation = editableSummary.hiringRecommendation || '';
         pendingBody.hiringRecommendationReason = editableSummary.hiringRecommendationReason || '';
@@ -377,14 +392,17 @@ const MeetingSummary = () => {
     const otpHeaders = editorOtpHeaders(id);
     try {
       if (editableSummary) {
-        const pendingBody = {
+        const pendingBody = normalizeSummaryLineArrays({
           summary: editableSummary.summary,
           keyPoints: editableSummary.keyPoints,
           actionItems: editableSummary.actionItems,
           decisions: editableSummary.decisions,
           nextSteps: editableSummary.nextSteps,
           importantNotes: editableSummary.importantNotes,
-        };
+        });
+        if (isEducationMode) {
+          pendingBody.revisionQuestions = String(editableSummary.revisionQuestions ?? '').trim();
+        }
         if (editableSummary.summaryMode === 'interview') {
           pendingBody.hiringRecommendation = editableSummary.hiringRecommendation || '';
           pendingBody.hiringRecommendationReason = editableSummary.hiringRecommendationReason || '';
@@ -644,19 +662,23 @@ const MeetingSummary = () => {
 
           {editingSummary && editableSummary && !meeting.editorVerificationRequired && (
             <>
+              {isEducationMode ? (
+                <EducationNotesEditorFields
+                  editableSummary={editableSummary}
+                  setEditableSummary={setEditableSummary}
+                />
+              ) : (
               <div className="meeting-summary-edit">
                 <div className="meeting-summary-edit-field">
                   <label>
                     {FEATURE_INTERVIEW_UI && editableSummary.summaryMode === 'interview'
                       ? 'Summary'
-                      : isEducationMode
-                        ? 'What we covered (class recap)'
-                        : 'Minutes of the meeting'}
+                      : 'Minutes of the meeting'}
                   </label>
                   <textarea
                     value={editableSummary.summary}
                     onChange={e => setEditableSummary({ ...editableSummary, summary: e.target.value })}
-                    rows={5}
+                    rows={8}
                     className="meeting-summary-textarea"
                   />
                 </div>
@@ -699,23 +721,19 @@ const MeetingSummary = () => {
                   <label>
                     {FEATURE_INTERVIEW_UI && editableSummary.summaryMode === 'interview'
                       ? 'Key strengths (one per line)'
-                      : isEducationMode
-                        ? 'Main ideas to remember (one per line)'
-                        : 'Key Points (one per line)'}
+                      : 'Key Points (one per line)'}
                   </label>
                   <textarea
                     value={(editableSummary.keyPoints || []).join('\n')}
-                    onChange={e => setEditableSummary({ ...editableSummary, keyPoints: e.target.value.split('\n').filter(l => l.trim()) })}
-                    rows={5}
+                    onChange={e => setEditableSummary({ ...editableSummary, keyPoints: e.target.value.split('\n') })}
+                    rows={6}
                     className="meeting-summary-textarea"
                   />
                 </div>
                 <div className="meeting-summary-edit-field">
-                  <label>{isEducationMode ? 'Assignments & follow-ups' : 'Action Items'}</label>
+                  <label>Action Items</label>
                   <small className="meeting-summary-edit-hint">
-                    {isEducationMode
-                      ? 'One per line. Format: Work to do | Assigned to | Due date as YYYY-MM-DD (optional)'
-                      : 'One per line. Format: Task | Assignee | Due date as YYYY-MM-DD (optional)'}
+                    One per line. Format: Task | Assignee | Due date as YYYY-MM-DD (optional)
                   </small>
                   <textarea
                     value={(editableSummary.actionItems || []).map((item) => {
@@ -756,23 +774,19 @@ const MeetingSummary = () => {
                   />
                 </div>
                 <div className="meeting-summary-edit-field">
-                  <label>
-                    {isEducationMode ? 'Takeaways & clarifications (one per line)' : 'Decisions (one per line)'}
-                  </label>
+                  <label>Decisions (one per line)</label>
                   <textarea
                     value={(editableSummary.decisions || []).join('\n')}
-                    onChange={e => setEditableSummary({ ...editableSummary, decisions: e.target.value.split('\n').filter(l => l.trim()) })}
+                    onChange={e => setEditableSummary({ ...editableSummary, decisions: e.target.value.split('\n') })}
                     rows={4}
                     className="meeting-summary-textarea"
                   />
                 </div>
                 <div className="meeting-summary-edit-field">
-                  <label>
-                    {isEducationMode ? 'Homework, prep & next steps (one per line)' : 'Next Steps (one per line)'}
-                  </label>
+                  <label>Next Steps (one per line)</label>
                   <textarea
                     value={(editableSummary.nextSteps || []).join('\n')}
-                    onChange={e => setEditableSummary({ ...editableSummary, nextSteps: e.target.value.split('\n').filter(l => l.trim()) })}
+                    onChange={e => setEditableSummary({ ...editableSummary, nextSteps: e.target.value.split('\n') })}
                     rows={4}
                     className="meeting-summary-textarea"
                   />
@@ -781,18 +795,17 @@ const MeetingSummary = () => {
                   <label>
                     {FEATURE_INTERVIEW_UI && editableSummary.summaryMode === 'interview'
                       ? 'Concerns / red flags (one per line)'
-                      : isEducationMode
-                        ? 'Extra notes from class (one per line)'
-                        : 'Important Notes (one per line)'}
+                      : 'Important Notes (one per line)'}
                   </label>
                   <textarea
                     value={(editableSummary.importantNotes || []).join('\n')}
-                    onChange={e => setEditableSummary({ ...editableSummary, importantNotes: e.target.value.split('\n').filter(l => l.trim()) })}
+                    onChange={e => setEditableSummary({ ...editableSummary, importantNotes: e.target.value.split('\n') })}
                     rows={4}
                     className="meeting-summary-textarea"
                   />
                 </div>
               </div>
+              )}
               {actionError && (
                 <div className="meeting-summary-action-error" role="alert">
                   {actionError}

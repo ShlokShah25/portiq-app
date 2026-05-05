@@ -148,7 +148,7 @@ async function combineChunkSummariesMid(openai, chunkBlocks, _groupIndex, isEduc
     .map((b, i) => `### Part ${i + 1}\n${b}`)
     .join('\n\n---\n\n');
   const sys = isEducation
-    ? 'You combine partial lecture summaries from sequential segments of ONE class session. Output a single cohesive section summary in clear English prose (no JSON, no markdown code fences). Preserve teaching order. Do not invent facts not supported by the inputs.'
+    ? 'You combine partial lecture summaries from sequential segments of ONE class session. Output a single cohesive section summary in clear English prose (no JSON, no markdown code fences). Preserve teaching order and substantive depth. Prefer organization that will merge cleanly into STRUCTURED NOTES vs DETAILED EXPLANATION—facts and contrasts intact; no invented content.'
     : 'You combine partial meeting summaries from sequential segments of ONE session. Output a single cohesive section summary in clear English prose (no JSON). Preserve chronological sense. Do not invent facts not supported by the inputs.';
 
   const user =
@@ -172,11 +172,11 @@ async function aggregateFinalFromMids(openai, midSummaries, meetingTitle, isEduc
     .join('\n\n---\n\n');
 
   const sys = isEducation
-    ? 'You merge section summaries of ONE PortIQ lecture into final JSON for students. Preserve all teaching depth from the inputs. Output format: keyPoints = exactly 5–8 ONE-line quick revision bullets (exam recall only). summary = plain text with two layers: (1) STRUCTURED NOTES with titled subsections Definitions, Objectives, Functions, Key Concepts each followed by "- " bullets; (2) DETAILED EXPLANATION with short paragraphs (2–4 sentences each), full reasoning and examples, student-friendly wording—no loss of substance. revisionQuestions = 4–6 numbered exam-style questions (definition, short answer, conceptual). No markdown fences in JSON strings. English only.'
+    ? 'You merge section summaries of ONE PortIQ lecture into final JSON for students. Preserve full teaching depth—do not compress explanations. Output shape: keyPoints = 5–8 ONE-line QUICK REVISION strings; prefer Term = meaning; **bold** around the term only. summary = GFM Markdown (no raw HTML): ## STRUCTURED NOTES (Definitions/Objectives/Functions/Key Concepts with short "- " bullets, one idea per line, clear spacing) then ## DETAILED EXPLANATION (short paragraphs, optional ### mini-headings, full depth). **Bold** only key terms and light headings—never full sentences. Pipe tables ONLY for true comparisons; never force tables. revisionQuestions = 4–6 numbered lines (Define / Differentiate / Explain / short answer). Clarity over clutter. English only.'
     : 'You merge section summaries of ONE meeting into final structured minutes. Output ONLY valid JSON (no markdown fences). All string values must be professional English.';
 
   const jsonKeysLine = isEducation
-    ? 'Return ONLY a JSON object with keys: keyPoints (array of 5–8 strings, each one line—quick revision scan only), summary (string; STRUCTURED NOTES block then DETAILED EXPLANATION block exactly as in the single-lecture PortIQ spec—no revision questions inside summary), revisionQuestions (string; REQUIRED—4–6 numbered lines "1. ..."), actionItems (array of objects with task, assignee, dueDate as YYYY-MM-DD or null, notes), decisions (array of strings), nextSteps (array of strings), importantNotes (array of strings).\n'
+    ? 'Return ONLY a JSON object with keys: keyPoints (5–8 one-line QUICK REVISION; prefer Term = meaning; **bold** on term only), summary (GFM: ## STRUCTURED NOTES + ## DETAILED EXPLANATION as in system prompt; no revision questions inside), revisionQuestions (REQUIRED, 4–6 numbered exam-style questions), actionItems, decisions, nextSteps, importantNotes (same types as single-lecture spec).\n'
     : 'Return ONLY a JSON object with keys: summary (string), keyPoints (array of strings), actionItems (array of objects with task, assignee, dueDate as YYYY-MM-DD or null, notes), decisions (array of strings), nextSteps (array of strings), importantNotes (array of strings).\n';
 
   const user =

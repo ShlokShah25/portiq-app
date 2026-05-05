@@ -452,6 +452,132 @@
   color: var(--text-muted);
 }
 
+/* —— Education: markdown toolbar (lecture editor) —— */
+.education-md-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+}
+
+.education-md-toolbar__btn {
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.education-md-toolbar__btn:hover {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+}
+
+.education-md-toolbar__sep {
+  width: 1px;
+  height: 18px;
+  background: var(--border-strong);
+  margin: 0 4px;
+}
+
+/* —— Education: rendered Markdown (student-facing notes) —— */
+.education-markdown-block {
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--text-secondary);
+}
+
+.education-markdown-block > *:first-child {
+  margin-top: 0;
+}
+
+.education-markdown-block > *:last-child {
+  margin-bottom: 0;
+}
+
+.education-markdown-block h1,
+.education-markdown-block h2,
+.education-markdown-block h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 1.1em 0 0.45em;
+}
+
+.education-markdown-block p {
+  margin: 0 0 0.85em;
+}
+
+.education-markdown-block ul,
+.education-markdown-block ol {
+  margin: 0 0 0.85em;
+  padding-left: 1.35rem;
+}
+
+.education-markdown-block li {
+  margin-bottom: 0.35em;
+}
+
+.education-markdown-block strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.education-markdown-block code {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 0.9em;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.education-markdown-table-scroll {
+  overflow-x: auto;
+  margin: 0.75em 0 1em;
+  -webkit-overflow-scrolling: touch;
+}
+
+.education-markdown-block table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.education-markdown-block th,
+.education-markdown-block td {
+  border: 1px solid var(--border-strong);
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.education-markdown-block th {
+  background: var(--surface-secondary);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.meeting-summary-list--md li .education-markdown-block p {
+  margin-bottom: 0.35em;
+}
+
+.meeting-summary-list--md li .education-markdown-block p:last-child {
+  margin-bottom: 0;
+}
+
 .meeting-summary-pending-banner {
   padding: 14px 18px;
   background: var(--accent-blue-dim);

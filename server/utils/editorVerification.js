@@ -58,6 +58,9 @@ function redactMeetingPayloadForEditorVerification(payload) {
   payload.hiringRecommendationReason = '';
   payload.pendingEvaluationSignals = null;
   payload.evaluationSignals = null;
+  payload.pendingRevisionQuestions = '';
+  payload.revisionQuestions = '';
+  if (payload.originalRevisionQuestions !== undefined) payload.originalRevisionQuestions = '';
   if (payload.transcription !== undefined) payload.transcription = '';
   if (payload.parentContinuation && typeof payload.parentContinuation === 'object') {
     payload.parentContinuation = {

@@ -20,6 +20,7 @@ import './MeetingSummary.css';
 import { FEATURE_INTERVIEW_UI } from '../config/featureFlags';
 import { GoogleCalendarLogo, OutlookLogo } from './CalendarBrandIcons';
 import SpeakerPoolResolveBanner from './SpeakerPoolResolveBanner';
+import EducationMarkdownBlock from './EducationMarkdownBlock';
 
 /**
  * Read-only summary layout. Use includeSections to render only action items or everything except.
@@ -500,9 +501,11 @@ export default function MeetingSummaryReadonlyBody({
                   <ListChecks className="meeting-summary-heading-icon" strokeWidth={1.5} aria-hidden />
                   Quick revision
                 </h2>
-                <ul className="meeting-summary-list meeting-summary-list--checks">
+                <ul className="meeting-summary-list meeting-summary-list--checks meeting-summary-list--md">
                   {keyPoints.map((p, idx) => (
-                    <li key={idx}>{p}</li>
+                    <li key={idx}>
+                      <EducationMarkdownBlock>{p}</EducationMarkdownBlock>
+                    </li>
                   ))}
                 </ul>
               </section>
@@ -516,7 +519,9 @@ export default function MeetingSummaryReadonlyBody({
                   <FileText className="meeting-summary-heading-icon" strokeWidth={1.5} aria-hidden />
                   Structured notes & detailed explanation
                 </h2>
-                <p className="meeting-summary-body meeting-summary-body--prewrap">{summaryText}</p>
+                <EducationMarkdownBlock className="meeting-summary-body meeting-summary-body--prewrap">
+                  {summaryText}
+                </EducationMarkdownBlock>
               </section>
             )}
           </>
@@ -620,7 +625,9 @@ export default function MeetingSummaryReadonlyBody({
               <ListOrdered className="meeting-summary-heading-icon" strokeWidth={1.5} aria-hidden />
               Revision questions
             </h2>
-            <div className="meeting-summary-revision-body">{revisionBlock}</div>
+            <div className="meeting-summary-revision-body">
+              <EducationMarkdownBlock>{revisionBlock}</EducationMarkdownBlock>
+            </div>
           </section>
         )}
 

@@ -1,22 +1,36 @@
 import React from 'react';
+import EducationMarkdownToolbar from './EducationMarkdownToolbar';
 
 /**
  * PortIQ lecture editor: quick revision (keyPoints), layered summary + revision questions,
  * then assignments, concepts, optional admin sections.
  */
 export default function EducationNotesEditorFields({ editableSummary, setEditableSummary }) {
+  const kpText = (editableSummary.keyPoints || []).join('\n');
   return (
     <div className="meetings-edu-notes-editor">
       <p className="meetings-edu-notes-editor__lead">
-        PortIQ format: quick scan lines first, then structured notes + detailed explanation in the
-        large box. Blank lines in line-based fields are trimmed when you save. Use{' '}
-        <strong>Save review</strong> to checkpoint work, then send when ready.
+        Output is four layers: <strong>Quick revision</strong> (key points), <strong>Structured notes</strong> and{' '}
+        <strong>detailed explanation</strong> in the long text, then <strong>revision questions</strong>. Use{' '}
+        <strong>Markdown</strong> sparingly—<code>**bold**</code> for key terms and headings, lists, pipe tables only for
+        comparisons. Blank lines in line-based fields are trimmed when you save. Use <strong>Save review</strong> to
+        checkpoint work, then send when ready.
       </p>
       <div className="meeting-summary-edit-field">
         <label htmlFor="edu-notes-quick">Quick revision (exam scan)</label>
         <small className="meeting-summary-edit-hint">
           5–8 one-line bullets—definitions, must-know facts, formula names—no long explanations here.
         </small>
+        <EducationMarkdownToolbar
+          textareaId="edu-notes-quick"
+          value={kpText}
+          onChange={(next) =>
+            setEditableSummary({
+              ...editableSummary,
+              keyPoints: next.split('\n'),
+            })
+          }
+        />
         <textarea
           id="edu-notes-quick"
           value={(editableSummary.keyPoints || []).join('\n')}
@@ -36,8 +50,13 @@ export default function EducationNotesEditorFields({ editableSummary, setEditabl
           <label htmlFor="edu-notes-summary">Structured notes & detailed explanation</label>
           <small className="meeting-summary-edit-hint">
             STRUCTURED NOTES (Definitions, Objectives, Functions, Key Concepts) then DETAILED
-            EXPLANATION—keep section titles and line breaks as students will see them.
+            EXPLANATION—use markdown bold for key terms and tables to compare ideas when helpful.
           </small>
+          <EducationMarkdownToolbar
+            textareaId="edu-notes-summary"
+            value={editableSummary.summary}
+            onChange={(next) => setEditableSummary({ ...editableSummary, summary: next })}
+          />
           <textarea
             id="edu-notes-summary"
             value={editableSummary.summary}
@@ -54,6 +73,13 @@ export default function EducationNotesEditorFields({ editableSummary, setEditabl
           <small className="meeting-summary-edit-hint">
             4–6 numbered exam-style questions (definition, short answer, conceptual)—one per line.
           </small>
+          <EducationMarkdownToolbar
+            textareaId="edu-notes-revision"
+            value={String(editableSummary.revisionQuestions ?? '')}
+            onChange={(next) =>
+              setEditableSummary({ ...editableSummary, revisionQuestions: next })
+            }
+          />
           <textarea
             id="edu-notes-revision"
             value={String(editableSummary.revisionQuestions ?? '')}
