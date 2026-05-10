@@ -16,7 +16,12 @@ const util = require('util');
 
 const execFileAsync = util.promisify(execFile);
 const { getFfmpegPath, getFfprobePath } = require('./ffmpegPaths');
-const { transcribeAndSummarize, coalesceEducationRevisionQuestions } = require('./meetingTranscription');
+const {
+  transcribeAndSummarize,
+  coalesceEducationRevisionQuestions,
+  ensureEducationRevisionQuestionsAsync,
+  normalizeEducationLectureMarkdown,
+} = require('./meetingTranscription');
 const { mirrorMeetingAudioToPersistentDir } = require('./meetingAudioMirror');
 const Meeting = require('../models/Meeting');
 const Admin = require('../models/Admin');
@@ -172,7 +177,7 @@ async function aggregateFinalFromMids(openai, midSummaries, meetingTitle, isEduc
     .join('\n\n---\n\n');
 
   const sys = isEducation
-    ? 'You merge section summaries of ONE PortIQ lecture into final JSON for students. Preserve full teaching depth—do not compress explanations. Output shape: keyPoints = 5–8 ONE-line QUICK REVISION strings; prefer Term = meaning; **bold** around the term only. summary = GFM Markdown (no raw HTML): ## STRUCTURED NOTES (Definitions/Objectives/Functions/Key Concepts with short "- " bullets, one idea per line, clear spacing) then ## DETAILED EXPLANATION (short paragraphs, optional ### mini-headings, full depth). **Bold** only key terms and light headings—never full sentences. Pipe tables ONLY for true comparisons; never force tables. revisionQuestions = 4–6 numbered lines (Define / Differentiate / Explain / short answer). Clarity over clutter. English only.'
+    ? 'You merge section summaries of ONE PortIQ lecture into final JSON for students. Preserve full teaching depth—do not compress explanations. Output shape: keyPoints = 5–8 ONE-line QUICK REVISION strings; prefer Term = meaning; **bold** around the term only. summary = GFM Markdown (no raw HTML): ## STRUCTURED NOTES (Definitions/Objectives/Functions/Key Concepts with short "- " bullets, one idea per line, clear spacing) then ## DETAILED EXPLANATION (short paragraphs, optional ### mini-headings, full depth). **Bold** only key terms and light headings—never full sentences. Pipe tables ONLY for true comparisons; never force tables. revisionQuestions = 4–6 numbered lines (Define / Differentiate / Explain / short answer). Clarity over clutter. Transcript fidelity rule: keep spoken formulas exactly (no invented symbols) and keep dictated assignment questions faithful (no AI-rewritten substitutes). Do not replace section content with generic “importance of the unit” filler—keep concrete topics, numbers, and examples from the section summaries. English only.'
     : 'You merge section summaries of ONE meeting into final structured minutes. Output ONLY valid JSON (no markdown fences). All string values must be professional English.';
 
   const jsonKeysLine = isEducation
@@ -222,7 +227,10 @@ async function aggregateFinalFromMids(openai, midSummaries, meetingTitle, isEduc
       ? parsed.importantNotes.map((x) => String(x || '').trim()).filter(Boolean)
       : [],
   };
-  if (isEducation) coalesceEducationRevisionQuestions(out);
+  if (isEducation) {
+    coalesceEducationRevisionQuestions(out);
+    if (out.summary) out.summary = normalizeEducationLectureMarkdown(out.summary);
+  }
   return out;
 }
 
@@ -415,6 +423,10 @@ async function runLongAudioPipeline(audioFilePath, meeting, options) {
     }
 
     console.log('[long-audio] final aggregation complete');
+
+    if (isEducation && finalParsed) {
+      await ensureEducationRevisionQuestionsAsync(finalParsed, fullTranscription, meetingTitle);
+    }
 
     return {
       transcription: fullTranscription,

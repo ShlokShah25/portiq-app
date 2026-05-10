@@ -781,6 +781,7 @@ async function applyTranscriptExcerptFallbackSummaryAsync(summaryData, transcrip
 
 function applyGroundingFiltersToSummaryData(summaryData, transcriptFull, meta = {}) {
   const detectedLanguage = meta && meta.detectedLanguage != null ? String(meta.detectedLanguage) : '';
+  const isEducation = Boolean(meta && meta.isEducation);
   if (shouldSkipGroundingForMultilingualTranscript(transcriptFull, detectedLanguage)) {
     console.log(
       '📝 Skipping Latin-keyword grounding (non-English or script-heavy transcript; preserves English model output).'
@@ -789,8 +790,13 @@ function applyGroundingFiltersToSummaryData(summaryData, transcriptFull, meta = 
   }
   const transcriptLower = String(transcriptFull || '').toLowerCase();
   if (typeof summaryData.summary === 'string' && summaryData.summary.trim()) {
-    const filtered = filterGroundedExecutiveSummary(summaryData.summary, transcriptFull);
-    summaryData.summary = filtered.trim();
+    // Education summaries are GFM Markdown (headings, bullets, tables). Paragraph-level
+    // executive-summary grounding mangles structure and can drop real lecture content while
+    // leaving title-aligned generic lines—skip for education; rely on prompts + structured JSON.
+    if (!isEducation) {
+      const filtered = filterGroundedExecutiveSummary(summaryData.summary, transcriptFull);
+      summaryData.summary = filtered.trim();
+    }
   }
   summaryData.keyPoints = (summaryData.keyPoints || []).filter((kp) =>
     isGroundedAgainstTranscript(kp, transcriptLower)
@@ -871,6 +877,30 @@ const EDUCATION_SPEAKER_BRACKET_PREFIX = /\[[^\]\r\n]{1,120}\]\s*:\s*/g;
  * Education: merge revision questions from JSON field and/or trailing "Revision questions:" block in summary.
  * Preferred source is top-level revisionQuestions; summary narrative must not duplicate that block.
  */
+/**
+ * Fix common model mistakes in lecture Markdown: headings glued to prior text, subsection titles run-on.
+ */
+function normalizeEducationLectureMarkdown(text) {
+  let s = String(text || '').replace(/\r\n/g, '\n');
+  if (!s.trim()) return s;
+  // "## Heading" or "### ..." stuck after punctuation or inline text
+  s = s.replace(/([.!?…])(\s*)(#{1,6}\s+)/g, '$1\n\n$3');
+  s = s.replace(/([^\n#])(#{1,6}\s+)/g, '$1\n\n$2');
+  // "**STRUCTURED NOTES**Definitions:" / "## STRUCTURED NOTES Definitions:" style gluing
+  s = s.replace(
+    /(\*\*STRUCTURED NOTES\*\*|##\s*STRUCTURED NOTES)\s*(Definitions:)/gi,
+    '$1\n\n$2'
+  );
+  const subs = ['Definitions:', 'Objectives:', 'Functions:', 'Key Concepts:', 'Key concepts:'];
+  for (const h of subs) {
+    const esc = h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp(`([^\\n])(${esc})`, 'gi');
+    s = s.replace(re, '$1\n\n$2');
+  }
+  s = s.replace(/\n{4,}/g, '\n\n\n');
+  return s.trim();
+}
+
 function coalesceEducationRevisionQuestions(summaryData) {
   if (!summaryData || typeof summaryData !== 'object') return;
   let rq = summaryData.revisionQuestions;
@@ -893,6 +923,61 @@ function coalesceEducationRevisionQuestions(summaryData) {
     if (!rq && tail) rq = tail;
   }
   summaryData.revisionQuestions = rq;
+}
+
+/**
+ * Education: if the primary summary JSON omitted revisionQuestions, synthesize from lecture notes + transcript (one focused completion).
+ */
+async function ensureEducationRevisionQuestionsAsync(summaryData, transcriptTextTrim, meetingTitle) {
+  if (!summaryData || typeof summaryData !== 'object') return;
+  const existing = String(summaryData.revisionQuestions || '').trim();
+  if (existing.length >= 24) return;
+  const summary = String(summaryData.summary || '').trim();
+  if (summary.length < 120) return;
+  if (!openai) return;
+  try {
+    const model = getSummaryChatModel();
+    const excerpt =
+      summary.length > 12000
+        ? `${summary.slice(0, 11500)}\n\n[… truncated for question synthesis …]`
+        : summary;
+    const tHint = String(transcriptTextTrim || '').trim();
+    const tExcerpt =
+      tHint.length > 6000 ? `${tHint.slice(0, 5500)}\n\n[… transcript truncated …]` : tHint;
+    const res = await openai.chat.completions.create({
+      model,
+      temperature: 0.15,
+      max_tokens: 900,
+      response_format: { type: 'json_object' },
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You write exam revision questions for one lecture. Respond with JSON only: {"revisionQuestions":"..."}. ' +
+            'revisionQuestions must be one string with 4–6 numbered lines (1. … 2. …). Mix Define, Differentiate or Compare, Explain, and short answer. ' +
+            'Every question must be answerable only from the lecture notes and transcript excerpt—no new topics. English only.',
+        },
+        {
+          role: 'user',
+          content:
+            `Lecture title: ${String(meetingTitle || 'Lecture').trim()}\n\n` +
+            `Lecture notes:\n\n${excerpt}\n\n` +
+            (tExcerpt ? `Transcript excerpt (grounding):\n\n${tExcerpt}\n\n` : '') +
+            'Return JSON with revisionQuestions filled.',
+        },
+      ],
+    });
+    const raw = String(res.choices?.[0]?.message?.content || '').trim();
+    const parsed = tryParseModelJsonObject(raw);
+    const next =
+      typeof parsed?.revisionQuestions === 'string' ? String(parsed.revisionQuestions).trim() : '';
+    if (next.length >= 30) {
+      summaryData.revisionQuestions = next;
+      console.log('✅ Backfilled revisionQuestions via secondary education completion.');
+    }
+  } catch (e) {
+    console.warn('⚠️ ensureEducationRevisionQuestionsAsync failed:', e.message || e);
+  }
 }
 
 /** Remove bracket speaker labels from education lecture notes (summary + structured fields). */
@@ -1022,7 +1107,9 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
   const systemEducationFocus = isEducation
     ? 'This output is for PortIQ education: teaching quality AND student exam readiness. Produce a layered deliverable—(1) keyPoints = a 30-second quick revision scan, (2) summary = structured notes plus full detailed explanation, (3) revisionQuestions = exam-style prompts—without removing depth: every definition, derivation, example, formula, contrast, and pitfall the class actually heard must still appear in the structured or detailed layers. Prioritise what the instructor is trying to get across: learning goals (when stated), how each idea is introduced, prerequisite vs new material, and how one idea sets up the next. Preserve definitions and distinctions as spoken, examples walked through, lists or taxonomies, formulas or steps if verbalized, caveats and misconceptions, checks for understanding, and learner questions. Call out exam-relevant stress when the teacher does. For formulas/equations, use readable math-style text (for example: "speed = distance / time"), define symbols/variables as spoken, and keep units/conditions if mentioned. ' +
       'Treat the transcript as a sequence of teaching beats and preserve the full logical thread in the DETAILED EXPLANATION part—never replace deep explanation with skim-only bullets. ' +
-      'You may add a light student-facing assist layer in the detailed layer only when clearly supported by the transcript; never invent facts. '
+      'You may add a light student-facing assist layer in the detailed layer only when clearly supported by the transcript; never invent facts. ' +
+      'Transcript fidelity is strict: if the teacher dictated assignment questions/prompts, reproduce those prompts faithfully (wording and intent) instead of replacing them with generic alternatives. ' +
+      'ANTI-FILLER: Do not substitute the transcript with generic “any class could say this” prose (e.g. only “importance of the unit”, “lay the groundwork”, “foundational for assessments”, “students should ask doubts”) without concrete nouns, numbers, problem statements, definitions, or examples that appear in the transcript. Every subsection must contain specific instructional substance from the audio, not meta-commentary about learning in general. '
     : 'This output is for operational clarity and execution quality: preserve the real business substance of the session, including context, rationale, trade-offs, dependencies, risks, blockers, stakeholder concerns, and concrete commitments. Keep nuanced reasoning when it changes decisions or priorities. ';
 
   const systemElaborationDepth = isEducation
@@ -1054,12 +1141,14 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
   const userEducationRules = isEducation
     ? `- PORTIQ four-part mental model: (1) keyPoints = QUICK REVISION, (2)+(3) summary = ## STRUCTURED NOTES then ## DETAILED EXPLANATION, (4) revisionQuestions = REVISION QUESTIONS. Never duplicate questions inside summary.\n` +
       `- STRUCTURED NOTES: Definitions / Objectives / Functions / Key Concepts—clear spacing between sections; one bullet = one idea; exam-note skim layer without sacrificing coverage.\n` +
+      `- Do NOT repeat the same shallow lines in Quick revision and again in Structured notes; Structured notes must add transcript-specific definitions, lists, contrasts, and examples.\n` +
       `- If the instructor named terms, keep those terms; expand only with the instructor’s own elaboration in DETAILED EXPLANATION or structured bullets, not invented theory.\n` +
       `- Every substantive teaching move must appear in structured bullets and/or DETAILED EXPLANATION; do not omit middle steps.\n` +
       `- Prefer concrete student-facing phrasing in DETAILED EXPLANATION when the transcript supports it (e.g. exam takeaway) without inventing pedagogy.\n` +
       `- If assignments, presentations, quizzes, homework, submissions, or project work are mentioned, ensure they appear as concrete action items with due dates when stated.\n` +
       `- If a quiz/test is mentioned, capture the quiz type exactly when stated (e.g. oral, written, MCQ, practical, unit test, surprise test). If type is unclear, write "quiz type not specified" rather than inventing one.\n` +
-      `- Keep formulas readable: write equation-style text (for example "F = m * a"), include variable meaning/units if the teacher states them, and do not invent symbols or numeric values.\n` +
+      `- Keep formulas readable: write equation-style text exactly as spoken where possible (for example "F = m * a"), include variable meaning/units if the teacher states them, and do not invent symbols, operators, or numeric values.\n` +
+      `- If the teacher dictated assignment/homework/exam questions, keep those prompts faithfully in summary and/or action items (do not replace with AI-authored sample questions).\n` +
       `- FORMATTING (readability first): **Bold** only key terms and light heading emphasis—not full sentences or dense bold. GFM pipe tables ONLY for side-by-side comparisons; never force tables. Use \`backticks\` for symbols when clearer. Avoid cluttered Markdown and excessive bold.\n` +
       `- REQUIRED: fill revisionQuestions with 4–6 numbered questions (see schema)—never omit for education mode.\n` +
       `- Keep wording classroom-friendly and instructional, not corporate.\n`
@@ -1155,6 +1244,7 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
               userEducationRules +
               (isEducation
                 ? `- keyPoints must be plain one-line strings with NO speaker labels — each line starts directly with the recall point (prefer \\"Term = meaning\\").\n` +
+                  `- Stay transcript-faithful: do not replace spoken formulas or dictated assignment questions with AI-authored alternatives; capture what was actually taught/asked.\n` +
                   `- The summary must use headings ## STRUCTURED NOTES and ## DETAILED EXPLANATION and the four subsection headings Definitions:, Objectives:, Functions:, Key Concepts: as specified—no [Speaker]: prefixes anywhere.\n`
                 : `- CRITICAL: Every key point MUST start with a bracketed speaker label, then a colon and space: "[Speaker Name]: …" or "[Unidentified speaker]: …" or "[Speaker 1]: …". Use roster or voice-profile names only when the transcript clearly supports that speaker; never invent names. Do not emit a key point without a speaker prefix.\n` +
                   `- Executive summary: write in full sentences; when stating who said or decided something, use the same bracketed speaker labels.\n`) +
@@ -1178,9 +1268,9 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
               : `- When participant names are mentioned in the transcript, use them to attribute statements. Match names from the participant list provided.\n\n`) +
             `Return ONLY a JSON object with the following structure:\n` +
             `{\n` +
-              `  ${summarySchemaHint}\n` +
-              `  ${revisionQuestionsSchemaHint}` +
               `  ${keyPointsSchemaHint}\n` +
+              `  ${revisionQuestionsSchemaHint}` +
+              `  ${summarySchemaHint}\n` +
             `  "actionItems": [\n` +
               `    {"task": "task description", "assignee": "person name if mentioned", "dueDate": "YYYY-MM-DD or null", "notes": "extra detail if needed"}\n` +
             `  ],\n` +
@@ -1248,11 +1338,14 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
     if (!Array.isArray(summaryData.importantNotes)) summaryData.importantNotes = [];
 
   if (isEducation) {
+    if (typeof summaryData.summary === 'string' && summaryData.summary.trim()) {
+      summaryData.summary = normalizeEducationLectureMarkdown(summaryData.summary);
+    }
     coalesceEducationRevisionQuestions(summaryData);
   }
 
   const preFilter = deepCopySummaryPayload(summaryData);
-  applyGroundingFiltersToSummaryData(summaryData, transcriptTextTrim, { detectedLanguage });
+  applyGroundingFiltersToSummaryData(summaryData, transcriptTextTrim, { detectedLanguage, isEducation });
 
   summaryData.actionItems = enrichActionItemsWithDueDates(
     summaryData.actionItems,
@@ -1279,6 +1372,7 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
 
   if (isEducation) {
     stripEducationSpeakerLabelsFromSummaryData(summaryData);
+    await ensureEducationRevisionQuestionsAsync(summaryData, transcriptTextTrim, meetingTitle);
   }
 
   console.log('✅ Summary generated (from stored transcript)');
@@ -2708,4 +2802,6 @@ module.exports = {
   getMailTransporter,
   transcribeLiveChunkFile,
   coalesceEducationRevisionQuestions,
+  ensureEducationRevisionQuestionsAsync,
+  normalizeEducationLectureMarkdown,
 };
