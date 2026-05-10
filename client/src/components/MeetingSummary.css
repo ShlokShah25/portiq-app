@@ -375,15 +375,15 @@
 .meetings-edu-notes-editor {
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 16px;
   margin-top: 8px;
 }
 
 .meetings-edu-notes-editor__lead {
   margin: 0;
-  padding: 12px 14px;
+  padding: 10px 12px;
   font-size: 14px;
-  line-height: 1.55;
+  line-height: 1.45;
   color: var(--text-secondary);
   background: var(--accent-blue-dim);
   border: 1px solid var(--badge-border);
@@ -398,7 +398,7 @@
 .meetings-edu-notes-editor__grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 22px;
+  gap: 16px;
   align-items: start;
 }
 
@@ -458,8 +458,8 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  margin: 0 0 10px;
-  padding: 8px 10px;
+  margin: 0 0 8px;
+  padding: 6px 8px;
   background: var(--surface-secondary);
   border: 1px solid var(--border-strong);
   border-radius: 8px;
@@ -489,10 +489,55 @@
   margin: 0 4px;
 }
 
+/* —— Education: live preview + source stack —— */
+.education-md-live-field > label {
+  display: block;
+}
+
+.education-md-live-field__preview {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface-secondary);
+}
+
+.education-md-live-field__preview-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.education-md-live-field__preview-body {
+  min-height: 2rem;
+}
+
+.education-md-live-field__preview-empty {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.education-md-live-field__source {
+  margin-top: 0;
+}
+
+.education-md-live-field__source-note {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+
 /* —— Education: rendered Markdown (student-facing notes) —— */
 .education-markdown-block {
   font-size: 15px;
-  line-height: 1.75;
+  line-height: 1.38;
   color: var(--text-secondary);
 }
 
@@ -507,24 +552,89 @@
 .education-markdown-block h1,
 .education-markdown-block h2,
 .education-markdown-block h3 {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-primary);
-  margin: 1.1em 0 0.45em;
+  margin: 0.45em 0 0.2em;
+}
+
+.education-markdown-block h2:first-child,
+.education-markdown-block h3:first-child {
+  margin-top: 0;
 }
 
 .education-markdown-block p {
-  margin: 0 0 0.85em;
+  margin: 0 0 0.35em;
 }
 
 .education-markdown-block ul,
 .education-markdown-block ol {
-  margin: 0 0 0.85em;
-  padding-left: 1.35rem;
+  margin: 0 0 0.3em;
+  padding-left: 1.15rem;
 }
 
 .education-markdown-block li {
-  margin-bottom: 0.35em;
+  margin-bottom: 0.06em;
+}
+
+/* GFM / react-markdown: list items often wrap content in <p> — kill double spacing */
+.education-markdown-block li > p {
+  margin: 0 0 0.2em;
+}
+
+.education-markdown-block li > p:last-child {
+  margin-bottom: 0;
+}
+
+.education-markdown-block li > ul,
+.education-markdown-block li > ol {
+  margin-top: 0.2em;
+  margin-bottom: 0.25em;
+}
+
+/* Lecture summary view: tighter vertical rhythm */
+.education-markdown-block--tight {
+  line-height: 1.36;
+}
+
+.education-markdown-block--tight p {
+  margin-bottom: 0.28em;
+}
+
+.education-markdown-block--tight ul,
+.education-markdown-block--tight ol {
+  margin-bottom: 0.28em;
+}
+
+.education-markdown-block--tight li {
+  margin-bottom: 0.04em;
+}
+
+.education-markdown-block--tight li > p {
+  margin-bottom: 0.12em;
+}
+
+.education-markdown-block--tight h2,
+.education-markdown-block--tight h3 {
+  margin: 0.35em 0 0.14em;
+}
+
+/* Editor live preview (compact) */
+.education-markdown-block--compact {
+  font-size: 14px;
+  line-height: 1.34;
+}
+
+.education-markdown-block--compact p {
+  margin: 0 0 0.28em;
+}
+
+.education-markdown-block--compact li {
+  margin-bottom: 0.05em;
+}
+
+.education-markdown-block--compact li > p {
+  margin-bottom: 0.12em;
 }
 
 .education-markdown-block strong {
@@ -543,7 +653,7 @@
 
 .education-markdown-table-scroll {
   overflow-x: auto;
-  margin: 0.75em 0 1em;
+  margin: 0.45em 0 0.55em;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -559,7 +669,7 @@
 .education-markdown-block th,
 .education-markdown-block td {
   border: 1px solid var(--border-strong);
-  padding: 10px 12px;
+  padding: 7px 9px;
   text-align: left;
   vertical-align: top;
 }
@@ -571,7 +681,7 @@
 }
 
 .meeting-summary-list--md li .education-markdown-block p {
-  margin-bottom: 0.35em;
+  margin-bottom: 0.2em;
 }
 
 .meeting-summary-list--md li .education-markdown-block p:last-child {
@@ -795,24 +905,35 @@
 /* Dashed rule before Key Points (single divider after action items) */
 .meeting-summary-section--keypoints {
   border-top: 1px dashed var(--badge-border);
-  padding-top: 14px;
-  margin-top: 2px;
+  padding-top: 10px;
+  margin-top: 0;
+}
+
+/* Tighter lecture note sections (quick revision, structured notes, revision) */
+.meeting-summary-section--minutes,
+.meeting-summary-section--revision {
+  padding-top: 16px;
+}
+
+.meeting-summary-section--keypoints .meeting-summary-heading,
+.meeting-summary-section--minutes .meeting-summary-heading,
+.meeting-summary-section--revision .meeting-summary-heading {
+  margin-bottom: 8px;
 }
 
 .meeting-summary-section--revision {
-  margin-top: 8px;
-  padding: 16px 18px 18px;
-  border-radius: 14px;
+  margin-top: 6px;
+  padding: 12px 14px 14px;
+  border-radius: 12px;
   border: 1px solid var(--badge-border);
   background: var(--surface-secondary, rgba(15, 23, 42, 0.04));
 }
 
 .meeting-summary-revision-body {
   margin: 0;
-  font-size: 15px;
-  line-height: 1.65;
+  font-size: 14px;
+  line-height: 1.36;
   color: var(--text-primary);
-  white-space: pre-wrap;
   word-break: break-word;
 }
 
@@ -1045,6 +1166,11 @@
   word-break: break-word;
 }
 
+/* Beat generic .meeting-summary-body line-height (1.75) for education markdown */
+.education-markdown-block--tight.meeting-summary-body {
+  line-height: 1.36;
+}
+
 .meeting-summary-list {
   margin: 0;
   padding-left: 20px;
@@ -1071,19 +1197,25 @@
 .meeting-summary-list--checks li {
   position: relative;
   padding-left: 26px;
-  margin-bottom: 12px;
-  line-height: 1.65;
+  margin-bottom: 8px;
+  line-height: 1.4;
 }
 
 .meeting-summary-list--checks li:last-child {
   margin-bottom: 0;
 }
 
+/* Markdown lines inside quick revision — tighter than plain checklist items */
+.meeting-summary-section--keypoints .meeting-summary-list--checks.meeting-summary-list--md li {
+  margin-bottom: 3px;
+  line-height: 1.34;
+}
+
 .meeting-summary-list--checks li::before {
   content: '';
   position: absolute;
   left: 0;
-  top: 0.35em;
+  top: 0.28em;
   width: 16px;
   height: 16px;
   background: no-repeat center / contain;
