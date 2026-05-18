@@ -68,7 +68,8 @@ For each, give 1 short justification that references how the candidate’s answe
 Choose ONE:
 
 - Strong Hire  
-- Lean Hire  
+- Hire  
+- Neutral  
 - No Hire  
 
 Then provide a clear 1–2 line justification.
@@ -94,8 +95,10 @@ function normalizeInterviewJson(raw) {
   let rec = String(o.hiringRecommendation || o.finalRecommendation || '').trim();
   const recLower = rec.toLowerCase();
   if (recLower.includes('strong') && recLower.includes('hire')) rec = 'Strong Hire';
-  else if (recLower.includes('lean') && recLower.includes('hire')) rec = 'Lean Hire';
   else if (recLower.includes('no') && recLower.includes('hire')) rec = 'No Hire';
+  else if (recLower.includes('neutral')) rec = 'Neutral';
+  else if (recLower.includes('lean') && recLower.includes('hire')) rec = 'Hire';
+  else if (recLower.includes('hire')) rec = 'Hire';
   else if (!rec) rec = '';
   const reason = String(o.hiringRecommendationReason || o.recommendationJustification || '').trim();
 
@@ -169,7 +172,7 @@ function mapInterviewToPipelinePayload(normalized) {
 function buildInterviewUserJsonInstructions() {
   return `Return ONLY a JSON object (no markdown fences) with this exact structure:
 {
-  "hiringRecommendation": "Strong Hire" | "Lean Hire" | "No Hire",
+  "hiringRecommendation": "Strong Hire" | "Hire" | "Neutral" | "No Hire",
   "hiringRecommendationReason": "1-2 line justification matching the tone rules above; if a role was given, tie justification to role fit. If evidence is weak, say insufficient evidence from transcript",
   "summary": "3-5 line summary paragraph",
   "keyStrengths": ["strength 1", "strength 2"],
