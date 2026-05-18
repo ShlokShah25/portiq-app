@@ -1,22 +1,21 @@
-/* Interview Mode — light premium hiring surface (scoped under .app-shell--interview) */
+/* Interview Mode — same PortIQ tokens as main app (scoped under .app-shell--interview) */
 
 .app-shell--interview {
-  --interview-bg: #f4f2ec;
-  --interview-bg-elevated: #ffffff;
-  --interview-bg-card: #ffffff;
-  --interview-border: rgba(15, 23, 42, 0.1);
-  --interview-border-strong: rgba(15, 23, 42, 0.16);
-  --interview-text: #0f172a;
-  --interview-text-muted: #64748b;
-  --interview-accent: #9a7b1a;
-  --interview-accent-bright: #b8922a;
-  --interview-accent-dim: rgba(154, 123, 26, 0.1);
-  --interview-accent-glow: rgba(154, 123, 26, 0.22);
-  --interview-success: #15803d;
-  --interview-danger: #b91c1c;
+  --interview-bg: var(--bg-primary);
+  --interview-bg-elevated: var(--surface-card);
+  --interview-bg-card: var(--surface-card);
+  --interview-border: var(--border-color);
+  --interview-border-strong: var(--border-strong);
+  --interview-text: var(--text-primary);
+  --interview-text-muted: var(--text-muted);
+  --interview-accent: var(--accent-blue);
+  --interview-accent-dim: var(--accent-blue-dim);
+  --interview-accent-glow: rgba(37, 99, 235, 0.28);
+  --interview-success: var(--success-green);
+  --interview-danger: var(--error-red);
   --interview-radius: 12px;
   --interview-radius-lg: 16px;
-  --interview-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 8px 24px rgba(15, 23, 42, 0.06);
+  --interview-shadow: var(--shadow-soft-sm);
   background: var(--interview-bg);
 }
 
@@ -29,9 +28,20 @@
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(154, 123, 26, 0.08) 45%,
-    rgba(154, 123, 26, 0.12) 50%,
-    rgba(154, 123, 26, 0.08) 55%,
+    rgba(255, 255, 255, 0.06) 40%,
+    rgba(255, 255, 255, 0.09) 50%,
+    rgba(255, 255, 255, 0.06) 60%,
+    transparent
+  );
+}
+
+:root[data-theme='light'] .app-shell--interview .app-shell__main::before {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(37, 99, 235, 0.04) 40%,
+    rgba(37, 99, 235, 0.07) 50%,
+    rgba(37, 99, 235, 0.04) 60%,
     transparent
   );
 }
@@ -45,9 +55,8 @@
   display: flex;
   flex-direction: column;
   z-index: 100;
-  background: #ffffff;
-  border-right: 1px solid var(--interview-border-strong);
-  box-shadow: 1px 0 0 rgba(255, 255, 255, 0.8) inset;
+  background: var(--surface-secondary);
+  border-right: 1px solid var(--sidebar-border, var(--interview-border));
 }
 
 .app-shell--interview .interview-sidebar__brand {
@@ -62,8 +71,8 @@
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: linear-gradient(145deg, #faf6eb 0%, #f0e6c8 100%);
-  border: 1px solid var(--interview-accent-glow);
+  background: var(--dash-chip-icon-bg, var(--accent-blue-dim));
+  border: 1px solid var(--badge-border, rgba(37, 99, 235, 0.2));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -113,14 +122,15 @@
 }
 
 .app-shell--interview .interview-sidebar__link:hover {
-  background: rgba(15, 23, 42, 0.04);
+  background: var(--sidebar-hover-bg);
   color: var(--interview-text);
 }
 
 .app-shell--interview .interview-sidebar__link.is-active {
-  background: var(--interview-accent-dim);
-  border-color: rgba(154, 123, 26, 0.22);
-  color: var(--interview-text);
+  background: var(--sidebar-active-bg);
+  border-color: rgba(99, 102, 241, 0.2);
+  color: var(--sidebar-active-fg, var(--interview-text));
+  box-shadow: 0 2px 12px rgba(37, 99, 235, 0.18);
 }
 
 .app-shell--interview .interview-sidebar__link.is-active svg {
@@ -140,7 +150,7 @@
   width: 100%;
   padding: 10px 12px;
   border-radius: 10px;
-  background: #f8fafc;
+  background: var(--dash-chip-bg, var(--surface-nested));
   border: 1px solid var(--interview-border);
   color: var(--interview-text-muted);
   font-size: 13px;
@@ -150,7 +160,7 @@
 .app-shell--interview .interview-sidebar__back:hover {
   border-color: var(--interview-border-strong);
   color: var(--interview-text);
-  background: #f1f5f9;
+  background: var(--dash-chip-hover-bg, var(--sidebar-hover-bg));
 }
 
 /* Page shell */
@@ -177,9 +187,10 @@
 }
 
 .interview-page__title {
+  font-family: var(--font-display, var(--font-sans));
   font-size: clamp(1.75rem, 3vw, 2.25rem);
-  font-weight: 650;
-  letter-spacing: -0.02em;
+  font-weight: 700;
+  letter-spacing: -0.03em;
   color: var(--interview-text);
   margin: 0 0 8px;
 }
@@ -215,27 +226,28 @@
 }
 
 .interview-btn--primary {
-  background: linear-gradient(180deg, #c9a227 0%, #9a7b1a 100%);
+  background: var(--accent-blue);
   color: #ffffff;
-  border-color: rgba(154, 123, 26, 0.35);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+  border-color: transparent;
+  box-shadow: var(--shadow-glow-blue);
 }
 
 .interview-btn--primary:hover {
-  filter: brightness(1.04);
-  box-shadow: 0 4px 14px rgba(154, 123, 26, 0.22);
+  background: var(--accent-primary-hover, var(--accent-hover));
+  filter: none;
+  box-shadow: var(--shadow-glow-blue);
 }
 
 .interview-btn--secondary {
-  background: #ffffff;
+  background: var(--surface-card);
   color: var(--interview-text);
   border-color: var(--interview-border-strong);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: none;
 }
 
 .interview-btn--secondary:hover {
-  background: #f8fafc;
-  border-color: rgba(15, 23, 42, 0.22);
+  background: var(--dash-subtle-hover);
+  border-color: var(--interview-border-strong);
 }
 
 .interview-btn--ghost {
@@ -246,7 +258,7 @@
 
 .interview-btn--ghost:hover {
   color: var(--interview-text);
-  background: rgba(255, 255, 255, 0.6);
+  background: var(--dash-subtle-hover);
 }
 
 /* Grid & cards */
@@ -305,7 +317,7 @@
   gap: 12px;
   padding: 12px 14px;
   border-radius: var(--interview-radius);
-  background: #f8fafc;
+  background: var(--dash-row-bg, var(--interview-bg-elevated));
   border: 1px solid var(--interview-border);
   text-decoration: none;
   color: inherit;
@@ -314,8 +326,8 @@
 
 .interview-list__row:hover {
   border-color: var(--interview-border-strong);
-  background: #ffffff;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+  background: var(--dash-row-hover-bg, var(--interview-bg-card));
+  box-shadow: var(--shadow-soft-sm);
 }
 
 .interview-list__row-main {
@@ -405,7 +417,7 @@
   border: 1px dashed var(--interview-border-strong);
   border-radius: var(--interview-radius-lg);
   color: var(--interview-text-muted);
-  background: #fafafa;
+  background: var(--dash-chip-bg, var(--surface-nested));
 }
 
 .interview-empty__title {
@@ -446,7 +458,7 @@
 
 .interview-session-rail {
   padding: 20px 16px;
-  background: #ffffff;
+  background: var(--surface-secondary);
   border-right: 1px solid var(--interview-border);
   overflow-y: auto;
 }
@@ -521,7 +533,7 @@
 }
 
 .interview-session-main .meeting-summary-card.mip-card {
-  background: #ffffff;
+  background: var(--surface-card);
   border: 1px solid var(--interview-border);
   box-shadow: var(--interview-shadow);
   color: var(--interview-text);
@@ -559,7 +571,7 @@
 }
 
 .interview-report-wrap .meeting-summary-card {
-  background: #ffffff;
+  background: var(--surface-card);
   border: 1px solid var(--interview-border);
   box-shadow: var(--interview-shadow);
   color: var(--interview-text);
@@ -604,7 +616,7 @@
 /* Create form on interview surface */
 .interview-create-wrap .start-meeting-modal__panel,
 .interview-create-wrap .start-meeting-form--inline {
-  background: #ffffff;
+  background: var(--surface-card);
   border: 1px solid var(--interview-border);
   color: var(--interview-text);
   box-shadow: var(--interview-shadow);
@@ -619,7 +631,7 @@
 .interview-create-wrap input,
 .interview-create-wrap textarea,
 .interview-create-wrap select {
-  background: #f8fafc;
+  background: var(--surface-input);
   border-color: var(--interview-border-strong);
   color: var(--interview-text);
 }
@@ -627,8 +639,8 @@
 .interview-create-wrap input:focus,
 .interview-create-wrap textarea:focus,
 .interview-create-wrap select:focus {
-  border-color: var(--interview-accent-glow);
-  background: #ffffff;
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 2px var(--accent-blue-dim);
 }
 
 .interview-detail-hero {
@@ -645,11 +657,11 @@
 .interview-detail-meta__chip {
   padding: 8px 14px;
   border-radius: 10px;
-  background: #ffffff;
+  background: var(--surface-card);
   border: 1px solid var(--interview-border);
   font-size: 13px;
   color: var(--interview-text);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: var(--shadow-soft-sm);
 }
 
 .interview-detail-meta__chip strong {
@@ -670,7 +682,7 @@
 
 /* Dashboard pipeline link on main dashboard */
 .dashboard-interview-pipeline__sub a {
-  color: var(--interview-accent, #9a7b1a);
+  color: var(--accent-blue);
   font-weight: 600;
   text-decoration: none;
 }

@@ -18,6 +18,7 @@ import {
   Search,
   Plus,
   Trash2,
+  Briefcase,
 } from 'lucide-react';
 import { isEducation } from '../config/product';
 import { FEATURE_INTERVIEW_UI } from '../config/featureFlags';
@@ -451,7 +452,7 @@ export default function MeetingCreateForm({
         ? interviewInterviewerEmails.map((e) => String(e || '').trim().toLowerCase()).filter(Boolean)
         : [];
       if (intEmails.length === 0) {
-        return 'Select at least one interviewer from your selected people.';
+        return 'Select at least one interviewer from your participant book.';
       }
       const invalid = intEmails.find((e) => !selectedBookEmails.includes(e));
       if (invalid) {
@@ -459,7 +460,10 @@ export default function MeetingCreateForm({
       }
       const named = interviewCandidates.filter((c) => String(c.name || '').trim());
       if (named.length === 0) {
-        return 'Add at least one interview candidate (name). Candidates are not saved to your participant book.';
+        return 'Candidate name is required.';
+      }
+      if (!String(named[0].role || '').trim()) {
+        return 'Role (position) is required.';
       }
       if (named.length > 12) {
         return 'Too many interview candidates (max 12).';
@@ -467,9 +471,11 @@ export default function MeetingCreateForm({
     }
     const parts = payloadParticipants();
     if (parts.length === 0) {
-      return isEducation
-        ? 'Add at least one student with an email.'
-        : 'Select at least one participant from your participant book.';
+      if (isEducation) return 'Add at least one student with an email.';
+      if (!isEducation && summaryModeEffective === 'interview') {
+        return 'Select at least one interviewer from your participant book.';
+      }
+      return 'Select at least one participant from your participant book.';
     }
     if (maxParticipantsPerMeeting != null && parts.length > maxParticipantsPerMeeting) {
       return isEducation
@@ -777,6 +783,16 @@ export default function MeetingCreateForm({
     subscriptionGate === 'payment_pending' ||
     subscriptionGate === 'trial_exhausted';
 
+  const isInterviewForm = !isEducation && summaryModeEffective === 'interview';
+  const primaryCandidate = interviewCandidates[0];
+
+  const updatePrimaryCandidate = (patch) => {
+    setInterviewCandidates((rows) => {
+      if (!rows.length) return [{ ...createEmptyInterviewCandidate(), ...patch }];
+      return rows.map((row, idx) => (idx === 0 ? { ...row, ...patch } : row));
+    });
+  };
+
   return (
     <div className={inline ? 'meetings-inline-meeting-form' : undefined}>
       {!inline && (
@@ -821,6 +837,28 @@ export default function MeetingCreateForm({
                   <p className="meeting-create-interview-title-auto">
                     Title is auto-generated from candidate and role.
                   </p>
+                )}
+
+                {isInterviewForm && interviewSurface && primaryCandidate && (
+                  <div className="meeting-create-interview-fields meeting-create-interview-fields--primary">
+                    <div className="start-meeting-field">
+                      <FieldLabel htmlFor="sm-interview-candidate-name" icon={User}>
+                        Candidate name <span className="start-meeting-required" aria-hidden>*</span>
+                      </FieldLabel>
+                      <input
+                        id="sm-interview-candidate-name"
+                        type="text"
+                        className="meeting-create-interview-input"
+                        value={primaryCandidate.name}
+                        onChange={(e) => updatePrimaryCandidate({ name: e.target.value })}
+                        placeholder="e.g. Alex Johnson"
+                        autoComplete="name"
+                        required
+                        aria-required="true"
+                        disabled={formDisabled}
+                      />
+                    </div>
+                  </div>
                 )}
 
                 {isEducation && (
@@ -881,8 +919,33 @@ export default function MeetingCreateForm({
 
           {!isEducation && (
             <>
+              {isInterviewForm && interviewSurface && primaryCandidate && (
+                <div className="meeting-create-interview-fields meeting-create-interview-fields--role">
+                  <h3 className="meeting-create-interview-section-title">Select interviewer and role</h3>
+                  <div className="start-meeting-field">
+                    <FieldLabel htmlFor="sm-interview-role" icon={Briefcase}>
+                      Role (position) <span className="start-meeting-required" aria-hidden>*</span>
+                    </FieldLabel>
+                    <input
+                      id="sm-interview-role"
+                      type="text"
+                      className="meeting-create-interview-input"
+                      value={primaryCandidate.role}
+                      onChange={(e) => updatePrimaryCandidate({ role: e.target.value })}
+                      placeholder="e.g. Senior Product Designer"
+                      autoComplete="off"
+                      required
+                      aria-required="true"
+                      disabled={formDisabled}
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="start-meeting-participants-bar">
-                <span className="start-meeting-participants-bar__label">Select people</span>
+                <span className="start-meeting-participants-bar__label">
+                  {isInterviewForm ? 'Select interviewer' : 'Select people'}
+                </span>
                 <Link to="/participants" className="start-meeting-participants-bar__add" onClick={linkClose}>
                   + Add new
                 </Link>
@@ -897,13 +960,19 @@ export default function MeetingCreateForm({
                     disabled={formDisabled}
                     aria-expanded={participantDropdownOpen}
                     aria-haspopup="listbox"
-                    aria-label="Select people from your book"
+                    aria-label={
+                      isInterviewForm
+                        ? 'Select interviewer from your participant book'
+                        : 'Select people from your book'
+                    }
                   >
                     <span className="meeting-create-participant-dd__trigger-text">
                       {selectedBookEmails.length === 0
                         ? participantBook.length === 0
                           ? 'No people in participant book yet'
-                          : 'Select people'
+                          : isInterviewForm
+                            ? 'Select interviewer'
+                            : 'Select people'
                         : `${selectedBookEmails.length} selected${
                             maxParticipantsPerMeeting != null ? ` · max ${maxParticipantsPerMeeting}` : ''
                           }`}
@@ -1076,6 +1145,62 @@ export default function MeetingCreateForm({
                   Up to {maxParticipantsPerMeeting} participants per meeting on your plan.
                 </p>
               )}
+
+              {isInterviewForm && interviewSurface && (
+                <div className="meeting-create-interview-panel meeting-create-interview-panel--surface">
+                  <div className="meeting-create-field-stack">
+                    <label className="meeting-create-interview-label" htmlFor="sm-interviewer-surface">
+                      Interviewers <span className="start-meeting-required" aria-hidden>*</span>
+                    </label>
+                    <p className="start-meeting-field-hint meeting-create-interview-panel--surface-hint">
+                      Choose who will conduct this interview from your participant book.
+                    </p>
+                    <div
+                      id="sm-interviewer-surface"
+                      className="meeting-create-interview-multi"
+                      role="group"
+                      aria-label="Select interviewers"
+                    >
+                      {interviewerOptions.length === 0 ? (
+                        <p className="meeting-create-interview-multi__empty">
+                          Add people in your participant book, then select them above.
+                        </p>
+                      ) : (
+                        interviewerOptions.map((opt) => {
+                          const checked = interviewInterviewerEmails.includes(opt.email);
+                          return (
+                            <label
+                              key={opt.email}
+                              className={`meeting-create-interview-multi__item${
+                                checked ? ' meeting-create-interview-multi__item--selected' : ''
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={(e) => {
+                                  const on = !!e.target.checked;
+                                  setInterviewInterviewerEmails((prev) => {
+                                    if (on) return prev.includes(opt.email) ? prev : [...prev, opt.email];
+                                    return prev.filter((x) => x !== opt.email);
+                                  });
+                                  if (on) {
+                                    setSelectedBookEmails((prev) =>
+                                      prev.includes(opt.email) ? prev : [...prev, opt.email]
+                                    );
+                                  }
+                                }}
+                                disabled={formDisabled}
+                              />
+                              <span>{opt.label}</span>
+                            </label>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </>
           )}
 
@@ -1203,7 +1328,7 @@ export default function MeetingCreateForm({
                                   <input
                                     type="text"
                                     className="meeting-create-interview-input"
-                                    placeholder="Candidate name"
+                                    placeholder="Candidate name *"
                                     value={c.name}
                                     onChange={(e) => {
                                       const v = e.target.value;
@@ -1212,12 +1337,14 @@ export default function MeetingCreateForm({
                                       );
                                     }}
                                     autoComplete="off"
+                                    required={interviewCandidates.indexOf(c) === 0}
+                                    aria-required={interviewCandidates.indexOf(c) === 0 ? 'true' : undefined}
                                     disabled={formDisabled}
                                   />
                                   <input
                                     type="text"
                                     className="meeting-create-interview-input"
-                                    placeholder="Role (optional)"
+                                    placeholder="Role (position) *"
                                     value={c.role}
                                     onChange={(e) => {
                                       const v = e.target.value;
@@ -1226,6 +1353,8 @@ export default function MeetingCreateForm({
                                       );
                                     }}
                                     autoComplete="off"
+                                    required={interviewCandidates.indexOf(c) === 0}
+                                    aria-required={interviewCandidates.indexOf(c) === 0 ? 'true' : undefined}
                                     disabled={formDisabled}
                                   />
                                   {interviewCandidates.length > 1 && (

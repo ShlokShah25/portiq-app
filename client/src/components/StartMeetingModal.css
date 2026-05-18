@@ -1215,6 +1215,37 @@
   line-height: 1.45;
 }
 
+.start-meeting-required {
+  color: var(--error-red);
+  font-weight: 600;
+}
+
+.meeting-create-interview-fields--primary,
+.meeting-create-interview-fields--role {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.meeting-create-interview-section-title {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
+}
+
+.meeting-create-interview-panel--surface {
+  margin-top: 16px;
+  padding-top: 0;
+  border-top: none;
+}
+
+.meeting-create-interview-panel--surface-hint {
+  margin: -6px 0 8px;
+}
+
 .meeting-create-field-stack {
   display: flex;
   flex-direction: column;
