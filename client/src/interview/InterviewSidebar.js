@@ -74,10 +74,10 @@ export default function InterviewSidebar() {
         <button
           type="button"
           className="interview-sidebar__back"
-          onClick={() => navigate('/dashboard')}
+          onClick={() => navigate('/meetings')}
         >
           <ArrowLeft size={16} strokeWidth={1.5} aria-hidden />
-          Back to workspace
+          Back to meetings
         </button>
       </div>
     </aside>
