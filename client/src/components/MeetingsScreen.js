@@ -3,6 +3,7 @@ import { useNavigate, useLocation, useOutletContext } from 'react-router-dom';
 import axios from 'axios';
 import { isEducation } from '../config/product';
 import { FEATURE_INTERVIEW_UI } from '../config/featureFlags';
+import { meetingPaths } from '../interview/useInterviewRoutes';
 import { T } from '../config/terminology';
 import { getClassrooms } from '../utils/classroomsStorage';
 import { PORTIQ_MEETINGS_HINT, PORTIQ_PRICE_ROW } from '../config/productPitch';
@@ -869,7 +870,7 @@ const MeetingsScreen = () => {
                         <button
                           type="button"
                           className="summaries-quick-btn summaries-quick-btn--primary summaries-quick-btn--link"
-                          onClick={() => navigate(`/meetings/${m._id}/summary`)}
+                          onClick={() => navigate(meetingPaths(m).report)}
                         >
                           Review Summary
                         </button>
@@ -984,7 +985,7 @@ const MeetingsScreen = () => {
                     <button
                       type="button"
                       className="btn btn-secondary"
-                      onClick={() => navigate(`/meetings/${selectedMeeting._id}/room`)}
+                      onClick={() => navigate(meetingPaths(selectedMeeting).session)}
                     >
                       {isInterviewMeeting(selectedMeeting) ? 'Start interview' : T.startMeeting()}
                     </button>
@@ -1854,13 +1855,13 @@ const MeetingsScreen = () => {
                         >
                           <div
                             className="meeting-item-main"
-                            onClick={() => navigate(`/meetings/${m._id}`)}
+                            onClick={() => navigate(meetingPaths(m).detail)}
                             role="button"
                             tabIndex={0}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter' || e.key === ' ') {
                                 e.preventDefault();
-                                navigate(`/meetings/${m._id}`);
+                                navigate(meetingPaths(m).detail);
                               }
                             }}
                           >
@@ -1946,10 +1947,15 @@ const MeetingsScreen = () => {
                   <div
                     key={m._id}
                     className={`meeting-item ${selectedMeeting && selectedMeeting._id === m._id ? 'active' : ''} ${m.summaryStatus === 'Pending Approval' && m.transcriptionStatus === 'Completed' ? 'needs-approval' : ''}`}
-                    onClick={() => navigate(`/meetings/${m._id}`)}
+                    onClick={() => navigate(meetingPaths(m).detail)}
                     role="button"
                     tabIndex={0}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/meetings/${m._id}`); } }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        navigate(meetingPaths(m).detail);
+                      }
+                    }}
                   >
                     <div className="meeting-title">
                       {m.title}

@@ -139,6 +139,8 @@ export default function MeetingCreateForm({
   maxParticipantsPerMeeting = null,
   onClose,
   onMeetingCreated,
+  /** Locked to interview mode; navigates to /interview/:id/session after create */
+  interviewSurface = false,
 }) {
   const navigate = useNavigate();
   const defaults = defaultDateTimeLocal();
@@ -184,6 +186,12 @@ export default function MeetingCreateForm({
       setSummaryMode('standard');
     }
   }, [FEATURE_INTERVIEW_UI, summaryMode]);
+
+  useEffect(() => {
+    if (interviewSurface && FEATURE_INTERVIEW_UI) {
+      setSummaryMode('interview');
+    }
+  }, [interviewSurface]);
 
   const runReset = useCallback(() => {
     try {
@@ -614,7 +622,11 @@ export default function MeetingCreateForm({
         );
         return;
       }
-      navigate(`/meetings/${idStr}`);
+      const nextPath =
+        interviewSurface && FEATURE_INTERVIEW_UI
+          ? `/interview/${idStr}/session`
+          : `/meetings/${idStr}`;
+      navigate(nextPath);
       afterCreate();
       if (onClose) onClose();
     } catch (err) {
@@ -1074,7 +1086,7 @@ export default function MeetingCreateForm({
                   </div>
                 )}
 
-                {FEATURE_INTERVIEW_UI && !isEducation && (
+                {FEATURE_INTERVIEW_UI && !isEducation && !interviewSurface && (
                   <div className="meeting-create-mode-block" role="group" aria-label="Meeting mode">
                     <span className="meeting-create-mode-block__label">Meeting mode</span>
                     <div className="meeting-create-mode-segment">

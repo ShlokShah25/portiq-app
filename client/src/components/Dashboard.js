@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import './Dashboard.css';
 import { FEATURE_INTERVIEW_UI } from '../config/featureFlags';
+import { interviewPaths } from '../interview/useInterviewRoutes';
 import { useTrialExperience } from './TrialExperienceProvider';
 import TeacherDashboard from './TeacherDashboard';
 import EducationAdminDashboard from './EducationAdminDashboard';
@@ -508,7 +509,8 @@ const Dashboard = () => {
                     Interview pipeline
                   </h2>
                   <p className="dashboard-interview-pipeline__sub">
-                    Finalize hiring decisions and keep recent outcomes visible.
+                    Finalize hiring decisions and keep recent outcomes visible.{' '}
+                    <Link to="/interview">Open Interview workspace →</Link>
                   </p>
             </div>
                 <div className="dashboard-head-actions">
@@ -535,7 +537,7 @@ const Dashboard = () => {
                       return (
                         <li key={id}>
                           <Link
-                            to={`/meetings/${id}/summary`}
+                            to={interviewPaths(id).report}
                             className="dashboard-interview-pipeline__row dashboard-interview-pipeline__row--pending"
                           >
                             <span className="dashboard-interview-pipeline__row-main">
@@ -583,7 +585,7 @@ const Dashboard = () => {
                       return (
                         <li key={id}>
                           <Link
-                            to={`/meetings/${id}/summary`}
+                            to={interviewPaths(id).report}
                             className="dashboard-interview-pipeline__row dashboard-interview-pipeline__row--resolved"
                           >
                             <span className="dashboard-interview-pipeline__row-main">

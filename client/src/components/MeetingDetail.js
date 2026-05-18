@@ -4,6 +4,7 @@ import axios from 'axios';
 import { Video, Mic, Bot } from 'lucide-react';
 import { T } from '../config/terminology';
 import { FEATURE_INTERVIEW_UI } from '../config/featureFlags';
+import { meetingPaths } from '../interview/useInterviewRoutes';
 import MeetingStatusBadge from './MeetingStatusBadge';
 import { GoogleCalendarLogo, OutlookLogo } from './CalendarBrandIcons';
 import { isOnlineMeeting } from '../utils/meetingDisplayStatus';
@@ -152,7 +153,7 @@ const MeetingDetail = () => {
     setStartRoomLoading(true);
     try {
       await axios.post(`/meetings/${id}/start`);
-      navigate(`/meetings/${id}/room`);
+      navigate(paths.session);
     } catch (err) {
       const d = err.response?.data;
       setStartRoomError(
@@ -211,7 +212,7 @@ const MeetingDetail = () => {
       setFollowUpOpen(false);
       await fetchMeeting();
       if (nextId) {
-        navigate(`/meetings/${nextId}`);
+        navigate(meetingPaths({ _id: nextId, summaryMode: meeting.summaryMode }).detail);
       }
     } catch (err) {
       setFollowUpError(
@@ -251,6 +252,7 @@ const MeetingDetail = () => {
   const isInProgress = meeting.status === 'In Progress';
   const isCompleted = meeting.status === 'Completed';
   const isInterview = FEATURE_INTERVIEW_UI && meeting.summaryMode === 'interview';
+  const paths = meetingPaths(meeting);
   const online = isOnlineMeeting(meeting);
   const prov = String(meeting.conferenceProvider || '').toLowerCase();
   const platformLabel =
@@ -333,10 +335,10 @@ const MeetingDetail = () => {
               )}
               <a
                 className="meeting-detail-continuation-link"
-                href={`/meetings/${parentCont._id}`}
+                href={meetingPaths({ _id: parentCont._id, summaryMode: meeting.summaryMode }).detail}
                 onClick={(e) => {
                   e.preventDefault();
-                  navigate(`/meetings/${parentCont._id}`);
+                  navigate(meetingPaths({ _id: parentCont._id, summaryMode: meeting.summaryMode }).detail);
                 }}
               >
                 View previous meeting →
@@ -354,10 +356,10 @@ const MeetingDetail = () => {
               </p>
               <a
                 className="meeting-detail-continuation-link meeting-detail-continuation-link--block"
-                href={`/meetings/${followCont._id}`}
+                href={meetingPaths({ _id: followCont._id, summaryMode: meeting.summaryMode }).detail}
                 onClick={(e) => {
                   e.preventDefault();
-                  navigate(`/meetings/${followCont._id}`);
+                  navigate(meetingPaths({ _id: followCont._id, summaryMode: meeting.summaryMode }).detail);
                 }}
               >
                 Open follow-up →
@@ -528,7 +530,7 @@ const MeetingDetail = () => {
               <button
                 type="button"
                 className="meeting-detail-btn meeting-detail-btn--primary"
-                onClick={() => navigate(`/meetings/${id}/room`)}
+                onClick={() => navigate(paths.session)}
               >
                 Open meeting
               </button>
@@ -546,7 +548,7 @@ const MeetingDetail = () => {
               <button
                 type="button"
                 className="meeting-detail-btn meeting-detail-btn--primary"
-                onClick={() => navigate(`/meetings/${id}/summary`)}
+                onClick={() => navigate(paths.report)}
               >
                 View {T.meetingSummary()}
               </button>
@@ -555,7 +557,7 @@ const MeetingDetail = () => {
               <button
                 type="button"
                 className="meeting-detail-btn meeting-detail-btn--primary"
-                onClick={() => navigate(`/meetings/${id}/summary`, { state: { approve: true } })}
+                onClick={() => navigate(paths.report, { state: { approve: true } })}
               >
                 {isInterview ? 'Review & finalize decision' : 'Review & send summary'}
               </button>
@@ -569,7 +571,7 @@ const MeetingDetail = () => {
                 <button
                   type="button"
                   className="meeting-detail-btn meeting-detail-btn--primary"
-                  onClick={() => navigate(`/meetings/${id}/summary`)}
+                  onClick={() => navigate(paths.report)}
                 >
                   Open {T.meetingSummary()} page
                 </button>
@@ -592,7 +594,7 @@ const MeetingDetail = () => {
                 <button
                   type="button"
                   className="meeting-detail-btn meeting-detail-btn--secondary"
-                  onClick={() => navigate(`/meetings/${id}/summary`)}
+                  onClick={() => navigate(paths.report)}
                 >
                   Open {T.meetingSummary()} page
                 </button>

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { T } from '../config/terminology';
 import { FEATURE_INTERVIEW_UI } from '../config/featureFlags';
+import useInterviewRoutes, { meetingPaths } from '../interview/useInterviewRoutes';
 import { formatApiError } from '../utils/apiErrorMessage';
 import { isEducation } from '../config/product';
 import './MeetingSummary.css';
@@ -183,6 +184,7 @@ function getLiveTranscriptUiError(err) {
 const MeetingInProgress = () => {
   const { id: meetingId } = useParams();
   const navigate = useNavigate();
+  const { isInterviewSurface } = useInterviewRoutes();
   const [meetingEnded, setMeetingEnded] = useState(false);
   const [meeting, setMeeting] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -720,9 +722,9 @@ const MeetingInProgress = () => {
             type="button"
             className="meeting-summary-btn meeting-summary-btn--secondary"
             style={{ marginTop: 16 }}
-            onClick={() => navigate('/meetings')}
+            onClick={() => navigate(isInterviewSurface ? '/interview' : '/meetings')}
           >
-            Back to {T.meetings()}
+            {isInterviewSurface ? 'Back to Interview Mode' : `Back to ${T.meetings()}`}
           </button>
         </div>
       </div>
@@ -738,9 +740,9 @@ const MeetingInProgress = () => {
             type="button"
             className="meeting-summary-btn meeting-summary-btn--secondary"
             style={{ marginTop: 16 }}
-            onClick={() => navigate('/meetings')}
+            onClick={() => navigate(isInterviewSurface ? '/interview' : '/meetings')}
           >
-            Back to {T.meetings()}
+            {isInterviewSurface ? 'Back to Interview Mode' : `Back to ${T.meetings()}`}
           </button>
         </div>
       </div>
@@ -748,7 +750,9 @@ const MeetingInProgress = () => {
   }
 
   const recordingLive = recording || isGlobalRecordingActive();
-  const isInterview = FEATURE_INTERVIEW_UI && meeting?.summaryMode === 'interview';
+  const isInterview =
+    FEATURE_INTERVIEW_UI && (meeting?.summaryMode === 'interview' || isInterviewSurface);
+  const interviewRoutePaths = meeting ? meetingPaths(meeting) : null;
   const meetingEducationMode = meetingHasEducationContext(meeting) || isEducation;
   const meetingLocationTrimmed = meeting ? String(meeting.meetingRoom || '').trim() : '';
   const hasMeetingLocation = meetingLocationTrimmed.length > 0;
@@ -794,14 +798,14 @@ const MeetingInProgress = () => {
                 <button
                   type="button"
                   className="meeting-summary-btn meeting-summary-btn--primary"
-                  onClick={() => navigate(`/meetings/${meetingId}/summary`)}
+                  onClick={() => navigate(interviewRoutePaths?.report || `/meetings/${meetingId}/summary`)}
                 >
                   {isInterview ? 'View interview summary & recommendations' : `View ${T.meetingSummary()}`}
                 </button>
                 <button
                   type="button"
                   className="meeting-summary-btn meeting-summary-btn--secondary"
-                  onClick={() => navigate(`/meetings/${meetingId}`)}
+                  onClick={() => navigate(interviewRoutePaths?.detail || `/meetings/${meetingId}`)}
                 >
                   Back to {T.meeting()} details
                 </button>
@@ -1092,9 +1096,17 @@ const MeetingInProgress = () => {
                 <button
                   type="button"
                   className="mip-secondary-row__link"
-                  onClick={() => navigate('/meetings', { state: { showAllMeetings: true } })}
+                  onClick={() =>
+                    navigate(isInterview ? '/interview' : '/meetings', {
+                      state: isInterview ? undefined : { showAllMeetings: true },
+                    })
+                  }
                 >
-                  {meetingEducationMode ? 'View all lectures' : 'View all meetings'}
+                  {isInterview
+                    ? 'View all interviews'
+                    : meetingEducationMode
+                      ? 'View all lectures'
+                      : 'View all meetings'}
                 </button>
                 <p className="mip-ai-disclaimer mip-ai-disclaimer--footer">
                   Audio is captured in your browser. Stopping recording or ending uploads audio for your transcript.

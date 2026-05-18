@@ -3,6 +3,9 @@ import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import Sidebar from './Sidebar';
 import TrialExperienceProvider from './TrialExperienceProvider';
+import { FEATURE_INTERVIEW_UI } from '../config/featureFlags';
+import InterviewSidebar from '../interview/InterviewSidebar';
+import '../interview/InterviewMode.css';
 import './AppShell.css';
 
 /**
@@ -120,10 +123,13 @@ export default function ProtectedLayout({ config }) {
     );
   }
 
+  const isInterviewRoute =
+    FEATURE_INTERVIEW_UI && (location.pathname === '/interview' || location.pathname.startsWith('/interview/'));
+
   return (
     <TrialExperienceProvider>
-      <div className="app-shell">
-        <Sidebar />
+      <div className={`app-shell${isInterviewRoute ? ' app-shell--interview' : ''}`}>
+        {isInterviewRoute ? <InterviewSidebar /> : <Sidebar />}
         <main className="app-shell__main" id="app-main" ref={mainRef} onKeyDown={onMainKeyDown}>
           <Outlet context={{ config }} />
         </main>

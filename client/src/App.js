@@ -47,6 +47,12 @@ const Settings = lazyWithRetry(() => import('./components/Settings'), 'settings'
 const MeetingInProgress = lazyWithRetry(() => import('./components/MeetingInProgress'), 'meeting-room');
 const MeetingDetail = lazyWithRetry(() => import('./components/MeetingDetail'), 'meeting-detail');
 const MeetingSummary = lazyWithRetry(() => import('./components/MeetingSummary'), 'meeting-summary');
+const InterviewDashboard = lazyWithRetry(() => import('./interview/InterviewDashboard'), 'interview-dashboard');
+const InterviewCreatePage = lazyWithRetry(() => import('./interview/InterviewCreatePage'), 'interview-create');
+const InterviewDetailPage = lazyWithRetry(() => import('./interview/InterviewDetailPage'), 'interview-detail');
+const InterviewSessionPage = lazyWithRetry(() => import('./interview/InterviewSessionPage'), 'interview-session');
+const InterviewReportPage = lazyWithRetry(() => import('./interview/InterviewReportPage'), 'interview-report');
+const InterviewGate = lazyWithRetry(() => import('./interview/InterviewGate'), 'interview-gate');
 const ClientAdmin = lazyWithRetry(() => import('./components/ClientAdmin'), 'client-admin');
 const BootupScreen = lazyWithRetry(() => import('./components/BootupScreen'), 'bootup');
 const AdminLogin = lazyWithRetry(() => import('./components/AdminLogin'), 'admin-login');
@@ -182,6 +188,13 @@ function App() {
                 <Route path=":id/summary" element={<MeetingSummary />} />
                 <Route path=":id/room" element={<MeetingInProgress />} />
                 <Route path=":id" element={<MeetingDetail />} />
+              </Route>
+              <Route path="interview" element={<InterviewGate />}>
+                <Route index element={<InterviewDashboard />} />
+                <Route path="new" element={<InterviewCreatePage />} />
+                <Route path=":id" element={<InterviewDetailPage />} />
+                <Route path=":id/session" element={<InterviewSessionPage />} />
+                <Route path=":id/report" element={<InterviewReportPage />} />
               </Route>
               <Route path="transcripts" element={<Transcripts />} />
               <Route path="participants" element={<Participants />} />

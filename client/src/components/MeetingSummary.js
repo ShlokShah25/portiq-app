@@ -435,7 +435,7 @@ const MeetingSummary = () => {
               ? 'Lecture notes were saved. Emails could not be sent (check mail configuration).'
               : 'Summary approved and saved. Emails could not be sent (check mail configuration).');
       alert(msg);
-      navigate('/meetings');
+      navigate(isInterview ? '/interview' : '/meetings');
     } catch (err) {
       const d = err.response?.data;
       setActionError(
