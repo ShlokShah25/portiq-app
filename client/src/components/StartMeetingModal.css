@@ -326,6 +326,8 @@
 .start-meeting-btn--primary {
   background: var(--accent-blue);
   color: #fff;
+  -webkit-text-fill-color: #fff;
+  fill: #fff;
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: var(--shadow-glow-blue);
 }
@@ -346,7 +348,12 @@
 }
 
 .start-meeting-btn--primary:disabled {
-  opacity: 0.45;
+  opacity: 1;
+  background: rgba(37, 99, 235, 0.62);
+  color: #fff;
+  -webkit-text-fill-color: #fff;
+  fill: #fff;
+  box-shadow: none;
   cursor: not-allowed;
 }
 
