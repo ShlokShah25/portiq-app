@@ -121,7 +121,6 @@ function resetAllState(setters) {
   setters.setLoading(false);
   setters.setVoiceRecognitionEnabled(false);
   if (setters.setOptionalDetailsOpen) setters.setOptionalDetailsOpen(false);
-  if (setters.setSummaryMode) setters.setSummaryMode('standard');
   if (setters.setInterviewInterviewerEmails) setters.setInterviewInterviewerEmails([]);
   if (setters.setInterviewCandidates) {
     setters.setInterviewCandidates([createEmptyInterviewCandidate()]);
@@ -171,28 +170,16 @@ export default function MeetingCreateForm({
   const [participantSearchQuery, setParticipantSearchQuery] = useState('');
   const participantDropdownRef = useRef(null);
   const [optionalDetailsOpen, setOptionalDetailsOpen] = useState(false);
-  const [summaryMode, setSummaryMode] = useState('standard');
   const [interviewInterviewerEmails, setInterviewInterviewerEmails] = useState([]);
   const [interviewCandidates, setInterviewCandidates] = useState(() => [
     createEmptyInterviewCandidate(),
   ]);
 
+  /** Interview pipeline only on /interview, never from the meetings create form. */
   const summaryModeEffective = useMemo(
-    () => (FEATURE_INTERVIEW_UI && summaryMode === 'interview' ? 'interview' : 'standard'),
-    [summaryMode]
+    () => (interviewSurface && FEATURE_INTERVIEW_UI && !isEducation ? 'interview' : 'standard'),
+    [interviewSurface, isEducation]
   );
-
-  useEffect(() => {
-    if (!FEATURE_INTERVIEW_UI && summaryMode === 'interview') {
-      setSummaryMode('standard');
-    }
-  }, [FEATURE_INTERVIEW_UI, summaryMode]);
-
-  useEffect(() => {
-    if (interviewSurface && FEATURE_INTERVIEW_UI) {
-      setSummaryMode('interview');
-    }
-  }, [interviewSurface]);
 
   const runReset = useCallback(() => {
     try {
@@ -221,7 +208,6 @@ export default function MeetingCreateForm({
       setLoading,
       setVoiceRecognitionEnabled,
       setOptionalDetailsOpen,
-      setSummaryMode,
       setInterviewInterviewerEmails,
       setInterviewCandidates,
     });
@@ -1208,222 +1194,6 @@ export default function MeetingCreateForm({
                 {voiceSuccessMessage && !error && (
                   <div className="success-message" role="status">
                     {voiceSuccessMessage}
-                  </div>
-                )}
-
-                {FEATURE_INTERVIEW_UI && !isEducation && !interviewSurface && (
-                  <div className="meeting-create-mode-block" role="group" aria-label="Meeting mode">
-                    <span className="meeting-create-mode-block__label">Meeting mode</span>
-                    <div className="meeting-create-mode-segment">
-                      <label className="meeting-create-mode-option">
-                        <input
-                          type="radio"
-                          name="portiq-summary-mode"
-                          value="standard"
-                          checked={summaryModeEffective === 'standard'}
-                          onChange={() => setSummaryMode('standard')}
-                          disabled={formDisabled}
-                        />
-                        <span>Standard</span>
-                      </label>
-                      <label className="meeting-create-mode-option">
-                        <input
-                          type="radio"
-                          name="portiq-summary-mode"
-                          value="interview"
-                          checked={summaryModeEffective === 'interview'}
-                          onChange={() => setSummaryMode('interview')}
-                          disabled={formDisabled}
-                        />
-                        <span>Interview</span>
-                      </label>
-                    </div>
-                    {summaryModeEffective === 'interview' && (
-                      <div className="meeting-create-interview-panel">
-                        <p className="meeting-create-interview-lead">
-                          Interviewers come from your <strong>participant book</strong> (auto-added to selected people).
-                          Candidates are only for
-                          this meeting — they are <strong>not</strong> added to your participant book. Configure voice
-                          for the interviewer in <strong>Configure voice</strong> above when needed.
-                        </p>
-                        <div className="meeting-create-field-stack">
-                          <label className="meeting-create-interview-label" htmlFor="sm-interviewer">
-                            Interviewers (conducting the interview)
-                          </label>
-                          <div
-                            id="sm-interviewer"
-                            className="meeting-create-interview-multi"
-                            role="group"
-                            aria-label="Select interviewers"
-                          >
-                            {interviewerOptions.length === 0 ? (
-                              <p className="meeting-create-interview-multi__empty">
-                                No people in participant book yet
-                              </p>
-                            ) : (
-                              interviewerOptions.map((opt) => {
-                                const checked = interviewInterviewerEmails.includes(opt.email);
-                                return (
-                                  <label
-                                    key={opt.email}
-                                    className={`meeting-create-interview-multi__item${
-                                      checked ? ' meeting-create-interview-multi__item--selected' : ''
-                                    }`}
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={checked}
-                                      onChange={(e) => {
-                                        const on = !!e.target.checked;
-                                        setInterviewInterviewerEmails((prev) => {
-                                          if (on) return prev.includes(opt.email) ? prev : [...prev, opt.email];
-                                          return prev.filter((x) => x !== opt.email);
-                                        });
-                                        if (on) {
-                                          setSelectedBookEmails((prev) =>
-                                            prev.includes(opt.email) ? prev : [...prev, opt.email]
-                                          );
-                                        }
-                                      }}
-                                      disabled={formDisabled}
-                                    />
-                                    <span>{opt.label}</span>
-                                  </label>
-                                );
-                              })
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="meeting-create-interview-candidates-head">
-                          <span className="meeting-create-interview-label">Candidates (this meeting only)</span>
-                          <button
-                            type="button"
-                            className="meeting-create-interview-add-candidate"
-                            onClick={() =>
-                              setInterviewCandidates((rows) => [...rows, createEmptyInterviewCandidate()])
-                            }
-                            disabled={formDisabled || interviewCandidates.length >= 12}
-                          >
-                            <Plus size={16} strokeWidth={2} aria-hidden /> Add candidate
-                          </button>
-                        </div>
-
-                        <ul className="meeting-create-interview-candidate-list">
-                          {interviewCandidates.map((c) => {
-                            const ve = String(c.voiceEmail || '').trim().toLowerCase();
-                            const hasVoice = !!voiceProfiles[ve]?.hasProfile;
-                            const rec = recordingEmail === ve;
-                            const nm = String(c.name || '').trim() || 'Candidate';
-                            const participantPayload = { name: nm, email: ve };
-                            return (
-                              <li key={c.id} className="meeting-create-interview-candidate-card">
-                                <div
-                                  className={`meeting-create-interview-candidate-grid${
-                                    interviewCandidates.length > 1
-                                      ? ' meeting-create-interview-candidate-grid--many'
-                                      : ''
-                                  }`}
-                                >
-                                  <input
-                                    type="text"
-                                    className="meeting-create-interview-input"
-                                    placeholder="Candidate name *"
-                                    value={c.name}
-                                    onChange={(e) => {
-                                      const v = e.target.value;
-                                      setInterviewCandidates((rows) =>
-                                        rows.map((row) => (row.id === c.id ? { ...row, name: v } : row))
-                                      );
-                                    }}
-                                    autoComplete="off"
-                                    required={interviewCandidates.indexOf(c) === 0}
-                                    aria-required={interviewCandidates.indexOf(c) === 0 ? 'true' : undefined}
-                                    disabled={formDisabled}
-                                  />
-                                  <input
-                                    type="text"
-                                    className="meeting-create-interview-input"
-                                    placeholder="Role (position) *"
-                                    value={c.role}
-                                    onChange={(e) => {
-                                      const v = e.target.value;
-                                      setInterviewCandidates((rows) =>
-                                        rows.map((row) => (row.id === c.id ? { ...row, role: v } : row))
-                                      );
-                                    }}
-                                    autoComplete="off"
-                                    required={interviewCandidates.indexOf(c) === 0}
-                                    aria-required={interviewCandidates.indexOf(c) === 0 ? 'true' : undefined}
-                                    disabled={formDisabled}
-                                  />
-                                  {interviewCandidates.length > 1 && (
-                                    <button
-                                      type="button"
-                                      className="meeting-create-interview-remove"
-                                      title="Remove candidate"
-                                      aria-label="Remove candidate"
-                                      onClick={() =>
-                                        setInterviewCandidates((rows) =>
-                                          rows.filter((row) => row.id !== c.id)
-                                        )
-                                      }
-                                      disabled={formDisabled}
-                                    >
-                                      <Trash2 size={18} strokeWidth={2} aria-hidden />
-                                    </button>
-                                  )}
-                                </div>
-                                <div className="meeting-create-interview-candidate-voice">
-                                  <div className="meeting-create-voice-row__head meeting-create-voice-row__head--compact">
-                                    <span className="meeting-create-voice-row__name">Voice (optional)</span>
-                                    {hasVoice ? (
-                                      <span className="meeting-create-voice-row__badge meeting-create-voice-row__badge--ok">
-                                        <Mic size={14} strokeWidth={2} aria-hidden /> Configured
-                                      </span>
-                                    ) : (
-                                      <span className="meeting-create-voice-row__badge">
-                                        <CircleDashed size={14} strokeWidth={2} aria-hidden /> Not configured
-                                      </span>
-                                    )}
-                                  </div>
-                                  <p className="meeting-create-voice-row__phrase meeting-create-voice-row__phrase--compact">
-                                    {voiceEnrollmentSentenceForParticipant(nm)}
-                                  </p>
-                                  <div className="meeting-create-voice-row__actions">
-                                    {!rec ? (
-                                      <button
-                                        type="button"
-                                        className="start-meeting-btn start-meeting-btn--ghost meeting-create-voice-btn"
-                                        disabled={formDisabled || voiceUploading || !ve}
-                                        onClick={() => startVoiceRecording(participantPayload)}
-                                      >
-                                        <Mic size={16} aria-hidden />
-                                        {hasVoice ? 'Re-record' : 'Record sample'}
-                                      </button>
-                                    ) : (
-                                      <button
-                                        type="button"
-                                        className="start-meeting-btn start-meeting-btn--primary meeting-create-voice-btn"
-                                        onClick={stopVoiceRecording}
-                                        disabled={voiceUploading}
-                                      >
-                                        <Square size={14} aria-hidden />
-                                        Stop & upload
-                                      </button>
-                                    )}
-                                    {rec && <span className="meeting-create-voice-row__rec">Recording…</span>}
-                                    {voiceUploading && recordingEmail === ve && (
-                                      <span className="meeting-create-voice-row__rec">Uploading…</span>
-                                    )}
-                                  </div>
-                                </div>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      </div>
-                    )}
                   </div>
                 )}
 
