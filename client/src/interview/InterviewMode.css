@@ -168,10 +168,29 @@
   min-height: 100%;
   padding: 28px 32px 48px;
   max-width: 1200px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+  .interview-page {
+    padding: 20px 16px 40px;
+  }
 }
 
 .interview-page__hero {
   margin-bottom: 28px;
+}
+
+.interview-page__hero--create {
+  margin-bottom: 20px;
+}
+
+.interview-page__nav {
+  margin: 0 0 20px;
+}
+
+.interview-page__nav .interview-btn--ghost {
+  margin: 0;
 }
 
 .interview-page__eyebrow {
@@ -183,7 +202,19 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--interview-accent);
-  margin-bottom: 8px;
+  margin: 0 0 10px;
+}
+
+.interview-page__processing-note {
+  margin: 14px 0 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--interview-border);
+  background: var(--dash-chip-bg, var(--surface-nested));
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--interview-text-muted);
+  max-width: 56ch;
 }
 
 .interview-page__title {
@@ -228,14 +259,47 @@
 .interview-btn--primary {
   background: var(--accent-blue);
   color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+  fill: #ffffff;
   border-color: transparent;
   box-shadow: var(--shadow-glow-blue);
 }
 
-.interview-btn--primary:hover {
+.interview-btn--primary:hover,
+.interview-btn--primary:focus-visible {
   background: var(--accent-primary-hover, var(--accent-hover));
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+  fill: #ffffff;
   filter: none;
   box-shadow: var(--shadow-glow-blue);
+}
+
+/* React Router <Link> — global .App a uses --link-color (dark blue on light theme) */
+.App .app-shell--interview a.interview-btn--primary,
+.app-shell--interview a.interview-btn--primary {
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+}
+
+.App .app-shell--interview a.interview-btn--primary:hover,
+.App .app-shell--interview a.interview-btn--primary:focus-visible,
+.app-shell--interview a.interview-btn--primary:hover,
+.app-shell--interview a.interview-btn--primary:focus-visible {
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+}
+
+.App .app-shell--interview a.interview-btn--secondary,
+.app-shell--interview a.interview-btn--secondary {
+  color: var(--interview-text);
+}
+
+.App .app-shell--interview a.interview-btn--secondary:hover,
+.app-shell--interview a.interview-btn--secondary:focus-visible,
+.app-shell--interview a.interview-btn--secondary:hover,
+.app-shell--interview a.interview-btn--secondary:focus-visible {
+  color: var(--interview-text);
 }
 
 .interview-btn--secondary {
@@ -614,6 +678,43 @@
 }
 
 /* Create form on interview surface */
+.interview-create-wrap .meetings-inline-meeting-form {
+  margin-top: 4px;
+}
+
+.interview-create-wrap .meeting-create-primary-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.interview-create-wrap .meeting-create-interview-fields--primary,
+.interview-create-wrap .meeting-create-interview-fields--role {
+  margin-bottom: 16px;
+}
+
+.interview-create-wrap .meeting-create-interview-title-auto {
+  margin-bottom: 16px;
+}
+
+.interview-create-wrap .start-meeting-participants-bar {
+  margin-top: 4px;
+  margin-bottom: 8px;
+}
+
+.interview-create-wrap .meeting-create-interview-panel--surface {
+  margin-top: 12px;
+  margin-bottom: 8px;
+}
+
+.interview-create-wrap .meeting-create-primary-actions {
+  margin-top: 20px;
+}
+
+.interview-create-wrap .meeting-create-optional-block {
+  margin-top: 24px;
+}
+
 .interview-create-wrap .start-meeting-modal__panel,
 .interview-create-wrap .start-meeting-form--inline {
   background: var(--surface-card);
