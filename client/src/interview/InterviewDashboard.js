@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
 import { ChevronRight, Briefcase, UserCheck, FileWarning, CheckCircle2 } from 'lucide-react';
 import { interviewPaths } from './useInterviewRoutes';
 import {
@@ -11,7 +10,10 @@ import {
   isInterviewDecisionPending,
   interviewRosterRows,
   meetingIdStr,
+  fetchInterviewMeetings,
+  sortInterviewsByRecent,
 } from './interviewUtils';
+import InterviewSessionList from './InterviewSessionList';
 import './InterviewMode.css';
 
 function isLiveInterview(m) {
@@ -28,14 +30,10 @@ export default function InterviewDashboard() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      try {
-        const res = await axios.get('/meetings');
-        const list = Array.isArray(res.data?.meetings) ? res.data.meetings : [];
-        if (!cancelled) setMeetings(list.filter((m) => m.summaryMode === 'interview'));
-      } catch (err) {
-        if (!cancelled) setMeetings([]);
-      } finally {
-        if (!cancelled) setLoading(false);
+      const list = await fetchInterviewMeetings();
+      if (!cancelled) {
+        setMeetings(list);
+        setLoading(false);
       }
     })();
     return () => {
@@ -56,10 +54,12 @@ export default function InterviewDashboard() {
           const ta = new Date(a.interviewDecisionAt || a.updatedAt || 0).getTime();
           const tb = new Date(b.interviewDecisionAt || b.updatedAt || 0).getTime();
           return tb - ta;
-        }),
+        })
+        .slice(0, 8),
     [meetings]
   );
-  const recent = useMemo(() => [...meetings].sort(byRecent).slice(0, 12), [meetings]);
+  const recent = useMemo(() => meetings.slice(0, 8), [meetings]);
+  const recentPreview = recent;
   const candidates = useMemo(() => {
     const map = new Map();
     meetings.forEach((m) => {
@@ -194,7 +194,7 @@ export default function InterviewDashboard() {
           <h2 id="iv-recent" className="interview-card__title" style={{ marginBottom: 12 }}>
             Recent interviews
           </h2>
-          {recent.length === 0 ? (
+          {recentPreview.length === 0 ? (
             <div className="interview-empty">
               <p className="interview-empty__title">No interviews yet</p>
               <p>Start your first structured interview to build candidate evaluations.</p>
@@ -203,41 +203,16 @@ export default function InterviewDashboard() {
               </Link>
             </div>
           ) : (
-            <ul className="interview-list">
-              {recent.map((m) => {
-                const id = meetingIdStr(m);
-                const paths = interviewPaths(id);
-                const status = interviewStatusLabel(m);
-                const href =
-                  status === 'Live'
-                    ? paths.session
-                    : status === 'Needs decision' || status === 'Draft ready'
-                      ? paths.report
-                      : paths.detail;
-                return (
-                  <li key={id}>
-                    <Link to={href} className="interview-list__row">
-                      <span className="interview-list__row-main">
-                        <span className="interview-list__row-title">{m.title || 'Interview'}</span>
-                        <span className="interview-list__row-meta">{interviewCandidateSubtitle(m)}</span>
-                      </span>
-                      <span
-                        className={`interview-status-pill${
-                          status === 'Live'
-                            ? ' interview-status-pill--live'
-                            : status === 'Needs decision'
-                              ? ' interview-status-pill--pending'
-                              : ''
-                        }`}
-                      >
-                        {status}
-                      </span>
-                      <ChevronRight size={16} aria-hidden />
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
+            <>
+              <InterviewSessionList meetings={recentPreview} />
+              {meetings.length > recentPreview.length ? (
+                <p className="interview-sessions-view-all">
+                  <Link to="/interview/sessions" className="interview-btn interview-btn--ghost">
+                    View all {meetings.length} sessions
+                  </Link>
+                </p>
+              ) : null}
+            </>
           )}
         </section>
 
@@ -276,7 +251,7 @@ export default function InterviewDashboard() {
             Completed · reopen reports
           </h2>
           <ul className="interview-list">
-            {finalized.slice(0, 8).map((m) => {
+            {finalized.map((m) => {
               const id = meetingIdStr(m);
               const paths = interviewPaths(id);
               const verdict = hiringVerdictShort(m);
@@ -297,6 +272,13 @@ export default function InterviewDashboard() {
               );
             })}
           </ul>
+          {meetings.filter((m) => m.summaryStatus === 'Sent').length > finalized.length ? (
+            <p className="interview-sessions-view-all">
+              <Link to="/interview/sessions" className="interview-btn interview-btn--ghost">
+                View all finalized sessions
+              </Link>
+            </p>
+          ) : null}
         </section>
       ) : null}
     </div>
@@ -304,7 +286,5 @@ export default function InterviewDashboard() {
 }
 
 function byRecent(a, b) {
-  const ta = new Date(a.updatedAt || a.endTime || a.startTime || 0).getTime();
-  const tb = new Date(b.updatedAt || b.endTime || b.startTime || 0).getTime();
-  return tb - ta;
+  return sortInterviewsByRecent(a, b);
 }

@@ -2,6 +2,8 @@
  * Shared helpers for Interview Mode UI (workplace hiring surface).
  */
 
+import axios from 'axios';
+
 export function meetingIdStr(m) {
   const id = m?._id ?? m?.id;
   return id != null ? String(id) : '';
@@ -51,9 +53,9 @@ export function hiringVerdictShort(m) {
   const h = String(m?.hiringRecommendation || m?.pendingHiringRecommendation || '').trim();
   if (!h) return '';
   if (/strong/i.test(h)) return 'Strong Hire';
-  if (/lean hire/i.test(h)) return 'Hire';
   if (/no hire/i.test(h)) return 'No Hire';
   if (/neutral/i.test(h)) return 'Neutral';
+  if (/lean hire/i.test(h) || (/\bhire\b/i.test(h) && !/no/i.test(h))) return 'Hire';
   return h;
 }
 
@@ -66,8 +68,46 @@ export function hiringVerdictClass(m) {
   return 'interview-verdict--muted';
 }
 
+/** True for interview pipeline meetings (includes legacy rows missing summaryMode). */
+export function isInterviewMeetingRecord(m) {
+  if (!m) return false;
+  if (m.summaryMode === 'interview') return true;
+  if (interviewRosterRows(m).length > 0) return true;
+  if (String(m.interviewInterviewerEmail || '').trim()) return true;
+  if (Array.isArray(m.interviewInterviewerEmails) && m.interviewInterviewerEmails.length > 0) {
+    return true;
+  }
+  return false;
+}
+
+export function sortInterviewsByRecent(a, b) {
+  const ta = new Date(a.updatedAt || a.endTime || a.startTime || 0).getTime();
+  const tb = new Date(b.updatedAt || b.endTime || b.startTime || 0).getTime();
+  return tb - ta;
+}
+
+/** Load all interview sessions (server filters + client safety net for legacy rows). */
+export async function fetchInterviewMeetings() {
+  let list = [];
+  try {
+    const res = await axios.get('/meetings', { params: { summaryMode: 'interview' } });
+    list = Array.isArray(res.data?.meetings) ? res.data.meetings : [];
+  } catch (_) {
+    /* fall through */
+  }
+  if (list.length === 0) {
+    try {
+      const res = await axios.get('/meetings');
+      list = Array.isArray(res.data?.meetings) ? res.data.meetings : [];
+    } catch (_) {
+      return [];
+    }
+  }
+  return list.filter(isInterviewMeetingRecord).sort(sortInterviewsByRecent);
+}
+
 export function isInterviewDecisionPending(m) {
-  if (m?.summaryMode !== 'interview') return false;
+  if (!isInterviewMeetingRecord(m)) return false;
   if (m.transcriptionStatus === 'Failed') return false;
   if (m.transcriptionStatus !== 'Completed') return false;
   if (m.summaryStatus === 'Sent') return false;

@@ -18,11 +18,10 @@ const NAV = [
     icon: PlusCircle,
   },
   {
-    id: 'candidates',
+    id: 'sessions',
     label: 'All sessions',
-    path: '/interview',
+    path: '/interview/sessions',
     icon: Users,
-    hash: '#sessions',
   },
 ];
 
@@ -33,6 +32,9 @@ export default function InterviewSidebar() {
   const isActive = (item) => {
     if (item.id === 'new') {
       return location.pathname === '/interview/new';
+    }
+    if (item.id === 'sessions') {
+      return location.pathname === '/interview/sessions';
     }
     if (item.end) {
       return location.pathname === '/interview' || location.pathname === '/interview/';
@@ -56,7 +58,7 @@ export default function InterviewSidebar() {
         {NAV.map((item) => {
           const Icon = item.icon;
           const active = isActive(item);
-          const to = item.hash ? { pathname: item.path, hash: item.hash } : item.path;
+          const to = item.path;
           return (
             <Link
               key={item.id}

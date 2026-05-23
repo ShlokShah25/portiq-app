@@ -52,6 +52,7 @@ const InterviewCreatePage = lazyWithRetry(() => import('./interview/InterviewCre
 const InterviewDetailPage = lazyWithRetry(() => import('./interview/InterviewDetailPage'), 'interview-detail');
 const InterviewSessionPage = lazyWithRetry(() => import('./interview/InterviewSessionPage'), 'interview-session');
 const InterviewReportPage = lazyWithRetry(() => import('./interview/InterviewReportPage'), 'interview-report');
+const InterviewSessionsPage = lazyWithRetry(() => import('./interview/InterviewSessionsPage'), 'interview-sessions');
 const InterviewGate = lazyWithRetry(() => import('./interview/InterviewGate'), 'interview-gate');
 const ClientAdmin = lazyWithRetry(() => import('./components/ClientAdmin'), 'client-admin');
 const BootupScreen = lazyWithRetry(() => import('./components/BootupScreen'), 'bootup');
@@ -191,6 +192,7 @@ function App() {
               </Route>
               <Route path="interview" element={<InterviewGate />}>
                 <Route index element={<InterviewDashboard />} />
+                <Route path="sessions" element={<InterviewSessionsPage />} />
                 <Route path="new" element={<InterviewCreatePage />} />
                 <Route path=":id" element={<InterviewDetailPage />} />
                 <Route path=":id/session" element={<InterviewSessionPage />} />

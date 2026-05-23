@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { FEATURE_INTERVIEW_UI } from '../config/featureFlags';
+import { isInterviewMeetingRecord } from './interviewUtils';
 
 export const INTERVIEW_BASE = '/interview';
 
@@ -8,6 +9,7 @@ export function interviewPaths(id) {
   const idStr = id != null ? String(id) : '';
   return {
     dashboard: INTERVIEW_BASE,
+    sessions: `${INTERVIEW_BASE}/sessions`,
     create: `${INTERVIEW_BASE}/new`,
     detail: idStr ? `${INTERVIEW_BASE}/${idStr}` : INTERVIEW_BASE,
     session: idStr ? `${INTERVIEW_BASE}/${idStr}/session` : INTERVIEW_BASE,
@@ -19,8 +21,7 @@ export function interviewPaths(id) {
 export function meetingPaths(meeting) {
   const id = meeting?._id ?? meeting?.id;
   const idStr = id != null ? String(id) : '';
-  const isInterviewMeeting =
-    FEATURE_INTERVIEW_UI && meeting?.summaryMode === 'interview';
+  const isInterviewMeeting = FEATURE_INTERVIEW_UI && isInterviewMeetingRecord(meeting);
   if (isInterviewMeeting) {
     return interviewPaths(idStr);
   }

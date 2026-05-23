@@ -11,6 +11,7 @@ import {
   interviewContextText,
   hiringVerdictShort,
   hiringVerdictClass,
+  isInterviewMeetingRecord,
 } from './interviewUtils';
 import './InterviewMode.css';
 
@@ -30,7 +31,7 @@ export default function InterviewDetailPage() {
         const res = await axios.get(`/meetings/${id}`);
         const m = res.data?.meeting;
         if (!cancelled) {
-          if (m?.summaryMode !== 'interview') {
+          if (!isInterviewMeetingRecord(m)) {
             navigate(`/meetings/${id}`, { replace: true });
             return;
           }

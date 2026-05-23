@@ -1513,8 +1513,9 @@ router.patch('/:id', async (req, res) => {
  */
 router.get('/', async (req, res) => {
   try {
-    const { status, meetingRoom, date } = req.query;
+    const { status, meetingRoom, date, summaryMode: summaryModeQuery } = req.query;
     const query = {};
+    const interviewListOnly = String(summaryModeQuery || '').trim().toLowerCase() === 'interview';
 
     // If an authenticated admin is present, scope meetings to that admin/tenant.
     // This ensures one customer's meetings never appear in another's dashboard.
@@ -1525,6 +1526,9 @@ router.get('/', async (req, res) => {
 
     if (status) query.status = status;
     if (meetingRoom) query.meetingRoom = meetingRoom;
+    if (interviewListOnly) {
+      query.summaryMode = 'interview';
+    }
     if (date) {
       const startDate = new Date(date);
       startDate.setHours(0, 0, 0, 0);
@@ -1558,7 +1562,7 @@ router.get('/', async (req, res) => {
 
     const meetings = await Meeting.find(query)
       .sort({ startTime: -1 })
-      .limit(100);
+      .limit(interviewListOnly ? 500 : 100);
 
     const meetingsPayload = meetings.map((m) => {
       const o = m.toObject ? m.toObject() : { ...m };
@@ -1792,6 +1796,7 @@ router.put('/:id/pending-summary', async (req, res) => {
       decisions,
       nextSteps,
       importantNotes,
+      revisionQuestions,
       hiringRecommendation,
       hiringRecommendationReason,
       evaluationSignals,
@@ -1823,6 +1828,9 @@ router.put('/:id/pending-summary', async (req, res) => {
     if (decisions !== undefined) meeting.pendingDecisions = decisions;
     if (nextSteps !== undefined) meeting.pendingNextSteps = nextSteps;
     if (importantNotes !== undefined) meeting.pendingImportantNotes = importantNotes;
+    if (revisionQuestions !== undefined) {
+      meeting.pendingRevisionQuestions = String(revisionQuestions || '').trim();
+    }
     if (hiringRecommendation !== undefined) {
       meeting.pendingHiringRecommendation = String(hiringRecommendation || '').trim();
     }
@@ -1844,6 +1852,7 @@ router.put('/:id/pending-summary', async (req, res) => {
           decisions !== undefined ||
           nextSteps !== undefined ||
           importantNotes !== undefined ||
+          revisionQuestions !== undefined ||
           hiringRecommendation !== undefined ||
           hiringRecommendationReason !== undefined ||
           evaluationSignals !== undefined;
