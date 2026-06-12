@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { isEducation } from '../config/product';
 import { FEATURE_INTERVIEW_UI } from '../config/featureFlags';
@@ -30,7 +30,10 @@ function meetingHasEducationContext(m) {
 
 const MeetingSummary = () => {
   const { id } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
+  const isInterviewReportSurface =
+    FEATURE_INTERVIEW_UI && /\/interview\/[^/]+\/report\/?$/.test(location.pathname || '');
   const [meeting, setMeeting] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -450,10 +453,16 @@ const MeetingSummary = () => {
   };
 
   return (
-    <div className="meeting-summary-screen">
+    <div
+      className={`meeting-summary-screen${isInterviewReportSurface ? ' meeting-summary-screen--interview-report' : ''}`}
+    >
       <div className="meeting-summary-container ux-screen-enter">
         <div className="meeting-summary-card">
-          <h1 className="meeting-summary-page-title">{meeting.title || 'Untitled meeting'}</h1>
+          {isInterviewReportSurface && isInterview ? (
+            <p className="meeting-summary-session-label">{meeting.title || 'Interview session'}</p>
+          ) : (
+            <h1 className="meeting-summary-page-title">{meeting.title || 'Untitled meeting'}</h1>
+          )}
 
           {!meeting.editorVerificationRequired &&
             !editingSummary &&
@@ -481,9 +490,11 @@ const MeetingSummary = () => {
             />
           )}
 
-          <p className="meeting-summary-subtitle">
-            {isEducationMode ? 'Lecture Notes' : 'Meeting Summary'}
-          </p>
+          {!isInterviewReportSurface ? (
+            <p className="meeting-summary-subtitle">
+              {isEducationMode ? 'Lecture Notes' : isInterview ? 'Interview evaluation' : 'Meeting Summary'}
+            </p>
+          ) : null}
 
           {meeting.editorVerificationRequired && (
             <div
@@ -696,8 +707,10 @@ const MeetingSummary = () => {
                       >
                         <option value="">Select…</option>
                         <option value="Strong Hire">Strong Hire</option>
-                        <option value="Lean Hire">Lean Hire</option>
+                        <option value="Hire">Hire</option>
+                        <option value="Neutral">Neutral</option>
                         <option value="No Hire">No Hire</option>
+                        <option value="Lean Hire">Lean Hire (legacy)</option>
                       </select>
                     </div>
                     <div className="meeting-summary-edit-field">

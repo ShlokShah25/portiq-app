@@ -9,25 +9,23 @@ export default function InterviewReportPage() {
 
   return (
     <div className="interview-report-wrap">
-      <div className="interview-report-chrome">
+      <header className="interview-report-chrome">
         <button
           type="button"
           className="interview-report-chrome__back"
           onClick={() => navigate('/interview')}
         >
-          <ArrowLeft size={14} aria-hidden />
-          Interview dashboard
+          <ArrowLeft size={16} strokeWidth={1.75} aria-hidden />
+          Back to dashboard
         </button>
-        <p className="interview-page__eyebrow" style={{ marginBottom: 4 }}>
-          Evaluation report
-        </p>
-        <h1 className="interview-page__title" style={{ fontSize: '1.5rem', marginBottom: 8 }}>
-          Candidate assessment
-        </h1>
-        <p className="interview-page__subtitle" style={{ marginBottom: 16 }}>
-          Review strengths, concerns, evaluation signals, and your hiring recommendation before finalizing.
-        </p>
-      </div>
+        <div className="interview-report-chrome__intro">
+          <p className="interview-report-chrome__eyebrow">Evaluation report</p>
+          <h1 className="interview-report-chrome__title">Candidate assessment</h1>
+          <p className="interview-report-chrome__subtitle">
+            Review strengths, concerns, evaluation signals, and your hiring recommendation before finalizing.
+          </p>
+        </div>
+      </header>
       <MeetingSummary />
     </div>
   );

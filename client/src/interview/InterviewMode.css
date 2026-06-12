@@ -617,64 +617,150 @@
 .interview-report-wrap {
   min-height: 100%;
   background: var(--interview-bg);
+  padding-bottom: 48px;
 }
 
 .interview-report-wrap .meeting-summary-screen {
   background: transparent;
-}
-
-.interview-report-wrap .meeting-summary-container {
-  max-width: 900px;
-}
-
-.interview-report-wrap .meeting-summary-screen {
-  background: var(--interview-bg);
+  background-image: none;
   color: var(--interview-text);
   min-height: auto;
   padding-top: 0;
 }
 
+.interview-report-wrap .meeting-summary-container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 24px 32px;
+}
+
 .interview-report-wrap .meeting-summary-card {
   background: var(--surface-card);
   border: 1px solid var(--interview-border);
+  border-radius: var(--interview-radius-lg);
   box-shadow: var(--interview-shadow);
   color: var(--interview-text);
+  padding: 28px 32px 32px;
 }
 
-.interview-report-wrap .meeting-summary-heading,
-.interview-report-wrap .meeting-summary-page-title {
-  color: var(--interview-text);
+.interview-report-wrap .meeting-summary-heading {
+  color: var(--text-label);
+}
+
+.interview-report-wrap .meeting-summary-heading-icon {
+  color: var(--text-muted);
 }
 
 .interview-report-wrap .meeting-summary-body,
-.interview-report-wrap .meeting-summary-subtitle {
-  color: var(--interview-text-muted);
+.interview-report-wrap .meeting-summary-interview-roster-line,
+.interview-report-wrap .meeting-summary-hiring-reason,
+.interview-report-wrap .meeting-summary-list,
+.interview-report-wrap .meeting-summary-signal-row dd {
+  color: var(--text-primary);
+}
+
+.interview-report-wrap .meeting-summary-interview-roster-note,
+.interview-report-wrap .meeting-summary-interview-roster-recommendation {
+  color: var(--text-muted);
 }
 
 .interview-report-wrap .meeting-summary-section {
   border-color: var(--interview-border);
 }
 
+.interview-report-wrap .meeting-summary-section--candidate-profile,
+.interview-report-wrap .meeting-summary-section--hiring,
+.interview-report-wrap .meeting-summary-section--interview-roster {
+  background: var(--surface-card);
+  border: 1px solid var(--interview-border);
+}
+
+.interview-report-wrap .meeting-summary-signal-row {
+  background: var(--surface-secondary, var(--surface-card));
+  border-color: var(--interview-border);
+}
+
+.interview-report-wrap .meeting-summary-signal-level {
+  background: var(--surface-card);
+  color: var(--text-primary);
+  border-color: var(--interview-border);
+}
+
+.interview-report-wrap .meeting-summary-ready-badge {
+  margin-bottom: 16px;
+}
+
 .interview-report-chrome {
-  padding: 24px 32px 0;
-  max-width: 900px;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 20px 24px 12px;
 }
 
 .interview-report-chrome__back {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   font-size: 13px;
+  font-weight: 500;
   color: var(--interview-text-muted);
   background: none;
   border: none;
   cursor: pointer;
   padding: 0;
-  margin-bottom: 12px;
+  margin: 0 0 20px;
+  font-family: inherit;
 }
 
 .interview-report-chrome__back:hover {
   color: var(--interview-text);
+}
+
+.interview-report-chrome__intro {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.interview-report-chrome__eyebrow {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-blue);
+}
+
+.interview-report-chrome__title {
+  margin: 0;
+  font-family: var(--font-display, var(--font-sans));
+  font-size: clamp(1.5rem, 2.5vw, 1.875rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--interview-text);
+  line-height: 1.15;
+}
+
+.interview-report-chrome__subtitle {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--interview-text-muted);
+  max-width: 52ch;
+}
+
+@media (max-width: 640px) {
+  .interview-report-chrome {
+    padding: 16px 18px 8px;
+  }
+
+  .interview-report-wrap .meeting-summary-container {
+    padding: 0 16px 24px;
+  }
+
+  .interview-report-wrap .meeting-summary-card {
+    padding: 20px 18px 24px;
+  }
 }
 
 /* Create form on interview surface */

@@ -938,14 +938,11 @@
 }
 
 .meeting-summary-section--interview-roster {
-  padding-top: 16px;
-  margin-top: 4px;
-  border-top: 1px solid var(--badge-border);
+  margin-top: 12px;
+  padding: 18px 20px;
   border-radius: 14px;
-  padding-left: 16px;
-  padding-right: 16px;
-  padding-bottom: 8px;
-  background: var(--accent-blue-dim);
+  border: 1px solid var(--border-color);
+  background: var(--surface-card);
 }
 
 .meeting-summary-interview-roster-note {
@@ -967,14 +964,11 @@
 }
 
 .meeting-summary-section--candidate-profile {
-  padding-top: 16px;
-  margin-top: 4px;
-  border-top: 1px solid var(--badge-border);
+  margin-top: 12px;
+  padding: 18px 20px;
   border-radius: 14px;
-  padding-left: 16px;
-  padding-right: 16px;
-  padding-bottom: 8px;
-  background: var(--accent-blue-dim);
+  border: 1px solid var(--border-color);
+  background: var(--surface-card);
 }
 
 .meeting-summary-interview-roster-table-wrap {
@@ -1010,14 +1004,11 @@
 }
 
 .meeting-summary-section--hiring {
-  padding-top: 20px;
-  border-top: 1px solid var(--badge-border);
-  background: var(--accent-blue-dim);
+  margin-top: 12px;
+  padding: 18px 20px;
   border-radius: 14px;
-  padding-left: 18px;
-  padding-right: 18px;
-  padding-bottom: 4px;
-  margin-top: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-card);
 }
 
 .meeting-summary-hiring-verdict {
@@ -1032,12 +1023,27 @@
   color: var(--success-green);
 }
 
-.meeting-summary-hiring-verdict[data-verdict='lean-hire'] {
+.meeting-summary-hiring-verdict[data-verdict='lean-hire'],
+.meeting-summary-hiring-verdict[data-verdict='hire'] {
   color: var(--warning-orange);
+}
+
+.meeting-summary-hiring-verdict[data-verdict='neutral'] {
+  color: var(--text-secondary);
 }
 
 .meeting-summary-hiring-verdict[data-verdict='no-hire'] {
   color: var(--error-red);
+}
+
+.meeting-summary-session-label {
+  margin: 0 0 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
 }
 
 .meeting-summary-hiring-reason {
