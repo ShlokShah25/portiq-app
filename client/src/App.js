@@ -4,7 +4,6 @@ import axios from 'axios';
 import ProtectedLayout from './components/ProtectedLayout';
 import MeetingsAccessGate from './components/MeetingsAccessGate';
 import {
-  CuraCalendarPage,
   CuraPrescriptionsPage,
   CuraFollowUpsPage,
   CuraSettingsPage,
@@ -72,6 +71,7 @@ const CuraConsultationNewPage = lazyWithRetry(() => import('./cura/CuraConsultat
 const CuraConsultationSessionPage = lazyWithRetry(() => import('./cura/CuraConsultationSessionPage'), 'cura-consultation-session');
 const CuraConsultationReportPage = lazyWithRetry(() => import('./cura/CuraConsultationReportPage'), 'cura-consultation-report');
 const CuraSearchPage = lazyWithRetry(() => import('./cura/CuraSearchPage'), 'cura-search');
+const CuraCalendarPage = lazyWithRetry(() => import('./cura/CuraCalendarPage'), 'cura-calendar');
 const ClientAdmin = lazyWithRetry(() => import('./components/ClientAdmin'), 'client-admin');
 const BootupScreen = lazyWithRetry(() => import('./components/BootupScreen'), 'bootup');
 const AdminLogin = lazyWithRetry(() => import('./components/AdminLogin'), 'admin-login');

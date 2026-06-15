@@ -719,3 +719,205 @@
   padding: 24px;
   text-align: center;
 }
+
+/* Calendar */
+.cura-home--wide {
+  max-width: 920px;
+}
+
+.cura-cal-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.cura-cal-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--cura-bg-card);
+  border: 1px solid var(--cura-border);
+  border-radius: var(--cura-radius-pill);
+  padding: 4px 8px;
+}
+
+.cura-cal-nav__btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--cura-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.cura-cal-nav__btn:hover {
+  background: var(--cura-accent-soft);
+  color: var(--cura-accent);
+}
+
+.cura-cal-nav__label {
+  font-size: 14px;
+  font-weight: 600;
+  min-width: 140px;
+  text-align: center;
+}
+
+.cura-cal-layout {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 800px) {
+  .cura-cal-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cura-cal-grid-wrap {
+  background: var(--cura-bg-card);
+  border: 1px solid var(--cura-border);
+  border-radius: var(--cura-radius-lg);
+  padding: 16px;
+  box-shadow: var(--cura-shadow-sm);
+}
+
+.cura-cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.cura-cal-weekday {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--cura-text-muted);
+  padding: 4px 0;
+}
+
+.cura-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.cura-cal-day {
+  aspect-ratio: 1;
+  min-height: 44px;
+  border: 1px solid transparent;
+  border-radius: var(--cura-radius);
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.cura-cal-day--empty {
+  cursor: default;
+  pointer-events: none;
+}
+
+.cura-cal-day:hover:not(.cura-cal-day--empty) {
+  background: var(--cura-accent-soft);
+}
+
+.cura-cal-day.is-selected {
+  background: var(--cura-accent);
+  color: var(--cura-accent-fg);
+  border-color: var(--cura-accent);
+}
+
+.cura-cal-day.is-today:not(.is-selected) {
+  border-color: var(--cura-accent);
+}
+
+.cura-cal-day__num {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.cura-cal-day.is-selected .cura-cal-day__dot--visit {
+  background: #fff;
+}
+
+.cura-cal-day.is-selected .cura-cal-day__dot--follow {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.cura-cal-day__dots {
+  display: flex;
+  gap: 3px;
+}
+
+.cura-cal-day__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+
+.cura-cal-day__dot--visit {
+  background: var(--cura-accent);
+}
+
+.cura-cal-day__dot--follow {
+  background: var(--cura-amber);
+}
+
+.cura-cal-agenda {
+  background: var(--cura-bg-card);
+  border: 1px solid var(--cura-border);
+  border-radius: var(--cura-radius-lg);
+  padding: 18px;
+  box-shadow: var(--cura-shadow-sm);
+  position: sticky;
+  top: calc(var(--cura-nav-height) + 12px);
+}
+
+.cura-cal-agenda__title {
+  font-size: 15px;
+  font-weight: 650;
+  margin: 0 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cura-cal-agenda__today {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 3px 8px;
+  border-radius: var(--cura-radius-pill);
+  background: var(--cura-accent-soft);
+  color: var(--cura-accent);
+}
+
+.cura-visit-row--static {
+  cursor: default;
+}
+
+.cura-visit-row__avatar--follow {
+  background: var(--cura-amber-dim);
+  color: var(--cura-amber);
+}

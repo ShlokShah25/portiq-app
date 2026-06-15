@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { curaPaths } from './useCuraRoutes';
 import { fetchCuraPrescriptions, fetchCuraFollowUps, curaApiError } from './curaApi';
+import './CuraCore.css';
 import './CuraMode.css';
 
 function CuraStubPage({ title, description, ctaLabel, ctaTo }) {
@@ -22,21 +23,23 @@ function CuraStubPage({ title, description, ctaLabel, ctaTo }) {
   );
 }
 
-export function CuraCalendarPage() {
-  return (
-    <CuraStubPage
-      title="Calendar"
-      description="Schedule and view upcoming consultations. Calendar sync will be added in a later phase."
-    />
-  );
-}
-
 export function CuraSettingsPage() {
   return (
-    <CuraStubPage
-      title="Settings"
-      description="Clinic profile, staff roles, WhatsApp templates, and notification preferences."
-    />
+    <div className="cura-home">
+      <h1 className="cura-home-hero__title" style={{ fontSize: 24, marginBottom: 8 }}>
+        Settings
+      </h1>
+      <p className="cura-muted" style={{ marginBottom: 20 }}>
+        Clinic profile, WhatsApp, and notification preferences.
+      </p>
+      <div className="cura-empty-card">
+        <p className="cura-empty-card__title">Coming soon</p>
+        <p className="cura-muted">Manage your clinic from here in the next update.</p>
+        <Link to={curaPaths().dashboard} className="cura-btn cura-btn--secondary" style={{ marginTop: 12 }}>
+          Back to Today
+        </Link>
+      </div>
+    </div>
   );
 }
 

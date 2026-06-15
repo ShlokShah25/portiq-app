@@ -53,6 +53,11 @@ export async function searchCuraConsultations(query) {
   return res.data?.results || [];
 }
 
+export async function fetchCuraCalendar(year, month) {
+  const res = await axios.get('/cura/calendar', { params: { year, month } });
+  return res.data;
+}
+
 export async function fetchCuraAlerts() {
   const res = await axios.get('/cura/alerts');
   return res.data?.alerts || [];

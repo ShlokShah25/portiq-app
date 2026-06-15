@@ -7,6 +7,7 @@ import './CuraCore.css';
 
 const TABS = [
   { id: 'today', label: 'Today', path: curaPaths().dashboard, end: true },
+  { id: 'calendar', label: 'Calendar', path: curaPaths().calendar },
   { id: 'patients', label: 'Patients', path: curaPaths().patients },
 ];
 

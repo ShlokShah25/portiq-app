@@ -391,6 +391,55 @@ router.get('/consultations', requireClinic, async (req, res) => {
   }
 });
 
+/** Month calendar — consultations + follow-ups for scheduling view */
+router.get('/calendar', requireClinic, async (req, res) => {
+  try {
+    const now = new Date();
+    const year = Math.min(2100, Math.max(2020, parseInt(req.query.year, 10) || now.getFullYear()));
+    const month = Math.min(12, Math.max(1, parseInt(req.query.month, 10) || now.getMonth() + 1));
+    const rangeStart = new Date(year, month - 1, 1, 0, 0, 0, 0);
+    const rangeEnd = new Date(year, month, 0, 23, 59, 59, 999);
+    const clinicId = req.curaClinic._id;
+
+    const [consultations, followUps] = await Promise.all([
+      Meeting.find({
+        clinicId,
+        patientId: { $ne: null },
+        $or: [
+          { scheduledTime: { $gte: rangeStart, $lte: rangeEnd } },
+          { startTime: { $gte: rangeStart, $lte: rangeEnd } },
+          {
+            scheduledTime: null,
+            startTime: null,
+            createdAt: { $gte: rangeStart, $lte: rangeEnd },
+          },
+        ],
+      })
+        .sort({ scheduledTime: 1, startTime: 1, createdAt: 1 })
+        .select(
+          'title status scheduledTime startTime endTime chiefComplaint preVisitNotes patientId summaryStatus transcriptionStatus clinicalSummaryReviewedAt'
+        )
+        .populate('patientId', 'name phone')
+        .lean(),
+      FollowUp.find({
+        clinicId,
+        $or: [
+          { scheduledAt: { $gte: rangeStart, $lte: rangeEnd } },
+          { sentAt: { $gte: rangeStart, $lte: rangeEnd } },
+        ],
+      })
+        .sort({ scheduledAt: 1, createdAt: 1 })
+        .populate('patientId', 'name phone')
+        .lean(),
+    ]);
+
+    return res.json({ year, month, consultations, followUps });
+  } catch (err) {
+    console.error('[cura] GET /calendar', err);
+    return res.status(500).json({ error: 'Failed to load calendar.' });
+  }
+});
+
 router.get('/follow-ups', requireClinic, async (req, res) => {
   try {
     const list = await FollowUp.find({ clinicId: req.curaClinic._id })
