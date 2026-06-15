@@ -101,65 +101,76 @@ export default function CuraDashboard() {
         </div>
       ) : null}
 
-      {pending.length > 0 ? (
-        <section className="cura-home-section">
-          <h2 className="cura-home-section__title">Notes to finish</h2>
-          <ul className="cura-visit-list">
-            {pending.map((c) => {
-              const name = c.patientId?.name || 'Patient';
-              return (
-                <li key={c._id}>
-                  <Link to={curaMeetingPaths(c).report} className="cura-visit-row">
-                    <span className="cura-visit-row__avatar" aria-hidden>
-                      {patientInitials(name)}
-                    </span>
-                    <span className="cura-visit-row__body">
-                      <strong>{name}</strong>
-                      <span className="cura-muted">Review and sign off</span>
-                    </span>
-                    <ChevronRight size={18} className="cura-visit-row__chev" aria-hidden />
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      ) : null}
+      <div className="cura-home-grid">
+        <div className="cura-home-grid__main">
+          {pending.length > 0 ? (
+            <section className="cura-home-section">
+              <h2 className="cura-home-section__title">Notes to finish</h2>
+              <ul className="cura-visit-list">
+                {pending.map((c) => {
+                  const name = c.patientId?.name || 'Patient';
+                  return (
+                    <li key={c._id}>
+                      <Link to={curaMeetingPaths(c).report} className="cura-visit-row">
+                        <span className="cura-visit-row__avatar" aria-hidden>
+                          {patientInitials(name)}
+                        </span>
+                        <span className="cura-visit-row__body">
+                          <strong>{name}</strong>
+                          <span className="cura-muted">Review and sign off</span>
+                        </span>
+                        <ChevronRight size={18} className="cura-visit-row__chev" aria-hidden />
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ) : (
+            <p className="cura-home-quiet cura-muted" style={{ textAlign: 'left', padding: '8px 0' }}>
+              No notes waiting — you&apos;re caught up.
+            </p>
+          )}
+        </div>
 
-      {consultationsToday.length > 0 ? (
-        <section className="cura-home-section">
-          <h2 className="cura-home-section__title">Today&apos;s visits</h2>
-          <ul className="cura-visit-list">
-            {consultationsToday.map((c) => {
-              const meta = consultationStatusMeta(c);
-              const name = c.patientId?.name || 'Patient';
-              return (
-                <li key={c._id}>
-                  <Link to={visitPath(c)} className="cura-visit-row">
-                    <span className="cura-visit-row__avatar" aria-hidden>
-                      {patientInitials(name)}
-                    </span>
-                    <span className="cura-visit-row__body">
-                      <strong>{name}</strong>
-                      <span className="cura-muted">
-                        {formatTime(c.scheduledTime || c.startTime)}
-                        {c.chiefComplaint ? ` · ${c.chiefComplaint}` : ''}
-                      </span>
-                    </span>
-                    <span className={`cura-visit-row__badge cura-visit-row__badge--${meta.tone}`}>
-                      {meta.label}
-                    </span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      ) : null}
-
-      {!consultationsToday.length && !pending.length ? (
-        <p className="cura-home-quiet cura-muted">Your schedule is clear. Tap a patient above when you&apos;re ready.</p>
-      ) : null}
+        <aside className="cura-home-grid__aside">
+          {consultationsToday.length > 0 ? (
+            <section className="cura-home-section" style={{ marginBottom: 0 }}>
+              <h2 className="cura-home-section__title">Today&apos;s visits</h2>
+              <ul className="cura-visit-list">
+                {consultationsToday.map((c) => {
+                  const meta = consultationStatusMeta(c);
+                  const name = c.patientId?.name || 'Patient';
+                  return (
+                    <li key={c._id}>
+                      <Link to={visitPath(c)} className="cura-visit-row">
+                        <span className="cura-visit-row__avatar" aria-hidden>
+                          {patientInitials(name)}
+                        </span>
+                        <span className="cura-visit-row__body">
+                          <strong>{name}</strong>
+                          <span className="cura-muted">
+                            {formatTime(c.scheduledTime || c.startTime)}
+                            {c.chiefComplaint ? ` · ${c.chiefComplaint}` : ''}
+                          </span>
+                        </span>
+                        <span className={`cura-visit-row__badge cura-visit-row__badge--${meta.tone}`}>
+                          {meta.label}
+                        </span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ) : (
+            <div className="cura-empty-card">
+              <p className="cura-empty-card__title">Clear schedule</p>
+              <p className="cura-muted">No visits booked for today.</p>
+            </div>
+          )}
+        </aside>
+      </div>
     </div>
   );
 }

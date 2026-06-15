@@ -19,6 +19,12 @@
   isolation: isolate;
 }
 
+/* Cura uses top nav only — no PortIQ sidebar gutter */
+.app-shell--cura .app-shell__main {
+  margin-left: 0;
+  width: 100%;
+}
+
 /* Subtle top fade for depth (no hard border) */
 .app-shell__main::before {
   content: '';
