@@ -1,18 +1,16 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
-import { CheckCircle2, Save } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, Save } from 'lucide-react';
 import { curaPaths } from './useCuraRoutes';
 import { curaApiError } from './curaApi';
 import {
   isCuraConsultationMeeting,
   clinicalNoteToPlainText,
   plainTextToClinicalNote,
+  patientInitials,
 } from './curaUtils';
 import { formatApiError } from '../utils/apiErrorMessage';
-import CuraConsultationView from './CuraConsultationView';
-import './CuraMode.css';
-import './CuraSession.css';
 import './CuraCore.css';
 
 function noteFromMeeting(meeting) {
@@ -25,10 +23,10 @@ export default function CuraClinicalReport() {
   const navigate = useNavigate();
   const [meeting, setMeeting] = useState(null);
   const [noteText, setNoteText] = useState('');
+  const [showTranscript, setShowTranscript] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
   const load = useCallback(async () => {
     setError('');
@@ -71,11 +69,8 @@ export default function CuraClinicalReport() {
   const handleSave = async () => {
     setSaving(true);
     setError('');
-    setSuccess('');
     try {
-      const clinicalNote = buildClinicalNote();
-      await axios.put(`/meetings/${id}/pending-summary`, { clinicalNote });
-      setSuccess('Saved.');
+      await axios.put(`/meetings/${id}/pending-summary`, { clinicalNote: buildClinicalNote() });
       await load();
     } catch (err) {
       setError(curaApiError(err, 'Could not save.'));
@@ -102,74 +97,86 @@ export default function CuraClinicalReport() {
   };
 
   if (loading) {
-    return <div className="cura-loading">Loading notes…</div>;
+    return (
+      <div className="cura-notes-page">
+        <div className="cura-loading">Loading notes…</div>
+      </div>
+    );
   }
 
   if (!meeting) {
-    return <p className="cura-login__error">Visit not found.</p>;
+    return (
+      <div className="cura-notes-page">
+        <p className="cura-login__error">Visit not found.</p>
+      </div>
+    );
   }
 
   const patientName =
-    meeting.participants?.find((p) => String(p.role || '').toLowerCase() === 'patient')?.name || '';
+    meeting.participants?.find((p) => String(p.role || '').toLowerCase() === 'patient')?.name || 'Patient';
   const transcriptText = String(meeting.transcription || meeting.liveTranscript || '').trim();
-  const reviewed = !!meeting?.clinicalSummaryReviewedAt;
 
-  const notesPanel = (
-    <>
+  return (
+    <div className="cura-notes-page">
+      <header className="cura-notes-header">
+        <button type="button" className="cura-notes-header__back" onClick={() => navigate(curaPaths().dashboard)}>
+          <ArrowLeft size={14} aria-hidden />
+          Back
+        </button>
+        <h1 className="cura-notes-header__title">{patientName}</h1>
+        <span className="cura-visit-row__avatar" aria-hidden style={{ width: 36, height: 36, fontSize: 12 }}>
+          {patientInitials(patientName)}
+        </span>
+      </header>
+
       {error ? (
-        <div className="cura-login__error" role="alert">
+        <p className="cura-login__error" role="alert">
           {error}
-        </div>
-      ) : null}
-      {success ? (
-        <div className="cura-report-reviewed" role="status">
-          <CheckCircle2 size={16} aria-hidden />
-          {success}
-        </div>
-      ) : null}
-
-      {processing ? (
-        <p style={{ fontSize: 13, color: 'var(--cura-text-muted)', margin: '0 0 12px' }}>
-          Writing notes from the recording… refreshes automatically.
         </p>
       ) : null}
 
-      <textarea
-        className="cura-simple-note"
-        value={noteText}
-        onChange={(e) => setNoteText(e.target.value)}
-        placeholder="Visit summary appears here after the recording. Edit anything that looks off."
-        disabled={saving || processing}
-        rows={16}
-      />
-    </>
-  );
+      <div className="cura-notes-card">
+        {processing ? (
+          <p className="cura-muted" style={{ margin: '0 0 12px' }}>
+            Writing your notes from the recording…
+          </p>
+        ) : null}
+        <textarea
+          className="cura-simple-note"
+          value={noteText}
+          onChange={(e) => setNoteText(e.target.value)}
+          placeholder="Your visit notes will appear here. Edit anything that needs fixing."
+          disabled={saving || processing}
+          aria-label="Visit notes"
+        />
+      </div>
 
-  const actionBar = (
-    <>
-      {reviewed ? (
-        <span className="cura-report-reviewed">
-          <CheckCircle2 size={16} aria-hidden />
-          Saved
-        </span>
+      {transcriptText ? (
+        <>
+          <button
+            type="button"
+            className="cura-transcript-toggle"
+            onClick={() => setShowTranscript((v) => !v)}
+            aria-expanded={showTranscript}
+          >
+            Transcript
+            {showTranscript ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </button>
+          {showTranscript ? <div className="cura-transcript-panel">{transcriptText}</div> : null}
+        </>
       ) : null}
-      <button type="button" className="cura-btn cura-btn--secondary" onClick={handleSave} disabled={saving || processing}>
-        <Save size={16} aria-hidden />
-        {saving ? 'Saving…' : 'Save'}
-      </button>
-      <button type="button" className="cura-btn cura-btn--primary" onClick={handleDone} disabled={saving || processing}>
-        Done
-      </button>
-    </>
-  );
 
-  return (
-    <CuraConsultationView
-      transcript={transcriptText}
-      transcriptLoading={processing}
-      patientName={patientName}
-      notesPanel={notesPanel}
-      actionBar={actionBar}
-    />
+      <footer className="cura-notes-footer">
+        <div className="cura-notes-footer__inner">
+          <button type="button" className="cura-btn cura-btn--secondary" onClick={handleSave} disabled={saving || processing}>
+            <Save size={16} aria-hidden />
+            Save
+          </button>
+          <button type="button" className="cura-btn cura-btn--primary" onClick={handleDone} disabled={saving || processing}>
+            {saving ? 'Saving…' : 'Done'}
+          </button>
+        </div>
+      </footer>
+    </div>
   );
 }

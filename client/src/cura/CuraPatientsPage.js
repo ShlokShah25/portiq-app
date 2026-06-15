@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Plus, Search, ChevronRight } from 'lucide-react';
 import { curaPaths } from './useCuraRoutes';
 import { createCuraPatient, fetchCuraPatients, curaApiError } from './curaApi';
+import './CuraCore.css';
 import './CuraMode.css';
 
 export default function CuraPatientsPage() {
@@ -60,12 +61,13 @@ export default function CuraPatientsPage() {
   };
 
   return (
-    <div className="cura-page">
-      <header className="cura-page__header">
+    <div className="cura-home">
+      <header className="cura-home-section" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 20 }}>
         <div>
-          <p className="cura-page__eyebrow">Patient registry</p>
-          <h1 className="cura-page__title">Patients</h1>
-          <p className="cura-page__subtitle">Manage your clinic patient panel and timelines.</p>
+          <h1 className="cura-home-hero__title" style={{ fontSize: 24, marginBottom: 4 }}>
+            Patients
+          </h1>
+          <p className="cura-muted">Your clinic panel</p>
         </div>
         <button type="button" className="cura-btn cura-btn--primary" onClick={() => setShowForm((v) => !v)}>
           <Plus size={16} aria-hidden />
@@ -163,19 +165,18 @@ export default function CuraPatientsPage() {
             <p>Add your first patient to start consultations.</p>
           </div>
         ) : (
-          <ul className="cura-list">
+          <ul className="cura-visit-list">
             {patients.map((p) => (
               <li key={p._id}>
-                <Link to={curaPaths(p._id).patient} className="cura-list__row cura-list__row--link">
-                  <div>
+                <Link to={curaPaths(p._id).patient} className="cura-visit-row">
+                  <span className="cura-visit-row__body">
                     <strong>{p.name}</strong>
-                    <span className="cura-list__meta">
+                    <span className="cura-muted">
                       {p.phone || p.email || 'No contact'}
                       {p.medicalRecordNumber ? ` · ${p.medicalRecordNumber}` : ''}
-                      {p.sessionCount ? ` · ${p.sessionCount} session${p.sessionCount === 1 ? '' : 's'}` : ''}
                     </span>
-                  </div>
-                  <ChevronRight size={16} aria-hidden />
+                  </span>
+                  <ChevronRight size={18} className="cura-visit-row__chev" aria-hidden />
                 </Link>
               </li>
             ))}
