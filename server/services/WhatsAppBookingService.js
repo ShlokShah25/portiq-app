@@ -13,7 +13,7 @@ const {
 } = require('./AvailabilityService');
 const { SafetyGuardrailService, assessTriage, TRIAGE_LEVELS } = require('./SafetyGuardrailService');
 const { inferTimezoneFromPhone, resolveTimezone } = require('../utils/timezoneUtils');
-const { normalizeWhatsAppPhone } = require('./whatsapp');
+const { normalizeWhatsAppPhone } = require('../utils/whatsapp');
 
 const safetyGuardrail = new SafetyGuardrailService();
 const BOOK_PATTERN = /\b(book|appointment|schedule|visit|consult|slot|doctor)\b/i;
