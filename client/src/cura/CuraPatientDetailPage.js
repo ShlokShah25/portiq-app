@@ -105,7 +105,7 @@ export default function CuraPatientDetailPage() {
           className="cura-btn cura-btn--primary"
         >
           <Stethoscope size={16} aria-hidden />
-          New visit
+          Start visit
         </Link>
       </header>
 
