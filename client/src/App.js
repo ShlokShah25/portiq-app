@@ -3,6 +3,14 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import axios from 'axios';
 import ProtectedLayout from './components/ProtectedLayout';
 import MeetingsAccessGate from './components/MeetingsAccessGate';
+import {
+  CuraPatientsPage,
+  CuraCalendarPage,
+  CuraPrescriptionsPage,
+  CuraFollowUpsPage,
+  CuraSettingsPage,
+  CuraConsultationNewPage,
+} from './cura/CuraStubPages';
 import './App.css';
 import './styles/saas-premium-overrides.css';
 
@@ -54,6 +62,12 @@ const InterviewSessionPage = lazyWithRetry(() => import('./interview/InterviewSe
 const InterviewReportPage = lazyWithRetry(() => import('./interview/InterviewReportPage'), 'interview-report');
 const InterviewSessionsPage = lazyWithRetry(() => import('./interview/InterviewSessionsPage'), 'interview-sessions');
 const InterviewGate = lazyWithRetry(() => import('./interview/InterviewGate'), 'interview-gate');
+const CuraLogin = lazyWithRetry(() => import('./cura/CuraLogin'), 'cura-login');
+const CuraLandingPage = lazyWithRetry(() => import('./cura/CuraLandingPage'), 'cura-landing');
+const CuraGate = lazyWithRetry(() => import('./cura/CuraGate'), 'cura-gate');
+const CuraLayout = lazyWithRetry(() => import('./cura/CuraLayout'), 'cura-layout');
+const CuraDashboard = lazyWithRetry(() => import('./cura/CuraDashboard'), 'cura-dashboard');
+const CuraOnboarding = lazyWithRetry(() => import('./cura/CuraOnboarding'), 'cura-onboarding');
 const ClientAdmin = lazyWithRetry(() => import('./components/ClientAdmin'), 'client-admin');
 const BootupScreen = lazyWithRetry(() => import('./components/BootupScreen'), 'bootup');
 const AdminLogin = lazyWithRetry(() => import('./components/AdminLogin'), 'admin-login');
@@ -68,10 +82,14 @@ axios.defaults.baseURL = isLocalhost
   : '/api';
 
 // Add response interceptor: expired / no subscription → sign-in screen
-function pathIsAdminLogin() {
+function pathIsAuthLogin() {
   if (typeof window === 'undefined') return false;
   const p = window.location.pathname || '';
-  return p.endsWith('/admin-login') || p.includes('/admin-login');
+  return (
+    p.endsWith('/admin-login') ||
+    p.includes('/admin-login') ||
+    p.includes('/cura/login')
+  );
 }
 
 axios.interceptors.response.use(
@@ -92,9 +110,13 @@ axios.interceptors.response.use(
       } catch (e) {
         /* ignore */
       }
-      if (!pathIsAdminLogin()) {
+      if (!pathIsAuthLogin()) {
         const base = process.env.PUBLIC_URL || '';
-        window.location.assign(`${base}/admin-login?reason=session_expired`);
+        if (window.location.pathname.startsWith('/cura')) {
+          window.location.assign(`${base}/cura/login?reason=session_expired`);
+        } else {
+          window.location.assign(`${base}/admin-login?reason=session_expired`);
+        }
       }
       return Promise.reject(error);
     }
@@ -130,7 +152,11 @@ axios.interceptors.response.use(
 function App() {
   const [config, setConfig] = useState(null);
   const [configLoaded, setConfigLoaded] = useState(false);
-  const [showBootup, setShowBootup] = useState(true);
+  const [showBootup, setShowBootup] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    const path = window.location.pathname || '';
+    return !(path.includes('landing-cura') || path.includes('/cura/login') || path.startsWith('/cura'));
+  });
 
   useEffect(() => {
     const href = `${process.env.PUBLIC_URL || ''}/assets/portiq-icon.png`;
@@ -178,6 +204,8 @@ function App() {
       <div className="App">
         <Suspense fallback={<div className="app-loading"><div className="loading-spinner"></div><p>Loading...</p></div>}>
           <Routes>
+            <Route path="/landing-cura" element={<CuraLandingPage />} />
+            <Route path="/cura/login" element={<CuraLogin />} />
             <Route path="/admin-login" element={<AdminLogin />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/" element={<ProtectedLayout config={config} />}>
@@ -197,6 +225,18 @@ function App() {
                 <Route path=":id" element={<InterviewDetailPage />} />
                 <Route path=":id/session" element={<InterviewSessionPage />} />
                 <Route path=":id/report" element={<InterviewReportPage />} />
+              </Route>
+              <Route path="cura" element={<CuraGate />}>
+                <Route element={<CuraLayout />}>
+                  <Route index element={<CuraDashboard />} />
+                  <Route path="onboarding" element={<CuraOnboarding />} />
+                  <Route path="patients" element={<CuraPatientsPage />} />
+                  <Route path="calendar" element={<CuraCalendarPage />} />
+                  <Route path="prescriptions" element={<CuraPrescriptionsPage />} />
+                  <Route path="follow-ups" element={<CuraFollowUpsPage />} />
+                  <Route path="settings" element={<CuraSettingsPage />} />
+                  <Route path="consultations/new" element={<CuraConsultationNewPage />} />
+                </Route>
               </Route>
               <Route path="transcripts" element={<Transcripts />} />
               <Route path="participants" element={<Participants />} />

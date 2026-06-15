@@ -78,8 +78,9 @@ router.post('/signup', async (req, res) => {
 
     // Persist chosen product type and default plan for SaaS signup
     admin.email = email.toLowerCase();
+    const pt = String(productType || '').toLowerCase();
     admin.productType =
-      (productType || '').toLowerCase() === 'education' ? 'education' : 'workplace';
+      pt === 'education' ? 'education' : pt === 'cura' ? 'cura' : 'workplace';
     if (!admin.plan) {
       admin.plan = 'starter';
     }
@@ -98,10 +99,13 @@ router.post('/signup', async (req, res) => {
 
     // Best-effort welcome email (non-blocking for response)
     if (isEmailConfigured()) {
+      const ptLabel = String(productType || '').toLowerCase();
       const productLabel =
-        (productType || '').toLowerCase() === 'education'
+        ptLabel === 'education'
           ? 'Portiq Education'
-          : 'Portiq Workplace';
+          : ptLabel === 'cura'
+            ? 'Cura'
+            : 'Portiq Workplace';
 
       const appUrl =
         process.env.APP_LOGIN_URL ||

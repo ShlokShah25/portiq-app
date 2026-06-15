@@ -3,9 +3,11 @@ import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import Sidebar from './Sidebar';
 import TrialExperienceProvider from './TrialExperienceProvider';
-import { FEATURE_INTERVIEW_UI } from '../config/featureFlags';
+import { FEATURE_INTERVIEW_UI, FEATURE_CURA_UI } from '../config/featureFlags';
 import InterviewSidebar from '../interview/InterviewSidebar';
+import CuraSidebar from '../cura/CuraSidebar';
 import '../interview/InterviewMode.css';
+import '../cura/CuraMode.css';
 import './AppShell.css';
 
 /**
@@ -107,6 +109,9 @@ export default function ProtectedLayout({ config }) {
   );
 
   if (!token) {
+    if (FEATURE_CURA_UI && location.pathname.startsWith('/cura') && location.pathname !== '/cura/login') {
+      return <Navigate to="/cura/login" replace />;
+    }
     return <Navigate to="/admin-login" replace />;
   }
   axios.defaults.headers.common.Authorization = `Bearer ${token}`;
@@ -126,10 +131,23 @@ export default function ProtectedLayout({ config }) {
   const isInterviewRoute =
     FEATURE_INTERVIEW_UI && (location.pathname === '/interview' || location.pathname.startsWith('/interview/'));
 
+  const isCuraRoute =
+    FEATURE_CURA_UI &&
+    (location.pathname === '/cura' || location.pathname.startsWith('/cura/')) &&
+    location.pathname !== '/cura/login';
+
+  const shellClass = [
+    'app-shell',
+    isInterviewRoute ? 'app-shell--interview' : '',
+    isCuraRoute ? 'app-shell--cura' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
     <TrialExperienceProvider>
-      <div className={`app-shell${isInterviewRoute ? ' app-shell--interview' : ''}`}>
-        {isInterviewRoute ? <InterviewSidebar /> : <Sidebar />}
+      <div className={shellClass}>
+        {isInterviewRoute ? <InterviewSidebar /> : isCuraRoute ? <CuraSidebar /> : <Sidebar />}
         <main className="app-shell__main" id="app-main" ref={mainRef} onKeyDown={onMainKeyDown}>
           <Outlet context={{ config }} />
         </main>

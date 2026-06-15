@@ -1,0 +1,396 @@
+/* Cura — Clinical Intelligence design system (scoped under .app-shell--cura) */
+
+.app-shell--cura {
+  --cura-bg: #fafafa;
+  --cura-bg-card: #ffffff;
+  --cura-border: #e4e4e7;
+  --cura-border-strong: #d4d4d8;
+  --cura-text: #09090b;
+  --cura-text-secondary: #71717a;
+  --cura-text-muted: #a1a1aa;
+  --cura-emerald: #059669;
+  --cura-emerald-dim: rgba(5, 150, 105, 0.1);
+  --cura-amber: #f59e0b;
+  --cura-amber-dim: rgba(245, 158, 11, 0.12);
+  --cura-rose: #e11d48;
+  --cura-rose-dim: rgba(225, 29, 72, 0.08);
+  --cura-radius: 10px;
+  --cura-radius-lg: 14px;
+  --cura-shadow-sm: 0 1px 2px rgba(9, 9, 11, 0.04);
+  --cura-font: 'Inter', system-ui, -apple-system, sans-serif;
+  --cura-font-display: 'Inter', system-ui, sans-serif;
+  background: var(--cura-bg);
+  font-family: var(--cura-font);
+}
+
+.app-shell--cura .app-shell__main {
+  background: var(--cura-bg);
+  color: var(--cura-text);
+}
+
+.app-shell--cura .app-shell__main::before {
+  display: none;
+}
+
+/* Sidebar */
+.app-shell--cura .cura-sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--sidebar-width, 248px);
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  background: var(--cura-bg-card);
+  border-right: 1px solid var(--cura-border);
+}
+
+.cura-sidebar__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 16px 14px;
+  border-bottom: 1px solid var(--cura-border);
+}
+
+.cura-sidebar__logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--cura-emerald-dim);
+  border: 1px solid rgba(5, 150, 105, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cura-emerald);
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: -0.04em;
+}
+
+.cura-sidebar__brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.cura-sidebar__brand-kicker {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cura-text-muted);
+}
+
+.cura-sidebar__brand-title {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--cura-text);
+}
+
+.cura-sidebar__nav {
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.cura-sidebar__link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: var(--cura-radius);
+  color: var(--cura-text-secondary);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  transition: background 0.12s, color 0.12s, box-shadow 0.12s;
+}
+
+.cura-sidebar__link:hover {
+  background: #f4f4f5;
+  color: var(--cura-text);
+}
+
+.cura-sidebar__link.is-active {
+  background: var(--cura-bg-card);
+  border-color: var(--cura-border);
+  color: var(--cura-text);
+  box-shadow: var(--cura-shadow-sm);
+}
+
+.cura-sidebar__link.is-active svg {
+  color: var(--cura-emerald);
+}
+
+.cura-sidebar__footer {
+  margin-top: auto;
+  padding: 12px 10px 16px;
+  border-top: 1px solid var(--cura-border);
+}
+
+.cura-sidebar__back {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: var(--cura-radius);
+  background: transparent;
+  border: 1px solid var(--cura-border);
+  color: var(--cura-text-secondary);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.cura-sidebar__back:hover {
+  background: #f4f4f5;
+  color: var(--cura-text);
+}
+
+/* Page shell */
+.cura-page {
+  min-height: 100%;
+  padding: 28px 32px 48px;
+  max-width: 1200px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+  .cura-page {
+    padding: 20px 16px 40px;
+  }
+}
+
+.cura-page__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.cura-page__eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cura-emerald);
+  margin: 0 0 6px;
+}
+
+.cura-page__title {
+  font-family: var(--cura-font-display);
+  font-size: clamp(1.5rem, 2.5vw, 1.875rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--cura-text);
+  margin: 0;
+  line-height: 1.15;
+}
+
+.cura-page__subtitle {
+  font-size: 15px;
+  color: var(--cura-text-secondary);
+  margin: 8px 0 0;
+  max-width: 52ch;
+  line-height: 1.5;
+}
+
+/* Cards */
+.cura-card {
+  background: var(--cura-bg-card);
+  border: 1px solid var(--cura-border);
+  border-radius: var(--cura-radius-lg);
+  padding: 20px;
+  box-shadow: none;
+}
+
+.cura-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.cura-card__title {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cura-text-secondary);
+  margin: 0;
+}
+
+.cura-card__count {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--cura-text);
+  letter-spacing: -0.02em;
+}
+
+.cura-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.cura-grid--2 {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.cura-grid--3 {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+/* Buttons */
+.cura-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: var(--cura-radius);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition: background 0.12s, border-color 0.12s, box-shadow 0.12s;
+}
+
+.cura-btn--primary {
+  background: var(--cura-emerald);
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+  box-shadow: var(--cura-shadow-sm);
+}
+
+.cura-btn--primary:hover {
+  background: #047857;
+  color: #ffffff;
+}
+
+.App .app-shell--cura a.cura-btn--primary,
+.app-shell--cura a.cura-btn--primary {
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+}
+
+.cura-btn--secondary {
+  background: var(--cura-bg-card);
+  color: var(--cura-text);
+  border-color: var(--cura-border);
+}
+
+.cura-btn--secondary:hover {
+  background: #f4f4f5;
+  border-color: var(--cura-border-strong);
+}
+
+.cura-btn--ghost {
+  background: transparent;
+  color: var(--cura-text-secondary);
+  border-color: transparent;
+}
+
+.cura-btn--ghost:hover {
+  background: #f4f4f5;
+  color: var(--cura-text);
+}
+
+/* Status pills */
+.cura-pill {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--cura-border);
+  background: #f4f4f5;
+  color: var(--cura-text-secondary);
+}
+
+.cura-pill--success {
+  background: var(--cura-emerald-dim);
+  border-color: rgba(5, 150, 105, 0.25);
+  color: var(--cura-emerald);
+}
+
+.cura-pill--warning {
+  background: var(--cura-amber-dim);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #b45309;
+}
+
+.cura-pill--critical {
+  background: var(--cura-rose-dim);
+  border-color: rgba(225, 29, 72, 0.25);
+  color: var(--cura-rose);
+}
+
+/* Empty / loading */
+.cura-empty {
+  text-align: center;
+  padding: 40px 24px;
+  border: 1px dashed var(--cura-border);
+  border-radius: var(--cura-radius-lg);
+  background: var(--cura-bg-card);
+}
+
+.cura-empty__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--cura-text);
+  margin: 0 0 8px;
+}
+
+.cura-empty p {
+  font-size: 14px;
+  color: var(--cura-text-secondary);
+  margin: 0 0 16px;
+}
+
+.cura-loading {
+  padding: 48px;
+  text-align: center;
+  color: var(--cura-text-secondary);
+  font-size: 14px;
+}
+
+/* Stub placeholder pages */
+.cura-stub {
+  max-width: 560px;
+}
+
+.cura-stub p {
+  color: var(--cura-text-secondary);
+  line-height: 1.6;
+  margin: 0 0 16px;
+}
+
+.cura-input {
+  padding: 10px 12px;
+  border: 1px solid var(--cura-border);
+  border-radius: var(--cura-radius);
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--cura-text);
+  background: var(--cura-bg-card);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.cura-input:focus {
+  outline: 2px solid rgba(5, 150, 105, 0.35);
+  outline-offset: 1px;
+  border-color: var(--cura-emerald);
+}

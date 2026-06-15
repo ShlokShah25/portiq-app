@@ -43,7 +43,7 @@ const adminSchema = new mongoose.Schema({
   // SaaS product + plan info
   productType: {
     type: String,
-    enum: ['workplace', 'education'],
+    enum: ['workplace', 'education', 'cura'],
     default: 'workplace'
   },
   plan: {

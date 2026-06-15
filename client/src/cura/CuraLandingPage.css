@@ -1,0 +1,221 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+.cura-landing {
+  min-height: 100vh;
+  background: #fafafa;
+  color: #09090b;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+.cura-landing__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 32px;
+  border-bottom: 1px solid #e4e4e7;
+  background: #ffffff;
+}
+
+.cura-landing__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: -0.03em;
+}
+
+.cura-landing__logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(5, 150, 105, 0.1);
+  color: #059669;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.cura-landing__nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cura-landing__link {
+  font-size: 14px;
+  font-weight: 500;
+  color: #71717a;
+  text-decoration: none;
+}
+
+.cura-landing__link:hover {
+  color: #09090b;
+}
+
+.cura-landing__hero {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 80px 24px 64px;
+  text-align: center;
+}
+
+.cura-landing__eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #059669;
+  margin: 0 0 16px;
+}
+
+.cura-landing__headline {
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.08;
+  margin: 0 0 20px;
+}
+
+.cura-landing__lead {
+  font-size: 18px;
+  line-height: 1.6;
+  color: #71717a;
+  margin: 0 0 32px;
+}
+
+.cura-landing__hero-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+}
+
+.cura-landing__section {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 48px 24px;
+}
+
+.cura-landing__section-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  text-align: center;
+  margin: 0 0 24px;
+}
+
+.cura-landing__section-text {
+  text-align: center;
+  color: #71717a;
+  max-width: 52ch;
+  margin: 24px auto 0;
+  line-height: 1.6;
+}
+
+.cura-landing__flow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.cura-landing__flow-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 20px;
+  background: #ffffff;
+  border: 1px solid #e4e4e7;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #09090b;
+  min-width: 100px;
+}
+
+.cura-landing__flow-step svg {
+  color: #059669;
+}
+
+.cura-landing__flow-arrow {
+  width: 24px;
+  height: 2px;
+  background: #d4d4d8;
+}
+
+.cura-landing__features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.cura-landing__feature {
+  background: #ffffff;
+  border: 1px solid #e4e4e7;
+  border-radius: 14px;
+  padding: 24px;
+}
+
+.cura-landing__feature h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+
+.cura-landing__feature p {
+  font-size: 14px;
+  color: #71717a;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.cura-landing__cta-band {
+  text-align: center;
+  padding: 64px 24px;
+  background: #ffffff;
+  border-top: 1px solid #e4e4e7;
+  border-bottom: 1px solid #e4e4e7;
+}
+
+.cura-landing__cta-band h2 {
+  font-size: 1.5rem;
+  margin: 0 0 20px;
+}
+
+.cura-landing__footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 24px 32px;
+  font-size: 13px;
+  color: #a1a1aa;
+}
+
+/* Landing uses cura-btn from CuraMode — import in component */
+.cura-landing .cura-btn--primary {
+  background: #059669;
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 14px;
+  border: none;
+}
+
+.cura-landing .cura-btn--secondary {
+  background: #fff;
+  color: #09090b;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 14px;
+  border: 1px solid #e4e4e7;
+}

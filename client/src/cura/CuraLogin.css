@@ -1,0 +1,153 @@
+.cura-login {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: #fafafa;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+.cura-login__panel {
+  width: 100%;
+  max-width: 400px;
+  background: #ffffff;
+  border: 1px solid #e4e4e7;
+  border-radius: 14px;
+  padding: 32px 28px;
+  box-shadow: 0 1px 2px rgba(9, 9, 11, 0.04);
+}
+
+.cura-login__logo-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  margin-bottom: 8px;
+}
+
+.cura-login__logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(5, 150, 105, 0.1);
+  border: 1px solid rgba(5, 150, 105, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #059669;
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.cura-login__wordmark {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: #09090b;
+}
+
+.cura-login__tagline {
+  font-size: 14px;
+  color: #71717a;
+  margin: 0 0 24px;
+}
+
+.cura-login__tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: #f4f4f5;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+.cura-login__tab {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  color: #71717a;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.cura-login__tab.is-active {
+  background: #ffffff;
+  color: #09090b;
+  box-shadow: 0 1px 2px rgba(9, 9, 11, 0.06);
+}
+
+.cura-login__form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cura-login__label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #09090b;
+}
+
+.cura-login__input {
+  padding: 10px 12px;
+  border: 1px solid #e4e4e7;
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #09090b;
+  background: #ffffff;
+}
+
+.cura-login__input:focus {
+  outline: 2px solid rgba(5, 150, 105, 0.35);
+  outline-offset: 1px;
+  border-color: #059669;
+}
+
+.cura-login__remember {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #71717a;
+  cursor: pointer;
+}
+
+.cura-login__error {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(225, 29, 72, 0.08);
+  border: 1px solid rgba(225, 29, 72, 0.2);
+  color: #be123c;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.cura-login__submit {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 4px;
+}
+
+.cura-login__footer {
+  margin: 20px 0 0;
+  text-align: center;
+  font-size: 13px;
+}
+
+.cura-login__footer a {
+  color: #71717a;
+  text-decoration: none;
+}
+
+.cura-login__footer a:hover {
+  color: #09090b;
+}
