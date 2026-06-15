@@ -32,7 +32,7 @@ export default function CuraConsultationView({
         <section className="cura-consult-view__pane cura-consult-view__pane--transcript" aria-label="Transcript">
           <header className="cura-consult-view__pane-head">
             <Mic size={14} aria-hidden />
-            <span>Audio / transcript</span>
+            <span>Transcript</span>
             {patientName ? <span className="cura-consult-view__patient">{patientName}</span> : null}
           </header>
           <div className={`cura-consult-view__transcript${transcriptLoading ? ' is-loading' : ''}`}>
@@ -42,7 +42,7 @@ export default function CuraConsultationView({
         <section className="cura-consult-view__pane cura-consult-view__pane--notes" aria-label="Clinical notes">
           <header className="cura-consult-view__pane-head">
             <FileText size={14} aria-hidden />
-            <span>AI-structured notes</span>
+            <span>Notes</span>
           </header>
           <div className="cura-consult-view__notes">{notesPanel}</div>
         </section>

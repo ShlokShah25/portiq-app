@@ -786,7 +786,7 @@ const MeetingInProgress = () => {
                 {isInterview
                   ? 'Session ended — next, review AI recommendations'
                   : isCura
-                    ? 'Session ended — review your SOAP note next'
+                    ? 'Session ended — review your notes'
                     : 'Session ended'}
               </p>
               <p className="mip-ai-disclaimer">
@@ -798,8 +798,7 @@ const MeetingInProgress = () => {
                   </>
                 ) : isCura ? (
                   <>
-                    This consultation is closed. Cura will draft a structured SOAP note from the transcript (may take a
-                    minute). Review each section, edit as needed, then approve before finalizing the record.
+                    Cura is writing visit notes from the recording. Open them, fix anything, then tap Done.
                   </>
                 ) : (
                   <>
@@ -817,7 +816,7 @@ const MeetingInProgress = () => {
                   {isInterview
                     ? 'View interview summary & recommendations'
                     : isCura
-                      ? 'Review SOAP note'
+                      ? 'Review notes'
                       : `View ${T.meetingSummary()}`}
                 </button>
                 <button
@@ -847,7 +846,7 @@ const MeetingInProgress = () => {
                       : 'Interview in progress'
                     : isCura
                       ? meeting.status === 'Scheduled'
-                        ? 'Start recording when you begin the visit — Cura scribes a SOAP note afterward.'
+                        ? 'Hit record when the patient is ready — notes are written automatically after.'
                         : 'Consultation in progress'
                     : meeting.status === 'Scheduled'
                       ? 'When you begin, start recording below.'

@@ -22,6 +22,36 @@ export function curaMeetingPaths(meeting) {
   };
 }
 
+export function clinicalNoteToPlainText(note, fallbackSummary = '') {
+  if (!note || typeof note !== 'object') return String(fallbackSummary || '').trim();
+  const blocks = [];
+  const s = String(note.subjective || '').trim();
+  const o = String(note.objective || '').trim();
+  const a = String(note.assessment || '').trim();
+  const p = String(note.plan || '').trim();
+  if (s) blocks.push(s);
+  if (o && !/^not documented/i.test(o)) blocks.push(o);
+  if (a) blocks.push(a);
+  if (p) blocks.push(p);
+  const meds = Array.isArray(note.medications) ? note.medications.filter(Boolean) : [];
+  if (meds.length) blocks.push(`Prescriptions: ${meds.join(', ')}`);
+  return blocks.join('\n\n') || String(fallbackSummary || '').trim();
+}
+
+export function plainTextToClinicalNote(text, prev = {}) {
+  const t = String(text || '').trim();
+  return {
+    subjective: t,
+    objective: prev.objective || '',
+    assessment: prev.assessment || '',
+    plan: prev.plan || '',
+    medications: prev.medications || [],
+    followUpInstructions: prev.followUpInstructions || '',
+    patientCounseling: prev.patientCounseling || '',
+    redFlags: prev.redFlags || [],
+  };
+}
+
 export function consultationStatusMeta(meeting) {
   const status = String(meeting?.status || 'Scheduled');
   const tx = String(meeting?.transcriptionStatus || '');
@@ -29,7 +59,7 @@ export function consultationStatusMeta(meeting) {
   const sent = meeting?.summaryStatus === 'Sent';
 
   if (sent) return { label: 'Finalized', tone: 'success', action: 'report' };
-  if (tx === 'Completed' && !reviewed) return { label: 'Review SOAP', tone: 'warning', action: 'report' };
+  if (tx === 'Completed' && !reviewed) return { label: 'Review notes', tone: 'warning', action: 'report' };
   if (tx === 'Recording' || status === 'In Progress') return { label: 'In session', tone: 'live', action: 'session' };
   if (status === 'Completed') return { label: 'Processing', tone: 'muted', action: 'report' };
   return { label: 'Scheduled', tone: 'default', action: 'session' };

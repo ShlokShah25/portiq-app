@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Stethoscope, FileCheck, ChevronRight, Sun, Search, AlertTriangle } from 'lucide-react';
+import { FileCheck, ChevronRight, Sun, Search, AlertTriangle } from 'lucide-react';
 import { curaPaths } from './useCuraRoutes';
 import { fetchCuraDashboard, fetchCuraAlerts, searchCuraConsultations, curaApiError } from './curaApi';
 import {
@@ -11,6 +11,7 @@ import {
 } from './curaUtils';
 import { triageLevelLabel } from './availabilityTime';
 import CuraTriagePulse from './CuraTriagePulse';
+import CuraQuickStart from './CuraQuickStart';
 import './CuraTriagePulse.css';
 import './CuraMode.css';
 import './CuraSession.css';
@@ -120,29 +121,9 @@ export default function CuraDashboard() {
           <Sun size={14} style={{ verticalAlign: -2, marginRight: 6 }} aria-hidden />
           {greeting()} · {formatToday()}
         </p>
-        <h1 className="cura-hero__title">Today&apos;s rounds</h1>
-        <p className="cura-hero__subtitle">
-          Your clinical command center — see who&apos;s on the schedule, resume active visits, and clear SOAP reviews.
-        </p>
-        <div className="cura-stat-rings">
-          <div className="cura-stat-ring">
-            <span className="cura-stat-ring__value">{stats.todayConsultations ?? 0}</span>
-            <span className="cura-stat-ring__label">Consultations today</span>
-          </div>
-          <div className="cura-stat-ring">
-            <span className="cura-stat-ring__value">{stats.pendingApprovals ?? 0}</span>
-            <span className="cura-stat-ring__label">Notes to review</span>
-          </div>
-          <div className="cura-stat-ring">
-            <span className="cura-stat-ring__value">{stats.patientCount ?? 0}</span>
-            <span className="cura-stat-ring__label">Patients in panel</span>
-          </div>
-        </div>
-        <div style={{ marginTop: 20 }}>
-          <Link to={curaPaths().consultationNew} className="cura-btn cura-btn--primary">
-            <Stethoscope size={16} aria-hidden />
-            Start consultation
-          </Link>
+        <h1 className="cura-hero__title">Today</h1>
+        <div className="cura-hero__quick-start">
+          <CuraQuickStart compact />
         </div>
       </section>
 
@@ -220,8 +201,8 @@ export default function CuraDashboard() {
           <div className="cura-empty">
             <p className="cura-empty__title">Clear schedule</p>
             <p>No consultations booked for today yet.</p>
-            <Link to={curaPaths().consultationNew} className="cura-btn cura-btn--primary">
-              Start a visit
+            <Link to={curaPaths().patients} className="cura-btn cura-btn--secondary">
+              Add patient
             </Link>
           </div>
         ) : (
@@ -295,7 +276,7 @@ export default function CuraDashboard() {
         <section className="cura-card" style={{ marginTop: 24 }}>
           <h2 className="cura-card__title" style={{ marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
             <FileCheck size={16} aria-hidden />
-            SOAP notes awaiting review
+            Notes to finish
           </h2>
           <ul className="cura-list">
             {pending.map((c) => (

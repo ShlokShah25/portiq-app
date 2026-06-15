@@ -1,49 +1,30 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
-import { CheckCircle2, Save, Send } from 'lucide-react';
+import { CheckCircle2, Save } from 'lucide-react';
 import { curaPaths } from './useCuraRoutes';
 import { curaApiError } from './curaApi';
-import { isCuraConsultationMeeting } from './curaUtils';
+import {
+  isCuraConsultationMeeting,
+  clinicalNoteToPlainText,
+  plainTextToClinicalNote,
+} from './curaUtils';
 import { formatApiError } from '../utils/apiErrorMessage';
 import CuraConsultationView from './CuraConsultationView';
 import './CuraMode.css';
 import './CuraSession.css';
 import './CuraCore.css';
 
-const SOAP_SECTIONS = [
-  { key: 'subjective', letter: 'S', title: 'Subjective', hint: 'Patient-reported history & symptoms', mod: 's' },
-  { key: 'objective', letter: 'O', title: 'Objective', hint: 'Exam findings & vitals', mod: 'o' },
-  { key: 'assessment', letter: 'A', title: 'Assessment', hint: 'Diagnoses & clinical impression', mod: 'a' },
-  { key: 'plan', letter: 'P', title: 'Plan', hint: 'Treatment, meds & follow-up', mod: 'p' },
-];
-
-function emptyNote() {
-  return {
-    subjective: '',
-    objective: '',
-    assessment: '',
-    plan: '',
-    medications: [],
-    followUpInstructions: '',
-    patientCounseling: '',
-    redFlags: [],
-  };
-}
-
 function noteFromMeeting(meeting) {
   const raw = meeting?.pendingClinicalNote || meeting?.clinicalNote;
-  if (raw && typeof raw === 'object') {
-    return { ...emptyNote(), ...raw };
-  }
-  return emptyNote();
+  return clinicalNoteToPlainText(raw, meeting?.pendingSummary || meeting?.summary || '');
 }
 
 export default function CuraClinicalReport() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [meeting, setMeeting] = useState(null);
-  const [note, setNote] = useState(emptyNote());
+  const [noteText, setNoteText] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -59,9 +40,9 @@ export default function CuraClinicalReport() {
         return;
       }
       setMeeting(m);
-      setNote(noteFromMeeting(m));
+      setNoteText(noteFromMeeting(m));
     } catch (err) {
-      setError(formatApiError(err, 'Could not load consultation.'));
+      setError(formatApiError(err, 'Could not load visit.'));
     } finally {
       setLoading(false);
     }
@@ -72,68 +53,66 @@ export default function CuraClinicalReport() {
   }, [load]);
 
   useEffect(() => {
-    const poll = setInterval(() => {
-      load();
-    }, 8000);
+    const poll = setInterval(load, 8000);
     return () => clearInterval(poll);
   }, [load]);
 
-  const reviewed = !!meeting?.clinicalSummaryReviewedAt;
   const processing =
     meeting?.transcriptionStatus === 'Recording' ||
-    (meeting?.status === 'Completed' && meeting?.transcriptionStatus !== 'Completed' && meeting?.transcriptionStatus !== 'Failed');
+    (meeting?.status === 'Completed' &&
+      meeting?.transcriptionStatus !== 'Completed' &&
+      meeting?.transcriptionStatus !== 'Failed');
 
-  const handleSave = async (markReview = false) => {
+  const buildClinicalNote = () => {
+    const prev = meeting?.pendingClinicalNote || meeting?.clinicalNote || {};
+    return plainTextToClinicalNote(noteText, prev);
+  };
+
+  const handleSave = async () => {
     setSaving(true);
     setError('');
     setSuccess('');
     try {
-      await axios.put(`/meetings/${id}/pending-summary`, {
-        clinicalNote: note,
-        followUpPlan: note.followUpInstructions,
-        markClinicalReviewComplete: markReview,
-      });
-      setSuccess(markReview ? 'Clinical note approved.' : 'Draft saved.');
+      const clinicalNote = buildClinicalNote();
+      await axios.put(`/meetings/${id}/pending-summary`, { clinicalNote });
+      setSuccess('Saved.');
       await load();
     } catch (err) {
-      setError(curaApiError(err, 'Could not save clinical note.'));
+      setError(curaApiError(err, 'Could not save.'));
     } finally {
       setSaving(false);
     }
   };
 
-  const handleFinalize = async () => {
+  const handleDone = async () => {
     setSaving(true);
     setError('');
     try {
-      if (!reviewed) {
-        await axios.put(`/meetings/${id}/pending-summary`, {
-          clinicalNote: note,
-          followUpPlan: note.followUpInstructions,
-          markClinicalReviewComplete: true,
-        });
-      }
+      const clinicalNote = buildClinicalNote();
+      await axios.put(`/meetings/${id}/pending-summary`, {
+        clinicalNote,
+        markClinicalReviewComplete: true,
+      });
       await axios.post(`/meetings/${id}/approve-and-send`, {});
-      setSuccess('Consultation record finalized.');
       navigate(curaPaths().dashboard, { replace: true });
     } catch (err) {
-      setError(curaApiError(err, 'Could not finalize consultation.'));
-    } finally {
+      setError(curaApiError(err, 'Could not finish visit.'));
       setSaving(false);
     }
   };
 
   if (loading) {
-    return <div className="cura-loading">Loading clinical note…</div>;
+    return <div className="cura-loading">Loading notes…</div>;
   }
 
   if (!meeting) {
-    return <p className="cura-login__error">Consultation not found.</p>;
+    return <p className="cura-login__error">Visit not found.</p>;
   }
 
   const patientName =
     meeting.participants?.find((p) => String(p.role || '').toLowerCase() === 'patient')?.name || '';
   const transcriptText = String(meeting.transcription || meeting.liveTranscript || '').trim();
+  const reviewed = !!meeting?.clinicalSummaryReviewedAt;
 
   const notesPanel = (
     <>
@@ -150,90 +129,19 @@ export default function CuraClinicalReport() {
       ) : null}
 
       {processing ? (
-        <div className="cura-card" style={{ padding: 20 }}>
-          <p className="cura-empty__title">Generating SOAP note…</p>
-          <p style={{ fontSize: 13, color: 'var(--cura-text-secondary)', margin: 0 }}>
-            Cura is transcribing and structuring your consultation. This page refreshes automatically.
-          </p>
-        </div>
+        <p style={{ fontSize: 13, color: 'var(--cura-text-muted)', margin: '0 0 12px' }}>
+          Writing notes from the recording… refreshes automatically.
+        </p>
       ) : null}
 
-      {SOAP_SECTIONS.map((sec) => (
-        <section key={sec.key} className={`cura-soap-card cura-soap-card--${sec.mod}`}>
-          <div className="cura-soap-card__head">
-            <span className="cura-soap-card__letter" aria-hidden>
-              {sec.letter}
-            </span>
-            <div>
-              <h2 className="cura-soap-card__title">{sec.title}</h2>
-              <p className="cura-soap-card__hint">{sec.hint}</p>
-            </div>
-          </div>
-          <div className="cura-soap-card__body">
-            <textarea
-              className="cura-soap-card__textarea"
-              value={note[sec.key] || ''}
-              onChange={(e) => setNote((n) => ({ ...n, [sec.key]: e.target.value }))}
-              placeholder={`Enter ${sec.title.toLowerCase()}…`}
-              disabled={saving}
-            />
-          </div>
-        </section>
-      ))}
-
-      <section className="cura-soap-card">
-        <div className="cura-soap-card__head">
-          <span className="cura-soap-card__letter" style={{ background: '#f4f4f5', color: '#18181b' }}>
-            Rx
-          </span>
-          <div>
-            <h2 className="cura-soap-card__title">Medications</h2>
-            <p className="cura-soap-card__hint">One per line — verify before approving</p>
-          </div>
-        </div>
-        <div className="cura-soap-card__body">
-          <textarea
-            className="cura-soap-card__textarea"
-            style={{ minHeight: 80 }}
-            value={(note.medications || []).join('\n')}
-            onChange={(e) =>
-              setNote((n) => ({
-                ...n,
-                medications: e.target.value.split('\n').map((s) => s.trim()).filter(Boolean),
-              }))
-            }
-            placeholder="e.g. Amoxicillin 500mg TID × 5 days"
-            disabled={saving}
-          />
-        </div>
-      </section>
-
-      <section className="cura-soap-card">
-        <div className="cura-soap-card__head">
-          <span className="cura-soap-card__letter" style={{ background: '#f4f4f5', color: '#a16207' }}>
-            !
-          </span>
-          <div>
-            <h2 className="cura-soap-card__title">Safety flags</h2>
-            <p className="cura-soap-card__hint">Allergies & contraindications from encounter</p>
-          </div>
-        </div>
-        <div className="cura-soap-card__body">
-          <textarea
-            className="cura-soap-card__textarea"
-            style={{ minHeight: 72 }}
-            value={(note.redFlags || []).join('\n')}
-            onChange={(e) =>
-              setNote((n) => ({
-                ...n,
-                redFlags: e.target.value.split('\n').map((s) => s.trim()).filter(Boolean),
-              }))
-            }
-            placeholder="Document safety concerns…"
-            disabled={saving}
-          />
-        </div>
-      </section>
+      <textarea
+        className="cura-simple-note"
+        value={noteText}
+        onChange={(e) => setNoteText(e.target.value)}
+        placeholder="Visit summary appears here after the recording. Edit anything that looks off."
+        disabled={saving || processing}
+        rows={16}
+      />
     </>
   );
 
@@ -242,31 +150,15 @@ export default function CuraClinicalReport() {
       {reviewed ? (
         <span className="cura-report-reviewed">
           <CheckCircle2 size={16} aria-hidden />
-          Reviewed &amp; approved
+          Saved
         </span>
-      ) : (
-        <button
-          type="button"
-          className="cura-btn cura-btn--secondary"
-          onClick={() => handleSave(true)}
-          disabled={saving || processing}
-        >
-          <CheckCircle2 size={16} aria-hidden />
-          Mark reviewed
-        </button>
-      )}
-      <button type="button" className="cura-btn cura-btn--secondary" onClick={() => handleSave(false)} disabled={saving}>
+      ) : null}
+      <button type="button" className="cura-btn cura-btn--secondary" onClick={handleSave} disabled={saving || processing}>
         <Save size={16} aria-hidden />
-        {saving ? 'Saving…' : 'Save draft'}
+        {saving ? 'Saving…' : 'Save'}
       </button>
-      <button
-        type="button"
-        className="cura-btn cura-btn--primary"
-        onClick={handleFinalize}
-        disabled={saving || processing}
-      >
-        <Send size={16} aria-hidden />
-        Approve &amp; send to WhatsApp
+      <button type="button" className="cura-btn cura-btn--primary" onClick={handleDone} disabled={saving || processing}>
+        Done
       </button>
     </>
   );

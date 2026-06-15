@@ -105,7 +105,7 @@ export default function CuraPatientDetailPage() {
           className="cura-btn cura-btn--primary"
         >
           <Stethoscope size={16} aria-hidden />
-          New consultation
+          New visit
         </Link>
       </header>
 
@@ -156,7 +156,7 @@ export default function CuraPatientDetailPage() {
                   ) : null}
                   {consultPaths && reportReady ? (
                     <Link to={consultPaths.report} className="cura-btn cura-btn--ghost" style={{ marginTop: 10, padding: '6px 0', fontSize: 12 }}>
-                      Review SOAP note →
+                      Review notes →
                     </Link>
                   ) : consultPaths ? (
                     <Link to={consultPaths.session} className="cura-btn cura-btn--ghost" style={{ marginTop: 10, padding: '6px 0', fontSize: 12 }}>

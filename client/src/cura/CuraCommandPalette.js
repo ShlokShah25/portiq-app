@@ -9,7 +9,7 @@ import './CuraCore.css';
 const QUICK_ACTIONS = [
   { id: 'today', label: 'Go to Today', path: () => curaPaths().dashboard },
   { id: 'patients', label: 'Patient registry', path: () => curaPaths().patients },
-  { id: 'new', label: 'Start consultation', path: () => curaPaths().consultationNew },
+  { id: 'new', label: 'Start visit', path: () => curaPaths().dashboard },
   { id: 'search', label: 'Clinical search', path: () => `${curaPaths().dashboard}#search` },
 ];
 
