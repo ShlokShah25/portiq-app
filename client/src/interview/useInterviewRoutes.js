@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
-import { FEATURE_INTERVIEW_UI } from '../config/featureFlags';
+import { FEATURE_INTERVIEW_UI, FEATURE_CURA_UI } from '../config/featureFlags';
 import { isInterviewMeetingRecord } from './interviewUtils';
+import { isCuraConsultationMeeting, curaMeetingPaths } from '../cura/curaUtils';
 
 export const INTERVIEW_BASE = '/interview';
 
@@ -24,6 +25,9 @@ export function meetingPaths(meeting) {
   const isInterviewMeeting = FEATURE_INTERVIEW_UI && isInterviewMeetingRecord(meeting);
   if (isInterviewMeeting) {
     return interviewPaths(idStr);
+  }
+  if (FEATURE_CURA_UI && isCuraConsultationMeeting(meeting)) {
+    return curaMeetingPaths(meeting);
   }
   return {
     dashboard: '/meetings',

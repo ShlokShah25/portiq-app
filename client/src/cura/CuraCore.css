@@ -1,0 +1,354 @@
+/**
+ * Cura Core — Linear-meets-Medical design tokens.
+ * Scoped under .app-shell--cura.theme-cura-core
+ */
+
+.app-shell--cura.theme-cura-core,
+.app-shell--cura {
+  --cura-bg: #fafafa;
+  --cura-bg-elevated: #ffffff;
+  --cura-bg-card: #ffffff;
+  --cura-bg-muted: #f4f4f5;
+  --cura-border: #e4e4e7;
+  --cura-border-strong: #d4d4d8;
+  --cura-text: #18181b;
+  --cura-text-secondary: #52525b;
+  --cura-text-muted: #a1a1aa;
+  --cura-accent: #18181b;
+  --cura-accent-fg: #fafafa;
+  --cura-emerald: #18181b;
+  --cura-emerald-bright: #27272a;
+  --cura-emerald-dim: rgba(24, 24, 27, 0.06);
+  --cura-amber: #a16207;
+  --cura-amber-dim: rgba(161, 98, 7, 0.1);
+  --cura-rose: #be123c;
+  --cura-rose-dim: rgba(190, 18, 60, 0.08);
+  --cura-radius: 6px;
+  --cura-radius-lg: 8px;
+  --cura-shadow-sm: 0 1px 2px rgba(9, 9, 11, 0.04);
+  --cura-font: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --cura-sidebar-width: 56px;
+  --cura-density-pad: 12px;
+  background: var(--cura-bg);
+  color: var(--cura-text);
+  font-family: var(--cura-font);
+  font-size: 13px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+.theme-cura-core .cura-page__title {
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.035em;
+}
+
+.theme-cura-core .cura-btn--primary {
+  background: var(--cura-accent);
+  color: var(--cura-accent-fg);
+  border-radius: var(--cura-radius);
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.theme-cura-core .cura-btn--primary:hover {
+  background: #27272a;
+}
+
+.cura-shell {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+}
+
+.cura-shell__nav {
+  width: var(--cura-sidebar-width);
+  flex-shrink: 0;
+  border-right: 1px solid var(--cura-border);
+  background: var(--cura-bg-elevated);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 0;
+  gap: 4px;
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 120;
+}
+
+.cura-shell__nav-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--cura-radius);
+  color: var(--cura-text-muted);
+  text-decoration: none;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.cura-shell__nav-link:hover,
+.cura-shell__nav-link.is-active {
+  background: var(--cura-bg-muted);
+  color: var(--cura-text);
+}
+
+.cura-shell__nav-link.is-active {
+  box-shadow: inset 0 0 0 1px var(--cura-border);
+}
+
+.cura-shell__main {
+  flex: 1;
+  margin-left: var(--cura-sidebar-width);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 100vh;
+}
+
+.cura-shell__content {
+  flex: 1;
+}
+
+.cura-shell--immersive .cura-shell__nav {
+  display: none;
+}
+
+.cura-shell--immersive .cura-shell__main {
+  margin-left: 0;
+}
+
+.cura-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--cura-border);
+  background: var(--cura-bg-elevated);
+  font-size: 11px;
+  color: var(--cura-text-muted);
+}
+
+.cura-status-bar__group {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.cura-status-bar__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cura-status-bar__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--cura-text-muted);
+}
+
+.cura-status-bar__dot--ok { background: #16a34a; }
+.cura-status-bar__dot--warn { background: var(--cura-amber); }
+.cura-status-bar__dot--err { background: var(--cura-rose); }
+
+.cura-status-bar__cmd {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border: 1px solid var(--cura-border);
+  border-radius: var(--cura-radius);
+  background: var(--cura-bg-muted);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--cura-text-secondary);
+}
+
+.cura-status-bar__cmd kbd {
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  border: 1px solid var(--cura-border-strong);
+  background: #fff;
+}
+
+.cura-cmd-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  background: rgba(9, 9, 11, 0.4);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 12vh 16px 16px;
+}
+
+.cura-cmd {
+  width: 100%;
+  max-width: 560px;
+  background: #fff;
+  border: 1px solid var(--cura-border);
+  border-radius: var(--cura-radius-lg);
+  box-shadow: 0 16px 48px rgba(9, 9, 11, 0.12);
+  overflow: hidden;
+}
+
+.cura-cmd__input {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--cura-border);
+  padding: 14px 16px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.cura-cmd__list {
+  max-height: 320px;
+  overflow-y: auto;
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+}
+
+.cura-cmd__item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  border-radius: var(--cura-radius);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--cura-text);
+}
+
+.cura-cmd__item:hover,
+.cura-cmd__item.is-active {
+  background: var(--cura-bg-muted);
+}
+
+.cura-cmd__item-meta {
+  display: block;
+  font-size: 11px;
+  color: var(--cura-text-muted);
+  margin-top: 2px;
+}
+
+.cura-pii-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--cura-text-secondary);
+  cursor: pointer;
+}
+
+.cura-shell--immersive .cura-shell__main {
+  margin-left: 0;
+}
+
+/* Consultation split-screen editor */
+.cura-consult-view {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 48px);
+}
+
+.cura-consult-view__split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  flex: 1;
+  min-height: 0;
+  border-bottom: 1px solid var(--cura-border);
+}
+
+@media (max-width: 900px) {
+  .cura-consult-view__split {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cura-consult-view__pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 280px;
+  border-right: 1px solid var(--cura-border);
+  background: var(--cura-bg-elevated);
+}
+
+.cura-consult-view__pane--notes {
+  border-right: none;
+}
+
+.cura-consult-view__pane-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--cura-border);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--cura-text-secondary);
+}
+
+.cura-consult-view__patient {
+  margin-left: auto;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--cura-text-muted);
+}
+
+.cura-consult-view__transcript {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 16px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--cura-text);
+  white-space: pre-wrap;
+}
+
+.cura-consult-view__transcript.is-loading {
+  color: var(--cura-text-muted);
+  font-style: italic;
+}
+
+.cura-consult-view__notes {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 14px;
+}
+
+.cura-consult-view__action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--cura-bg-elevated);
+  border-top: 1px solid var(--cura-border);
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+}
+
+.app-shell--cura .app-shell__main {
+  padding: 0;
+}

@@ -81,6 +81,10 @@ router.post('/signup', async (req, res) => {
     const pt = String(productType || '').toLowerCase();
     admin.productType =
       pt === 'education' ? 'education' : pt === 'cura' ? 'cura' : 'workplace';
+    if (pt === 'cura') {
+      admin.complimentaryAccess = true;
+      admin.plan = admin.plan || 'professional';
+    }
     if (!admin.plan) {
       admin.plan = 'starter';
     }

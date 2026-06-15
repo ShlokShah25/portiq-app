@@ -80,10 +80,10 @@ const meetingSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
-  /** standard | interview — switches LLM prompt/output shape; same pipeline otherwise */
+  /** standard | interview | clinical — switches LLM prompt/output shape; same pipeline otherwise */
   summaryMode: {
     type: String,
-    enum: ['standard', 'interview'],
+    enum: ['standard', 'interview', 'clinical'],
     default: 'standard',
   },
   interviewCandidateName: {
@@ -332,6 +332,19 @@ const meetingSchema = new mongoose.Schema({
   pendingImportantNotes: [{
     type: String
   }],
+  /** Education: revision / study questions (stored separately so UI can show them; long-audio merge keeps them). */
+  revisionQuestions: {
+    type: String,
+    default: '',
+  },
+  pendingRevisionQuestions: {
+    type: String,
+    default: '',
+  },
+  originalRevisionQuestions: {
+    type: String,
+    default: '',
+  },
   editorVerificationCode: {
     type: String,
     default: null
@@ -399,6 +412,88 @@ const meetingSchema = new mongoose.Schema({
   educationSummaryTeacherReviewedAt: {
     type: Date,
     default: null,
+  },
+  /** Set when clinician approves clinical summary before patient send */
+  clinicalSummaryReviewedAt: {
+    type: Date,
+    default: null,
+  },
+  /** Cura SOAP note — subjective / objective / assessment / plan */
+  clinicalNote: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null,
+  },
+  pendingClinicalNote: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null,
+  },
+  originalClinicalNote: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null,
+  },
+  /** Cura: linked patient for this consultation */
+  patientId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Patient',
+    default: null,
+    index: true,
+  },
+  clinicId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Clinic',
+    default: null,
+    index: true,
+  },
+  chiefComplaint: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  visitType: {
+    type: String,
+    default: 'general',
+    trim: true,
+  },
+  followUpPlan: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  /** Pre-visit notes captured via WhatsApp clinical prelude */
+  preVisitNotes: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  clinicalPrepStatus: {
+    type: String,
+    enum: ['pending', 'pre_notes_provided', 'prep_sent', 'not_required'],
+    default: 'pending',
+  },
+  bookingSource: {
+    type: String,
+    enum: ['clinician', 'whatsapp', 'calendar'],
+    default: 'clinician',
+  },
+  preVisitPrepSentAt: {
+    type: Date,
+    default: null,
+  },
+  whatsappSessionId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'WhatsAppSession',
+    default: null,
+  },
+  triageLevel: {
+    type: String,
+    enum: ['NORMAL', 'URGENT', 'EMERGENCY'],
+    default: 'NORMAL',
+    index: true,
+  },
+  urgentTriage: {
+    type: Boolean,
+    default: false,
+    index: true,
   },
   createdAt: {
     type: Date,

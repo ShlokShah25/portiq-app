@@ -56,6 +56,50 @@ if (twilioConfig.accountSid && twilioConfig.authToken) {
 }
 
 /**
+ * Normalize phone to E.164 (+91 default for India).
+ */
+function normalizeWhatsAppPhone(phoneNumber) {
+  let normalizedPhone = String(phoneNumber || '').trim();
+  normalizedPhone = normalizedPhone.replace(/^whatsapp:/, '');
+  if (!normalizedPhone.startsWith('+')) {
+    normalizedPhone = normalizedPhone.replace(/^(0|91)/, '');
+    normalizedPhone = `+91${normalizedPhone}`;
+  }
+  return normalizedPhone.replace(/[\s\-()]/g, '');
+}
+
+/**
+ * Send plain-text WhatsApp message (Cura booking, reminders).
+ */
+async function sendWhatsAppText(phoneNumber, body) {
+  if (!twilioClient) {
+    console.warn('[whatsapp] Twilio not configured — message not sent:', String(body).slice(0, 80));
+    return { success: false, message: 'WhatsApp service not configured' };
+  }
+  if (!twilioConfig.whatsappNumber) {
+    return { success: false, message: 'WhatsApp number not configured' };
+  }
+
+  try {
+    const normalizedPhone = normalizeWhatsAppPhone(phoneNumber);
+    let fromNumber = twilioConfig.whatsappNumber;
+    if (!fromNumber.startsWith('whatsapp:')) {
+      fromNumber = `whatsapp:${fromNumber}`;
+    }
+
+    const result = await twilioClient.messages.create({
+      from: fromNumber,
+      to: `whatsapp:${normalizedPhone}`,
+      body: String(body || '').trim(),
+    });
+    return { success: true, messageSid: result.sid, status: result.status };
+  } catch (error) {
+    console.error('[whatsapp] sendWhatsAppText failed:', error.message);
+    return { success: false, message: error.message, errorCode: error.code };
+  }
+}
+
+/**
  * Send QR code via WhatsApp with image
  */
 async function sendQRViaWhatsApp(phoneNumber, qrToken, visitorName, purpose = null) {
@@ -403,6 +447,8 @@ if (process.env.NODE_ENV !== 'production' || process.env.TWILIO_DIAGNOSTICS === 
 module.exports = {
   sendQRViaWhatsApp,
   sendSMS,
+  sendWhatsAppText,
+  normalizeWhatsAppPhone,
   checkTwilioConfig,
   get twilioClient() { return twilioClient; },
   get twilioConfig() { return twilioConfig; }

@@ -6,7 +6,100 @@
 const SUMMARY_MODES = {
   STANDARD: 'standard',
   INTERVIEW: 'interview',
+  CLINICAL: 'clinical',
 };
+
+/** Cura clinical scribe — SOAP documentation from consultation transcript */
+const CLINICAL_SOAP_SYSTEM_PROMPT = `You are an expert clinical documentation assistant helping a licensed physician produce accurate SOAP notes from a patient consultation transcript.
+
+IMPORTANT RULES:
+- The consultation may be in English, Hindi, Hinglish, or other languages: understand everything said, but write your entire JSON output in professional clinical English only.
+- Document ONLY what is supported by the transcript — do not invent findings, diagnoses, vitals, or medications.
+- If information for a SOAP section is missing, write "Not documented in encounter" for that section rather than guessing.
+- Distinguish clearly between patient-reported symptoms (Subjective) and clinician-observed or stated findings (Objective).
+- Assessment should list working diagnoses or clinical impressions with appropriate uncertainty language when the transcript does not confirm a diagnosis.
+- Plan should include medications, investigations, referrals, lifestyle advice, and follow-up only when discussed or clearly implied in the encounter.
+- Flag allergies, contraindications, or safety concerns mentioned in the transcript under redFlags.
+- Use concise, EHR-ready prose — not conversational filler.
+- Never prescribe controlled substances or dosages not explicitly discussed; if dosing is unclear, note "dose not specified in encounter".
+
+TONE: Professional, neutral, medico-legally careful. You assist documentation — the clinician is solely responsible for the final note.`;
+
+function normalizeClinicalJson(raw) {
+  const o = raw && typeof raw === 'object' ? raw : {};
+  const str = (k) => String(o[k] || '').trim();
+  let meds = o.medications;
+  if (!Array.isArray(meds)) meds = [];
+  meds = meds.map((m) => String(m || '').trim()).filter(Boolean);
+  let redFlags = o.redFlags;
+  if (!Array.isArray(redFlags)) redFlags = o.red_flags;
+  if (!Array.isArray(redFlags)) redFlags = [];
+  redFlags = redFlags.map((r) => String(r || '').trim()).filter(Boolean);
+  return {
+    subjective: str('subjective'),
+    objective: str('objective'),
+    assessment: str('assessment'),
+    plan: str('plan'),
+    medications: meds,
+    followUpInstructions: str('followUpInstructions') || str('follow_up_instructions'),
+    patientCounseling: str('patientCounseling') || str('patient_counseling'),
+    redFlags,
+  };
+}
+
+function mapClinicalToPipelinePayload(normalized) {
+  const soapNarrative = [
+    normalized.subjective ? `**Subjective**\n${normalized.subjective}` : '',
+    normalized.objective ? `**Objective**\n${normalized.objective}` : '',
+    normalized.assessment ? `**Assessment**\n${normalized.assessment}` : '',
+    normalized.plan ? `**Plan**\n${normalized.plan}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+
+  const assessmentLines = normalized.assessment
+    ? normalized.assessment
+        .split(/\n|;/)
+        .map((s) => s.trim())
+        .filter((s) => s.length > 3)
+    : [];
+
+  const planLines = [
+    ...normalized.medications.map((m) => `Medication: ${m}`),
+    ...(normalized.plan
+      ? normalized.plan
+          .split(/\n|;/)
+          .map((s) => s.trim())
+          .filter((s) => s.length > 3)
+      : []),
+    ...(normalized.followUpInstructions ? [`Follow-up: ${normalized.followUpInstructions}`] : []),
+  ];
+
+  return {
+    summary: soapNarrative,
+    keyPoints: assessmentLines.slice(0, 8),
+    importantNotes: normalized.redFlags,
+    nextSteps: planLines.slice(0, 12),
+    clinicalNote: normalized,
+    followUpPlan: normalized.followUpInstructions,
+  };
+}
+
+function buildClinicalUserJsonInstructions() {
+  return `Return ONLY a JSON object (no markdown fences) with this exact structure:
+{
+  "subjective": "Patient-reported history, symptoms, duration, context — from transcript only",
+  "objective": "Exam findings, vitals, test results mentioned by clinician — or 'Not documented in encounter'",
+  "assessment": "Working diagnoses / clinical impressions with appropriate uncertainty",
+  "plan": "Treatment plan, investigations, referrals discussed",
+  "medications": ["drug name and sig if stated"],
+  "followUpInstructions": "When to return, warning signs, follow-up timing",
+  "patientCounseling": "Key counseling points discussed with patient",
+  "redFlags": ["allergies, contraindications, or safety concerns mentioned"]
+}
+
+Ground every field in the transcript. Use empty arrays only when nothing applies.`;
+}
 
 /** User-requested evaluation prompt (system message). Output format is enforced via JSON in the user message. */
 const INTERVIEW_EVALUATION_SYSTEM_PROMPT = `You are an expert hiring assistant helping evaluate a candidate based on an interview transcript.
@@ -191,7 +284,11 @@ Use empty arrays only if there is truly nothing to list. Ground every field in t
 module.exports = {
   SUMMARY_MODES,
   INTERVIEW_EVALUATION_SYSTEM_PROMPT,
+  CLINICAL_SOAP_SYSTEM_PROMPT,
   normalizeInterviewJson,
   mapInterviewToPipelinePayload,
   buildInterviewUserJsonInstructions,
+  normalizeClinicalJson,
+  mapClinicalToPipelinePayload,
+  buildClinicalUserJsonInstructions,
 };

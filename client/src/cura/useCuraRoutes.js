@@ -15,6 +15,7 @@ export function curaPaths(id) {
     prescriptions: `${CURA_BASE}/prescriptions`,
     followUps: `${CURA_BASE}/follow-ups`,
     settings: `${CURA_BASE}/settings`,
+    search: `${CURA_BASE}/search`,
     consultationNew: `${CURA_BASE}/consultations/new`,
     consultation: idStr ? `${CURA_BASE}/consultations/${idStr}` : CURA_BASE,
     consultationSession: idStr ? `${CURA_BASE}/consultations/${idStr}/session` : CURA_BASE,

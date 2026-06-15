@@ -36,10 +36,18 @@ export default function CuraSidebar() {
     <aside className="cura-sidebar" aria-label="Cura navigation">
       <div className="cura-sidebar__brand">
         <div className="cura-sidebar__logo" aria-hidden>
-          C
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path
+              d="M12 21c4.5-3.5 7-7.2 7-11a7 7 0 10-14 0c0 3.8 2.5 7.5 7 11z"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              fill="rgba(5,150,105,0.15)"
+            />
+            <circle cx="12" cy="10" r="2.25" fill="currentColor" />
+          </svg>
         </div>
         <div className="cura-sidebar__brand-text">
-          <span className="cura-sidebar__brand-kicker">Clinical intelligence</span>
+          <span className="cura-sidebar__brand-kicker">Ambient clinical AI</span>
           <span className="cura-sidebar__brand-title">Cura</span>
         </div>
       </div>

@@ -1409,8 +1409,10 @@ const MeetingsScreen = () => {
                                   >
                                     <option value="">Select…</option>
                                     <option value="Strong Hire">Strong Hire</option>
-                                    <option value="Lean Hire">Lean Hire</option>
+                                    <option value="Hire">Hire</option>
+                                    <option value="Neutral">Neutral</option>
                                     <option value="No Hire">No Hire</option>
+                                    <option value="Lean Hire">Lean Hire (legacy)</option>
                                   </select>
                                 </div>
                                 <div className="meeting-summary-edit-field">

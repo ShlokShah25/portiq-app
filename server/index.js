@@ -104,6 +104,8 @@ app.use('/uploads/voice-samples', express.static(path.join(__dirname, '../upload
 // API Routes (must come before static file serving)
 // Visitor management APIs have been retired – Portiq now focuses on the meeting assistant and SaaS flow.
 app.use('/api/meetings', require('./routes/meetings'));
+app.use('/api/cura', require('./routes/cura'));
+app.use('/api/webhooks', require('./routes/whatsappWebhook'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/config', require('./routes/config'));
 app.use('/api/saas', require('./routes/saas'));
@@ -225,6 +227,13 @@ mongoose.connect(mongoUri, mongoOptions)
     console.log('✅ Action-item reminder cron scheduled');
   } catch (err) {
     console.warn('⚠️  Failed to start action-item reminder cron:', err.message);
+  }
+
+  try {
+    const { startCuraPreVisitCron } = require('./utils/curaPreVisitCron');
+    startCuraPreVisitCron();
+  } catch (err) {
+    console.warn('⚠️  Failed to start Cura pre-visit cron:', err.message);
   }
 })
 .catch((error) => {

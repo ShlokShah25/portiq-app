@@ -27,8 +27,11 @@ function buildPipelineUpdateFromSummaryData(summaryData) {
   const hrr =
     summaryData.hiringRecommendationReason != null ? String(summaryData.hiringRecommendationReason) : '';
   const ev = summaryData.evaluationSignals !== undefined ? summaryData.evaluationSignals : null;
+  const clinicalNote = summaryData.clinicalNote !== undefined ? summaryData.clinicalNote : null;
+  const followUpPlan =
+    summaryData.followUpPlan != null ? String(summaryData.followUpPlan) : undefined;
 
-  return {
+  const base = {
     transcription: summaryData.transcription,
     summary: summaryData.summary,
     keyPoints: summaryData.keyPoints,
@@ -48,6 +51,12 @@ function buildPipelineUpdateFromSummaryData(summaryData) {
     pendingDecisions: summaryData.decisions || [],
     pendingNextSteps: summaryData.nextSteps || [],
     pendingImportantNotes: summaryData.importantNotes || [],
+    revisionQuestions:
+      summaryData.revisionQuestions != null ? String(summaryData.revisionQuestions) : '',
+    pendingRevisionQuestions:
+      summaryData.revisionQuestions != null ? String(summaryData.revisionQuestions) : '',
+    originalRevisionQuestions:
+      summaryData.revisionQuestions != null ? String(summaryData.revisionQuestions) : '',
     hiringRecommendation: hr,
     hiringRecommendationReason: hrr,
     evaluationSignals: ev,
@@ -57,11 +66,21 @@ function buildPipelineUpdateFromSummaryData(summaryData) {
     originalHiringRecommendation: hr,
     originalHiringRecommendationReason: hrr,
     originalEvaluationSignals: ev,
+    pendingClinicalNote: clinicalNote,
+    clinicalNote: clinicalNote,
+    originalClinicalNote: clinicalNote,
+    clinicalSummaryReviewedAt: null,
     transcriptionStatus: 'Completed',
     summaryStatus: 'Pending Approval',
     educationSummaryTeacherReviewedAt: null,
     ...clearTranscriptionFailureFields(),
   };
+
+  if (followUpPlan !== undefined) {
+    base.followUpPlan = followUpPlan;
+  }
+
+  return base;
 }
 
 /**

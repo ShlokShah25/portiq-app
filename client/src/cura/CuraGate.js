@@ -4,6 +4,7 @@ import axios from 'axios';
 import { isCura } from '../config/product';
 import { FEATURE_CURA_UI } from '../config/featureFlags';
 import { defaultHomePath } from '../config/product';
+import { fetchCuraClinic } from './curaApi';
 import './CuraMode.css';
 
 const ONBOARDING_KEY = 'cura_onboarding_complete';
@@ -46,9 +47,24 @@ export default function CuraGate() {
           navigate(defaultHomePath(pt), { replace: true });
           return;
         }
-        if (!isCuraOnboardingComplete() && !window.location.pathname.includes('/onboarding')) {
-          navigate('/cura/onboarding', { replace: true });
-          return;
+        const onOnboarding = window.location.pathname.includes('/onboarding');
+        if (!onOnboarding) {
+          try {
+            const clinicRes = await fetchCuraClinic();
+            if (cancelled) return;
+            const hasClinic = !!clinicRes?.clinic && !clinicRes?.needsOnboarding;
+            if (hasClinic) {
+              markCuraOnboardingComplete();
+            } else if (!isCuraOnboardingComplete()) {
+              navigate('/cura/onboarding', { replace: true });
+              return;
+            }
+          } catch (_) {
+            if (!isCuraOnboardingComplete()) {
+              navigate('/cura/onboarding', { replace: true });
+              return;
+            }
+          }
         }
       } catch (_) {
         if (!cancelled) navigate('/cura/login', { replace: true });

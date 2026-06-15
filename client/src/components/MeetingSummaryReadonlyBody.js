@@ -504,7 +504,9 @@ export default function MeetingSummaryReadonlyBody({
                 <ul className="meeting-summary-list meeting-summary-list--checks meeting-summary-list--md">
                   {keyPoints.map((p, idx) => (
                     <li key={idx}>
-                      <EducationMarkdownBlock>{p}</EducationMarkdownBlock>
+                      <EducationMarkdownBlock className="education-markdown-block--tight">
+                        {p}
+                      </EducationMarkdownBlock>
                     </li>
                   ))}
                 </ul>
@@ -519,7 +521,7 @@ export default function MeetingSummaryReadonlyBody({
                   <FileText className="meeting-summary-heading-icon" strokeWidth={1.5} aria-hidden />
                   Structured notes & detailed explanation
                 </h2>
-                <EducationMarkdownBlock className="meeting-summary-body meeting-summary-body--prewrap">
+                <EducationMarkdownBlock className="education-markdown-block--tight">
                   {summaryText}
                 </EducationMarkdownBlock>
               </section>
@@ -626,7 +628,7 @@ export default function MeetingSummaryReadonlyBody({
               Revision questions
             </h2>
             <div className="meeting-summary-revision-body">
-              <EducationMarkdownBlock>{revisionBlock}</EducationMarkdownBlock>
+              <EducationMarkdownBlock className="education-markdown-block--tight">{revisionBlock}</EducationMarkdownBlock>
             </div>
           </section>
         )}

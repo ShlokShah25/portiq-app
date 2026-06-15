@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { markCuraOnboardingComplete } from './CuraGate';
+import { saveCuraOnboarding, curaApiError } from './curaApi';
 import './CuraMode.css';
 
 const STEPS = [
@@ -42,20 +43,31 @@ export default function CuraOnboarding() {
     doctorName: '',
     specialty: '',
   });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   const current = STEPS[step];
   const isLast = step >= STEPS.length - 1;
 
   const canContinue = current.fields.every((f) => String(form[f.key] || '').trim());
 
-  const finish = () => {
+  const finish = async () => {
+    setSaving(true);
+    setError('');
     try {
-      window.localStorage.setItem('cura_onboarding_profile', JSON.stringify(form));
-    } catch (_) {
-      /* ignore */
+      await saveCuraOnboarding(form);
+      try {
+        window.localStorage.setItem('cura_onboarding_profile', JSON.stringify(form));
+      } catch (_) {
+        /* ignore */
+      }
+      markCuraOnboardingComplete();
+      navigate('/cura', { replace: true });
+    } catch (err) {
+      setError(curaApiError(err, 'Could not save clinic profile.'));
+    } finally {
+      setSaving(false);
     }
-    markCuraOnboardingComplete();
-    navigate('/cura', { replace: true });
   };
 
   return (
@@ -65,6 +77,12 @@ export default function CuraOnboarding() {
       </p>
       <h1 className="cura-page__title">{current.title}</h1>
       <p className="cura-page__subtitle">{current.description}</p>
+
+      {error ? (
+        <div className="cura-login__error" role="alert" style={{ marginTop: 16 }}>
+          {error}
+        </div>
+      ) : null}
 
       <div className="cura-card" style={{ marginTop: 24 }}>
         {current.fields.map((field) => (
@@ -99,11 +117,11 @@ export default function CuraOnboarding() {
           <button
             type="button"
             className="cura-btn cura-btn--primary"
-            disabled={!canContinue}
+            disabled={!canContinue || saving}
             onClick={() => (isLast ? finish() : setStep((s) => s + 1))}
             style={{ marginLeft: 'auto' }}
           >
-            {isLast ? 'Enter Cura' : 'Continue'}
+            {isLast ? (saving ? 'Saving…' : 'Enter Cura') : 'Continue'}
           </button>
         </div>
       </div>

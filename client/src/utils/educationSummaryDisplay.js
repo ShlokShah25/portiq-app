@@ -60,6 +60,7 @@ function splitRevisionQuestionsFromSummary(text) {
  */
 export function stripEducationSummaryForDisplay({
   summary = '',
+  revisionQuestions: revisionQuestionsField = null,
   keyPoints = [],
   decisions = [],
   nextSteps = [],
@@ -67,11 +68,14 @@ export function stripEducationSummaryForDisplay({
   actionItems = [],
 }) {
   const summaryStripped = stripSpeakerPrefixesFromLine(summary);
+  const explicit = revisionQuestionsField != null && String(revisionQuestionsField).trim()
+    ? softenStudentFacingVocab(stripSpeakerPrefixesFromLine(String(revisionQuestionsField)))
+    : null;
   const { summaryBody, revisionBlock } = splitRevisionQuestionsFromSummary(summaryStripped);
 
   return {
     summary: softenStudentFacingVocab(summaryBody),
-    revisionQuestions: revisionBlock ? softenStudentFacingVocab(revisionBlock) : null,
+    revisionQuestions: explicit || (revisionBlock ? softenStudentFacingVocab(revisionBlock) : null),
     keyPoints: stripStringArray(keyPoints).map((x) => softenStudentFacingVocab(x)),
     decisions: stripStringArray(decisions).map((x) => softenStudentFacingVocab(x)),
     nextSteps: stripStringArray(nextSteps).map((x) => softenStudentFacingVocab(x)),

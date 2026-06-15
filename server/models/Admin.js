@@ -46,6 +46,12 @@ const adminSchema = new mongoose.Schema({
     enum: ['workplace', 'education', 'cura'],
     default: 'workplace'
   },
+  clinicId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Clinic',
+    default: null,
+    index: true,
+  },
   plan: {
     type: String,
     enum: ['starter', 'professional', 'business', 'institutional'],

@@ -5,7 +5,6 @@ import Sidebar from './Sidebar';
 import TrialExperienceProvider from './TrialExperienceProvider';
 import { FEATURE_INTERVIEW_UI, FEATURE_CURA_UI } from '../config/featureFlags';
 import InterviewSidebar from '../interview/InterviewSidebar';
-import CuraSidebar from '../cura/CuraSidebar';
 import '../interview/InterviewMode.css';
 import '../cura/CuraMode.css';
 import './AppShell.css';
@@ -136,10 +135,16 @@ export default function ProtectedLayout({ config }) {
     (location.pathname === '/cura' || location.pathname.startsWith('/cura/')) &&
     location.pathname !== '/cura/login';
 
+  const isCuraImmersive =
+    isCuraRoute &&
+    (location.pathname.includes('/consultations/') &&
+      (location.pathname.endsWith('/session') || location.pathname.endsWith('/report')));
+
   const shellClass = [
     'app-shell',
     isInterviewRoute ? 'app-shell--interview' : '',
-    isCuraRoute ? 'app-shell--cura' : '',
+    isCuraRoute ? 'app-shell--cura theme-cura-core' : '',
+    isCuraImmersive ? 'app-shell--cura-immersive' : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -147,7 +152,7 @@ export default function ProtectedLayout({ config }) {
   return (
     <TrialExperienceProvider>
       <div className={shellClass}>
-        {isInterviewRoute ? <InterviewSidebar /> : isCuraRoute ? <CuraSidebar /> : <Sidebar />}
+        {isInterviewRoute ? <InterviewSidebar /> : isCuraRoute ? null : <Sidebar />}
         <main className="app-shell__main" id="app-main" ref={mainRef} onKeyDown={onMainKeyDown}>
           <Outlet context={{ config }} />
         </main>

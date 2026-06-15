@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { T } from '../config/terminology';
-import { FEATURE_INTERVIEW_UI } from '../config/featureFlags';
+import { FEATURE_INTERVIEW_UI, FEATURE_CURA_UI } from '../config/featureFlags';
 import useInterviewRoutes, { meetingPaths } from '../interview/useInterviewRoutes';
+import useCuraRoutes from '../cura/useCuraRoutes';
 import { formatApiError } from '../utils/apiErrorMessage';
 import { isEducation } from '../config/product';
 import './MeetingSummary.css';
@@ -185,6 +186,7 @@ const MeetingInProgress = () => {
   const { id: meetingId } = useParams();
   const navigate = useNavigate();
   const { isInterviewSurface } = useInterviewRoutes();
+  const { isCuraSurface } = useCuraRoutes();
   const [meetingEnded, setMeetingEnded] = useState(false);
   const [meeting, setMeeting] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -722,9 +724,9 @@ const MeetingInProgress = () => {
             type="button"
             className="meeting-summary-btn meeting-summary-btn--secondary"
             style={{ marginTop: 16 }}
-            onClick={() => navigate(isInterviewSurface ? '/interview' : '/meetings')}
+            onClick={() => navigate(isCuraSurface ? '/cura' : isInterviewSurface ? '/interview' : '/meetings')}
           >
-            {isInterviewSurface ? 'Back to Interview Mode' : `Back to ${T.meetings()}`}
+            {isCuraSurface ? 'Back to Cura' : isInterviewSurface ? 'Back to Interview Mode' : `Back to ${T.meetings()}`}
           </button>
         </div>
       </div>
@@ -740,9 +742,9 @@ const MeetingInProgress = () => {
             type="button"
             className="meeting-summary-btn meeting-summary-btn--secondary"
             style={{ marginTop: 16 }}
-            onClick={() => navigate(isInterviewSurface ? '/interview' : '/meetings')}
+            onClick={() => navigate(isCuraSurface ? '/cura' : isInterviewSurface ? '/interview' : '/meetings')}
           >
-            {isInterviewSurface ? 'Back to Interview Mode' : `Back to ${T.meetings()}`}
+            {isCuraSurface ? 'Back to Cura' : isInterviewSurface ? 'Back to Interview Mode' : `Back to ${T.meetings()}`}
           </button>
         </div>
       </div>
@@ -752,7 +754,10 @@ const MeetingInProgress = () => {
   const recordingLive = recording || isGlobalRecordingActive();
   const isInterview =
     FEATURE_INTERVIEW_UI && (meeting?.summaryMode === 'interview' || isInterviewSurface);
-  const interviewRoutePaths = meeting ? meetingPaths(meeting) : null;
+  const isCura =
+    FEATURE_CURA_UI &&
+    (meeting?.summaryMode === 'clinical' || meeting?.patientId || isCuraSurface);
+  const routePaths = meeting ? meetingPaths(meeting) : null;
   const meetingEducationMode = meetingHasEducationContext(meeting) || isEducation;
   const meetingLocationTrimmed = meeting ? String(meeting.meetingRoom || '').trim() : '';
   const hasMeetingLocation = meetingLocationTrimmed.length > 0;
@@ -774,11 +779,15 @@ const MeetingInProgress = () => {
             <>
               <div className="meeting-summary-ready-badge mip-ready-badge mip-ready-badge--ended">
                 <span className="meeting-summary-ready-badge__dot mip-ready-badge__dot--ended" />
-                {isInterview ? 'Interview ended' : meetingEducationMode ? 'Lecture ended' : 'Meeting ended'}
+                {isInterview ? 'Interview ended' : isCura ? 'Consultation ended' : meetingEducationMode ? 'Lecture ended' : 'Meeting ended'}
               </div>
               <h1 className="meeting-summary-page-title">{meeting.title || 'Untitled meeting'}</h1>
               <p className="meeting-summary-subtitle">
-                {isInterview ? 'Session ended — next, review AI recommendations' : 'Session ended'}
+                {isInterview
+                  ? 'Session ended — next, review AI recommendations'
+                  : isCura
+                    ? 'Session ended — review your SOAP note next'
+                    : 'Session ended'}
               </p>
               <p className="mip-ai-disclaimer">
                 {isInterview ? (
@@ -786,6 +795,11 @@ const MeetingInProgress = () => {
                     This interview is closed. Open the summary to see the transcript, evaluation signals, and hiring
                     recommendation (they may take a minute to generate). Review, edit if needed, then finalize the
                     decision internally.
+                  </>
+                ) : isCura ? (
+                  <>
+                    This consultation is closed. Cura will draft a structured SOAP note from the transcript (may take a
+                    minute). Review each section, edit as needed, then approve before finalizing the record.
                   </>
                 ) : (
                   <>
@@ -798,16 +812,20 @@ const MeetingInProgress = () => {
                 <button
                   type="button"
                   className="meeting-summary-btn meeting-summary-btn--primary"
-                  onClick={() => navigate(interviewRoutePaths?.report || `/meetings/${meetingId}/summary`)}
+                  onClick={() => navigate(routePaths?.report || `/meetings/${meetingId}/summary`)}
                 >
-                  {isInterview ? 'View interview summary & recommendations' : `View ${T.meetingSummary()}`}
+                  {isInterview
+                    ? 'View interview summary & recommendations'
+                    : isCura
+                      ? 'Review SOAP note'
+                      : `View ${T.meetingSummary()}`}
                 </button>
                 <button
                   type="button"
                   className="meeting-summary-btn meeting-summary-btn--secondary"
-                  onClick={() => navigate(interviewRoutePaths?.detail || `/meetings/${meetingId}`)}
+                  onClick={() => navigate(routePaths?.detail || routePaths?.dashboard || `/meetings/${meetingId}`)}
                 >
-                  Back to {T.meeting()} details
+                  {isCura ? 'Back to dashboard' : `Back to ${T.meeting()} details`}
                 </button>
               </div>
             </>
@@ -827,6 +845,10 @@ const MeetingInProgress = () => {
                     ? meeting.status === 'Scheduled'
                       ? 'Start recording when the interview begins — we’ll build notes and hiring recommendations afterward.'
                       : 'Interview in progress'
+                    : isCura
+                      ? meeting.status === 'Scheduled'
+                        ? 'Start recording when you begin the visit — Cura scribes a SOAP note afterward.'
+                        : 'Consultation in progress'
                     : meeting.status === 'Scheduled'
                       ? 'When you begin, start recording below.'
                       : meetingEducationMode ? 'Lecture in progress' : 'Meeting in progress'}

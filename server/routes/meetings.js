@@ -25,6 +25,7 @@ const {
   identifySpeaker,
   validateVoiceEnrollmentQuality,
 } = require('../utils/voiceRecognition');
+const { logCuraAudit } = require('../utils/curaAuditLog');
 
 /** Per-meeting state so similar-sounding speakers can be separated via continuity + centroids */
 const liveVoiceSessionByMeetingId = new Map();
@@ -1776,6 +1777,8 @@ router.put('/:id/pending-summary', async (req, res) => {
     if (!assertEditorVerificationOrRespond(meeting, req, res)) return;
 
     const productEdu = String(admin?.productType || '').toLowerCase() === 'education';
+    const productCura = String(admin?.productType || '').toLowerCase() === 'cura';
+    const isClinicalMeeting = meeting.summaryMode === 'clinical' || (productCura && meeting.patientId);
 
     if (req.body.educationCancelReview === true) {
       if (!productEdu) {
@@ -1800,8 +1803,11 @@ router.put('/:id/pending-summary', async (req, res) => {
       hiringRecommendation,
       hiringRecommendationReason,
       evaluationSignals,
+      clinicalNote,
+      followUpPlan,
     } = req.body;
     const markEducationReviewComplete = req.body.markEducationReviewComplete === true;
+    const markClinicalReviewComplete = req.body.markClinicalReviewComplete === true;
 
     // Update pending summary
     if (summary !== undefined) meeting.pendingSummary = summary;
@@ -1840,6 +1846,12 @@ router.put('/:id/pending-summary', async (req, res) => {
     if (evaluationSignals !== undefined) {
       meeting.pendingEvaluationSignals = evaluationSignals;
     }
+    if (clinicalNote !== undefined) {
+      meeting.pendingClinicalNote = clinicalNote;
+    }
+    if (followUpPlan !== undefined) {
+      meeting.followUpPlan = String(followUpPlan || '').trim();
+    }
 
     if (productEdu) {
       if (markEducationReviewComplete) {
@@ -1862,7 +1874,35 @@ router.put('/:id/pending-summary', async (req, res) => {
       }
     }
 
+    if (isClinicalMeeting) {
+      if (markClinicalReviewComplete) {
+        meeting.clinicalSummaryReviewedAt = new Date();
+      } else {
+        const clinicalTouched =
+          summary !== undefined ||
+          keyPoints !== undefined ||
+          nextSteps !== undefined ||
+          importantNotes !== undefined ||
+          clinicalNote !== undefined ||
+          followUpPlan !== undefined;
+        if (clinicalTouched) {
+          meeting.clinicalSummaryReviewedAt = null;
+        }
+      }
+    }
+
     await meeting.save();
+
+    if (isClinicalMeeting && markClinicalReviewComplete && admin?._id) {
+      await logCuraAudit({
+        clinicId: meeting.clinicId,
+        doctorId: admin._id,
+        action: 'ai_approved',
+        resourceId: meeting._id,
+        meeting,
+        metadata: { source: 'pending-summary' },
+      });
+    }
 
     res.json({ success: true, meeting });
   } catch (error) {
@@ -2139,11 +2179,22 @@ router.post('/:id/approve-and-send', async (req, res) => {
 
     const planInfo = getPlanConstraints(admin);
     const isEducationAccount = String(admin?.productType || '').toLowerCase() === 'education';
+    const isCuraAccount = String(admin?.productType || '').toLowerCase() === 'cura';
+    const isClinicalMeeting =
+      meeting.summaryMode === 'clinical' || (isCuraAccount && meeting.patientId);
+
     if (isEducationAccount && !meeting.educationSummaryTeacherReviewedAt) {
       return res.status(400).json({
         error: 'Review your lecture notes before sending to the class.',
         details:
           'Use Review and Edit Notes, save your review, then send lecture notes to the class. Student emails are sent in English only.',
+      });
+    }
+    if (isClinicalMeeting && !meeting.clinicalSummaryReviewedAt) {
+      return res.status(400).json({
+        error: 'Review and approve the clinical note before finalizing.',
+        details:
+          'Open the SOAP note, edit if needed, save your review, then approve the consultation record.',
       });
     }
     const translation =
@@ -2192,6 +2243,14 @@ router.post('/:id/approve-and-send', async (req, res) => {
     if (meeting.pendingEvaluationSignals != null) {
       meeting.evaluationSignals = meeting.pendingEvaluationSignals;
     }
+    if (meeting.pendingClinicalNote != null) {
+      meeting.clinicalNote = meeting.pendingClinicalNote;
+    }
+    if (String(meeting.pendingSummary || '').trim() && meeting.summaryMode === 'clinical') {
+      meeting.followUpPlan =
+        String(meeting.followUpPlan || '').trim() ||
+        String(meeting.pendingClinicalNote?.followUpInstructions || '').trim();
+    }
 
     meeting.summaryStatus = 'Sent';
     if (meeting.summaryMode === 'interview') {
@@ -2222,6 +2281,17 @@ router.post('/:id/approve-and-send', async (req, res) => {
       } catch (err) {
         console.error('Error sending summary email (summary still saved):', err.message);
       }
+    }
+
+    if (isClinicalMeeting && admin?._id) {
+      await logCuraAudit({
+        clinicId: meeting.clinicId,
+        doctorId: admin._id,
+        action: 'consultation_finalized',
+        resourceId: meeting._id,
+        meeting,
+        metadata: { emailSent, source: 'approve-and-send' },
+      });
     }
 
     res.json({

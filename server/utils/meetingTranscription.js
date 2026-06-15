@@ -19,9 +19,13 @@ const Meeting = require('../models/Meeting');
 const {
   SUMMARY_MODES,
   INTERVIEW_EVALUATION_SYSTEM_PROMPT,
+  CLINICAL_SOAP_SYSTEM_PROMPT,
   normalizeInterviewJson,
   mapInterviewToPipelinePayload,
   buildInterviewUserJsonInstructions,
+  normalizeClinicalJson,
+  mapClinicalToPipelinePayload,
+  buildClinicalUserJsonInstructions,
 } = require('./meetingSummaryModes');
 const { getFfmpegPath } = require('./ffmpegPaths');
 const { ensureWhisperSizedAudio, WHISPER_MAX_BYTES } = require('./audioCompressForWhisper');
@@ -442,6 +446,112 @@ async function generateInterviewMeetingSummaryFromTranscript(transcriptRaw, meet
     hiringRecommendation: payload.hiringRecommendation || '',
     hiringRecommendationReason: payload.hiringRecommendationReason || '',
     evaluationSignals: payload.evaluationSignals || null,
+  };
+}
+
+/**
+ * Clinical SOAP note — same pipeline, physician-oriented JSON shape.
+ */
+async function generateClinicalMeetingSummaryFromTranscript(transcriptRaw, meetingObj, options = {}) {
+  if (!openai) {
+    throw new Error('OpenAI API key not configured');
+  }
+
+  const summaryChatModel = getSummaryChatModel();
+  const detectedLanguage =
+    String(options.detectedLanguage || '').trim().toLowerCase() || 'unknown';
+  const transcriptTextTrim = String(transcriptRaw || '').trim();
+  if (!transcriptTextTrim) {
+    throw new Error('Stored transcript is empty');
+  }
+
+  const maxRetries = OPENAI_PIPELINE_MAX_RETRIES;
+  const transcriptWithSpeakers = await buildTranscriptWithSpeakerHints(meetingObj, transcriptTextTrim);
+
+  const chiefComplaint = String(meetingObj.chiefComplaint || '').trim();
+  const visitType = String(meetingObj.visitType || 'general').trim();
+  const contextLines = [
+    chiefComplaint ? `Chief complaint (booking): ${chiefComplaint}` : '',
+    visitType ? `Visit type: ${visitType}` : '',
+    meetingObj.title ? `Encounter title: ${meetingObj.title}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  const clinicalUser =
+    `Produce a SOAP clinical note from this patient consultation transcript.\n` +
+    `When speaker roles are clear, distinguish clinician vs patient statements.\n` +
+    `Do not invent vitals, exam findings, or diagnoses not supported by the transcript.\n\n` +
+    (contextLines ? `${contextLines}\n\n` : '') +
+    `Detected primary transcription language: ${detectedLanguage}\n\n` +
+    `Transcript:\n\n${transcriptWithSpeakers}\n\n` +
+    buildClinicalUserJsonInstructions();
+
+  let summaryResponse = null;
+  let summaryError = null;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(
+        `   Clinical SOAP note (attempt ${attempt}/${maxRetries})… model=${summaryChatModel}`
+      );
+      summaryResponse = await openai.chat.completions.create({
+        model: summaryChatModel,
+        messages: [
+          { role: 'system', content: CLINICAL_SOAP_SYSTEM_PROMPT },
+          { role: 'user', content: clinicalUser },
+        ],
+        temperature: 0.15,
+        response_format: { type: 'json_object' },
+      });
+      break;
+    } catch (apiError) {
+      summaryError = apiError;
+      const retryable = isRetryableOpenAiError(apiError);
+      if (retryable && attempt < maxRetries) {
+        const waitTime = Math.pow(2, attempt) * 1000;
+        console.warn(
+          `⚠️  OpenAI API error during clinical summary (${apiError.status || apiError.code || 'unknown'}), retrying in ${waitTime / 1000}s...`
+        );
+        await new Promise((resolve) => setTimeout(resolve, waitTime));
+        continue;
+      }
+      throw apiError;
+    }
+  }
+
+  if (!summaryResponse) {
+    throw summaryError || new Error('Clinical summary generation failed after all retries');
+  }
+
+  const rawContent = summaryResponse.choices[0].message.content || '';
+  let summaryData = tryParseModelJsonObject(rawContent);
+  if (!rawContent.trim() || Object.keys(summaryData).length === 0) {
+    console.warn('⚠️ Empty or unparseable clinical JSON; applying safeguards.');
+  }
+
+  const normalized = normalizeClinicalJson(summaryData);
+  const payload = mapClinicalToPipelinePayload(normalized);
+
+  if (!summaryPayloadHasDisplayableContent(payload)) {
+    await applyTranscriptExcerptFallbackSummaryAsync(payload, transcriptTextTrim, {
+      meetingTitle: meetingObj.title || 'Consultation',
+      isEducation: false,
+    });
+  }
+
+  console.log('✅ Clinical SOAP note generated');
+
+  return {
+    transcription: transcriptTextTrim,
+    summary: payload.summary || '',
+    keyPoints: payload.keyPoints || [],
+    actionItems: [],
+    decisions: [],
+    nextSteps: payload.nextSteps || [],
+    importantNotes: payload.importantNotes || [],
+    clinicalNote: payload.clinicalNote || null,
+    followUpPlan: payload.followUpPlan || '',
   };
 }
 
@@ -1057,6 +1167,9 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
   ).toLowerCase();
   if (summaryMode === SUMMARY_MODES.INTERVIEW) {
     return generateInterviewMeetingSummaryFromTranscript(transcriptRaw, meetingObj, options);
+  }
+  if (summaryMode === SUMMARY_MODES.CLINICAL) {
+    return generateClinicalMeetingSummaryFromTranscript(transcriptRaw, meetingObj, options);
   }
 
   console.log(
@@ -1949,7 +2062,9 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
           'Transcribe only what is spoken. Do not infer wording from any meeting name or calendar title.',
           String(meetingObj.summaryMode || '').toLowerCase() === 'interview'
             ? 'Interview context: when roles are clear from speech, prefer accurate wording for interviewer and candidate.'
-            : '',
+            : String(meetingObj.summaryMode || '').toLowerCase() === 'clinical'
+              ? 'Clinical consultation: distinguish clinician and patient speech; preserve medical terms, drug names, dosages, and symptoms accurately.'
+              : '',
           participantNames.length
             ? `Participant names (spell as heard; hints only): ${participantNames.join(', ')}.`
             : '',
@@ -2042,6 +2157,7 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
       reauditOn &&
       summaryResult &&
       summaryMode !== 'interview' &&
+      summaryMode !== 'clinical' &&
       !isEducation &&
       transcription &&
       Array.isArray(transcription.segments) &&
@@ -2077,7 +2193,7 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
       }
     }
 
-    if (!skipMeetingSideEffects && summaryResult && summaryMode !== 'interview' && !isEducation) {
+    if (!skipMeetingSideEffects && summaryResult && summaryMode !== 'interview' && summaryMode !== 'clinical' && !isEducation) {
       try {
         await scrubUnidentifiedWhenAllParticipantsVoiceEnrolled(meetingObj, summaryResult, {
           voiceEvidenceText: voiceEvidenceForScrub || undefined,

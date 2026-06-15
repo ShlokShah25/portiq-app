@@ -1,6 +1,6 @@
 /**
  * Additive long-audio wrapper (hierarchical chunk → mid-summary → final).
- * Long path runs only when ffprobe duration > 10 minutes (and not interview mode).
+ * Long path runs when ffprobe duration > 10 minutes (meetings and interviews).
  * Short recordings (≤10 min) always use the existing transcribeAndSummarize path unchanged.
  *
  * Long audio is ON by default. Set ENABLE_LONG_AUDIO_PROCESSING=false (or 0/no/off) to disable
@@ -22,6 +22,12 @@ const {
   ensureEducationRevisionQuestionsAsync,
   normalizeEducationLectureMarkdown,
 } = require('./meetingTranscription');
+const {
+  INTERVIEW_EVALUATION_SYSTEM_PROMPT,
+  normalizeInterviewJson,
+  mapInterviewToPipelinePayload,
+  buildInterviewUserJsonInstructions,
+} = require('./meetingSummaryModes');
 const { mirrorMeetingAudioToPersistentDir } = require('./meetingAudioMirror');
 const Meeting = require('../models/Meeting');
 const Admin = require('../models/Admin');
@@ -123,14 +129,23 @@ async function extractAudioChunkWav(inputPath, startSec, durationSec, outPath) {
   );
 }
 
-function chunkSummaryBlock(summaryData) {
+function chunkSummaryBlock(summaryData, isInterview) {
   if (!summaryData) return '';
   const parts = [];
   const sum = String(summaryData.summary || '').trim();
-  if (sum) parts.push(sum);
+  if (sum) parts.push(isInterview ? `Candidate summary:\n${sum}` : sum);
   const kp = (summaryData.keyPoints || []).filter(Boolean);
   if (kp.length) {
-    parts.push('Key points:\n' + kp.map((k) => `- ${k}`).join('\n'));
+    const label = isInterview ? 'Strengths' : 'Key points';
+    parts.push(`${label}:\n` + kp.map((k) => `- ${k}`).join('\n'));
+  }
+  if (isInterview) {
+    const concerns = (summaryData.importantNotes || []).filter(Boolean);
+    if (concerns.length) {
+      parts.push('Concerns:\n' + concerns.map((n) => `- ${n}`).join('\n'));
+    }
+    const hire = String(summaryData.hiringRecommendation || '').trim();
+    if (hire) parts.push(`Draft recommendation: ${hire}`);
   }
   return parts.join('\n\n').trim();
 }
@@ -146,6 +161,63 @@ function tryParseJsonObject(raw) {
   } catch (_) {
     return null;
   }
+}
+
+async function combineChunkSummariesMidInterview(openai, chunkBlocks) {
+  const joined = chunkBlocks
+    .map((b, i) => `### Segment ${i + 1}\n${b}`)
+    .join('\n\n---\n\n');
+  const res = await openai.chat.completions.create({
+    model: getSummaryChatModel(),
+    messages: [
+      {
+        role: 'system',
+        content:
+          'You combine partial hiring evaluations from sequential segments of ONE interview. Output cohesive prose in English (no JSON). Preserve evidence from the segments only; do not invent strengths or concerns.',
+      },
+      {
+        role: 'user',
+        content:
+          'Merge these partial interview evaluation segments into one section summary for the hiring team.\n\n' +
+          joined,
+      },
+    ],
+    temperature: 0.2,
+    max_tokens: 2800,
+  });
+  return String(res.choices?.[0]?.message?.content || '').trim();
+}
+
+async function aggregateFinalInterviewFromMids(openai, midSummaries, meeting) {
+  const joined = midSummaries
+    .map((m, i) => `### Section ${i + 1}\n${m}`)
+    .join('\n\n---\n\n');
+  const role = String(meeting?.interviewRole || '').trim();
+  const candidate = String(meeting?.interviewCandidateName || '').trim();
+  const user =
+    `Interview title: ${String(meeting?.title || 'Interview').trim()}\n` +
+    (candidate ? `Candidate: ${candidate}\n` : '') +
+    (role ? `Role (position): ${role}\n` : '') +
+    '\nCombine these section evaluations into ONE final hiring evaluation JSON.\n' +
+    buildInterviewUserJsonInstructions() +
+    '\n\n' +
+    joined;
+
+  const res = await openai.chat.completions.create({
+    model: getSummaryChatModel(),
+    messages: [
+      { role: 'system', content: INTERVIEW_EVALUATION_SYSTEM_PROMPT },
+      { role: 'user', content: user },
+    ],
+    temperature: 0.15,
+    max_tokens: 4500,
+    response_format: { type: 'json_object' },
+  });
+  const raw = String(res.choices?.[0]?.message?.content || '').trim();
+  const parsed = tryParseJsonObject(raw);
+  if (!parsed) return null;
+  const normalized = normalizeInterviewJson(parsed);
+  return mapInterviewToPipelinePayload(normalized);
 }
 
 async function combineChunkSummariesMid(openai, chunkBlocks, _groupIndex, isEducation) {
@@ -280,6 +352,7 @@ async function runLongAudioPipeline(audioFilePath, meeting, options) {
     }
   }
   const isEducation = resolvedProductType === 'education';
+  const isInterview = String(meeting?.summaryMode || '').toLowerCase() === 'interview';
 
   mirrorMeetingAudioToPersistentDir(audioFilePath);
 
@@ -339,7 +412,7 @@ async function runLongAudioPipeline(audioFilePath, meeting, options) {
         label: `${t0}–${t1}`,
         summaryData,
         transcriptLabeled: labeled,
-        summaryBlock: chunkSummaryBlock(summaryData),
+        summaryBlock: chunkSummaryBlock(summaryData, isInterview),
       });
 
       if (!summaryData) {
@@ -375,7 +448,9 @@ async function runLongAudioPipeline(audioFilePath, meeting, options) {
       let mid = '';
       for (let attempt = 1; attempt <= 2; attempt++) {
         try {
-          mid = await combineChunkSummariesMid(aggOpenai, blocks, g, isEducation);
+          mid = isInterview
+            ? await combineChunkSummariesMidInterview(aggOpenai, blocks)
+            : await combineChunkSummariesMid(aggOpenai, blocks, g, isEducation);
           break;
         } catch (e) {
           console.warn(`[long-audio] mid-summary group ${g + 1} attempt ${attempt}/2:`, e.message || e);
@@ -395,7 +470,9 @@ async function runLongAudioPipeline(audioFilePath, meeting, options) {
     let finalParsed = null;
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
-        finalParsed = await aggregateFinalFromMids(aggOpenai, mids, meetingTitle, isEducation);
+        finalParsed = isInterview
+          ? await aggregateFinalInterviewFromMids(aggOpenai, mids, meeting)
+          : await aggregateFinalFromMids(aggOpenai, mids, meetingTitle, isEducation);
         if (finalParsed) break;
       } catch (e) {
         console.warn(`[long-audio] final aggregation attempt ${attempt}/2:`, e.message || e);
@@ -413,9 +490,11 @@ async function runLongAudioPipeline(audioFilePath, meeting, options) {
         actionItems: [],
         decisions: [],
         nextSteps: [],
-        importantNotes: [
-          'Long audio mode: final structured JSON step failed; review the section summary text in the main summary field.',
-        ],
+        importantNotes: isInterview
+          ? ['Long interview mode: final hiring JSON step failed; review section text in the summary field.']
+          : [
+              'Long audio mode: final structured JSON step failed; review the section summary text in the main summary field.',
+            ],
         hiringRecommendation: '',
         hiringRecommendationReason: '',
         evaluationSignals: null,
@@ -437,9 +516,9 @@ async function runLongAudioPipeline(audioFilePath, meeting, options) {
       decisions: finalParsed.decisions || [],
       nextSteps: finalParsed.nextSteps || [],
       importantNotes: finalParsed.importantNotes || [],
-      hiringRecommendation: '',
-      hiringRecommendationReason: '',
-      evaluationSignals: null,
+      hiringRecommendation: finalParsed.hiringRecommendation || '',
+      hiringRecommendationReason: finalParsed.hiringRecommendationReason || '',
+      evaluationSignals: finalParsed.evaluationSignals || null,
     };
   } finally {
     for (const p of chunkPaths) {
@@ -453,17 +532,13 @@ async function runLongAudioPipeline(audioFilePath, meeting, options) {
 }
 
 /**
- * Entry: same signature as transcribeAndSummarize. Routes long files only when flag + duration + non-interview.
+ * Entry: same signature as transcribeAndSummarize. Routes long files when flag on and duration > 10 min.
  */
 async function transcribeAndSummarizeWithLongAudioSupport(audioFilePath, meeting, options = {}) {
   const cleanOpts = { ...options };
   delete cleanOpts.longAudioPipeline;
 
   if (!longAudioProcessingEnabled()) {
-    return transcribeAndSummarize(audioFilePath, meeting, cleanOpts);
-  }
-  const mode = String((meeting && meeting.summaryMode) || '').toLowerCase();
-  if (mode === 'interview') {
     return transcribeAndSummarize(audioFilePath, meeting, cleanOpts);
   }
   const durationSec = getAudioDurationSeconds(audioFilePath);

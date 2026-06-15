@@ -4,12 +4,10 @@ import axios from 'axios';
 import ProtectedLayout from './components/ProtectedLayout';
 import MeetingsAccessGate from './components/MeetingsAccessGate';
 import {
-  CuraPatientsPage,
   CuraCalendarPage,
   CuraPrescriptionsPage,
   CuraFollowUpsPage,
   CuraSettingsPage,
-  CuraConsultationNewPage,
 } from './cura/CuraStubPages';
 import './App.css';
 import './styles/saas-premium-overrides.css';
@@ -68,6 +66,12 @@ const CuraGate = lazyWithRetry(() => import('./cura/CuraGate'), 'cura-gate');
 const CuraLayout = lazyWithRetry(() => import('./cura/CuraLayout'), 'cura-layout');
 const CuraDashboard = lazyWithRetry(() => import('./cura/CuraDashboard'), 'cura-dashboard');
 const CuraOnboarding = lazyWithRetry(() => import('./cura/CuraOnboarding'), 'cura-onboarding');
+const CuraPatientsPage = lazyWithRetry(() => import('./cura/CuraPatientsPage'), 'cura-patients');
+const CuraPatientDetailPage = lazyWithRetry(() => import('./cura/CuraPatientDetailPage'), 'cura-patient-detail');
+const CuraConsultationNewPage = lazyWithRetry(() => import('./cura/CuraConsultationNewPage'), 'cura-consultation-new');
+const CuraConsultationSessionPage = lazyWithRetry(() => import('./cura/CuraConsultationSessionPage'), 'cura-consultation-session');
+const CuraConsultationReportPage = lazyWithRetry(() => import('./cura/CuraConsultationReportPage'), 'cura-consultation-report');
+const CuraSearchPage = lazyWithRetry(() => import('./cura/CuraSearchPage'), 'cura-search');
 const ClientAdmin = lazyWithRetry(() => import('./components/ClientAdmin'), 'client-admin');
 const BootupScreen = lazyWithRetry(() => import('./components/BootupScreen'), 'bootup');
 const AdminLogin = lazyWithRetry(() => import('./components/AdminLogin'), 'admin-login');
@@ -231,11 +235,15 @@ function App() {
                   <Route index element={<CuraDashboard />} />
                   <Route path="onboarding" element={<CuraOnboarding />} />
                   <Route path="patients" element={<CuraPatientsPage />} />
+                  <Route path="patients/:id" element={<CuraPatientDetailPage />} />
+                  <Route path="search" element={<CuraSearchPage />} />
                   <Route path="calendar" element={<CuraCalendarPage />} />
                   <Route path="prescriptions" element={<CuraPrescriptionsPage />} />
                   <Route path="follow-ups" element={<CuraFollowUpsPage />} />
                   <Route path="settings" element={<CuraSettingsPage />} />
                   <Route path="consultations/new" element={<CuraConsultationNewPage />} />
+                  <Route path="consultations/:id/session" element={<CuraConsultationSessionPage />} />
+                  <Route path="consultations/:id/report" element={<CuraConsultationReportPage />} />
                 </Route>
               </Route>
               <Route path="transcripts" element={<Transcripts />} />

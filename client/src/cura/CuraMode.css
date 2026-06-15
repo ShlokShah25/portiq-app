@@ -1,15 +1,16 @@
 /* Cura — Clinical Intelligence design system (scoped under .app-shell--cura) */
 
 .app-shell--cura {
-  --cura-bg: #fafafa;
+  --cura-bg: #f8faf9;
   --cura-bg-card: #ffffff;
-  --cura-border: #e4e4e7;
-  --cura-border-strong: #d4d4d8;
-  --cura-text: #09090b;
-  --cura-text-secondary: #71717a;
-  --cura-text-muted: #a1a1aa;
-  --cura-emerald: #059669;
-  --cura-emerald-dim: rgba(5, 150, 105, 0.1);
+  --cura-border: #e4e8e6;
+  --cura-border-strong: #cfd6d2;
+  --cura-text: #0c1210;
+  --cura-text-secondary: #5c6660;
+  --cura-text-muted: #94a39a;
+  --cura-emerald: #047857;
+  --cura-emerald-bright: #059669;
+  --cura-emerald-dim: rgba(4, 120, 87, 0.1);
   --cura-amber: #f59e0b;
   --cura-amber-dim: rgba(245, 158, 11, 0.12);
   --cura-rose: #e11d48;
@@ -268,7 +269,7 @@
 }
 
 .cura-btn--primary {
-  background: var(--cura-emerald);
+  background: var(--cura-emerald-bright);
   color: #ffffff;
   -webkit-text-fill-color: #ffffff;
   box-shadow: var(--cura-shadow-sm);
@@ -393,4 +394,164 @@
   outline: 2px solid rgba(5, 150, 105, 0.35);
   outline-offset: 1px;
   border-color: var(--cura-emerald);
+}
+
+textarea.cura-input {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.cura-form-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--cura-text);
+}
+
+.cura-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px 16px;
+}
+
+.cura-sessions-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--cura-bg-card);
+  border: 1px solid var(--cura-border);
+  border-radius: var(--cura-radius);
+}
+
+.cura-sessions-search .cura-input {
+  border: none;
+  padding: 4px 0;
+  background: transparent;
+}
+
+.cura-sessions-search .cura-input:focus {
+  outline: none;
+  border: none;
+}
+
+.cura-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.cura-list__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--cura-border);
+}
+
+.cura-list__row:last-child {
+  border-bottom: none;
+}
+
+.cura-list__row--link {
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.12s;
+  margin: 0 -12px;
+  padding: 14px 12px;
+  border-radius: var(--cura-radius);
+}
+
+.cura-list__row--link:hover {
+  background: #f4f4f5;
+}
+
+.cura-list__meta {
+  display: block;
+  font-size: 12px;
+  color: var(--cura-text-muted);
+  margin-top: 2px;
+  font-weight: 400;
+}
+
+.cura-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.cura-timeline__item {
+  display: flex;
+  gap: 14px;
+  padding-bottom: 20px;
+  position: relative;
+}
+
+.cura-timeline__item:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 14px;
+  bottom: 0;
+  width: 2px;
+  background: var(--cura-border);
+}
+
+.cura-timeline__dot {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--cura-emerald);
+  margin-top: 6px;
+  border: 2px solid var(--cura-bg-card);
+  box-shadow: 0 0 0 2px var(--cura-emerald-dim);
+}
+
+.cura-timeline__card {
+  flex: 1;
+  padding: 12px 14px;
+  border-radius: var(--cura-radius);
+  border: 1px solid var(--cura-border);
+  background: #fafafa;
+}
+
+.cura-timeline__card--consult {
+  border-left: 3px solid var(--cura-emerald);
+}
+
+.cura-timeline__card--rx {
+  border-left: 3px solid #6366f1;
+}
+
+.cura-timeline__card--follow {
+  border-left: 3px solid var(--cura-amber);
+}
+
+.cura-timeline__card--whatsapp {
+  border-left: 3px solid var(--cura-text-muted);
+}
+
+.cura-timeline__card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.cura-timeline__meta {
+  font-size: 12px;
+  color: var(--cura-text-muted);
+  margin: 4px 0 0;
+}
+
+.cura-timeline__body {
+  font-size: 13px;
+  color: var(--cura-text-secondary);
+  margin: 8px 0 0;
+  line-height: 1.5;
 }
