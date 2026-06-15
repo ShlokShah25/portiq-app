@@ -32,7 +32,7 @@
   --cura-shadow-lg: 0 20px 50px rgba(20, 32, 25, 0.08);
   --cura-font: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
   --cura-nav-height: 56px;
-  --cura-content-max: 640px;
+  --cura-content-max: 1080px;
   background: var(--cura-bg);
   color: var(--cura-text);
   font-family: var(--cura-font);
@@ -42,8 +42,14 @@
 }
 
 .app-shell--cura .app-shell__main {
+  margin-left: 0;
+  width: 100%;
   padding: 0;
   background: var(--cura-bg);
+}
+
+.app-shell--cura .app-shell__main::before {
+  display: none;
 }
 
 /* Shell */
@@ -180,9 +186,34 @@
 
 /* Home / dashboard */
 .cura-home {
+  width: 100%;
   max-width: var(--cura-content-max);
   margin: 0 auto;
-  padding: 28px 20px 48px;
+  padding: 24px 28px 48px;
+  box-sizing: border-box;
+}
+
+.cura-home-grid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .cura-home-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cura-home {
+    padding: 20px 16px 40px;
+  }
+}
+
+.cura-home-grid__aside {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .cura-home-hero {
@@ -191,7 +222,7 @@
   border-radius: var(--cura-radius-lg);
   padding: 28px 24px 24px;
   box-shadow: var(--cura-shadow-md);
-  margin-bottom: 28px;
+  margin-bottom: 24px;
 }
 
 .cura-home-hero__date {
@@ -248,7 +279,7 @@
 .cura-patient-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
 }
 
 .cura-patient-chip {
@@ -722,7 +753,7 @@
 
 /* Calendar */
 .cura-home--wide {
-  max-width: 920px;
+  max-width: 1120px;
 }
 
 .cura-cal-header {
