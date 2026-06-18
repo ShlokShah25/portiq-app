@@ -245,6 +245,109 @@
   margin: 0 0 20px;
 }
 
+.cura-home-top {
+  margin-bottom: 20px;
+}
+
+.cura-home-hero--compact {
+  padding: 20px 22px 18px;
+  margin-bottom: 20px;
+}
+
+.cura-home-hero--compact .cura-home-hero__lead {
+  margin-bottom: 14px;
+}
+
+/* Day briefing — conversational WhatsApp + schedule cards */
+.cura-briefing {
+  margin-bottom: 24px;
+}
+
+.cura-briefing--empty {
+  padding: 20px 22px;
+  background: var(--cura-bg-elevated);
+  border: 1px dashed var(--cura-border);
+  border-radius: var(--cura-radius-lg);
+}
+
+.cura-briefing__intro {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--cura-text);
+  margin: 0 0 14px;
+  line-height: 1.35;
+}
+
+.cura-briefing__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cura-briefing__card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  background: #ffffff;
+  border: 1px solid var(--cura-border);
+  border-radius: var(--cura-radius-lg);
+  text-decoration: none;
+  color: inherit;
+  box-shadow: var(--cura-shadow-sm);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.cura-briefing__card:hover {
+  border-color: var(--cura-border-strong);
+  box-shadow: var(--cura-shadow-md);
+}
+
+.cura-briefing__avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--cura-emerald-dim);
+  color: var(--cura-emerald);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.cura-briefing__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cura-briefing__line {
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--cura-text);
+}
+
+.cura-briefing__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #0d6b52;
+  background: rgba(13, 107, 82, 0.1);
+  padding: 3px 8px;
+  border-radius: 999px;
+  width: fit-content;
+}
+
 .cura-home-section {
   margin-bottom: 28px;
 }

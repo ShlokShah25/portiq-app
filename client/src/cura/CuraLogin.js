@@ -102,6 +102,14 @@ export default function CuraLogin() {
 
   return (
     <div className="cura-login">
+      <aside className="cura-login__aside" aria-hidden="true">
+        <h1>Your clinic, on your terms.</h1>
+        <p>
+          Patients book on WhatsApp. You get a plain-language briefing before each visit — and after, I&apos;ll summarize
+          what happened in words you can actually use.
+        </p>
+      </aside>
+      <div className="cura-login__main">
       <div className="cura-login__panel">
         <Link to="/landing-cura" className="cura-login__logo-link">
           <span className="cura-login__logo" aria-hidden>
@@ -109,7 +117,7 @@ export default function CuraLogin() {
           </span>
           <span className="cura-login__wordmark">Cura</span>
         </Link>
-        <p className="cura-login__tagline">Clinical intelligence for modern practice</p>
+        <p className="cura-login__tagline">Sign in to your clinic</p>
 
         <div className="cura-login__tabs" role="tablist">
           <button
@@ -215,6 +223,7 @@ export default function CuraLogin() {
         <p className="cura-login__footer">
           <Link to="/landing-cura">← Back to Cura home</Link>
         </p>
+      </div>
       </div>
     </div>
   );

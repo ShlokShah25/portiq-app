@@ -9,21 +9,21 @@ const SUMMARY_MODES = {
   CLINICAL: 'clinical',
 };
 
-/** Cura clinical scribe — SOAP documentation from consultation transcript */
-const CLINICAL_SOAP_SYSTEM_PROMPT = `You are an expert clinical documentation assistant helping a licensed physician produce accurate SOAP notes from a patient consultation transcript.
+/** Cura clinical scribe — briefs the doctor in plain, direct language */
+const CLINICAL_SOAP_SYSTEM_PROMPT = `You are Cura, a clinical assistant briefing a doctor right after a patient visit.
+
+Speak TO the doctor in warm, clear, colloquial professional English — like a trusted colleague summarizing the visit, NOT like a formal EHR or legal document.
 
 IMPORTANT RULES:
-- The consultation may be in English, Hindi, Hinglish, or other languages: understand everything said, but write your entire JSON output in professional clinical English only.
+- The consultation may be in English, Hindi, Hinglish, or other languages: understand everything said, but write your entire JSON output in English only.
 - Document ONLY what is supported by the transcript — do not invent findings, diagnoses, vitals, or medications.
-- If information for a SOAP section is missing, write "Not documented in encounter" for that section rather than guessing.
-- Distinguish clearly between patient-reported symptoms (Subjective) and clinician-observed or stated findings (Objective).
-- Assessment should list working diagnoses or clinical impressions with appropriate uncertainty language when the transcript does not confirm a diagnosis.
-- Plan should include medications, investigations, referrals, lifestyle advice, and follow-up only when discussed or clearly implied in the encounter.
-- Flag allergies, contraindications, or safety concerns mentioned in the transcript under redFlags.
-- Use concise, EHR-ready prose — not conversational filler.
-- Never prescribe controlled substances or dosages not explicitly discussed; if dosing is unclear, note "dose not specified in encounter".
+- Use second person where natural ("You discussed…", "The patient told you…").
+- Avoid SOAP section labels in the text (no "Subjective:", "Objective:" headers in the prose).
+- If information is missing, say so plainly ("You didn't document vitals in this visit").
+- Flag allergies and safety concerns clearly.
+- Never prescribe or state dosages not explicitly discussed.
 
-TONE: Professional, neutral, medico-legally careful. You assist documentation — the clinician is solely responsible for the final note.`;
+TONE: Conversational briefing to the physician. You assist — the clinician is solely responsible for the final note.`;
 
 function normalizeClinicalJson(raw) {
   const o = raw && typeof raw === 'object' ? raw : {};
@@ -48,14 +48,33 @@ function normalizeClinicalJson(raw) {
 }
 
 function mapClinicalToPipelinePayload(normalized) {
-  const soapNarrative = [
-    normalized.subjective ? `**Subjective**\n${normalized.subjective}` : '',
-    normalized.objective ? `**Objective**\n${normalized.objective}` : '',
-    normalized.assessment ? `**Assessment**\n${normalized.assessment}` : '',
-    normalized.plan ? `**Plan**\n${normalized.plan}` : '',
-  ]
-    .filter(Boolean)
-    .join('\n\n');
+  const lines = ["Here's your visit summary.", ''];
+
+  if (normalized.subjective) {
+    lines.push(`The patient told you: ${normalized.subjective}`);
+  }
+  if (normalized.objective && !/^not documented/i.test(normalized.objective)) {
+    lines.push(`On exam / what you noted: ${normalized.objective}`);
+  } else if (normalized.objective) {
+    lines.push('You didn\'t document exam findings or vitals in this visit.');
+  }
+  if (normalized.assessment) {
+    lines.push(`Your read: ${normalized.assessment}`);
+  }
+  if (normalized.plan) {
+    lines.push(`Plan: ${normalized.plan}`);
+  }
+  if (normalized.medications?.length) {
+    lines.push(`Meds discussed: ${normalized.medications.join('; ')}`);
+  }
+  if (normalized.followUpInstructions) {
+    lines.push(`Follow-up: ${normalized.followUpInstructions}`);
+  }
+  if (normalized.redFlags?.length) {
+    lines.push(`Watch out for: ${normalized.redFlags.join('; ')}`);
+  }
+
+  const summary = lines.join('\n\n').trim();
 
   const assessmentLines = normalized.assessment
     ? normalized.assessment
@@ -76,7 +95,7 @@ function mapClinicalToPipelinePayload(normalized) {
   ];
 
   return {
-    summary: soapNarrative,
+    summary,
     keyPoints: assessmentLines.slice(0, 8),
     importantNotes: normalized.redFlags,
     nextSteps: planLines.slice(0, 12),
@@ -86,19 +105,20 @@ function mapClinicalToPipelinePayload(normalized) {
 }
 
 function buildClinicalUserJsonInstructions() {
-  return `Return ONLY a JSON object (no markdown fences) with this exact structure:
+  return `Return ONLY a JSON object (no markdown fences). Write each text field as plain briefing prose to the doctor — no SOAP labels inside the strings.
+
 {
-  "subjective": "Patient-reported history, symptoms, duration, context — from transcript only",
-  "objective": "Exam findings, vitals, test results mentioned by clinician — or 'Not documented in encounter'",
-  "assessment": "Working diagnoses / clinical impressions with appropriate uncertainty",
-  "plan": "Treatment plan, investigations, referrals discussed",
-  "medications": ["drug name and sig if stated"],
-  "followUpInstructions": "When to return, warning signs, follow-up timing",
-  "patientCounseling": "Key counseling points discussed with patient",
-  "redFlags": ["allergies, contraindications, or safety concerns mentioned"]
+  "subjective": "What the patient reported, in plain language",
+  "objective": "Exam findings / vitals mentioned, or say nothing was documented",
+  "assessment": "Your clinical impression in plain language",
+  "plan": "Treatment plan discussed",
+  "medications": ["medication and sig if stated"],
+  "followUpInstructions": "When to return, warning signs",
+  "patientCounseling": "Counseling points you gave",
+  "redFlags": ["allergies or safety concerns"]
 }
 
-Ground every field in the transcript. Use empty arrays only when nothing applies.`;
+Ground every field in the transcript only.`;
 }
 
 /** User-requested evaluation prompt (system message). Output format is enforced via JSON in the user message. */

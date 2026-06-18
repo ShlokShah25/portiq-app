@@ -23,19 +23,53 @@ export function curaMeetingPaths(meeting) {
 }
 
 export function clinicalNoteToPlainText(note, fallbackSummary = '') {
-  if (!note || typeof note !== 'object') return String(fallbackSummary || '').trim();
-  const blocks = [];
+  const summary = String(fallbackSummary || '').trim();
+  if (summary) return summary;
+
+  if (!note || typeof note !== 'object') return '';
+
+  const lines = ["Here's your visit summary.", ''];
   const s = String(note.subjective || '').trim();
   const o = String(note.objective || '').trim();
   const a = String(note.assessment || '').trim();
   const p = String(note.plan || '').trim();
-  if (s) blocks.push(s);
-  if (o && !/^not documented/i.test(o)) blocks.push(o);
-  if (a) blocks.push(a);
-  if (p) blocks.push(p);
+  if (s) lines.push(`The patient told you: ${s}`);
+  if (o && !/^not documented/i.test(o)) lines.push(`On exam / what you noted: ${o}`);
+  if (a) lines.push(`Your read: ${a}`);
+  if (p) lines.push(`Plan: ${p}`);
   const meds = Array.isArray(note.medications) ? note.medications.filter(Boolean) : [];
-  if (meds.length) blocks.push(`Prescriptions: ${meds.join(', ')}`);
-  return blocks.join('\n\n') || String(fallbackSummary || '').trim();
+  if (meds.length) lines.push(`Meds discussed: ${meds.join('; ')}`);
+  return lines.join('\n\n').trim();
+}
+
+export function formatAppointmentTime(d) {
+  if (!d) return 'later today';
+  return new Date(d).toLocaleTimeString(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+/** Conversational line for doctor dashboard — especially WhatsApp bookings */
+export function appointmentBriefing(consultation) {
+  const name = consultation?.patientId?.name || 'a patient';
+  const at = consultation?.scheduledTime || consultation?.startTime;
+  const timeLabel = formatAppointmentTime(at);
+  const complaint = String(
+    consultation?.preVisitNotes || consultation?.chiefComplaint || ''
+  ).trim();
+  const viaWhatsApp = String(consultation?.bookingSource || '').toLowerCase() === 'whatsapp';
+
+  if (viaWhatsApp && complaint) {
+    return `You have ${name} at ${timeLabel} — booked on WhatsApp. They said: “${complaint.length > 160 ? `${complaint.slice(0, 157)}…` : complaint}”`;
+  }
+  if (viaWhatsApp) {
+    return `You have ${name} at ${timeLabel} — booked on WhatsApp.`;
+  }
+  if (complaint) {
+    return `${name} at ${timeLabel}. Chief concern: ${complaint.length > 120 ? `${complaint.slice(0, 117)}…` : complaint}`;
+  }
+  return `${name} at ${timeLabel}.`;
 }
 
 export function plainTextToClinicalNote(text, prev = {}) {

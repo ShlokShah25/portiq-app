@@ -123,18 +123,21 @@ router.get('/dashboard', requireClinic, async (req, res) => {
 
     const consultationsToday = await Meeting.find({
       ...baseConsult,
+      status: { $ne: 'Cancelled' },
       $or: [
         { scheduledTime: { $gte: startOfDay, $lte: endOfDay } },
         { startTime: { $gte: startOfDay, $lte: endOfDay } },
       ],
     })
-      .sort({ startTime: -1, scheduledTime: -1 })
-      .limit(12)
+      .sort({ scheduledTime: 1, startTime: 1 })
+      .limit(20)
       .select(
-        'title status scheduledTime startTime chiefComplaint preVisitNotes clinicalPrepStatus bookingSource visitType patientId triageLevel urgentTriage'
+        'title status scheduledTime startTime chiefComplaint preVisitNotes clinicalPrepStatus bookingSource visitType patientId triageLevel urgentTriage summaryStatus'
       )
       .populate('patientId', 'name phone')
       .lean();
+
+    const whatsappToday = consultationsToday.filter((c) => c.bookingSource === 'whatsapp').length;
 
     const pendingList = await Meeting.find({
       ...baseConsult,
@@ -150,6 +153,7 @@ router.get('/dashboard', requireClinic, async (req, res) => {
     return res.json({
       stats: {
         todayConsultations,
+        whatsappToday,
         pendingApprovals,
         followUpsDue,
         patientCount: await Patient.countDocuments({ clinicId }),

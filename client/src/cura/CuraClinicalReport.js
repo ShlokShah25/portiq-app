@@ -4,13 +4,12 @@ import axios from 'axios';
 import { ArrowLeft, ChevronDown, ChevronUp, Save } from 'lucide-react';
 import { curaPaths } from './useCuraRoutes';
 import { curaApiError } from './curaApi';
+import { formatApiError } from '../utils/apiErrorMessage';
 import {
   isCuraConsultationMeeting,
   clinicalNoteToPlainText,
   plainTextToClinicalNote,
-  patientInitials,
 } from './curaUtils';
-import { formatApiError } from '../utils/apiErrorMessage';
 import './CuraCore.css';
 
 function noteFromMeeting(meeting) {
@@ -123,10 +122,12 @@ export default function CuraClinicalReport() {
           <ArrowLeft size={14} aria-hidden />
           Back
         </button>
-        <h1 className="cura-notes-header__title">{patientName}</h1>
-        <span className="cura-visit-row__avatar" aria-hidden style={{ width: 36, height: 36, fontSize: 12 }}>
-          {patientInitials(patientName)}
-        </span>
+        <div>
+          <h1 className="cura-notes-header__title">{patientName}</h1>
+          <p className="cura-muted" style={{ margin: '4px 0 0', fontSize: 13 }}>
+            Here&apos;s your visit summary — edit anything that looks off, then tap Done.
+          </p>
+        </div>
       </header>
 
       {error ? (
@@ -138,14 +139,14 @@ export default function CuraClinicalReport() {
       <div className="cura-notes-card">
         {processing ? (
           <p className="cura-muted" style={{ margin: '0 0 12px' }}>
-            Writing your notes from the recording…
+            Writing your visit summary from the recording…
           </p>
         ) : null}
         <textarea
           className="cura-simple-note"
           value={noteText}
           onChange={(e) => setNoteText(e.target.value)}
-          placeholder="Your visit notes will appear here. Edit anything that needs fixing."
+          placeholder="Here's your visit summary…"
           disabled={saving || processing}
           aria-label="Visit notes"
         />

@@ -786,7 +786,7 @@ const MeetingInProgress = () => {
                 {isInterview
                   ? 'Session ended — next, review AI recommendations'
                   : isCura
-                    ? 'Session ended — review your notes'
+                    ? 'Visit ended — here\'s your summary'
                     : 'Session ended'}
               </p>
               <p className="mip-ai-disclaimer">
@@ -798,7 +798,7 @@ const MeetingInProgress = () => {
                   </>
                 ) : isCura ? (
                   <>
-                    Cura is writing visit notes from the recording. Open them, fix anything, then tap Done.
+                    I&apos;ll put together a plain-language briefing from the recording. Open it, tweak anything, then tap Done.
                   </>
                 ) : (
                   <>
@@ -816,7 +816,7 @@ const MeetingInProgress = () => {
                   {isInterview
                     ? 'View interview summary & recommendations'
                     : isCura
-                      ? 'Review notes'
+                      ? 'Open visit summary'
                       : `View ${T.meetingSummary()}`}
                 </button>
                 <button

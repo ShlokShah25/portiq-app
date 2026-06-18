@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { fetchCuraCalendar, curaApiError } from './curaApi';
-import { consultationStatusMeta, curaMeetingPaths, patientInitials } from './curaUtils';
+import { appointmentBriefing, consultationStatusMeta, curaMeetingPaths, patientInitials } from './curaUtils';
 import './CuraCore.css';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -232,10 +232,7 @@ export default function CuraCalendarPage() {
                         </span>
                         <span className="cura-visit-row__body">
                           <strong>{ev.name}</strong>
-                          <span className="cura-muted">
-                            {eventTime(ev.at)}
-                            {ev.detail ? ` · ${ev.detail}` : ''}
-                          </span>
+                          <span className="cura-muted">{appointmentBriefing(ev.consultation)}</span>
                         </span>
                         <span className={`cura-visit-row__badge cura-visit-row__badge--${meta.tone}`}>
                           {meta.label}

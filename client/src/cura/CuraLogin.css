@@ -1,21 +1,64 @@
 .cura-login {
   min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: #fafafa;
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: 1fr;
+  background: #eef2ee;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
+@media (min-width: 768px) {
+  .cura-login {
+    grid-template-columns: 1fr minmax(320px, 420px);
+  }
+}
+
+.cura-login__aside {
+  display: none;
+  padding: 48px;
+  flex-direction: column;
+  justify-content: center;
+  background: linear-gradient(145deg, #0d6b52 0%, #0a5a44 100%);
+  color: #f5f7f4;
+}
+
+@media (min-width: 768px) {
+  .cura-login__aside {
+    display: flex;
+  }
+}
+
+.cura-login__aside h1 {
+  font-size: 32px;
+  font-weight: 650;
+  letter-spacing: -0.04em;
+  margin: 0 0 12px;
+  line-height: 1.15;
+}
+
+.cura-login__aside p {
+  font-size: 16px;
+  line-height: 1.55;
+  opacity: 0.9;
+  margin: 0;
+  max-width: 360px;
+}
+
+.cura-login__main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px;
+}
+
 .cura-login__panel {
-  width: 100%;
-  max-width: 400px;
+  width: min(100%, 380px);
   background: #ffffff;
-  border: 1px solid #e4e4e7;
-  border-radius: 14px;
+  border: 1px solid #d8e0da;
+  border-radius: 20px;
   padding: 32px 28px;
-  box-shadow: 0 1px 2px rgba(9, 9, 11, 0.04);
+  box-shadow: 0 12px 40px rgba(20, 32, 25, 0.08);
+  box-sizing: border-box;
 }
 
 .cura-login__logo-link {
@@ -29,13 +72,12 @@
 .cura-login__logo {
   width: 40px;
   height: 40px;
-  border-radius: 10px;
-  background: rgba(5, 150, 105, 0.1);
-  border: 1px solid rgba(5, 150, 105, 0.2);
+  border-radius: 12px;
+  background: #0d6b52;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #059669;
+  color: #f5f7f4;
   font-weight: 700;
   font-size: 18px;
 }
@@ -44,12 +86,12 @@
   font-size: 22px;
   font-weight: 700;
   letter-spacing: -0.03em;
-  color: #09090b;
+  color: #142019;
 }
 
 .cura-login__tagline {
   font-size: 14px;
-  color: #71717a;
+  color: #7a8f82;
   margin: 0 0 24px;
 }
 
@@ -57,8 +99,8 @@
   display: flex;
   gap: 4px;
   padding: 4px;
-  background: #f4f4f5;
-  border-radius: 10px;
+  background: #e8ede9;
+  border-radius: 12px;
   margin-bottom: 20px;
 }
 
@@ -66,19 +108,19 @@
   flex: 1;
   padding: 8px 12px;
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   background: transparent;
   font-size: 13px;
   font-weight: 600;
-  color: #71717a;
+  color: #7a8f82;
   cursor: pointer;
   font-family: inherit;
 }
 
 .cura-login__tab.is-active {
   background: #ffffff;
-  color: #09090b;
-  box-shadow: 0 1px 2px rgba(9, 9, 11, 0.06);
+  color: #142019;
+  box-shadow: 0 1px 2px rgba(20, 32, 25, 0.06);
 }
 
 .cura-login__form {
@@ -93,23 +135,25 @@
   gap: 6px;
   font-size: 13px;
   font-weight: 500;
-  color: #09090b;
+  color: #142019;
 }
 
 .cura-login__input {
-  padding: 10px 12px;
-  border: 1px solid #e4e4e7;
-  border-radius: 10px;
-  font-size: 14px;
+  padding: 11px 14px;
+  border: 1px solid #d8e0da;
+  border-radius: 12px;
+  font-size: 15px;
   font-family: inherit;
-  color: #09090b;
+  color: #142019;
   background: #ffffff;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .cura-login__input:focus {
-  outline: 2px solid rgba(5, 150, 105, 0.35);
+  outline: 2px solid rgba(13, 107, 82, 0.3);
   outline-offset: 1px;
-  border-color: #059669;
+  border-color: #0d6b52;
 }
 
 .cura-login__remember {
@@ -117,24 +161,37 @@
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: #71717a;
+  color: #7a8f82;
   cursor: pointer;
 }
 
 .cura-login__error {
   padding: 10px 12px;
-  border-radius: 10px;
-  background: rgba(225, 29, 72, 0.08);
-  border: 1px solid rgba(225, 29, 72, 0.2);
-  color: #be123c;
+  border-radius: 12px;
+  background: rgba(196, 61, 90, 0.1);
+  border: 1px solid rgba(196, 61, 90, 0.2);
+  color: #c43d5a;
   font-size: 13px;
   line-height: 1.45;
 }
 
 .cura-login__submit {
   width: 100%;
-  min-height: 44px;
+  min-height: 46px;
   margin-top: 4px;
+  background: #0d6b52;
+  color: #f5f7f4;
+  border: none;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.cura-login__submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .cura-login__footer {
@@ -144,10 +201,10 @@
 }
 
 .cura-login__footer a {
-  color: #71717a;
+  color: #7a8f82;
   text-decoration: none;
 }
 
 .cura-login__footer a:hover {
-  color: #09090b;
+  color: #142019;
 }
