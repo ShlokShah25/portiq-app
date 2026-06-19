@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
-import { ArrowLeft, ChevronDown, ChevronUp, Save } from 'lucide-react';
+import { ArrowLeft, Save } from 'lucide-react';
 import { curaPaths } from './useCuraRoutes';
 import { curaApiError } from './curaApi';
 import { formatApiError } from '../utils/apiErrorMessage';
@@ -22,7 +22,6 @@ export default function CuraClinicalReport() {
   const navigate = useNavigate();
   const [meeting, setMeeting] = useState(null);
   const [noteText, setNoteText] = useState('');
-  const [showTranscript, setShowTranscript] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -113,7 +112,6 @@ export default function CuraClinicalReport() {
 
   const patientName =
     meeting.participants?.find((p) => String(p.role || '').toLowerCase() === 'patient')?.name || 'Patient';
-  const transcriptText = String(meeting.transcription || meeting.liveTranscript || '').trim();
 
   return (
     <div className="cura-notes-page">
@@ -151,21 +149,6 @@ export default function CuraClinicalReport() {
           aria-label="Visit notes"
         />
       </div>
-
-      {transcriptText ? (
-        <>
-          <button
-            type="button"
-            className="cura-transcript-toggle"
-            onClick={() => setShowTranscript((v) => !v)}
-            aria-expanded={showTranscript}
-          >
-            Transcript
-            {showTranscript ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-          </button>
-          {showTranscript ? <div className="cura-transcript-panel">{transcriptText}</div> : null}
-        </>
-      ) : null}
 
       <footer className="cura-notes-footer">
         <div className="cura-notes-footer__inner">

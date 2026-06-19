@@ -1,10 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Search, ChevronRight } from 'lucide-react';
+import { Plus, Search, ChevronRight, Phone, Mail, MessageCircle, UserPlus } from 'lucide-react';
 import { curaPaths } from './useCuraRoutes';
 import { createCuraPatient, fetchCuraPatients, curaApiError } from './curaApi';
+import { patientInitials } from './curaUtils';
 import './CuraCore.css';
 import './CuraMode.css';
+
+function visitLabel(count) {
+  if (!count) return 'No visits yet';
+  if (count === 1) return '1 visit';
+  return `${count} visits`;
+}
 
 export default function CuraPatientsPage() {
   const [patients, setPatients] = useState([]);
@@ -61,31 +68,37 @@ export default function CuraPatientsPage() {
   };
 
   return (
-    <div className="cura-home">
-      <header className="cura-home-section" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 20 }}>
+    <div className="cura-home cura-patients-page">
+      <header className="cura-patients-header">
         <div>
-          <h1 className="cura-home-hero__title" style={{ fontSize: 24, marginBottom: 4 }}>
-            Patients
-          </h1>
-          <p className="cura-muted">Your clinic panel</p>
+          <h1 className="cura-home-hero__title">Patients</h1>
+          <p className="cura-muted">
+            {loading
+              ? 'Loading your panel…'
+              : patients.length === 1
+                ? '1 person in your clinic'
+                : `${patients.length} people in your clinic`}
+          </p>
         </div>
-        <button type="button" className="cura-btn cura-btn--primary" onClick={() => setShowForm((v) => !v)}>
+        <button
+          type="button"
+          className="cura-btn cura-btn--primary"
+          onClick={() => setShowForm((v) => !v)}
+        >
           <Plus size={16} aria-hidden />
           Add patient
         </button>
       </header>
 
       {error ? (
-        <div className="cura-login__error" role="alert" style={{ marginBottom: 16 }}>
+        <div className="cura-login__error" role="alert">
           {error}
         </div>
       ) : null}
 
       {showForm ? (
-        <form className="cura-card" style={{ marginBottom: 20 }} onSubmit={handleCreate}>
-          <h2 className="cura-card__title" style={{ marginBottom: 16 }}>
-            New patient
-          </h2>
+        <form className="cura-patients-form" onSubmit={handleCreate}>
+          <h2 className="cura-patients-form__title">New patient</h2>
           <div className="cura-form-grid">
             <label className="cura-form-label">
               Full name *
@@ -122,15 +135,15 @@ export default function CuraPatientsPage() {
               />
             </label>
           </div>
-          <label className="cura-form-label" style={{ marginTop: 12 }}>
+          <label className="cura-patients-form__check">
             <input
               type="checkbox"
               checked={form.whatsappOptIn}
               onChange={(e) => setForm((f) => ({ ...f, whatsappOptIn: e.target.checked }))}
-            />{' '}
+            />
             WhatsApp opt-in for follow-ups
           </label>
-          <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+          <div className="cura-patients-form__actions">
             <button type="submit" className="cura-btn cura-btn--primary" disabled={saving}>
               {saving ? 'Saving…' : 'Save patient'}
             </button>
@@ -141,48 +154,83 @@ export default function CuraPatientsPage() {
         </form>
       ) : null}
 
-      <form className="cura-sessions-search" onSubmit={handleSearch} style={{ marginBottom: 16 }}>
-        <Search size={16} aria-hidden style={{ color: 'var(--cura-text-muted)' }} />
+      <form className="cura-patients-search" onSubmit={handleSearch}>
+        <Search size={18} aria-hidden className="cura-patients-search__icon" />
         <input
           type="search"
-          className="cura-input"
-          placeholder="Search by name, phone, MRN…"
+          className="cura-patients-search__input"
+          placeholder="Search name, phone, or MRN…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           aria-label="Search patients"
         />
-        <button type="submit" className="cura-btn cura-btn--secondary">
+        <button type="submit" className="cura-btn cura-btn--secondary cura-patients-search__btn">
           Search
         </button>
       </form>
 
-      <section className="cura-card">
-        {loading ? (
-          <div className="cura-loading">Loading patients…</div>
-        ) : patients.length === 0 ? (
-          <div className="cura-empty">
-            <p className="cura-empty__title">No patients yet</p>
-            <p>Add your first patient to start consultations.</p>
-          </div>
-        ) : (
-          <ul className="cura-visit-list">
-            {patients.map((p) => (
-              <li key={p._id}>
-                <Link to={curaPaths(p._id).patient} className="cura-visit-row">
-                  <span className="cura-visit-row__body">
-                    <strong>{p.name}</strong>
-                    <span className="cura-muted">
-                      {p.phone || p.email || 'No contact'}
-                      {p.medicalRecordNumber ? ` · ${p.medicalRecordNumber}` : ''}
-                    </span>
+      {loading ? (
+        <div className="cura-loading cura-patients-loading">Loading patients…</div>
+      ) : patients.length === 0 ? (
+        <div className="cura-patients-empty">
+          <span className="cura-patients-empty__icon" aria-hidden>
+            <UserPlus size={28} />
+          </span>
+          <p className="cura-patients-empty__title">No patients yet</p>
+          <p className="cura-muted">Add someone manually, or they&apos;ll appear here when they book on WhatsApp.</p>
+          <button type="button" className="cura-btn cura-btn--primary" onClick={() => setShowForm(true)}>
+            <Plus size={16} aria-hidden />
+            Add your first patient
+          </button>
+        </div>
+      ) : (
+        <ul className="cura-patients-grid">
+          {patients.map((p) => (
+            <li key={p._id}>
+              <Link to={curaPaths(p._id).patient} className="cura-patient-card">
+                <span className="cura-patient-card__avatar" aria-hidden>
+                  {patientInitials(p.name)}
+                </span>
+                <span className="cura-patient-card__body">
+                  <span className="cura-patient-card__top">
+                    <strong className="cura-patient-card__name">{p.name}</strong>
+                    {p.medicalRecordNumber ? (
+                      <span className="cura-patient-card__mrn">{p.medicalRecordNumber}</span>
+                    ) : null}
                   </span>
-                  <ChevronRight size={18} className="cura-visit-row__chev" aria-hidden />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+                  <span className="cura-patient-card__meta">
+                    {p.phone ? (
+                      <span className="cura-patient-card__contact">
+                        <Phone size={13} aria-hidden />
+                        {p.phone}
+                      </span>
+                    ) : null}
+                    {p.email ? (
+                      <span className="cura-patient-card__contact">
+                        <Mail size={13} aria-hidden />
+                        {p.email}
+                      </span>
+                    ) : null}
+                    {!p.phone && !p.email ? (
+                      <span className="cura-muted">No contact on file</span>
+                    ) : null}
+                  </span>
+                  <span className="cura-patient-card__footer">
+                    <span className="cura-patient-card__visits">{visitLabel(p.sessionCount)}</span>
+                    {p.whatsappOptIn ? (
+                      <span className="cura-patient-card__wa">
+                        <MessageCircle size={12} aria-hidden />
+                        WhatsApp
+                      </span>
+                    ) : null}
+                  </span>
+                </span>
+                <ChevronRight size={18} className="cura-patient-card__chev" aria-hidden />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

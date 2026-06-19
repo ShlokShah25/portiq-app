@@ -860,9 +860,9 @@ const MeetingInProgress = () => {
                   {!recordingLive && !uploading && (
                     <>
                       <p className="mip-recording-consent" role="note">
-                        By starting recording, you confirm participants are aware audio is captured for transcription
-                        and summary. Use Chrome or Edge for the most reliable in-browser capture. Recordings over 25 MB
-                        are compressed on our servers before sending to transcription.
+                        {isCura
+                          ? 'By starting recording, you confirm the patient is aware audio is captured for your visit summary. Use Chrome or Edge for the most reliable capture.'
+                          : 'By starting recording, you confirm participants are aware audio is captured for transcription and summary. Use Chrome or Edge for the most reliable in-browser capture. Recordings over 25 MB are compressed on our servers before sending to transcription.'}
                       </p>
                       <button type="button" className="mip-recording-hero__start" onClick={startRecording}>
                         Start Recording
@@ -924,7 +924,7 @@ const MeetingInProgress = () => {
                     </div>
                   )}
                 </div>
-                {recordingLive && !uploading && (
+                {recordingLive && !uploading && !isCura && (
                   <section
                     className={`mip-live-transcript${paused ? ' mip-live-transcript--paused' : ''}`}
                     aria-label="Live transcription preview"
