@@ -17,6 +17,7 @@ import { interviewPaths } from '../interview/useInterviewRoutes';
 import { useTrialExperience } from './TrialExperienceProvider';
 import TeacherDashboard from './TeacherDashboard';
 import EducationAdminDashboard from './EducationAdminDashboard';
+import WorkplaceDashboard from './WorkplaceDashboard';
 import { isEducation } from '../config/product';
 import {
   WORKSPACE_TIPS,
@@ -287,6 +288,10 @@ const Dashboard = () => {
   }
   if (isEducation && trial?.profile?.role !== 'faculty') {
     return <EducationAdminDashboard />;
+  }
+
+  if (!isEducation) {
+    return <WorkplaceDashboard />;
   }
 
   if (loading) {

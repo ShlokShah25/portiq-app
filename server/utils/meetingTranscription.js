@@ -29,6 +29,7 @@ const {
 } = require('./meetingSummaryModes');
 const { getFfmpegPath } = require('./ffmpegPaths');
 const { ensureWhisperSizedAudio, WHISPER_MAX_BYTES } = require('./audioCompressForWhisper');
+const { isLikelyWhisperHallucination, sanitizeWhisperTranscript } = require('./whisperTextSanitizer');
 const { identifySpeaker } = require('./voiceRecognition');
 const {
   pickEducationThoughtOfTheDay,
@@ -1157,7 +1158,7 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
   const detectedLanguage =
     String(options.detectedLanguage || '').trim().toLowerCase() || 'unknown';
 
-  const transcriptTextTrim = String(transcriptRaw || '').trim();
+  const transcriptTextTrim = sanitizeWhisperTranscript(String(transcriptRaw || '').trim());
   if (!transcriptTextTrim) {
     throw new Error('Stored transcript is empty');
   }
@@ -2108,6 +2109,8 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
     let transcriptText = transcription.text;
     const detectedLanguage =
       (transcription && transcription.language && String(transcription.language).toLowerCase()) || 'unknown';
+
+    transcriptText = sanitizeWhisperTranscript(transcriptText);
     
     if (!transcriptText || transcriptText.trim().length === 0) {
       throw new Error('Transcription returned empty text - audio may be silent or corrupted');
@@ -2862,6 +2865,32 @@ function getMailTransporter() {
  * Transcribe a short audio chunk with Whisper (live preview during recording).
  * Not used for the final stored transcript — full meeting audio is transcribed on /end.
  */
+function convertLiveChunkToWav(inputPath) {
+  if (!ffmpeg || !inputPath || !fs.existsSync(inputPath)) return null;
+  const outPath = path.join(
+    os.tmpdir(),
+    `live-chunk-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.wav`
+  );
+  try {
+    execFileSync(
+      getFfmpegPath(),
+      ['-nostdin', '-y', '-i', inputPath, '-ac', '1', '-ar', '16000', '-vn', outPath],
+      { stdio: ['ignore', 'ignore', 'pipe'], maxBuffer: 8 * 1024 * 1024, timeout: 15000 }
+    );
+    if (fs.existsSync(outPath) && fs.statSync(outPath).size > 400) {
+      return outPath;
+    }
+  } catch (err) {
+    console.warn('live-chunk ffmpeg convert skipped:', err.message || err);
+  }
+  try {
+    if (fs.existsSync(outPath)) fs.unlinkSync(outPath);
+  } catch (_) {
+    /* ignore */
+  }
+  return null;
+}
+
 async function transcribeLiveChunkFile(audioPath) {
   if (!openai) {
     const err = new Error('OpenAI transcription is not configured');
@@ -2872,29 +2901,44 @@ async function transcribeLiveChunkFile(audioPath) {
     throw new Error('Audio file missing');
   }
   const st = fs.statSync(audioPath);
-  if (st.size < 800) {
+  if (st.size < 1200) {
     return '';
   }
-  // Lock language for chunked preview: noisy rooms often mis-trigger Whisper as non-English.
-  // Full meeting /end pipeline stays auto-detect. Set OPENAI_LIVE_TRANSCRIPTION_LANGUAGE=auto to omit.
+
+  let whisperPath = audioPath;
+  let tempWav = null;
+  const converted = convertLiveChunkToWav(audioPath);
+  if (converted) {
+    whisperPath = converted;
+    tempWav = converted;
+  }
+
+  // Auto-detect language for multilingual workplace meetings (Hindi, Hinglish, etc.).
   const liveLangRaw = process.env.OPENAI_LIVE_TRANSCRIPTION_LANGUAGE;
   const liveLang =
     liveLangRaw === undefined || liveLangRaw === ''
-      ? 'en'
+      ? 'auto'
       : String(liveLangRaw).trim().toLowerCase();
+
   const createParams = {
-    file: fs.createReadStream(audioPath),
+    file: fs.createReadStream(whisperPath),
     model: process.env.OPENAI_TRANSCRIPTION_MODEL || 'whisper-1',
     temperature: 0,
     response_format: 'json',
+    prompt:
+      'Workplace business meeting. Transcribe only words actually spoken. Do not invent filler or closing phrases.',
   };
   if (liveLang && liveLang !== 'auto') {
     createParams.language = liveLang;
   }
   try {
     const transcription = await openai.audio.transcriptions.create(createParams);
-    const text = transcription && transcription.text ? String(transcription.text) : '';
-    return text.trim();
+    let text = transcription && transcription.text ? String(transcription.text) : '';
+    text = text.trim();
+    if (isLikelyWhisperHallucination(text, { liveChunk: true })) {
+      return '';
+    }
+    return text;
   } catch (err) {
     const msg = String(err?.message || '').toLowerCase();
     // Live chunking can intermittently produce tiny/corrupt segments (especially around pause/resume
@@ -2908,6 +2952,14 @@ async function transcribeLiveChunkFile(audioPath) {
       return '';
     }
     throw err;
+  } finally {
+    if (tempWav && fs.existsSync(tempWav)) {
+      try {
+        fs.unlinkSync(tempWav);
+      } catch (_) {
+        /* ignore */
+      }
+    }
   }
 }
 

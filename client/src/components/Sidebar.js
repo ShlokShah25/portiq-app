@@ -17,6 +17,8 @@ const Sidebar = () => {
   /** Hide Lectures for org admins; keep visible while profile loads so faculty are not mis-routed. */
   const showLecturesNav = !isEducation || profileLoading || role === 'faculty';
 
+  const isWorkplace = !isEducation;
+
   const menuItems = [
     {
       id: 'dashboard',
@@ -48,44 +50,86 @@ const Sidebar = () => {
           },
         ]
       : []),
-    ...(!isEducation && FEATURE_INTERVIEW_UI
+    ...(isWorkplace
       ? [
           {
-            id: 'interview',
-            label: 'Interview',
+            id: 'tasks',
+            label: 'Tasks',
             icon: (
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <rect x="2" y="7" width="20" height="14" rx="2" />
-                <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
-                <line x1="12" y1="12" x2="12" y2="12.01" />
+                <path d="M9 11l3 3L22 4" />
+                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
               </svg>
             ),
-            path: '/interview',
+            path: '/insights',
+          },
+          {
+            id: 'insights',
+            label: 'Insights',
+            icon: (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <line x1="18" y1="20" x2="18" y2="10" />
+                <line x1="12" y1="20" x2="12" y2="4" />
+                <line x1="6" y1="20" x2="6" y2="14" />
+              </svg>
+            ),
+            path: '/insights',
+          },
+          {
+            id: 'search',
+            label: 'Search',
+            icon: (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+            ),
+            path: '/transcripts',
+          },
+          {
+            id: 'calendar',
+            label: 'Calendar',
+            icon: (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <rect x="3" y="4" width="18" height="18" rx="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+            ),
+            path: '/meetings',
+          },
+          {
+            id: 'integrations',
+            label: 'Integrations',
+            icon: (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M12 2v4" />
+                <path d="M12 18v4" />
+                <path d="M4.93 4.93l2.83 2.83" />
+                <path d="M16.24 16.24l2.83 2.83" />
+                <path d="M2 12h4" />
+                <path d="M18 12h4" />
+                <path d="M4.93 19.07l2.83-2.83" />
+                <path d="M16.24 7.76l2.83-2.83" />
+              </svg>
+            ),
+            path: '/settings',
           },
         ]
       : []),
-    ...(!isEducation || isEducationAdmin
+    ...(isEducationAdmin
       ? [
           {
-            id: isEducation ? 'classrooms' : 'insights',
-            label: isEducation ? 'Classrooms' : 'Insights',
+            id: 'classrooms',
+            label: 'Classrooms',
             icon: (
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                {isEducation ? (
-                  <>
-                    <path d="M3 7.5L12 3l9 4.5-9 4.5-9-4.5z" />
-                    <path d="M7 10.5V15c0 1.8 2.2 3.2 5 3.2s5-1.4 5-3.2v-4.5" />
-                  </>
-                ) : (
-                  <>
-                    <line x1="18" y1="20" x2="18" y2="10" />
-                    <line x1="12" y1="20" x2="12" y2="4" />
-                    <line x1="6" y1="20" x2="6" y2="14" />
-                  </>
-                )}
+                <path d="M3 7.5L12 3l9 4.5-9 4.5-9-4.5z" />
+                <path d="M7 10.5V15c0 1.8 2.2 3.2 5 3.2s5-1.4 5-3.2v-4.5" />
               </svg>
             ),
-            path: isEducation ? '/classes' : '/insights',
+            path: '/classes',
           },
         ]
       : []),
@@ -169,6 +213,18 @@ const Sidebar = () => {
           </button>
         ))}
       </nav>
+
+      {isWorkplace && FEATURE_INTERVIEW_UI ? (
+        <button
+          type="button"
+          className="sidebar-promo"
+          onClick={() => navigate('/interview')}
+        >
+          <strong>Interview Mode</strong>
+          <span>Structured hiring evaluations from recordings.</span>
+          <em>Explore →</em>
+        </button>
+      ) : null}
 
       <div className="sidebar__footer">
         {role !== 'faculty' && (

@@ -6,6 +6,7 @@ import { FEATURE_INTERVIEW_UI, FEATURE_CURA_UI } from '../config/featureFlags';
 import useInterviewRoutes, { meetingPaths } from '../interview/useInterviewRoutes';
 import useCuraRoutes from '../cura/useCuraRoutes';
 import { formatApiError } from '../utils/apiErrorMessage';
+import { isLikelyLiveWhisperHallucination } from '../utils/whisperLiveFilter';
 import { isEducation } from '../config/product';
 import './MeetingSummary.css';
 import './MeetingInProgress.css';
@@ -39,11 +40,11 @@ let globalLiveVad = null;
  */
 function startLiveUtteranceSegmentation(stream, enqueueBlob) {
   const MEDIA_SLICE_MS = 400;
-  const MIN_LIVE_CHUNK_BYTES = 800;
-  const PAUSE_SILENCE_MS = 520;
+  const MIN_LIVE_CHUNK_BYTES = 1200;
+  const PAUSE_SILENCE_MS = 650;
   const MAX_LIVE_SEGMENT_MS = 12000;
-  const MIN_UTTERANCE_MS = 320;
-  const SILENCE_RMS = 0.017;
+  const MIN_UTTERANCE_MS = 520;
+  const SILENCE_RMS = 0.019;
 
   const state = {
     pendingChunks: [],
@@ -417,7 +418,7 @@ const MeetingInProgress = () => {
       globalActiveMeetingId = String(meetingId);
       const chunks = [];
       /** Aligned with server live chunk minimum; utterance segments can be shorter than old 5s blobs. */
-      const MIN_LIVE_CHUNK_BYTES = 800;
+      const MIN_LIVE_CHUNK_BYTES = 1200;
       const FALLBACK_LIVE_SLICE_MS = 2500;
 
       let liveFlushBusy = false;
@@ -445,7 +446,7 @@ const MeetingInProgress = () => {
                 headers: { 'Content-Type': 'multipart/form-data' },
               });
               const piece = String(res.data?.text || '').trim();
-              if (piece && isMountedRef.current) {
+              if (piece && !isLikelyLiveWhisperHallucination(piece) && isMountedRef.current) {
                 setLiveTranscriptError('');
                 const speakerName = String(res.data?.speaker?.name || '').trim();
                 const confidence = Number(res.data?.speaker?.confidence || 0);
