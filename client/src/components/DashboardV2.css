@@ -79,6 +79,21 @@
   color: #ffffff;
 }
 
+/* React Router <Link> — global .App a uses --link-color (dark on light theme) */
+.App a.dash-v2__btn-primary,
+.dash-v2 a.dash-v2__btn-primary {
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+}
+
+.App a.dash-v2__btn-primary:hover,
+.App a.dash-v2__btn-primary:focus-visible,
+.dash-v2 a.dash-v2__btn-primary:hover,
+.dash-v2 a.dash-v2__btn-primary:focus-visible {
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+}
+
 .dash-v2__icon-btn {
   position: relative;
   width: 42px;
@@ -490,6 +505,29 @@
   gap: 4px;
   font-size: 13px;
   font-weight: 600;
+}
+
+.App a.dash-v2-interview-card,
+.dash-v2 a.dash-v2-interview-card {
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+}
+
+.App a.dash-v2-interview-card:hover,
+.App a.dash-v2-interview-card:focus-visible,
+.dash-v2 a.dash-v2-interview-card:hover,
+.dash-v2 a.dash-v2-interview-card:focus-visible {
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+}
+
+.App a.dash-v2-interview-card strong,
+.App a.dash-v2-interview-card p,
+.App a.dash-v2-interview-card span,
+.dash-v2 a.dash-v2-interview-card strong,
+.dash-v2 a.dash-v2-interview-card p,
+.dash-v2 a.dash-v2-interview-card span {
+  color: inherit;
 }
 
 .dash-v2-status {
