@@ -320,6 +320,9 @@
   font-family: inherit;
   cursor: pointer;
   border: none;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
   transition: transform 0.22s ease, box-shadow 0.22s ease, filter 0.2s ease, opacity 0.2s ease;
 }
 
@@ -355,6 +358,23 @@
   fill: #fff;
   box-shadow: none;
   cursor: not-allowed;
+}
+
+/* Safari / global theme tokens can wash out primary label on purple CTAs */
+.App button.start-meeting-btn--primary,
+button.start-meeting-btn--primary {
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+  fill: #ffffff;
+}
+
+.App button.start-meeting-btn--primary:hover:not(:disabled),
+.App button.start-meeting-btn--primary:focus-visible:not(:disabled),
+button.start-meeting-btn--primary:hover:not(:disabled),
+button.start-meeting-btn--primary:focus-visible:not(:disabled) {
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+  fill: #ffffff;
 }
 
 .start-meeting-btn--ghost {

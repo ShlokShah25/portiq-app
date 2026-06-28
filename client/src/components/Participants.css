@@ -1213,19 +1213,54 @@
   padding: 6px 12px;
   min-height: 32px;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: transparent;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-card, transparent);
   color: var(--text-primary);
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   flex-shrink: 0;
   box-sizing: border-box;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  font-family: inherit;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
-.participant-voice-btn:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.22);
+.participant-voice-btn:hover:not(:disabled) {
+  background: var(--dash-subtle-hover);
+  border-color: var(--border-strong);
+}
+
+.participant-voice-btn--recording {
+  background: var(--accent-blue);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  box-shadow: var(--shadow-glow-blue);
+}
+
+.participant-voice-btn--recording:hover:not(:disabled) {
+  background: var(--accent-primary-hover);
+  color: #ffffff;
+}
+
+.App button.participant-voice-btn--recording,
+button.participant-voice-btn--recording {
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
+}
+
+.App button.participant-voice-btn--recording:hover:not(:disabled),
+.App button.participant-voice-btn--recording:focus-visible:not(:disabled),
+button.participant-voice-btn--recording:hover:not(:disabled),
+button.participant-voice-btn--recording:focus-visible:not(:disabled) {
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
 }
 
 .participant-voice-btn:disabled {

@@ -24,6 +24,7 @@ const {
   generateVoiceEmbedding,
   identifySpeaker,
   validateVoiceEnrollmentQuality,
+  convertVoiceEnrollmentToWav,
 } = require('../utils/voiceRecognition');
 const { logCuraAudit } = require('../utils/curaAuditLog');
 
@@ -2433,7 +2434,13 @@ router.post('/voice/register', withVoiceUpload, async (req, res) => {
       });
     }
 
-    const quality = validateVoiceEnrollmentQuality(req.file.path);
+    let enrollmentAudioPath = req.file.path;
+    let enrollmentTempWav = convertVoiceEnrollmentToWav(req.file.path);
+    if (enrollmentTempWav) {
+      enrollmentAudioPath = enrollmentTempWav;
+    }
+
+    const quality = validateVoiceEnrollmentQuality(enrollmentAudioPath);
     const skipQualityDueToDecode =
       !quality.ok &&
       quality.code === 'decode' &&
@@ -2445,6 +2452,13 @@ router.post('/voice/register', withVoiceUpload, async (req, res) => {
         quality.details || ''
       );
     } else if (!quality.ok) {
+      if (enrollmentTempWav) {
+        try {
+          fs.unlinkSync(enrollmentTempWav);
+        } catch (_) {
+          /* ignore */
+        }
+      }
       return res.status(400).json({
         error: quality.reason || 'Voice sample did not pass quality checks.',
         details: quality.details || '',
@@ -2453,7 +2467,18 @@ router.post('/voice/register', withVoiceUpload, async (req, res) => {
     }
 
     // Generate voice embedding (server cleans audio: VAD trim + ffmpeg band-limit/normalize for enrollment)
-    const voiceVector = await generateVoiceEmbedding(req.file.path);
+    let voiceVector;
+    try {
+      voiceVector = await generateVoiceEmbedding(enrollmentAudioPath);
+    } finally {
+      if (enrollmentTempWav) {
+        try {
+          fs.unlinkSync(enrollmentTempWav);
+        } catch (_) {
+          /* ignore */
+        }
+      }
+    }
 
     // Check if profile already exists
     let voiceProfile = await VoiceProfile.findOne({ email: email.toLowerCase() });

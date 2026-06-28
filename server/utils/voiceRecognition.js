@@ -334,6 +334,40 @@ async function generateVoiceEmbedding(audioFilePath) {
 }
 
 /**
+ * Browser MediaRecorder uploads are often webm/opus — normalize to 16 kHz mono WAV
+ * before quality checks and pyannote (same idea as live-transcription chunk convert).
+ * @returns {string|null} temp wav path or null when conversion is skipped/failed
+ */
+function convertVoiceEnrollmentToWav(inputPath) {
+  if (!inputPath || !fs.existsSync(inputPath)) return null;
+  const ext = path.extname(inputPath).toLowerCase();
+  if (ext === '.wav') return null;
+
+  const outPath = path.join(
+    os.tmpdir(),
+    `voice-enroll-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.wav`
+  );
+  try {
+    execFileSync(
+      getFfmpegPath(),
+      ['-nostdin', '-y', '-i', inputPath, '-ac', '1', '-ar', '16000', '-vn', outPath],
+      { stdio: ['ignore', 'ignore', 'pipe'], maxBuffer: 25 * 1024 * 1024, timeout: 120000 }
+    );
+    if (fs.existsSync(outPath) && fs.statSync(outPath).size > 400) {
+      return outPath;
+    }
+  } catch (err) {
+    console.warn('voice-enrollment ffmpeg convert skipped:', err.message || err);
+  }
+  try {
+    if (fs.existsSync(outPath)) fs.unlinkSync(outPath);
+  } catch (_) {
+    /* ignore */
+  }
+  return null;
+}
+
+/**
  * Decode arbitrary audio to mono s16le @ 16 kHz via ffmpeg (used for enrollment RMS checks).
  */
 function ffmpegDecodeToMonoS16le16k(audioPath) {
@@ -848,4 +882,5 @@ module.exports = {
   compareEmbeddings,
   identifySpeaker,
   validateVoiceEnrollmentQuality,
+  convertVoiceEnrollmentToWav,
 };

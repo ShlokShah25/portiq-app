@@ -581,7 +581,9 @@ export function ParticipantBookPanel({ embedded = false }) {
                           </span>
                           <button
                             type="button"
-                            className="participant-voice-btn"
+                            className={`participant-voice-btn${
+                              recordingEmail === emailKey ? ' participant-voice-btn--recording' : ''
+                            }`}
                             disabled={uploading && recordingEmail === emailKey}
                             onClick={() => {
                               if (recordingEmail === emailKey) {
