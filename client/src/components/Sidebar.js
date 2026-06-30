@@ -7,13 +7,17 @@ import { FEATURE_INTERVIEW_UI } from '../config/featureFlags';
 import { useTrialExperience } from './TrialExperienceProvider';
 import './Sidebar.css';
 
-const SIDEBAR_COLLAPSED_KEY = 'portiq_sidebar_collapsed';
+const SIDEBAR_PINNED_KEY = 'portiq_sidebar_pinned';
 const SIDEBAR_WIDTH_EXPANDED = '260px';
-const SIDEBAR_WIDTH_COLLAPSED = '72px';
+const SIDEBAR_WIDTH_RAIL = '64px';
 
-function readSidebarCollapsedPref() {
+function readSidebarPinnedPref() {
   try {
-    return window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1';
+    const pinned = window.localStorage.getItem(SIDEBAR_PINNED_KEY);
+    if (pinned != null) return pinned === '1';
+    const legacy = window.localStorage.getItem('portiq_sidebar_collapsed');
+    if (legacy != null) return legacy !== '1';
+    return false;
   } catch {
     return false;
   }
@@ -26,30 +30,25 @@ const Sidebar = () => {
   const profileLoading = Boolean(trial?.loading);
   const role = String(trial?.profile?.role || '').toLowerCase();
   const isEducationAdmin = isEducation && role !== 'faculty';
-  /** Hide Lectures for org admins; keep visible while profile loads so faculty are not mis-routed. */
   const showLecturesNav = !isEducation || profileLoading || role === 'faculty';
 
   const isWorkplace = !isEducation;
-  const [collapsed, setCollapsed] = useState(readSidebarCollapsedPref);
+  const [pinned, setPinned] = useState(readSidebarPinnedPref);
 
   useEffect(() => {
     const root = document.documentElement;
-    root.style.setProperty('--sidebar-width', collapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH_EXPANDED);
-    if (collapsed) {
-      root.setAttribute('data-sidebar-collapsed', 'true');
-    } else {
-      root.removeAttribute('data-sidebar-collapsed');
-    }
+    root.style.setProperty('--sidebar-width', pinned ? SIDEBAR_WIDTH_EXPANDED : SIDEBAR_WIDTH_RAIL);
+    root.toggleAttribute('data-sidebar-rail', !pinned);
     try {
-      window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? '1' : '0');
+      window.localStorage.setItem(SIDEBAR_PINNED_KEY, pinned ? '1' : '0');
     } catch {
       /* ignore */
     }
     return () => {
       root.style.setProperty('--sidebar-width', SIDEBAR_WIDTH_EXPANDED);
-      root.removeAttribute('data-sidebar-collapsed');
+      root.removeAttribute('data-sidebar-rail');
     };
-  }, [collapsed]);
+  }, [pinned]);
 
   const menuItems = [
     {
@@ -218,105 +217,111 @@ const Sidebar = () => {
 
   return (
     <aside
-      className={`sidebar${collapsed ? ' sidebar--collapsed' : ''}`}
+      className={`sidebar${pinned ? ' sidebar--pinned' : ' sidebar--rail'}`}
       aria-label="Main navigation"
-      data-collapsed={collapsed ? 'true' : 'false'}
+      data-pinned={pinned ? 'true' : 'false'}
     >
-      <div className="sidebar__brand">
-        <button type="button" className="sidebar__brand-btn" onClick={() => navigate('/dashboard')}>
-          <img
-            src="/assets/portiq-icon.png"
-            alt=""
-            className="sidebar__brand-mark"
-            onError={(e) => {
-              e.target.style.display = 'none';
-            }}
-          />
-          <span className="sidebar__brand-name sidebar__label">PortIQ</span>
-        </button>
-        <button
-          type="button"
-          className="sidebar__collapse-btn"
-          onClick={() => setCollapsed((value) => !value)}
-          aria-label={collapsed ? 'Pin sidebar open' : 'Collapse sidebar to icons'}
-          aria-expanded={!collapsed}
-          title={collapsed ? 'Pin sidebar open' : 'Collapse sidebar'}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
-            {collapsed ? (
-              <>
-                <rect x="3" y="3" width="18" height="18" rx="3" />
-                <path d="M9 3v18" />
-                <path d="m14 9 3 3-3 3" />
-              </>
-            ) : (
-              <>
-                <rect x="3" y="3" width="18" height="18" rx="3" />
-                <path d="M9 3v18" />
-                <path d="m13 9-3 3 3 3" />
-              </>
-            )}
-          </svg>
-        </button>
-      </div>
+      <div className="sidebar__surface">
+        <div className="sidebar__brand">
+          <button type="button" className="sidebar__brand-btn" onClick={() => navigate('/dashboard')}>
+            <img
+              src="/assets/portiq-icon.png"
+              alt=""
+              className="sidebar__brand-mark"
+              onError={(e) => {
+                e.target.style.display = 'none';
+              }}
+            />
+            <span className="sidebar__label sidebar__brand-name">PortIQ</span>
+          </button>
+        </div>
 
-      <nav className="sidebar__nav">
-        {menuItems.map((item) => (
+        <nav className="sidebar__nav">
+          {menuItems.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={`sidebar-item${isActive(item.path) ? ' active' : ''}`}
+              onClick={() => navigate(item.path)}
+              title={!pinned ? item.label : undefined}
+            >
+              {item.icon}
+              <span className="sidebar__label">{item.label}</span>
+            </button>
+          ))}
+        </nav>
+
+        {isWorkplace && FEATURE_INTERVIEW_UI ? (
           <button
-            key={item.id}
             type="button"
-            className={`sidebar-item${isActive(item.path) ? ' active' : ''}`}
-            onClick={() => navigate(item.path)}
+            className="sidebar-promo"
+            onClick={() => navigate('/interview')}
+            title={!pinned ? 'Interview Mode' : undefined}
           >
-            {item.icon}
-            <span className="sidebar__label">{item.label}</span>
+            <span className="sidebar-promo__icon" aria-hidden>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M22 11h-6" />
+                <path d="M19 8v6" />
+              </svg>
+            </span>
+            <span className="sidebar-promo__body">
+              <strong>Interview Mode</strong>
+              <span>Structured hiring evaluations from recordings.</span>
+              <em>Explore →</em>
+            </span>
           </button>
-        ))}
-      </nav>
+        ) : null}
 
-      {isWorkplace && FEATURE_INTERVIEW_UI ? (
-        <button
-          type="button"
-          className="sidebar-promo"
-          onClick={() => navigate('/interview')}
-          title="Interview Mode"
-        >
-          <span className="sidebar-promo__icon" aria-hidden>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M22 11h-6" />
-              <path d="M19 8v6" />
-            </svg>
-          </span>
-          <span className="sidebar-promo__body">
-            <strong>Interview Mode</strong>
-            <span>Structured hiring evaluations from recordings.</span>
-            <em>Explore →</em>
-          </span>
-        </button>
-      ) : null}
-
-      <div className="sidebar__footer">
-        {role !== 'faculty' && (
-          <button type="button" className="sidebar-footer-btn" onClick={() => navigate('/admin')}>
+        <div className="sidebar__footer">
+          {role !== 'faculty' && (
+            <button
+              type="button"
+              className="sidebar-footer-btn"
+              onClick={() => navigate('/admin')}
+              title={!pinned ? 'Admin' : undefined}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                <path d="M2 17l10 5 10-5" />
+                <path d="M2 12l10 5 10-5" />
+              </svg>
+              <span className="sidebar__label">Admin</span>
+            </button>
+          )}
+          <button
+            type="button"
+            className="sidebar-footer-btn sidebar-footer-btn--logout"
+            onClick={logout}
+            title={!pinned ? 'Log out' : undefined}
+          >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M12 2L2 7l10 5 10-5-10-5z" />
-              <path d="M2 17l10 5 10-5" />
-              <path d="M2 12l10 5 10-5" />
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
             </svg>
-            <span className="sidebar__label">Admin</span>
+            <span className="sidebar__label">Log out</span>
           </button>
-        )}
-        <button type="button" className="sidebar-footer-btn sidebar-footer-btn--logout" onClick={logout}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-            <polyline points="16 17 21 12 16 7" />
-            <line x1="21" y1="12" x2="9" y2="12" />
-          </svg>
-          <span className="sidebar__label">Log out</span>
-        </button>
+        </div>
       </div>
+
+      <button
+        type="button"
+        className="sidebar__pin-btn"
+        onClick={() => setPinned((value) => !value)}
+        aria-label={pinned ? 'Collapse to icons' : 'Keep sidebar open'}
+        aria-pressed={pinned}
+        title={pinned ? 'Collapse to icons' : 'Keep sidebar open'}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+          {pinned ? (
+            <path d="M15 6l-6 6 6 6" strokeLinecap="round" strokeLinejoin="round" />
+          ) : (
+            <path d="M9 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+          )}
+        </svg>
+      </button>
     </aside>
   );
 };
