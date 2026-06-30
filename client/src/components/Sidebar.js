@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { T } from '../config/terminology';
@@ -6,6 +6,18 @@ import { isEducation } from '../config/product';
 import { FEATURE_INTERVIEW_UI } from '../config/featureFlags';
 import { useTrialExperience } from './TrialExperienceProvider';
 import './Sidebar.css';
+
+const SIDEBAR_COLLAPSED_KEY = 'portiq_sidebar_collapsed';
+const SIDEBAR_WIDTH_EXPANDED = '260px';
+const SIDEBAR_WIDTH_COLLAPSED = '72px';
+
+function readSidebarCollapsedPref() {
+  try {
+    return window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
 
 const Sidebar = () => {
   const navigate = useNavigate();
@@ -18,6 +30,26 @@ const Sidebar = () => {
   const showLecturesNav = !isEducation || profileLoading || role === 'faculty';
 
   const isWorkplace = !isEducation;
+  const [collapsed, setCollapsed] = useState(readSidebarCollapsedPref);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty('--sidebar-width', collapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH_EXPANDED);
+    if (collapsed) {
+      root.setAttribute('data-sidebar-collapsed', 'true');
+    } else {
+      root.removeAttribute('data-sidebar-collapsed');
+    }
+    try {
+      window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
+    return () => {
+      root.style.setProperty('--sidebar-width', SIDEBAR_WIDTH_EXPANDED);
+      root.removeAttribute('data-sidebar-collapsed');
+    };
+  }, [collapsed]);
 
   const menuItems = [
     {
@@ -185,7 +217,11 @@ const Sidebar = () => {
   };
 
   return (
-    <aside className="sidebar" aria-label="Main navigation">
+    <aside
+      className={`sidebar${collapsed ? ' sidebar--collapsed' : ''}`}
+      aria-label="Main navigation"
+      data-collapsed={collapsed ? 'true' : 'false'}
+    >
       <div className="sidebar__brand">
         <button type="button" className="sidebar__brand-btn" onClick={() => navigate('/dashboard')}>
           <img
@@ -196,7 +232,31 @@ const Sidebar = () => {
               e.target.style.display = 'none';
             }}
           />
-          <span className="sidebar__brand-name">PortIQ</span>
+          <span className="sidebar__brand-name sidebar__label">PortIQ</span>
+        </button>
+        <button
+          type="button"
+          className="sidebar__collapse-btn"
+          onClick={() => setCollapsed((value) => !value)}
+          aria-label={collapsed ? 'Pin sidebar open' : 'Collapse sidebar to icons'}
+          aria-expanded={!collapsed}
+          title={collapsed ? 'Pin sidebar open' : 'Collapse sidebar'}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
+            {collapsed ? (
+              <>
+                <rect x="3" y="3" width="18" height="18" rx="3" />
+                <path d="M9 3v18" />
+                <path d="m14 9 3 3-3 3" />
+              </>
+            ) : (
+              <>
+                <rect x="3" y="3" width="18" height="18" rx="3" />
+                <path d="M9 3v18" />
+                <path d="m13 9-3 3 3 3" />
+              </>
+            )}
+          </svg>
         </button>
       </div>
 
@@ -209,7 +269,7 @@ const Sidebar = () => {
             onClick={() => navigate(item.path)}
           >
             {item.icon}
-            <span>{item.label}</span>
+            <span className="sidebar__label">{item.label}</span>
           </button>
         ))}
       </nav>
@@ -219,10 +279,21 @@ const Sidebar = () => {
           type="button"
           className="sidebar-promo"
           onClick={() => navigate('/interview')}
+          title="Interview Mode"
         >
-          <strong>Interview Mode</strong>
-          <span>Structured hiring evaluations from recordings.</span>
-          <em>Explore →</em>
+          <span className="sidebar-promo__icon" aria-hidden>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M22 11h-6" />
+              <path d="M19 8v6" />
+            </svg>
+          </span>
+          <span className="sidebar-promo__body">
+            <strong>Interview Mode</strong>
+            <span>Structured hiring evaluations from recordings.</span>
+            <em>Explore →</em>
+          </span>
         </button>
       ) : null}
 
@@ -234,7 +305,7 @@ const Sidebar = () => {
               <path d="M2 17l10 5 10-5" />
               <path d="M2 12l10 5 10-5" />
             </svg>
-            Admin
+            <span className="sidebar__label">Admin</span>
           </button>
         )}
         <button type="button" className="sidebar-footer-btn sidebar-footer-btn--logout" onClick={logout}>
@@ -243,7 +314,7 @@ const Sidebar = () => {
             <polyline points="16 17 21 12 16 7" />
             <line x1="21" y1="12" x2="9" y2="12" />
           </svg>
-          Log out
+          <span className="sidebar__label">Log out</span>
         </button>
       </div>
     </aside>
