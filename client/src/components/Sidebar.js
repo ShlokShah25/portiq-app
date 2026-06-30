@@ -34,11 +34,18 @@ const Sidebar = () => {
 
   const isWorkplace = !isEducation;
   const [pinned, setPinned] = useState(readSidebarPinnedPref);
+  const [railHovered, setRailHovered] = useState(false);
+
+  const sidebarExpanded = pinned || railHovered;
 
   useEffect(() => {
     const root = document.documentElement;
-    root.style.setProperty('--sidebar-width', pinned ? SIDEBAR_WIDTH_EXPANDED : SIDEBAR_WIDTH_RAIL);
+    root.style.setProperty(
+      '--sidebar-width',
+      sidebarExpanded ? SIDEBAR_WIDTH_EXPANDED : SIDEBAR_WIDTH_RAIL
+    );
     root.toggleAttribute('data-sidebar-rail', !pinned);
+    root.toggleAttribute('data-sidebar-expanded', sidebarExpanded);
     try {
       window.localStorage.setItem(SIDEBAR_PINNED_KEY, pinned ? '1' : '0');
     } catch {
@@ -47,8 +54,17 @@ const Sidebar = () => {
     return () => {
       root.style.setProperty('--sidebar-width', SIDEBAR_WIDTH_EXPANDED);
       root.removeAttribute('data-sidebar-rail');
+      root.removeAttribute('data-sidebar-expanded');
     };
-  }, [pinned]);
+  }, [pinned, sidebarExpanded]);
+
+  const onSidebarMouseEnter = () => {
+    if (!pinned) setRailHovered(true);
+  };
+
+  const onSidebarMouseLeave = () => {
+    if (!pinned) setRailHovered(false);
+  };
 
   const menuItems = [
     {
@@ -217,9 +233,13 @@ const Sidebar = () => {
 
   return (
     <aside
-      className={`sidebar${pinned ? ' sidebar--pinned' : ' sidebar--rail'}`}
+      className={`sidebar${pinned ? ' sidebar--pinned' : ' sidebar--rail'}${
+        !pinned && railHovered ? ' sidebar--hovered' : ''
+      }`}
       aria-label="Main navigation"
       data-pinned={pinned ? 'true' : 'false'}
+      onMouseEnter={onSidebarMouseEnter}
+      onMouseLeave={onSidebarMouseLeave}
     >
       <div className="sidebar__surface">
         <div className="sidebar__brand">
