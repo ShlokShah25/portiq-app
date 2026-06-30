@@ -25,6 +25,7 @@ const {
   identifySpeaker,
   validateVoiceEnrollmentQuality,
   convertVoiceEnrollmentToWav,
+  FFT_VOICE_EMBEDDING_DIM,
 } = require('../utils/voiceRecognition');
 const { logCuraAudit } = require('../utils/curaAuditLog');
 
@@ -2517,6 +2518,11 @@ router.post('/voice/register', withVoiceUpload, async (req, res) => {
 
     await voiceProfile.save();
 
+    const embeddingKind =
+      Array.isArray(voiceVector) && voiceVector.length === FFT_VOICE_EMBEDDING_DIM
+        ? 'fft'
+        : 'pyannote';
+
     res.json({
       success: true,
       message: `Voice profile registered successfully for ${voiceProfile.name}`,
@@ -2525,6 +2531,8 @@ router.post('/voice/register', withVoiceUpload, async (req, res) => {
         name: voiceProfile.name,
         hasProfile: true
       },
+      embeddingKind,
+      embeddingFallback: embeddingKind === 'fft',
       autoMatched: !req.body.email || !req.body.name, // Indicates if name was auto-detected
       qualityCheckSkipped: !!skipQualityDueToDecode,
       enrollmentQuality: quality && quality.ok

@@ -569,23 +569,6 @@ const MeetingInProgress = () => {
     }
   };
 
-  const stopRecording = () => {
-    const recorder = globalMediaRecorder || mediaRecorderRef.current;
-    if (recorder && recorder.state !== 'inactive') {
-      if (globalLiveVad) {
-        globalLiveVad.flushPending();
-      }
-      recorder.stop();
-      if (isMountedRef.current) {
-        setRecording(false);
-        setPaused(false);
-        setLiveTranscript('');
-        setLiveTranscriptEntries([]);
-        setLiveTranscriptError('');
-      }
-    }
-  };
-
   const uploadAudio = async (blob, uploadMeetingId) => {
     if (!uploadMeetingId) return;
     if (isMountedRef.current) {
@@ -766,6 +749,24 @@ const MeetingInProgress = () => {
     recordingLive ||
     meeting.status === 'In Progress' ||
     meeting.transcriptionStatus === 'Recording';
+  const endMeetingLabel = isInterview
+    ? 'End Interview'
+    : isCura
+      ? 'End Consultation'
+      : meetingEducationMode
+        ? 'End Lecture'
+        : T.endMeeting();
+
+  const renderEndMeetingButton = (className = 'meeting-summary-btn mip-btn-end-meeting') => (
+    <button
+      type="button"
+      className={className}
+      onClick={handleEndMeeting}
+      disabled={uploading}
+    >
+      {uploading ? 'Uploading…' : endMeetingLabel}
+    </button>
+  );
 
   return (
     <div className="meeting-summary-screen meeting-in-progress">
@@ -887,27 +888,20 @@ const MeetingInProgress = () => {
                         {!paused ? (
                           <button
                             type="button"
-                            className="meeting-summary-btn meeting-summary-btn--secondary mip-recording-hero__ctrl"
+                            className="meeting-summary-btn meeting-summary-btn--secondary mip-recording-hero__ctrl mip-recording-hero__ctrl--pause"
                             onClick={pauseRecording}
                           >
-                            Pause
+                            Pause Recording
                           </button>
                         ) : (
                           <button
                             type="button"
-                            className="meeting-summary-btn meeting-summary-btn--secondary mip-recording-hero__ctrl mip-recording-hero__resume"
+                            className="meeting-summary-btn meeting-summary-btn--secondary mip-recording-hero__ctrl mip-recording-hero__ctrl--resume"
                             onClick={resumeRecording}
                           >
-                            Resume
+                            Resume Recording
                           </button>
                         )}
-                        <button
-                          type="button"
-                          className="meeting-summary-btn mip-btn-stop-upload mip-recording-hero__ctrl"
-                          onClick={stopRecording}
-                        >
-                          Stop &amp; upload
-                        </button>
                       </div>
                     </div>
                   )}
@@ -924,6 +918,14 @@ const MeetingInProgress = () => {
                       </div>
                     </div>
                   )}
+                  <div className="mip-end-meeting-block">
+                    {renderEndMeetingButton('meeting-summary-btn mip-btn-end-meeting mip-btn-end-meeting--prominent')}
+                    <p className="mip-end-meeting-hint">
+                      {recordingLive
+                        ? 'When you are finished, end the session — we upload the recording and generate your transcript.'
+                        : 'You can end the session at any time. If you recorded audio, it will be uploaded for transcription.'}
+                    </p>
+                  </div>
                 </div>
                 {recordingLive && !uploading && !isCura && (
                   <section
@@ -1131,22 +1133,17 @@ const MeetingInProgress = () => {
                       : 'View all meetings'}
                 </button>
                 <p className="mip-ai-disclaimer mip-ai-disclaimer--footer">
-                  Audio is captured in your browser. Stopping recording or ending uploads audio for your transcript.
+                  Audio is captured in your browser. Ending the session uploads audio for your transcript.
                 </p>
               </div>
 
         {error && <div className="meeting-summary-action-error">{error}</div>}
 
-        <div className="meeting-summary-actions mip-footer-actions">
-          <button
-            type="button"
-            className="meeting-summary-btn mip-btn-end-meeting"
-            onClick={handleEndMeeting}
-            disabled={uploading}
-          >
-            {isInterview ? 'End interview' : (meetingEducationMode ? 'End Lecture' : T.endMeeting())}
-          </button>
-        </div>
+        {!meeting.transcriptionEnabled ? (
+          <div className="meeting-summary-actions mip-footer-actions">
+            {renderEndMeetingButton('meeting-summary-btn mip-btn-end-meeting mip-btn-end-meeting--prominent')}
+          </div>
+        ) : null}
             </>
           )}
         </div>

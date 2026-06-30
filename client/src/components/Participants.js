@@ -335,7 +335,11 @@ export function ParticipantBookPanel({ embedded = false }) {
         const message = wasAutoMatched
           ? `Thank you ${matchedName}! Your voice has been automatically configured and assigned to your participant profile.`
           : `Thank you ${matchedName}! Your voice has been configured successfully.`;
-        alert(message);
+        const fallbackNote =
+          res.data.embeddingFallback || res.data.embeddingKind === 'fft'
+            ? '\n\nNote: Voice matching is using a basic server fallback (pyannote/Hugging Face unavailable). Speaker ID may be less accurate until HF_TOKEN is configured.'
+            : '';
+        alert(message + fallbackNote);
 
         const emails = participantList.map(p => p.email);
         if (emails.length > 0) {

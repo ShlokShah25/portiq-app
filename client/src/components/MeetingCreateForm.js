@@ -706,9 +706,13 @@ export default function MeetingCreateForm({
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       if (res.data?.success) {
-        setVoiceSuccessMessage(
-          res.data.message || 'Voice profile saved. Your sample will be used on the next transcription.'
-        );
+        const base =
+          res.data.message || 'Voice profile saved. Your sample will be used on the next transcription.';
+        const fallbackNote =
+          res.data.embeddingFallback || res.data.embeddingKind === 'fft'
+            ? ' Speaker matching is using a basic server fallback (pyannote/Hugging Face unavailable) — accuracy may be lower until HF_TOKEN is configured.'
+            : '';
+        setVoiceSuccessMessage(base + fallbackNote);
       }
       const matched = res.data?.voiceProfile?.email;
       if (matched) {
