@@ -1,4 +1,4 @@
-/* Sidebar — icon rail; hover or pin keeps full expanded layout */
+/* Sidebar — icon rail; hover expands; pin keeps open */
 
 .sidebar {
   --sidebar-rail-width: 64px;
@@ -8,46 +8,71 @@
   top: 0;
   height: 100vh;
   min-height: 100dvh;
-  width: var(--sidebar-rail-width);
   z-index: 100;
   box-sizing: border-box;
   transition: width 0.14s ease;
 }
 
-.sidebar--expanded {
+.sidebar--pinned {
   width: var(--sidebar-expanded-width);
 }
 
-.sidebar__surface {
-  display: flex;
-  flex-direction: column;
+.sidebar--pinned .sidebar__surface {
   width: 100%;
   height: 100%;
+  position: relative;
+  padding: 20px 12px 16px;
+  overflow-y: auto;
+  border-right: 1px solid #e8eaf3;
+}
+
+.sidebar--rail {
+  width: var(--sidebar-rail-width);
+}
+
+.sidebar--rail.sidebar--hovered {
+  width: var(--sidebar-expanded-width);
+}
+
+.sidebar--rail .sidebar__surface {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-right: 1px solid #e8eaf3;
+}
+
+.sidebar--rail.sidebar--hovered .sidebar__surface {
+  overflow-y: auto;
+  box-shadow: 2px 0 16px rgba(15, 23, 42, 0.06);
+}
+
+:root[data-theme='dark'] .sidebar--rail.sidebar--hovered .sidebar__surface {
+  box-shadow: 2px 0 20px rgba(0, 0, 0, 0.28);
+}
+
+.sidebar__surface {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
   box-sizing: border-box;
   background: #ffffff;
-  border-right: 1px solid #e8eaf3;
-  padding: 16px 12px 14px;
+  padding: 18px 10px 14px;
   overflow-x: hidden;
-  overflow-y: auto;
 }
 
 :root[data-theme='dark'] .sidebar__surface {
   background: var(--surface-secondary);
-  border-right-color: var(--border-color);
 }
 
-.sidebar__header {
+.sidebar__brand {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 16px;
-  padding-bottom: 16px;
+  gap: 6px;
+  margin-bottom: 20px;
+  padding: 0 4px 18px;
   border-bottom: 1px solid #eef0f6;
-}
-
-.sidebar:not(.sidebar--expanded) .sidebar__header {
-  flex-direction: column;
-  gap: 10px;
 }
 
 .sidebar__brand-btn {
@@ -65,16 +90,47 @@
   transition: background 0.1s ease;
 }
 
-.sidebar:not(.sidebar--expanded) .sidebar__brand-btn {
+.sidebar--rail:not(.sidebar--hovered) .sidebar__brand-btn {
   justify-content: center;
-  flex: 0 0 auto;
-  width: 100%;
   padding-left: 0;
   padding-right: 0;
 }
 
+.sidebar--pinned .sidebar__brand-btn,
+.sidebar--rail.sidebar--hovered .sidebar__brand-btn {
+  justify-content: flex-start;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
 .sidebar__brand-btn:hover {
   background: var(--sidebar-hover-bg);
+}
+
+.sidebar__pin-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: background 0.1s ease, color 0.1s ease;
+}
+
+.sidebar__pin-btn:hover {
+  color: #4f46e5;
+  background: #eef2ff;
+}
+
+.sidebar__pin-btn[aria-pressed='true'] {
+  color: #4f46e5;
+  background: #eef2ff;
 }
 
 .sidebar__brand-mark {
@@ -91,45 +147,6 @@
   font-weight: 700;
   letter-spacing: -0.04em;
   color: var(--text-primary);
-}
-
-.sidebar__pin-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  background: var(--surface-card, #fff);
-  color: var(--text-muted);
-  cursor: pointer;
-  transition:
-    background 0.1s ease,
-    color 0.1s ease,
-    border-color 0.1s ease;
-}
-
-.sidebar__pin-btn:hover {
-  color: #4f46e5;
-  border-color: rgba(79, 70, 229, 0.3);
-  background: #f5f3ff;
-}
-
-.sidebar__pin-btn[aria-pressed='true'] {
-  color: #4f46e5;
-  border-color: rgba(79, 70, 229, 0.35);
-  background: #eef2ff;
-}
-
-:root[data-theme='dark'] .sidebar__pin-btn {
-  background: var(--surface-card);
-}
-
-.sidebar:not(.sidebar--expanded) .sidebar__pin-btn {
-  width: 100%;
 }
 
 .sidebar__nav {
@@ -157,11 +174,19 @@
   transition: background 0.1s ease, color 0.1s ease;
 }
 
-.sidebar:not(.sidebar--expanded) .sidebar-item {
+.sidebar--rail:not(.sidebar--hovered) .sidebar-item {
   justify-content: center;
   gap: 0;
   padding-left: 8px;
   padding-right: 8px;
+}
+
+.sidebar--pinned .sidebar-item,
+.sidebar--rail.sidebar--hovered .sidebar-item {
+  justify-content: flex-start;
+  gap: 12px;
+  padding-left: 12px;
+  padding-right: 12px;
 }
 
 .sidebar-item:hover {
@@ -198,7 +223,7 @@
   overflow: hidden;
 }
 
-.sidebar:not(.sidebar--expanded) .sidebar__label {
+.sidebar--rail:not(.sidebar--hovered) .sidebar__label {
   display: none;
 }
 
@@ -216,9 +241,15 @@
   gap: 10px;
 }
 
-.sidebar:not(.sidebar--expanded) .sidebar-promo {
+.sidebar--rail:not(.sidebar--hovered) .sidebar-promo {
   justify-content: center;
   padding: 10px;
+}
+
+.sidebar--pinned .sidebar-promo,
+.sidebar--rail.sidebar--hovered .sidebar-promo {
+  justify-content: flex-start;
+  padding: 12px;
 }
 
 .sidebar-promo__icon {
@@ -232,11 +263,11 @@
   color: #4338ca;
 }
 
-.sidebar:not(.sidebar--expanded) .sidebar-promo__icon {
+.sidebar--rail:not(.sidebar--hovered) .sidebar-promo__icon {
   display: inline-flex;
 }
 
-.sidebar:not(.sidebar--expanded) .sidebar-promo__body {
+.sidebar--rail:not(.sidebar--hovered) .sidebar-promo__body {
   display: none;
 }
 
@@ -245,6 +276,14 @@
   flex-direction: column;
   gap: 3px;
   min-width: 0;
+}
+
+.sidebar--pinned .sidebar-promo__icon {
+  display: none;
+}
+
+.sidebar--pinned .sidebar-promo__body {
+  display: flex;
 }
 
 .sidebar-promo strong {
@@ -294,11 +333,19 @@
   transition: background 0.1s ease, color 0.1s ease;
 }
 
-.sidebar:not(.sidebar--expanded) .sidebar-footer-btn {
+.sidebar--rail:not(.sidebar--hovered) .sidebar-footer-btn {
   justify-content: center;
   gap: 0;
   padding-left: 8px;
   padding-right: 8px;
+}
+
+.sidebar--pinned .sidebar-footer-btn,
+.sidebar--rail.sidebar--hovered .sidebar-footer-btn {
+  justify-content: flex-start;
+  gap: 10px;
+  padding-left: 12px;
+  padding-right: 12px;
 }
 
 .sidebar-footer-btn:hover {
