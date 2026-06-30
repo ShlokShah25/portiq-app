@@ -1,4 +1,4 @@
-/* Sidebar — icon rail + hover flyout; pin to keep expanded */
+/* Sidebar — icon rail; hover or pin keeps full expanded layout */
 
 .sidebar {
   --sidebar-rail-width: 64px;
@@ -8,121 +8,54 @@
   top: 0;
   height: 100vh;
   min-height: 100dvh;
+  width: var(--sidebar-rail-width);
   z-index: 100;
   box-sizing: border-box;
   transition: width 0.14s ease;
 }
 
-/* Pinned: full width, part of layout */
-.sidebar--pinned {
+.sidebar--expanded {
   width: var(--sidebar-expanded-width);
-}
-
-.sidebar--pinned .sidebar__surface {
-  width: 100%;
-  height: 100%;
-  border-right: 1px solid #e8eaf3;
-}
-
-/* Rail: narrow gutter; expands with main content on hover */
-.sidebar--rail {
-  width: var(--sidebar-rail-width);
-}
-
-.sidebar--rail.sidebar--hovered {
-  width: var(--sidebar-expanded-width);
-}
-
-.sidebar--rail .sidebar__surface {
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  border-right: 1px solid #e8eaf3;
-}
-
-.sidebar--rail.sidebar--hovered .sidebar__surface {
-  box-shadow: 2px 0 16px rgba(15, 23, 42, 0.06);
-}
-
-:root[data-theme='dark'] .sidebar--rail.sidebar--hovered .sidebar__surface {
-  box-shadow: 2px 0 20px rgba(0, 0, 0, 0.28);
 }
 
 .sidebar__surface {
-  position: absolute;
-  left: 0;
-  top: 0;
   display: flex;
   flex-direction: column;
+  width: 100%;
+  height: 100%;
   box-sizing: border-box;
   background: #ffffff;
-  padding: 18px 10px 14px;
+  border-right: 1px solid #e8eaf3;
+  padding: 16px 12px 14px;
   overflow-x: hidden;
   overflow-y: auto;
 }
 
 :root[data-theme='dark'] .sidebar__surface {
   background: var(--surface-secondary);
+  border-right-color: var(--border-color);
 }
 
-.sidebar--pinned .sidebar__surface {
-  position: relative;
-  padding: 20px 12px 16px;
-}
-
-/* Edge pin control */
-.sidebar__pin-btn {
-  position: absolute;
-  top: 22px;
-  right: -10px;
-  z-index: 190;
+.sidebar__header {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  padding: 0;
-  border: 1px solid #e2e5ef;
-  border-radius: 50%;
-  background: #ffffff;
-  color: #94a3b8;
-  cursor: pointer;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.1s ease, color 0.1s ease, border-color 0.1s ease, background 0.1s ease;
-}
-
-.sidebar--hovered .sidebar__pin-btn,
-.sidebar--pinned .sidebar__pin-btn,
-.sidebar--rail:hover .sidebar__pin-btn {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.sidebar__pin-btn:hover {
-  color: #4f46e5;
-  border-color: rgba(79, 70, 229, 0.35);
-  background: #f8f9ff;
-}
-
-:root[data-theme='dark'] .sidebar__pin-btn {
-  background: var(--surface-card);
-  border-color: var(--border-color);
-  color: var(--text-muted);
-}
-
-.sidebar__brand {
-  margin-bottom: 20px;
-  padding: 0 4px 18px;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
   border-bottom: 1px solid #eef0f6;
+}
+
+.sidebar:not(.sidebar--expanded) .sidebar__header {
+  flex-direction: column;
+  gap: 10px;
 }
 
 .sidebar__brand-btn {
   display: flex;
   align-items: center;
   gap: 10px;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   padding: 4px 6px;
   border: none;
   background: transparent;
@@ -132,16 +65,12 @@
   transition: background 0.1s ease;
 }
 
-.sidebar--rail .sidebar__brand-btn {
+.sidebar:not(.sidebar--expanded) .sidebar__brand-btn {
   justify-content: center;
+  flex: 0 0 auto;
+  width: 100%;
   padding-left: 0;
   padding-right: 0;
-}
-
-.sidebar--rail.sidebar--hovered .sidebar__brand-btn {
-  justify-content: flex-start;
-  padding-left: 6px;
-  padding-right: 6px;
 }
 
 .sidebar__brand-btn:hover {
@@ -162,6 +91,45 @@
   font-weight: 700;
   letter-spacing: -0.04em;
   color: var(--text-primary);
+}
+
+.sidebar__pin-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--surface-card, #fff);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background 0.1s ease,
+    color 0.1s ease,
+    border-color 0.1s ease;
+}
+
+.sidebar__pin-btn:hover {
+  color: #4f46e5;
+  border-color: rgba(79, 70, 229, 0.3);
+  background: #f5f3ff;
+}
+
+.sidebar__pin-btn[aria-pressed='true'] {
+  color: #4f46e5;
+  border-color: rgba(79, 70, 229, 0.35);
+  background: #eef2ff;
+}
+
+:root[data-theme='dark'] .sidebar__pin-btn {
+  background: var(--surface-card);
+}
+
+.sidebar:not(.sidebar--expanded) .sidebar__pin-btn {
+  width: 100%;
 }
 
 .sidebar__nav {
@@ -189,18 +157,11 @@
   transition: background 0.1s ease, color 0.1s ease;
 }
 
-.sidebar--rail .sidebar-item {
+.sidebar:not(.sidebar--expanded) .sidebar-item {
   justify-content: center;
   gap: 0;
   padding-left: 8px;
   padding-right: 8px;
-}
-
-.sidebar--rail.sidebar--hovered .sidebar-item {
-  justify-content: flex-start;
-  gap: 12px;
-  padding-left: 12px;
-  padding-right: 12px;
 }
 
 .sidebar-item:hover {
@@ -237,12 +198,8 @@
   overflow: hidden;
 }
 
-.sidebar--rail .sidebar__label {
+.sidebar:not(.sidebar--expanded) .sidebar__label {
   display: none;
-}
-
-.sidebar--rail.sidebar--hovered .sidebar__label {
-  display: block;
 }
 
 .sidebar-promo {
@@ -259,14 +216,9 @@
   gap: 10px;
 }
 
-.sidebar--rail .sidebar-promo {
+.sidebar:not(.sidebar--expanded) .sidebar-promo {
   justify-content: center;
   padding: 10px;
-}
-
-.sidebar--rail.sidebar--hovered .sidebar-promo {
-  justify-content: flex-start;
-  padding: 12px;
 }
 
 .sidebar-promo__icon {
@@ -280,20 +232,12 @@
   color: #4338ca;
 }
 
-.sidebar--rail .sidebar-promo__icon {
+.sidebar:not(.sidebar--expanded) .sidebar-promo__icon {
   display: inline-flex;
 }
 
-.sidebar--rail .sidebar-promo__body {
+.sidebar:not(.sidebar--expanded) .sidebar-promo__body {
   display: none;
-}
-
-.sidebar--rail.sidebar--hovered .sidebar-promo__icon {
-  display: none;
-}
-
-.sidebar--rail.sidebar--hovered .sidebar-promo__body {
-  display: flex;
 }
 
 .sidebar-promo__body {
@@ -301,14 +245,6 @@
   flex-direction: column;
   gap: 3px;
   min-width: 0;
-}
-
-.sidebar--pinned .sidebar-promo__icon {
-  display: none;
-}
-
-.sidebar--pinned .sidebar-promo__body {
-  display: flex;
 }
 
 .sidebar-promo strong {
@@ -358,18 +294,11 @@
   transition: background 0.1s ease, color 0.1s ease;
 }
 
-.sidebar--rail .sidebar-footer-btn {
+.sidebar:not(.sidebar--expanded) .sidebar-footer-btn {
   justify-content: center;
   gap: 0;
   padding-left: 8px;
   padding-right: 8px;
-}
-
-.sidebar--rail.sidebar--hovered .sidebar-footer-btn {
-  justify-content: flex-start;
-  gap: 10px;
-  padding-left: 12px;
-  padding-right: 12px;
 }
 
 .sidebar-footer-btn:hover {
@@ -401,7 +330,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .sidebar,
-  .sidebar__pin-btn,
   .sidebar-item,
   .sidebar-footer-btn,
   .sidebar__brand-btn,

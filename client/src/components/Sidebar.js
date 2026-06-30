@@ -66,6 +66,14 @@ const Sidebar = () => {
     if (!pinned) setRailHovered(false);
   };
 
+  const togglePin = () => {
+    setPinned((prev) => {
+      const next = !prev;
+      if (!next) setRailHovered(false);
+      return next;
+    });
+  };
+
   const menuItems = [
     {
       id: 'dashboard',
@@ -233,8 +241,8 @@ const Sidebar = () => {
 
   return (
     <aside
-      className={`sidebar${pinned ? ' sidebar--pinned' : ' sidebar--rail'}${
-        !pinned && railHovered ? ' sidebar--hovered' : ''
+      className={`sidebar sidebar--${pinned ? 'pinned' : 'rail'}${
+        sidebarExpanded ? ' sidebar--expanded' : ''
       }`}
       aria-label="Main navigation"
       data-pinned={pinned ? 'true' : 'false'}
@@ -242,7 +250,7 @@ const Sidebar = () => {
       onMouseLeave={onSidebarMouseLeave}
     >
       <div className="sidebar__surface">
-        <div className="sidebar__brand">
+        <div className="sidebar__header">
           <button type="button" className="sidebar__brand-btn" onClick={() => navigate('/dashboard')}>
             <img
               src="/assets/portiq-icon.png"
@@ -254,6 +262,32 @@ const Sidebar = () => {
             />
             <span className="sidebar__label sidebar__brand-name">PortIQ</span>
           </button>
+          <button
+            type="button"
+            className="sidebar__pin-btn"
+            onClick={togglePin}
+            aria-label={pinned ? 'Unpin sidebar' : 'Pin sidebar open'}
+            aria-pressed={pinned}
+            title={pinned ? 'Unpin — icons only' : 'Pin open'}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
+              {pinned ? (
+                <>
+                  <path d="M12 17v5" strokeLinecap="round" />
+                  <path
+                    d="M5 7.5C5 5 7 3 12 3s7 2 7 4.5c0 2.2-1.4 3.8-3.2 5.2L12 12l-3.8-2.3C6.4 8.3 5 6.7 5 7.5z"
+                    fill="currentColor"
+                    stroke="none"
+                  />
+                </>
+              ) : (
+                <>
+                  <path d="M12 17v5" strokeLinecap="round" />
+                  <path d="M5 7.5C5 5 7 3 12 3s7 2 7 4.5c0 2.2-1.4 3.8-3.2 5.2L12 12l-3.8-2.3C6.4 8.3 5 6.7 5 7.5z" />
+                </>
+              )}
+            </svg>
+          </button>
         </div>
 
         <nav className="sidebar__nav">
@@ -263,7 +297,7 @@ const Sidebar = () => {
               type="button"
               className={`sidebar-item${isActive(item.path) ? ' active' : ''}`}
               onClick={() => navigate(item.path)}
-              title={!pinned ? item.label : undefined}
+              title={!sidebarExpanded ? item.label : undefined}
             >
               {item.icon}
               <span className="sidebar__label">{item.label}</span>
@@ -276,7 +310,7 @@ const Sidebar = () => {
             type="button"
             className="sidebar-promo"
             onClick={() => navigate('/interview')}
-            title={!pinned ? 'Interview Mode' : undefined}
+            title={!sidebarExpanded ? 'Interview Mode' : undefined}
           >
             <span className="sidebar-promo__icon" aria-hidden>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -300,7 +334,7 @@ const Sidebar = () => {
               type="button"
               className="sidebar-footer-btn"
               onClick={() => navigate('/admin')}
-              title={!pinned ? 'Admin' : undefined}
+              title={!sidebarExpanded ? 'Admin' : undefined}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M12 2L2 7l10 5 10-5-10-5z" />
@@ -314,7 +348,7 @@ const Sidebar = () => {
             type="button"
             className="sidebar-footer-btn sidebar-footer-btn--logout"
             onClick={logout}
-            title={!pinned ? 'Log out' : undefined}
+            title={!sidebarExpanded ? 'Log out' : undefined}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -325,23 +359,6 @@ const Sidebar = () => {
           </button>
         </div>
       </div>
-
-      <button
-        type="button"
-        className="sidebar__pin-btn"
-        onClick={() => setPinned((value) => !value)}
-        aria-label={pinned ? 'Collapse to icons' : 'Keep sidebar open'}
-        aria-pressed={pinned}
-        title={pinned ? 'Collapse to icons' : 'Keep sidebar open'}
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-          {pinned ? (
-            <path d="M15 6l-6 6 6 6" strokeLinecap="round" strokeLinejoin="round" />
-          ) : (
-            <path d="M9 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
-          )}
-        </svg>
-      </button>
     </aside>
   );
 };
