@@ -28,6 +28,40 @@ function meetingHasEducationContext(m) {
 let globalActiveMeetingId = null;
 let globalMediaRecorder = null;
 let globalStream = null;
+/** Last recorded blob kept for upload retry after network failures. */
+let pendingUploadBlob = null;
+let pendingUploadMeetingId = null;
+let wakeLockSentinel = null;
+
+function pickRecorderMimeType() {
+  if (typeof MediaRecorder === 'undefined' || typeof MediaRecorder.isTypeSupported !== 'function') {
+    return '';
+  }
+  const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'];
+  for (const mimeType of candidates) {
+    if (MediaRecorder.isTypeSupported(mimeType)) return mimeType;
+  }
+  return '';
+}
+
+async function requestRecordingWakeLock() {
+  try {
+    if (typeof navigator !== 'undefined' && navigator.wakeLock?.request) {
+      wakeLockSentinel = await navigator.wakeLock.request('screen');
+    }
+  } catch (_) {
+    /* unsupported or denied — non-fatal */
+  }
+}
+
+async function releaseRecordingWakeLock() {
+  try {
+    if (wakeLockSentinel) await wakeLockSentinel.release();
+  } catch (_) {
+    /* ignore */
+  }
+  wakeLockSentinel = null;
+}
 
 /** Set when End Meeting must await POST /end with audio (avoid double /end). */
 let pendingEndUpload = null;
@@ -201,6 +235,7 @@ const MeetingInProgress = () => {
   const [sessionDetailsOpen, setSessionDetailsOpen] = useState(false);
   const [firstMeetingToast, setFirstMeetingToast] = useState(false);
   const [uploadNotice, setUploadNotice] = useState('');
+  const [hasPendingUpload, setHasPendingUpload] = useState(false);
   const [voiceProfiles, setVoiceProfiles] = useState({});
   const [liveTranscript, setLiveTranscript] = useState('');
   const [liveTranscriptEntries, setLiveTranscriptEntries] = useState([]);
@@ -227,7 +262,7 @@ const MeetingInProgress = () => {
   // Warn only on tab close / refresh while a recorder is active (SPA navigation stays allowed).
   useEffect(() => {
     const onBeforeUnload = (e) => {
-      if (isGlobalRecordingActive()) {
+      if (isGlobalRecordingActive() || pendingUploadBlob) {
         e.preventDefault();
         e.returnValue = '';
       }
@@ -235,6 +270,21 @@ const MeetingInProgress = () => {
     window.addEventListener('beforeunload', onBeforeUnload);
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, []);
+
+  // Keep screen awake while recording (helps phones / laptops during long sessions).
+  useEffect(() => {
+    if (!recording || paused) return undefined;
+    void requestRecordingWakeLock();
+    const onVis = () => {
+      if (document.visibilityState === 'visible' && isGlobalRecordingActive()) {
+        void requestRecordingWakeLock();
+      }
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [recording, paused]);
 
   useEffect(() => {
     const fromParticipants = (meeting?.participants || [])
@@ -349,7 +399,7 @@ const MeetingInProgress = () => {
 
         // Mirror planConstraints.js (workplace + education use the same tier caps for now).
         if (productType === 'workplace' || productType === 'education') {
-          if (plan === 'starter') setMaxDurationMinutes(60);
+          if (plan === 'starter') setMaxDurationMinutes(180);
           else if (plan === 'professional') setMaxDurationMinutes(180);
           else if (plan === 'business') setMaxDurationMinutes(480);
           else if (plan === 'institutional') setMaxDurationMinutes(1440);
@@ -413,10 +463,17 @@ const MeetingInProgress = () => {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       globalStream = stream;
       streamRef.current = stream;
-      const mediaRecorder = new MediaRecorder(stream);
+      const mimeType = pickRecorderMimeType();
+      const mediaRecorder = mimeType
+        ? new MediaRecorder(stream, { mimeType })
+        : new MediaRecorder(stream);
       globalMediaRecorder = mediaRecorder;
       globalActiveMeetingId = String(meetingId);
+      pendingUploadBlob = null;
+      pendingUploadMeetingId = null;
+      void requestRecordingWakeLock();
       const chunks = [];
+      const recorderMime = mediaRecorder.mimeType || mimeType || 'audio/webm';
       /** Aligned with server live chunk minimum; utterance segments can be shorter than old 5s blobs. */
       const MIN_LIVE_CHUNK_BYTES = 1200;
       const FALLBACK_LIVE_SLICE_MS = 2500;
@@ -509,7 +566,8 @@ const MeetingInProgress = () => {
 
       mediaRecorder.onstop = async () => {
         disposeGlobalLiveVad();
-        const blob = new Blob(chunks, { type: 'audio/webm' });
+        void releaseRecordingWakeLock();
+        const blob = new Blob(chunks, { type: recorderMime });
         if (globalStream) {
           globalStream.getTracks().forEach((t) => t.stop());
           globalStream = null;
@@ -569,44 +627,103 @@ const MeetingInProgress = () => {
     }
   };
 
-  const uploadAudio = async (blob, uploadMeetingId) => {
-    if (!uploadMeetingId) return;
+  const uploadAudio = async (blob, uploadMeetingId, { isRetry = false } = {}) => {
+    if (!uploadMeetingId || !blob) return;
+    pendingUploadBlob = blob;
+    pendingUploadMeetingId = String(uploadMeetingId);
     if (isMountedRef.current) {
+      setHasPendingUpload(true);
       setUploading(true);
+      setError('');
       setUploadNotice(
-        blob.size > 25 * 1024 * 1024
-          ? 'Large recording — uploading, then we optimize it on the server before transcription.'
-          : ''
+        blob.size > 20 * 1024 * 1024
+          ? 'Uploading your recording — keep this tab open until it finishes.'
+          : 'Uploading your recording…'
       );
     }
+
+    const fileToSend = new File([blob], 'meeting-audio.webm', {
+      type: blob.type || 'audio/webm',
+    });
+    const maxAttempts = 3;
+    let lastErr = null;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        const data = new FormData();
+        data.append('audio', fileToSend);
+        const res = await axios.post(`/meetings/${uploadMeetingId}/end`, data, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          timeout: 15 * 60 * 1000,
+        });
+        pendingUploadBlob = null;
+        pendingUploadMeetingId = null;
+        if (isMountedRef.current) {
+          setHasPendingUpload(false);
+          setMeeting(res.data.meeting);
+          setUploading(false);
+          setUploadNotice('');
+          setError('');
+          setMeetingEnded(true);
+          if (res.data?.celebrateFirstMeeting) setFirstMeetingToast(true);
+        }
+        if (pendingEndUpload) {
+          pendingEndUpload.resolve(res);
+          pendingEndUpload = null;
+        }
+        return res;
+      } catch (err) {
+        lastErr = err;
+        console.error(`Error uploading audio (attempt ${attempt}/${maxAttempts}):`, err);
+        const status = err?.response?.status;
+        const retriable =
+          !status ||
+          status === 408 ||
+          status === 429 ||
+          status >= 500 ||
+          err?.code === 'ECONNABORTED' ||
+          err?.message === 'Network Error';
+        if (!retriable || attempt === maxAttempts) break;
+        if (isMountedRef.current) {
+          setUploadNotice(`Upload interrupted — retrying (${attempt + 1}/${maxAttempts})…`);
+        }
+        await new Promise((r) => setTimeout(r, 1500 * attempt));
+      }
+    }
+
+    if (pendingEndUpload) {
+      pendingEndUpload.reject(lastErr);
+      pendingEndUpload = null;
+    }
+    if (isMountedRef.current) {
+      const msg =
+        lastErr?.message === 'Network Error'
+          ? 'Upload failed due to a network issue. Your recording is still on this device — tap Retry upload (or download a backup).'
+          : formatApiError(lastErr, 'Failed to upload audio');
+      setError(msg);
+      setUploading(false);
+      setUploadNotice('');
+    }
+  };
+
+  const retryPendingUpload = async () => {
+    if (!pendingUploadBlob || !pendingUploadMeetingId || uploading) return;
+    await uploadAudio(pendingUploadBlob, pendingUploadMeetingId, { isRetry: true });
+  };
+
+  const downloadPendingBackup = () => {
+    if (!pendingUploadBlob) return;
     try {
-      const fileToSend = new File([blob], 'meeting-audio.webm', { type: 'audio/webm' });
-      const data = new FormData();
-      data.append('audio', fileToSend);
-      const res = await axios.post(`/meetings/${uploadMeetingId}/end`, data, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      if (isMountedRef.current) {
-        setMeeting(res.data.meeting);
-        setUploading(false);
-        setUploadNotice('');
-        if (res.data?.celebrateFirstMeeting) setFirstMeetingToast(true);
-      }
-      if (pendingEndUpload) {
-        pendingEndUpload.resolve(res);
-        pendingEndUpload = null;
-      }
-    } catch (err) {
-      console.error('Error uploading audio:', err);
-      if (pendingEndUpload) {
-        pendingEndUpload.reject(err);
-        pendingEndUpload = null;
-      }
-      if (isMountedRef.current) {
-        setError(formatApiError(err, 'Failed to upload audio'));
-        setUploading(false);
-        setUploadNotice('');
-      }
+      const url = URL.createObjectURL(pendingUploadBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `portiq-meeting-${pendingUploadMeetingId || 'recording'}.webm`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    } catch (e) {
+      console.error('Backup download failed:', e);
     }
   };
 
@@ -634,23 +751,28 @@ const MeetingInProgress = () => {
     });
 
   const handleEndMeeting = async () => {
-    if (!meeting) return;
+    if (!meeting || uploading) return;
     try {
       if (isGlobalRecordingActive()) {
         await stopRecordingAndWaitForUpload();
-      } else {
-        const res = await axios.post(`/meetings/${meeting._id}/end`);
-        if (isMountedRef.current && res.data?.meeting) {
-          setMeeting(res.data.meeting);
-        }
-        if (isMountedRef.current && res.data?.celebrateFirstMeeting) {
-          setFirstMeetingToast(true);
-        }
+        // meetingEnded is set inside uploadAudio on success only
+        return;
+      }
+      if (pendingUploadBlob && pendingUploadMeetingId) {
+        await uploadAudio(pendingUploadBlob, pendingUploadMeetingId, { isRetry: true });
+        return;
+      }
+      const res = await axios.post(`/meetings/${meeting._id}/end`);
+      if (isMountedRef.current && res.data?.meeting) {
+        setMeeting(res.data.meeting);
+      }
+      if (isMountedRef.current && res.data?.celebrateFirstMeeting) {
+        setFirstMeetingToast(true);
       }
       if (isMountedRef.current) setMeetingEnded(true);
     } catch (err) {
       console.error('Error ending meeting:', err);
-      if (isMountedRef.current) {
+      if (isMountedRef.current && !pendingUploadBlob) {
         setError(formatApiError(err, 'Failed to end meeting'));
       }
     }
@@ -863,8 +985,8 @@ const MeetingInProgress = () => {
                     <>
                       <p className="mip-recording-consent" role="note">
                         {isCura
-                          ? 'By starting recording, you confirm the patient is aware audio is captured for your visit summary. Use Chrome or Edge for the most reliable capture.'
-                          : 'By starting recording, you confirm participants are aware audio is captured for transcription and summary. Use Chrome or Edge for the most reliable in-browser capture. Recordings over 25 MB are compressed on our servers before sending to transcription.'}
+                          ? 'By starting recording, you confirm the patient is aware audio is captured for your visit summary.'
+                          : 'By starting recording, you confirm participants are aware audio is captured for transcription and summary.'}
                       </p>
                       <button type="button" className="mip-recording-hero__start" onClick={startRecording}>
                         Start Recording
@@ -1137,7 +1259,29 @@ const MeetingInProgress = () => {
                 </p>
               </div>
 
-        {error && <div className="meeting-summary-action-error">{error}</div>}
+        {error && (
+          <div className="meeting-summary-action-error" role="alert">
+            <div>{error}</div>
+            {hasPendingUpload && !uploading && !meetingEnded ? (
+              <div className="mip-upload-recovery" style={{ marginTop: 12, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="meeting-summary-btn meeting-summary-btn--primary"
+                  onClick={() => void retryPendingUpload()}
+                >
+                  Retry upload
+                </button>
+                <button
+                  type="button"
+                  className="meeting-summary-btn meeting-summary-btn--secondary"
+                  onClick={downloadPendingBackup}
+                >
+                  Download backup
+                </button>
+              </div>
+            ) : null}
+          </div>
+        )}
 
         {!meeting.transcriptionEnabled ? (
           <div className="meeting-summary-actions mip-footer-actions">

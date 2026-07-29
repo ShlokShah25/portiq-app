@@ -11,7 +11,7 @@ const PLAN_LIMITS = {
     starter: {
       maxParticipants: 10,
       maxParticipantsInBook: 20,
-      maxDurationMinutes: 60,
+      maxDurationMinutes: 180, // 3 hours — supports long demos / 2hr sessions
       maxConcurrentMeetings: 1,
       /** Email “also send translated summary” (multi-language outbound) */
       allowsTranslatedSummary: false,

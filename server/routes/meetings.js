@@ -219,7 +219,7 @@ const voiceStorage = multer.diskStorage({
 
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB limit
+  limits: { fileSize: 250 * 1024 * 1024 }, // 250MB — ~2hr browser WebM with headroom
   fileFilter: (req, file, cb) => {
     const allowedTypes = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/m4a', 'audio/webm', 'audio/x-m4a', 'audio/mp4'];
     const allowedExtensions = ['.mp3', '.wav', '.m4a', '.webm', '.mp4', '.ogg', '.flac'];
@@ -250,7 +250,7 @@ function withMeetingAudioUpload(req, res, next) {
         return res.status(400).json({
           error: 'Recording file is too large.',
           details:
-            'Maximum upload size is 100 MB. For long meetings, end the session sooner or split across meetings. Recordings over 25 MB are compressed on the server before transcription when ffmpeg is installed.',
+            'Maximum upload size is 250 MB. If the upload keeps failing, save a local copy from the retry screen and contact support.',
         });
       }
       return res.status(400).json({
