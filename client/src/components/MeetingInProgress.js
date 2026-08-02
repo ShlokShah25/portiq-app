@@ -661,7 +661,7 @@ const MeetingInProgress = () => {
     if (!uploadMeetingId || !blob) return;
     if (!blob.size || blob.size < 500) {
       const msg =
-        'No usable audio was captured. Keep this tab open while recording, then try again.';
+        'No usable audio was captured. Stay on this meeting page while recording (background tabs are fine on desktop Chrome), then try again.';
       if (isMountedRef.current) {
         setError(msg);
         setUploading(false);
@@ -689,7 +689,7 @@ const MeetingInProgress = () => {
       setError('');
       setUploadNotice(
         blob.size > 20 * 1024 * 1024
-          ? 'Uploading your recording — keep this tab open until it finishes.'
+          ? 'Uploading your recording — don’t close this browser until it finishes.'
           : 'Uploading your recording…'
       );
     }
