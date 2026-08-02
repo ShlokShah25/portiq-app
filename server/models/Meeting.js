@@ -136,6 +136,21 @@ const meetingSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.Mixed,
     default: null,
   },
+  /** DISC behavioral style from interview transcript (e.g. "Di", "SC") */
+  discProfile: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  discScores: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null,
+  },
+  discSummary: {
+    type: String,
+    default: '',
+    trim: true,
+  },
   pendingHiringRecommendation: {
     type: String,
     default: '',
@@ -150,6 +165,20 @@ const meetingSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.Mixed,
     default: null,
   },
+  pendingDiscProfile: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  pendingDiscScores: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null,
+  },
+  pendingDiscSummary: {
+    type: String,
+    default: '',
+    trim: true,
+  },
   originalHiringRecommendation: {
     type: String,
     default: '',
@@ -163,6 +192,20 @@ const meetingSchema = new mongoose.Schema({
   originalEvaluationSignals: {
     type: mongoose.Schema.Types.Mixed,
     default: null,
+  },
+  originalDiscProfile: {
+    type: String,
+    default: '',
+    trim: true,
+  },
+  originalDiscScores: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null,
+  },
+  originalDiscSummary: {
+    type: String,
+    default: '',
+    trim: true,
   },
   transcriptionEnabled: {
     type: Boolean,

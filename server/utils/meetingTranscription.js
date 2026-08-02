@@ -447,6 +447,9 @@ async function generateInterviewMeetingSummaryFromTranscript(transcriptRaw, meet
     hiringRecommendation: payload.hiringRecommendation || '',
     hiringRecommendationReason: payload.hiringRecommendationReason || '',
     evaluationSignals: payload.evaluationSignals || null,
+    discProfile: payload.discProfile || '',
+    discScores: payload.discScores || null,
+    discSummary: payload.discSummary || '',
   };
 }
 

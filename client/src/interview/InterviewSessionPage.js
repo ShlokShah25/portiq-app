@@ -66,8 +66,8 @@ function SessionRail({ meeting, side }) {
           <div className="interview-session-rail__panel">
             <h3 className="interview-session-rail__panel-title">Hiring recommendation</h3>
             <p className="interview-session-rail__hint">
-              A draft verdict (Strong Hire · Hire · Neutral · No Hire) is ready when transcription completes.
-              Review and finalize it on the report screen.
+              A draft verdict (Strong Hire · Hire · Neutral · No Hire) and DISC behavioral profile
+              are ready when transcription completes. Review and finalize on the report screen.
             </p>
           </div>
           <div className="interview-session-rail__panel">

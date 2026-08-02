@@ -519,6 +519,9 @@ async function runLongAudioPipeline(audioFilePath, meeting, options) {
       hiringRecommendation: finalParsed.hiringRecommendation || '',
       hiringRecommendationReason: finalParsed.hiringRecommendationReason || '',
       evaluationSignals: finalParsed.evaluationSignals || null,
+      discProfile: finalParsed.discProfile || '',
+      discScores: finalParsed.discScores || null,
+      discSummary: finalParsed.discSummary || '',
     };
   } finally {
     for (const p of chunkPaths) {

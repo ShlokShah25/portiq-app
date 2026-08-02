@@ -27,6 +27,9 @@ function buildPipelineUpdateFromSummaryData(summaryData) {
   const hrr =
     summaryData.hiringRecommendationReason != null ? String(summaryData.hiringRecommendationReason) : '';
   const ev = summaryData.evaluationSignals !== undefined ? summaryData.evaluationSignals : null;
+  const discProfile = summaryData.discProfile != null ? String(summaryData.discProfile).trim() : '';
+  const discScores = summaryData.discScores !== undefined ? summaryData.discScores : null;
+  const discSummary = summaryData.discSummary != null ? String(summaryData.discSummary).trim() : '';
   const clinicalNote = summaryData.clinicalNote !== undefined ? summaryData.clinicalNote : null;
   const followUpPlan =
     summaryData.followUpPlan != null ? String(summaryData.followUpPlan) : undefined;
@@ -66,6 +69,15 @@ function buildPipelineUpdateFromSummaryData(summaryData) {
     originalHiringRecommendation: hr,
     originalHiringRecommendationReason: hrr,
     originalEvaluationSignals: ev,
+    discProfile,
+    discScores,
+    discSummary,
+    pendingDiscProfile: discProfile,
+    pendingDiscScores: discScores,
+    pendingDiscSummary: discSummary,
+    originalDiscProfile: discProfile,
+    originalDiscScores: discScores,
+    originalDiscSummary: discSummary,
     pendingClinicalNote: clinicalNote,
     clinicalNote: clinicalNote,
     originalClinicalNote: clinicalNote,

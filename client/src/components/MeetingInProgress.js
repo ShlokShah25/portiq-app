@@ -7,6 +7,11 @@ import useInterviewRoutes, { meetingPaths } from '../interview/useInterviewRoute
 import useCuraRoutes from '../cura/useCuraRoutes';
 import { formatApiError } from '../utils/apiErrorMessage';
 import { isLikelyLiveWhisperHallucination } from '../utils/whisperLiveFilter';
+import {
+  saveRecordingBlob,
+  loadRecordingBlob,
+  clearRecordingBlob,
+} from '../utils/recordingBlobStore';
 import { isEducation } from '../config/product';
 import './MeetingSummary.css';
 import './MeetingInProgress.css';
@@ -250,6 +255,31 @@ const MeetingInProgress = () => {
       isMountedRef.current = false;
     };
   }, []);
+
+  // Recover a failed upload blob from IndexedDB (same browser) after refresh.
+  useEffect(() => {
+    if (!meetingId) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const blob = await loadRecordingBlob(meetingId);
+        if (cancelled || !blob || blob.size < 500) return;
+        pendingUploadBlob = blob;
+        pendingUploadMeetingId = String(meetingId);
+        if (isMountedRef.current) {
+          setHasPendingUpload(true);
+          setError(
+            'A previous recording is still on this device and was not uploaded. Tap Retry upload to finish.'
+          );
+        }
+      } catch (e) {
+        console.warn('Could not restore recording blob:', e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [meetingId]);
 
   useEffect(() => {
     if (!firstMeetingToast) return undefined;
@@ -629,8 +659,30 @@ const MeetingInProgress = () => {
 
   const uploadAudio = async (blob, uploadMeetingId, { isRetry = false } = {}) => {
     if (!uploadMeetingId || !blob) return;
+    if (!blob.size || blob.size < 500) {
+      const msg =
+        'No usable audio was captured. Keep this tab open while recording, then try again.';
+      if (isMountedRef.current) {
+        setError(msg);
+        setUploading(false);
+        setUploadNotice('');
+        setHasPendingUpload(false);
+      }
+      if (pendingEndUpload) {
+        pendingEndUpload.reject(new Error(msg));
+        pendingEndUpload = null;
+      }
+      return;
+    }
+
     pendingUploadBlob = blob;
     pendingUploadMeetingId = String(uploadMeetingId);
+    try {
+      await saveRecordingBlob(uploadMeetingId, blob);
+    } catch (e) {
+      console.warn('Could not persist recording blob locally:', e);
+    }
+
     if (isMountedRef.current) {
       setHasPendingUpload(true);
       setUploading(true);
@@ -645,19 +697,45 @@ const MeetingInProgress = () => {
     const fileToSend = new File([blob], 'meeting-audio.webm', {
       type: blob.type || 'audio/webm',
     });
-    const maxAttempts = 3;
+    const maxAttempts = 4;
     let lastErr = null;
+    let audioOnServer = false;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       try {
-        const data = new FormData();
-        data.append('audio', fileToSend);
-        const res = await axios.post(`/meetings/${uploadMeetingId}/end`, data, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-          timeout: 15 * 60 * 1000,
-        });
+        if (!audioOnServer) {
+          if (isMountedRef.current) {
+            setUploadNotice(
+              attempt === 1
+                ? 'Uploading recording…'
+                : `Upload interrupted — retrying file transfer (${attempt}/${maxAttempts})…`
+            );
+          }
+          const data = new FormData();
+          data.append('audio', fileToSend);
+          await axios.post(`/meetings/${uploadMeetingId}/upload-recording`, data, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 20 * 60 * 1000,
+          });
+          audioOnServer = true;
+        }
+
+        if (isMountedRef.current) {
+          setUploadNotice('Recording saved — finishing session…');
+        }
+        const res = await axios.post(
+          `/meetings/${uploadMeetingId}/end`,
+          {},
+          { timeout: 120000 }
+        );
+
         pendingUploadBlob = null;
         pendingUploadMeetingId = null;
+        try {
+          await clearRecordingBlob(uploadMeetingId);
+        } catch (_) {
+          /* ignore */
+        }
         if (isMountedRef.current) {
           setHasPendingUpload(false);
           setMeeting(res.data.meeting);
@@ -674,7 +752,7 @@ const MeetingInProgress = () => {
         return res;
       } catch (err) {
         lastErr = err;
-        console.error(`Error uploading audio (attempt ${attempt}/${maxAttempts}):`, err);
+        console.error(`Error ending meeting upload (attempt ${attempt}/${maxAttempts}):`, err);
         const status = err?.response?.status;
         const retriable =
           !status ||
@@ -685,9 +763,9 @@ const MeetingInProgress = () => {
           err?.message === 'Network Error';
         if (!retriable || attempt === maxAttempts) break;
         if (isMountedRef.current) {
-          setUploadNotice(`Upload interrupted — retrying (${attempt + 1}/${maxAttempts})…`);
+          setUploadNotice(`Connection issue — retrying (${attempt + 1}/${maxAttempts})…`);
         }
-        await new Promise((r) => setTimeout(r, 1500 * attempt));
+        await new Promise((r) => setTimeout(r, 2000 * attempt));
       }
     }
 
@@ -696,10 +774,16 @@ const MeetingInProgress = () => {
       pendingEndUpload = null;
     }
     if (isMountedRef.current) {
-      const msg =
-        lastErr?.message === 'Network Error'
-          ? 'Upload failed due to a network issue. Your recording is still on this device — tap Retry upload (or download a backup).'
-          : formatApiError(lastErr, 'Failed to upload audio');
+      let msg;
+      if (audioOnServer) {
+        msg =
+          'Recording reached the server, but ending the session failed. Tap Retry upload — we will finish without re-sending the whole file if possible.';
+      } else if (lastErr?.message === 'Network Error') {
+        msg =
+          'Upload failed due to a network issue. Your recording is still on this device — tap Retry upload (or Download backup).';
+      } else {
+        msg = formatApiError(lastErr, 'Failed to upload audio');
+      }
       setError(msg);
       setUploading(false);
       setUploadNotice('');

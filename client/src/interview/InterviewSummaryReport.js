@@ -158,6 +158,14 @@ export default function InterviewSummaryReport() {
     meeting?.pendingEvaluationSignals != null
       ? meeting.pendingEvaluationSignals
       : meeting?.evaluationSignals;
+  const discProfile = String(
+    meeting?.pendingDiscProfile || meeting?.discProfile || ''
+  ).trim();
+  const discScores =
+    meeting?.pendingDiscScores != null ? meeting.pendingDiscScores : meeting?.discScores;
+  const discSummary = String(
+    meeting?.pendingDiscSummary || meeting?.discSummary || ''
+  ).trim();
 
   const keyHighlights = useMemo(() => {
     const pts = meeting?.pendingKeyPoints || meeting?.keyPoints || [];
@@ -285,6 +293,36 @@ export default function InterviewSummaryReport() {
               Interview on {formatInterviewDate(meeting)} · {formatDuration(meeting)}
             </p>
           </section>
+
+          {(discProfile || discSummary || discScores) && (
+            <section className="iv-report-v2-card iv-report-v2-card--disc">
+              <p className="iv-report-v2-card__label">DISC Profile</p>
+              {discProfile ? (
+                <div className="iv-report-v2-disc__type" aria-label={`DISC type ${discProfile}`}>
+                  <strong>{discProfile}</strong>
+                </div>
+              ) : null}
+              {discSummary ? <p className="iv-report-v2-disc__summary">{discSummary}</p> : null}
+              {discScores ? (
+                <ul className="iv-report-v2-disc__bars">
+                  {[
+                    { key: 'D', label: 'Dominance', value: discScores.D },
+                    { key: 'I', label: 'Influence', value: discScores.I },
+                    { key: 'S', label: 'Steadiness', value: discScores.S },
+                    { key: 'C', label: 'Conscientiousness', value: discScores.C },
+                  ].map((row) => (
+                    <li key={row.key} title={row.label}>
+                      <span className="iv-report-v2-disc__letter">{row.key}</span>
+                      <span className="iv-report-v2-disc__bar" aria-label={`${row.label} ${Number(row.value) || 0} of 10`}>
+                        <span style={{ width: `${Math.max(0, Math.min(10, Number(row.value) || 0)) * 10}%` }} />
+                      </span>
+                      <span className="iv-report-v2-disc__val">{Number(row.value) || 0}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </section>
+          )}
 
           <section className="iv-report-v2-card">
             <p className="iv-report-v2-card__label">Overall Score</p>

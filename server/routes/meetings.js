@@ -925,6 +925,58 @@ router.post('/:id/start-recording', async (req, res) => {
 });
 
 /**
+ * Upload meeting audio without ending the session.
+ * Lets the client persist the file first, then call POST /:id/end separately —
+ * so a flaky End Meeting network call does not lose the recording.
+ */
+router.post('/:id/upload-recording', withMeetingAudioUpload, async (req, res) => {
+  try {
+    const meeting = await Meeting.findById(req.params.id);
+    if (!meeting) return res.status(404).json({ error: 'Meeting not found', details: '' });
+    const admin = await getAdminFromRequest(req);
+    if (!canAccessMeeting(meeting, admin)) {
+      return res.status(404).json({ error: 'Meeting not found', details: '' });
+    }
+    if (!req.file || !req.file.path) {
+      return res.status(400).json({
+        error: 'No audio received.',
+        details: 'Send the recording as multipart field "audio".',
+      });
+    }
+    if (!req.file.size || req.file.size < 500) {
+      return res.status(400).json({
+        error: 'Recording file is empty or too short.',
+        details: 'Record again, or download a backup from the browser and upload it from Meetings.',
+      });
+    }
+
+    mirrorMeetingAudioToPersistentDir(req.file.path);
+    meeting.audioFile = `/uploads/meetings/${req.file.filename}`;
+    if (meeting.status === 'Scheduled') {
+      meeting.status = 'In Progress';
+    }
+    if (meeting.transcriptionEnabled && meeting.transcriptionStatus === 'Not Started') {
+      meeting.transcriptionStatus = 'Recording';
+    }
+    await meeting.save();
+
+    res.json({
+      success: true,
+      meeting,
+      audioFile: meeting.audioFile,
+      bytes: req.file.size,
+      message: 'Recording uploaded. You can now end the meeting to start transcription.',
+    });
+  } catch (error) {
+    console.error('Error uploading meeting recording:', error);
+    res.status(500).json({
+      error: 'Failed to upload recording',
+      details: error.message || 'Try again on a stronger connection.',
+    });
+  }
+});
+
+/**
  * Transcribe a short in-session audio chunk (Whisper) for live preview only.
  */
 router.post('/:id/live-transcribe-chunk', withMeetingAudioUpload, async (req, res) => {

@@ -58,6 +58,12 @@ function redactMeetingPayloadForEditorVerification(payload) {
   payload.hiringRecommendationReason = '';
   payload.pendingEvaluationSignals = null;
   payload.evaluationSignals = null;
+  payload.pendingDiscProfile = '';
+  payload.discProfile = '';
+  payload.pendingDiscScores = null;
+  payload.discScores = null;
+  payload.pendingDiscSummary = '';
+  payload.discSummary = '';
   payload.pendingRevisionQuestions = '';
   payload.revisionQuestions = '';
   if (payload.originalRevisionQuestions !== undefined) payload.originalRevisionQuestions = '';

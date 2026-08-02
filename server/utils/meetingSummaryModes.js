@@ -137,6 +137,7 @@ IMPORTANT RULES:
 - Do NOT infer motivations, intent, or personality traits unless the transcript directly supports that claim
 - Do NOT write claims like "the candidate demonstrated X" unless specific interview responses in the transcript support it
 - When evidence is missing or unclear, explicitly use: "Insufficient evidence from transcript"
+- DISC profile is allowed only as a brief, transcript-grounded behavioral style sketch (not a clinical personality diagnosis). If evidence is weak, leave discProfile empty and say so in discSummary.
 
 ROLE AS REFERENCE (when the user message includes a role or position for the candidate):
 - Use that role as the fixed reference for judging the interviewee’s answers: interpret what they said in light of what strong performance looks like for that role (skills, judgment, communication style, depth).
@@ -187,6 +188,21 @@ Choose ONE:
 
 Then provide a clear 1–2 line justification.
 If justification evidence is weak, state: "Insufficient evidence from transcript for high-confidence recommendation."
+
+----------------------------------
+
+6. DISC PROFILE (behavioral style)
+
+From how the candidate communicates and answers in the transcript only, estimate a DISC profile:
+- D = Dominance (direct, decisive, results-focused)
+- I = Influence (expressive, persuasive, people-focused)
+- S = Steadiness (calm, patient, supportive)
+- C = Conscientiousness (precise, analytical, quality-focused)
+
+Provide:
+- discProfile: 1–2 letter code of the strongest styles (e.g. "Di", "SC", "C"). Use "" if insufficient evidence.
+- discScores: integer 0–10 for D, I, S, C (relative emphasis observed in this interview)
+- discSummary: 1–2 lines explaining the style with transcript-grounded cues. If weak evidence, say "Insufficient evidence from transcript".
 
 ----------------------------------
 
@@ -255,6 +271,35 @@ function normalizeInterviewJson(raw) {
     signals = Object.keys(out).length ? out : null;
   }
 
+  let discProfile = String(o.discProfile || o.disc_profile || o.discType || '')
+    .trim()
+    .replace(/[^DISdisCc]/g, '')
+    .slice(0, 4);
+  // Canonical casing: first letter upper, rest lower (e.g. Di, SC)
+  if (discProfile) {
+    discProfile =
+      discProfile.charAt(0).toUpperCase() + discProfile.slice(1).toLowerCase();
+  }
+
+  let discScores = o.discScores || o.disc_scores || null;
+  if (discScores && typeof discScores === 'object') {
+    const clamp = (n) => {
+      const v = Number(n);
+      if (!Number.isFinite(v)) return 0;
+      return Math.max(0, Math.min(10, Math.round(v)));
+    };
+    discScores = {
+      D: clamp(discScores.D ?? discScores.d ?? discScores.dominance),
+      I: clamp(discScores.I ?? discScores.i ?? discScores.influence),
+      S: clamp(discScores.S ?? discScores.s ?? discScores.steadiness),
+      C: clamp(discScores.C ?? discScores.c ?? discScores.conscientiousness),
+    };
+  } else {
+    discScores = null;
+  }
+
+  const discSummary = String(o.discSummary || o.disc_summary || '').trim();
+
   return {
     hiringRecommendation: rec,
     hiringRecommendationReason: reason,
@@ -262,6 +307,9 @@ function normalizeInterviewJson(raw) {
     keyStrengths: strengths,
     concernsRedFlags: concerns,
     evaluationSignals: signals,
+    discProfile,
+    discScores,
+    discSummary,
   };
 }
 
@@ -279,6 +327,9 @@ function mapInterviewToPipelinePayload(normalized) {
     hiringRecommendation: normalized.hiringRecommendation,
     hiringRecommendationReason: normalized.hiringRecommendationReason,
     evaluationSignals: normalized.evaluationSignals,
+    discProfile: normalized.discProfile || '',
+    discScores: normalized.discScores || null,
+    discSummary: normalized.discSummary || '',
   };
 }
 
@@ -295,10 +346,13 @@ function buildInterviewUserJsonInstructions() {
     "ownershipSignals": { "level": "High" | "Medium" | "Low", "justification": "short text" },
     "depthOfAnswers": { "level": "High" | "Medium" | "Low", "justification": "short text" },
     "confidenceLevel": { "level": "High" | "Medium" | "Low", "justification": "short text" }
-  }
+  },
+  "discProfile": "Di" | "SC" | "C" | "" ,
+  "discScores": { "D": 0, "I": 0, "S": 0, "C": 0 },
+  "discSummary": "1-2 lines on observed behavioral style, or Insufficient evidence from transcript"
 }
 
-Use empty arrays only if there is truly nothing to list. Ground every field in the transcript. Never invent behaviors, intent, or traits that are not clearly present in the transcript. If evidence is uncertain, explicitly say "Insufficient evidence from transcript". If the user message provided a role/position, judge every answer you mention against that role as reference; strengths, concerns, signals, and hiring recommendation must reflect that comparison.`;
+Use empty arrays only if there is truly nothing to list. Ground every field in the transcript. Never invent behaviors, intent, or traits that are not clearly present in the transcript. If evidence is uncertain, explicitly say "Insufficient evidence from transcript". If the user message provided a role/position, judge every answer you mention against that role as reference; strengths, concerns, signals, and hiring recommendation must reflect that comparison. DISC must also be transcript-grounded; use empty discProfile when evidence is weak.`;
 }
 
 module.exports = {
