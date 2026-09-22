@@ -15,6 +15,7 @@ import { formatApiError } from '../utils/apiErrorMessage';
 import { stripEducationSummaryForDisplay } from '../utils/educationSummaryDisplay';
 import { normalizeSummaryLineArrays } from '../utils/summaryEditNormalize';
 import EducationNotesEditorFields from './EducationNotesEditorFields';
+import LectureRecapPanel from './LectureRecapPanel';
 
 /** True when this meeting is a lecture/class (metadata on the meeting doc), independent of client shell. */
 function meetingHasEducationContext(m) {
@@ -495,6 +496,13 @@ const MeetingSummary = () => {
               {isEducationMode ? 'Lecture Notes' : isInterview ? 'Interview evaluation' : 'Meeting Summary'}
             </p>
           ) : null}
+
+          {isEducationMode && (
+            <LectureRecapPanel
+              meeting={meeting}
+              onQuizGenerated={(quiz) => setMeeting((m) => (m ? { ...m, quiz } : m))}
+            />
+          )}
 
           {meeting.editorVerificationRequired && (
             <div

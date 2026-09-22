@@ -13,6 +13,7 @@ import {
   clearRecordingBlob,
 } from '../utils/recordingBlobStore';
 import { isEducation } from '../config/product';
+import Smartboard from './Smartboard';
 import './MeetingSummary.css';
 import './MeetingInProgress.css';
 import './MeetingDetail.css';
@@ -1186,6 +1187,15 @@ const MeetingInProgress = () => {
                   </section>
                 )}
                 </>
+              )}
+
+              {meetingEducationMode && meeting._id && meeting.status !== 'Cancelled' && (
+                <Smartboard
+                  meetingId={meeting._id}
+                  slideDeck={meeting.slideDeck}
+                  onSlideDeckChange={(slideDeck) => setMeeting((m) => (m ? { ...m, slideDeck } : m))}
+                  disabled={false}
+                />
               )}
 
               {meeting.parentContinuation && (

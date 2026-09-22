@@ -73,6 +73,7 @@ const CuraConsultationReportPage = lazyWithRetry(() => import('./cura/CuraConsul
 const CuraSearchPage = lazyWithRetry(() => import('./cura/CuraSearchPage'), 'cura-search');
 const CuraCalendarPage = lazyWithRetry(() => import('./cura/CuraCalendarPage'), 'cura-calendar');
 const ClientAdmin = lazyWithRetry(() => import('./components/ClientAdmin'), 'client-admin');
+const LectureRecap = lazyWithRetry(() => import('./components/LectureRecap'), 'lecture-recap');
 const BootupScreen = lazyWithRetry(() => import('./components/BootupScreen'), 'bootup');
 const AdminLogin = lazyWithRetry(() => import('./components/AdminLogin'), 'admin-login');
 const ResetPassword = lazyWithRetry(() => import('./components/ResetPassword'), 'reset-password');
@@ -212,6 +213,8 @@ function App() {
             <Route path="/cura/login" element={<CuraLogin />} />
             <Route path="/admin-login" element={<AdminLogin />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            {/* No-login student view — reached via the opaque recapToken emailed after a lecture. */}
+            <Route path="/recap/:token" element={<LectureRecap />} />
             <Route path="/" element={<ProtectedLayout config={config} />}>
               <Route index element={<Dashboard />} />
               <Route path="dashboard" element={<Dashboard />} />
