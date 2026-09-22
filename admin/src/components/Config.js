@@ -89,7 +89,6 @@ const Config = () => {
           <ul>
             <li><Link to="/dashboard">Dashboard</Link></li>
             <li><Link to="/meetings">Meetings</Link></li>
-            <li><Link to="/visitors">Visitors</Link></li>
             <li><Link to="/config" className="active">Configuration</Link></li>
           </ul>
         </nav>

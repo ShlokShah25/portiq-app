@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const Admin = require('../models/Admin');
 const Config = require('../models/Config');
-const Visitor = require('../models/Visitor');
 const Meeting = require('../models/Meeting');
 const jwt = require('jsonwebtoken');
 const { authenticateAdmin } = require('../middleware/auth');
@@ -592,12 +591,6 @@ router.get('/stats', authenticateAdmin, async (req, res) => {
     const dayAfterTomorrow = new Date(tomorrow);
     dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
 
-    const visitorsToday = await Visitor.countDocuments({
-      checkInTime: { $gte: today, $lt: tomorrow }
-    });
-
-    const visitorsInside = await Visitor.countDocuments({ status: 'Inside' });
-
     const meetingFilter = meetingFilterForAdmin(req.admin);
     const meetingsToday = await Meeting.countDocuments({
       ...meetingFilter,
@@ -718,13 +711,10 @@ router.get('/stats', authenticateAdmin, async (req, res) => {
     const LIST_CAP = 40;
 
     res.json({
-      visitorsToday,
-      visitorsInside,
       meetingsToday,
       todayMeetings: meetingsToday,
       meetingsCompleted,
       scheduledMeetings: meetingsScheduled,
-      totalVisitors: await Visitor.countDocuments(),
       totalMeetings,
       tasksDueTomorrow,
       overdueTasks,
@@ -732,6 +722,7 @@ router.get('/stats', authenticateAdmin, async (req, res) => {
       meetingsThisWeek,
       meetingsWithoutActionItems,
       upcomingActions: upcomingActions.slice(0, 25),
+
       taskListDueTomorrow: taskListDueTomorrow.slice(0, LIST_CAP),
       taskListOverdue: taskListOverdue.slice(0, LIST_CAP),
       taskListCompletedThisWeek: taskListCompletedThisWeek.slice(0, LIST_CAP),

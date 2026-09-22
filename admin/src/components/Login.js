@@ -31,7 +31,7 @@ const Login = ({ setIsAuthenticated }) => {
     <div className="login-container">
       <div className="login-box">
         <h1>Admin Login</h1>
-        <p className="subtitle">Workplace Visitor Management</p>
+        <p className="subtitle">PortIQ Admin</p>
         {error && <div className="error-message">{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className="form-group">
@@ -57,7 +57,7 @@ const Login = ({ setIsAuthenticated }) => {
             {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
-        <p className="footer-note">Workplace Visitor Management System</p>
+        <p className="footer-note">PortIQ</p>
       </div>
     </div>
   );

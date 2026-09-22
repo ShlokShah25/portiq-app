@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const Admin = require('./server/models/Admin');
 require('dotenv').config();
 
-const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/workplace_visitor_management';
+const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/portiq';
 
 async function resetAdmin() {
   try {

@@ -17,7 +17,7 @@ const mongoose = require('mongoose');
 const Admin = require('../models/Admin');
 
 const mongoUri =
-  process.env.MONGODB_URI || 'mongodb://localhost:27017/workplace_visitor_management';
+  process.env.MONGODB_URI || 'mongodb://localhost:27017/portiq';
 
 async function main() {
   const arg = process.argv[2];

@@ -1,7 +1,7 @@
 {
-  "name": "workplace-visitor-management",
+  "name": "portiq-app",
   "version": "1.0.0",
-  "description": "Workplace Visitor Management System with Meeting Transcription",
+  "description": "PortIQ — AI meeting assistant with education and clinic verticals",
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
@@ -14,10 +14,10 @@
     "create-free-business-user": "node server/scripts/create-free-business-user.js"
   },
   "keywords": [
-    "visitor-management",
-    "workplace",
     "meeting-transcription",
-    "badge-printing"
+    "ai-assistant",
+    "education",
+    "clinic"
   ],
   "author": "Your Company",
   "license": "ISC",

@@ -14,7 +14,7 @@ const DoctorSchedule = require('../models/DoctorSchedule');
 const { DEFAULT_WINDOWS } = require('../services/AvailabilityService');
 
 const mongoUri =
-  process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/workplace_visitor_management';
+  process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/portiq';
 
 const DEMO = {
   username: 'cura-demo',

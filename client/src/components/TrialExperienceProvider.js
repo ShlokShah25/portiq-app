@@ -9,8 +9,46 @@ import React, {
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { marketingPricingUrl } from '../config/urls';
+import { isEducation } from '../config/product';
 import './TrialExperience.css';
 import './Profile.css';
+
+/**
+ * Copy for the generic 3-step trial onboarding + welcome/limit modals below.
+ * Keyed by product so a teacher on trial sees "lecture"/"classroom" language
+ * instead of "meeting" language, matching the vocabulary used everywhere else
+ * in Education mode (see config/terminology.js). Add a `cura` entry here if
+ * Cura ever needs the same generic modals instead of its own onboarding flow.
+ */
+const ONBOARDING_COPY = {
+  workplace: {
+    step1Body:
+      'You’re set up to run structured meetings with clear outcomes—without extra busywork.',
+    step2Items: ['Start a meeting', 'Talk normally', 'Get summaries and action items'],
+    step3Title: 'Start your first meeting',
+    step3Body: 'When you’re ready, open a new meeting and PortIQ will capture the signal—not the noise.',
+    welcomeBody:
+      'You get 3 meetings to experience how PortIQ turns conversations into clear summaries and action items.',
+    welcomeCta: 'Start your first meeting',
+    limitBody: 'Continue turning meetings into clear summaries and action items without missing anything.',
+  },
+  education: {
+    step1Body:
+      'You’re set up to run structured lectures with clear notes—without extra busywork.',
+    step2Items: ['Start a lecture', 'Teach normally', 'Get lecture notes and reminders'],
+    step3Title: 'Start your first lecture',
+    step3Body:
+      'When you’re ready, open a new lecture and PortIQ will capture the signal—not the noise. Set up your classrooms first so lecture notes route to the right students automatically.',
+    welcomeBody:
+      'You get 3 lectures to experience how PortIQ turns your teaching into clear notes and reminders for students.',
+    welcomeCta: 'Start your first lecture',
+    limitBody: 'Continue turning lectures into clear notes and reminders without missing anything.',
+  },
+};
+
+function onboardingCopy() {
+  return ONBOARDING_COPY[isEducation ? 'education' : 'workplace'];
+}
 
 const TrialExperienceContext = createContext(null);
 
@@ -217,6 +255,7 @@ export default function TrialExperienceProvider({ children }) {
   );
 
   const showOnboarding = onboardingStep >= 1 && onboardingStep <= 3;
+  const copy = onboardingCopy();
 
   return (
     <TrialExperienceContext.Provider value={value}>
@@ -245,11 +284,9 @@ export default function TrialExperienceProvider({ children }) {
               <>
                 <p className="portiq-trial-modal__eyebrow">Step 1 of 3</p>
                 <h2 className="portiq-trial-modal__title" id="portiq-onboarding-title">
-                  Welcome to PortIQ
+                  {isEducation ? 'Welcome to PortIQ Education' : 'Welcome to PortIQ'}
                 </h2>
-                <p className="portiq-trial-modal__body">
-                  You’re set up to run structured meetings with clear outcomes—without extra busywork.
-                </p>
+                <p className="portiq-trial-modal__body">{copy.step1Body}</p>
                 <div className="portiq-trial-modal__actions">
                   <button
                     type="button"
@@ -269,9 +306,9 @@ export default function TrialExperienceProvider({ children }) {
                   How it works
                 </h2>
                 <ul className="portiq-trial-modal__list">
-                  <li>Start a meeting</li>
-                  <li>Talk normally</li>
-                  <li>Get summaries and action items</li>
+                  {copy.step2Items.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
                 </ul>
                 <div className="portiq-trial-modal__actions">
                   <button
@@ -296,11 +333,9 @@ export default function TrialExperienceProvider({ children }) {
               <>
                 <p className="portiq-trial-modal__eyebrow">Step 3 of 3</p>
                 <h2 className="portiq-trial-modal__title" id="portiq-onboarding-title">
-                  Start your first meeting
+                  {copy.step3Title}
                 </h2>
-                <p className="portiq-trial-modal__body">
-                  When you’re ready, open a new meeting and PortIQ will capture the signal—not the noise.
-                </p>
+                <p className="portiq-trial-modal__body">{copy.step3Body}</p>
                 <div className="portiq-trial-modal__actions">
                   <button
                     type="button"
@@ -342,17 +377,14 @@ export default function TrialExperienceProvider({ children }) {
             <h2 className="portiq-trial-modal__title" id="portiq-welcome-title">
               Welcome to your free trial
             </h2>
-            <p className="portiq-trial-modal__body">
-              You get 3 meetings to experience how PortIQ turns conversations into clear summaries and
-              action items.
-            </p>
+            <p className="portiq-trial-modal__body">{copy.welcomeBody}</p>
             <div className="portiq-trial-modal__actions">
               <button
                 type="button"
                 className="portiq-trial-modal__btn portiq-trial-modal__btn--primary"
                 onClick={startFirstMeeting}
               >
-                Start your first meeting
+                {copy.welcomeCta}
               </button>
             </div>
           </div>
@@ -378,9 +410,7 @@ export default function TrialExperienceProvider({ children }) {
             <h2 className="portiq-trial-modal__title" id="portiq-limit-title">
               You’ve reached your free limit
             </h2>
-            <p className="portiq-trial-modal__body">
-              Continue turning meetings into clear summaries and action items without missing anything.
-            </p>
+            <p className="portiq-trial-modal__body">{copy.limitBody}</p>
             <div className="portiq-trial-modal__actions">
               <button
                 type="button"

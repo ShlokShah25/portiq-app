@@ -48,7 +48,6 @@ const Dashboard = ({ setIsAuthenticated }) => {
           <ul>
             <li><Link to="/dashboard" className="active">Dashboard</Link></li>
             <li><Link to="/meetings">Meetings</Link></li>
-            <li><Link to="/visitors">Visitors</Link></li>
             <li><Link to="/config">Configuration</Link></li>
             <li><button onClick={handleLogout} className="logout-btn">Logout</button></li>
           </ul>
@@ -60,14 +59,6 @@ const Dashboard = ({ setIsAuthenticated }) => {
         </div>
 
         <div className="stats-grid">
-          <div className="stat-card">
-            <h3>Visitors Today</h3>
-            <div className="value">{stats?.visitorsToday || 0}</div>
-          </div>
-          <div className="stat-card">
-            <h3>Visitors Inside</h3>
-            <div className="value">{stats?.visitorsInside || 0}</div>
-          </div>
           <div className="stat-card">
             <h3>Meetings Today</h3>
             <div className="value">{stats?.meetingsToday || 0}</div>
@@ -82,7 +73,6 @@ const Dashboard = ({ setIsAuthenticated }) => {
           <h2>Quick Actions</h2>
           <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
             <Link to="/meetings" className="btn btn-primary">View All Meetings</Link>
-            <Link to="/visitors" className="btn btn-primary">View All Visitors</Link>
             <Link to="/config" className="btn btn-secondary">Settings</Link>
           </div>
         </div>

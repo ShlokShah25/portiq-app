@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import Meetings from './components/Meetings';
-import Visitors from './components/Visitors';
 import Config from './components/Config';
 import axios from 'axios';
 import './App.css';
@@ -77,12 +76,6 @@ function App() {
           path="/meetings"
           element={
             isAuthenticated ? <Meetings /> : <Navigate to="/login" />
-          }
-        />
-        <Route
-          path="/visitors"
-          element={
-            isAuthenticated ? <Visitors /> : <Navigate to="/login" />
           }
         />
         <Route

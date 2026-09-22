@@ -102,7 +102,6 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use('/uploads/voice-samples', express.static(path.join(__dirname, '../uploads/voice-samples')));
 
 // API Routes (must come before static file serving)
-// Visitor management APIs have been retired – Portiq now focuses on the meeting assistant and SaaS flow.
 app.use('/api/meetings', require('./routes/meetings'));
 app.use('/api/cura', require('./routes/cura'));
 app.use('/api/webhooks', require('./routes/whatsappWebhook'));
@@ -125,7 +124,7 @@ app.post('/api/integrations/webhooks/teams-graph', (req, res) =>
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'OK', 
-    message: 'Workplace Visitor Management System API',
+    message: 'PortIQ API',
     version: '1.0.0'
   });
 });
@@ -189,7 +188,7 @@ const mongoOptions = {
   directConnection: false
 };
 
-const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/workplace_visitor_management';
+const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/portiq';
 console.log('🔗 Connecting to MongoDB...');
 console.log('   URI:', mongoUri.replace(/\/\/[^:]+:[^@]+@/, '//***:***@'));
 
@@ -257,14 +256,10 @@ app.listen(PORT, HOST, () => {
       }
     }
   }
-  console.log(`📱 Workplace Visitor Management System`);
+  console.log(`📱 PortIQ`);
   console.log(`\n📋 Available endpoints:`);
   console.log(`   - GET  /api/health`);
   console.log(`   - GET  /api/health/ready`);
-  console.log(`   - GET  /api/visitors/categories`);
-  console.log(`   - POST /api/visitors/entry`);
-  console.log(`   - POST /api/visitors/checkout`);
-  console.log(`   - GET  /api/visitors`);
   console.log(`   - GET  /api/meetings`);
   console.log(`   - POST /api/meetings`);
 });
