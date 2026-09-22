@@ -103,6 +103,11 @@ app.use('/uploads/voice-samples', express.static(path.join(__dirname, '../upload
 
 // API Routes (must come before static file serving)
 app.use('/api/meetings', require('./routes/meetings'));
+// Smartboard: slide deck + annotations + quiz live on /api/meetings/:id/... (teacher,
+// authenticated), the student recap page is public on /api/public/lectures/:token.
+const smartboard = require('./routes/smartboard');
+app.use('/api/meetings', smartboard.teacherRouter);
+app.use('/api/public/lectures', smartboard.publicRouter);
 app.use('/api/cura', require('./routes/cura'));
 app.use('/api/webhooks', require('./routes/whatsappWebhook'));
 app.use('/api/admin', require('./routes/admin'));

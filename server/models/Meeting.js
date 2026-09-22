@@ -538,6 +538,49 @@ const meetingSchema = new mongoose.Schema({
     default: false,
     index: true,
   },
+  /**
+   * Smartboard: slide deck uploaded by the teacher for this lecture (PDF, rasterized
+   * server-side to one image per page). `annotations` is a Fabric.js canvas JSON blob
+   * (freeform pen strokes) drawn on top of that slide's image. Only slides the teacher
+   * actually navigated to during the lecture (`shownAt` set) are surfaced in the
+   * post-lecture recap — see server/routes/smartboard.js.
+   */
+  slideDeck: {
+    fileName: { type: String, default: '' },
+    pageCount: { type: Number, default: 0 },
+    uploadedAt: { type: Date, default: null },
+    slides: [
+      {
+        index: { type: Number, required: true },
+        imageUrl: { type: String, required: true },
+        shownAt: { type: Date, default: null },
+        annotations: { type: mongoose.Schema.Types.Mixed, default: null },
+        annotatedAt: { type: Date, default: null },
+      },
+    ],
+  },
+  /** Smartboard: 5-question MCQ quiz generated from the lecture transcript/summary. */
+  quiz: {
+    generatedAt: { type: Date, default: null },
+    questions: [
+      {
+        question: { type: String, required: true, trim: true },
+        options: [{ type: String, trim: true }],
+        correctIndex: { type: Number, required: true },
+        explanation: { type: String, default: '', trim: true },
+      },
+    ],
+  },
+  /**
+   * Opaque token granting no-login access to this lecture's student recap page
+   * (GET /api/public/lectures/:token). Generated lazily the first time a smartboard
+   * feature is used on this meeting — see server/routes/smartboard.js.
+   */
+  recapToken: {
+    type: String,
+    default: null,
+    index: { unique: true, sparse: true },
+  },
   createdAt: {
     type: Date,
     default: Date.now
