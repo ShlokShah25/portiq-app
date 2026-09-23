@@ -213,6 +213,23 @@ mongoose.connect(mongoUri, mongoOptions)
   await Config.getConfig();
   console.log('✅ Configuration initialized');
 
+  // One-time cleanup: older Meeting docs may have an explicit `recapToken: null`
+  // (from a schema `default: null` that's since been removed). A sparse unique
+  // index only skips a field that's *missing*, not present-but-null, so those
+  // rows collide with each other and any new meeting ("E11000 duplicate key ...
+  // recapToken: null") the moment a second one is created. $unset instead of
+  // null makes the field genuinely absent again. Safe to run on every boot —
+  // it's a no-op once there's nothing left to fix.
+  try {
+    const Meeting = require('./models/Meeting');
+    const { modifiedCount } = await Meeting.updateMany({ recapToken: null }, { $unset: { recapToken: 1 } });
+    if (modifiedCount > 0) {
+      console.log(`✅ Cleared ${modifiedCount} stale null recapToken value(s)`);
+    }
+  } catch (cleanupErr) {
+    console.error('⚠️  recapToken cleanup failed (non-fatal):', cleanupErr.message);
+  }
+
   const { getMeetingAudioMirrorRoot } = require('./utils/meetingAudioMirror');
   if (
     process.env.NODE_ENV === 'production' &&

@@ -632,7 +632,12 @@ const meetingSchema = new mongoose.Schema({
    */
   recapToken: {
     type: String,
-    default: null,
+    // No `default: null` here on purpose: Mongoose would then write an explicit
+    // null onto every new meeting, and a sparse index only skips a field that's
+    // *missing*, not one that's present-but-null — so a second meeting with no
+    // recap token yet would collide with the first on this unique index
+    // ("E11000 duplicate key ... recapToken: null"). Leaving it unset means the
+    // field is genuinely absent until ensureRecapToken() assigns a real one.
     index: { unique: true, sparse: true },
   },
   createdAt: {
