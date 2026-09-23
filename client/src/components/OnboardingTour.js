@@ -1,5 +1,10 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import './OnboardingTour.css';
+// OnboardingTour.css is loaded once globally from index.js, not imported here — this
+// component is itself imported from six separate lazy-loaded route chunks (Courses,
+// CourseDetail, EducationAdminDashboard, MeetingInProgress, TeacherDashboard,
+// TeachersPage), and importing its CSS from each of them hit the same
+// mini-css-extract-plugin "conflicting order" build failure fixed for
+// education-design-system.css — see index.js.
 
 /**
  * Reusable, multi-step guided tour with a REAL spotlight cutout.

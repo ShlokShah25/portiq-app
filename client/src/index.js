@@ -7,6 +7,7 @@ import './styles/design-system.css';
 import './styles/ui-alive.css';
 import './styles/premium-apple.css';
 import './styles/education-design-system.css';
+import './components/OnboardingTour.css';
 import './tablet-fix.css';
 import { ThemeProvider } from './contexts/ThemeContext';
 import App from './App';
