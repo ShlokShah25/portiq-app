@@ -1,4 +1,7 @@
-@import '../styles/education-design-system.css';
+/* Design tokens: styles/education-design-system.css — loaded once from index.js, not
+   @import-ed here, to avoid a mini-css-extract-plugin "conflicting order" build error
+   when this file and other CSS entry points that also need it end up in different
+   lazy-loaded chunks. */
 
 /* ========================================================================
    Courses (admin) — education mode

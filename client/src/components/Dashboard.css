@@ -1,5 +1,7 @@
-/* Dashboard — dark command center (tokens: theme.css) */
-@import '../styles/education-design-system.css';
+/* Dashboard — dark command center (tokens: theme.css, styles/education-design-system.css —
+   loaded once from index.js, not @import-ed here, to avoid a mini-css-extract-plugin
+   "conflicting order" build error when this file and other CSS entry points that also
+   need it end up in different lazy-loaded chunks). */
 
 .dashboard-screen {
   width: 100%;

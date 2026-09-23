@@ -7,7 +7,9 @@ import { L, SUPPORTED_UI_LANGUAGES, getUiLanguage, setUiLanguage } from '../conf
 import { isEducation } from '../config/product';
 import './Settings.css';
 import './Profile.css';
-import '../styles/education-design-system.css';
+// styles/education-design-system.css is loaded once globally from index.js, not imported
+// here — importing it from multiple lazy-loaded route chunks caused a mini-css-extract-plugin
+// "conflicting order" build error (CI=true turns that webpack warning into a hard failure).
 
 const SETTINGS_SECTIONS = ['account', 'workspace', 'preferences', 'notifications'];
 
