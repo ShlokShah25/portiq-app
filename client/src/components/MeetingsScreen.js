@@ -5,7 +5,6 @@ import { isEducation } from '../config/product';
 import { FEATURE_INTERVIEW_UI } from '../config/featureFlags';
 import { meetingPaths } from '../interview/useInterviewRoutes';
 import { T } from '../config/terminology';
-import { getClassrooms } from '../utils/classroomsStorage';
 import { PORTIQ_MEETINGS_HINT, PORTIQ_PRICE_ROW } from '../config/productPitch';
 import MeetingSummaryReadonlyBody from './MeetingSummaryReadonlyBody';
 import { stripEducationSummaryForDisplay } from '../utils/educationSummaryDisplay';

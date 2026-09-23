@@ -369,11 +369,11 @@ const Settings = () => {
                 <div className="settings-panel-row settings-panel-row--stack">
                   <div className="settings-panel-row__meta">
                     <h3 className="settings-panel-row__title">
-                      {isEducation ? 'Classrooms & students' : L('settings.workspaceTitle')}
+                      {isEducation ? 'Courses & students' : L('settings.workspaceTitle')}
                     </h3>
                     <p className="settings-panel-row__desc">
                       {isEducation
-                        ? 'Create classrooms, add students, and keep lecture subjects organized for each class.'
+                        ? 'Create courses, add semesters and subjects, and enroll students for each semester.'
                         : L('settings.workspaceDesc')}
                     </p>
                   </div>
@@ -381,13 +381,13 @@ const Settings = () => {
                 {isEducation ? (
                   <>
                     <div className="settings-actions-inline">
-                      <Link to="/classes" className="profile-manage-btn">
-                        Open Classrooms
+                      <Link to="/courses" className="profile-manage-btn">
+                        Open Courses
                       </Link>
                     </div>
                     <p className="settings-company-hint">
-                      Education caps: 7 classrooms, 40 students per classroom, and 9 subjects per
-                      classroom. Teachers are unlimited.
+                      Education caps: 12 courses, 12 semesters per course, 15 subjects per semester,
+                      and 120 students per semester. Faculty accounts are unlimited.
                     </p>
                   </>
                 ) : (

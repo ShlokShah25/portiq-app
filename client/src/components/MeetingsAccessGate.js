@@ -4,7 +4,7 @@ import { isEducation } from '../config/product';
 import { useTrialExperience } from './TrialExperienceProvider';
 
 /**
- * Education org admins manage classrooms/teachers only; lectures live under faculty accounts.
+ * Education org admins manage courses/teachers only; lectures live under faculty accounts.
  * Faculty/super_admin must always reach /meetings even if client `portiq_product` lags the server.
  */
 export default function MeetingsAccessGate() {
@@ -27,7 +27,7 @@ export default function MeetingsAccessGate() {
   }
 
   if (educationTenant && role !== 'faculty') {
-    return <Navigate to="/classes" replace />;
+    return <Navigate to="/courses" replace />;
   }
 
   return <Outlet />;

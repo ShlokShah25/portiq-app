@@ -49,7 +49,7 @@ const TopNav = () => {
                 )}
               </svg>
             ),
-            path: isEducation ? '/classes' : '/insights'
+            path: isEducation ? '/courses' : '/insights'
           },
         ]
       : [])

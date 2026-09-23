@@ -176,15 +176,15 @@ const Sidebar = () => {
     ...(isEducationAdmin
       ? [
           {
-            id: 'classrooms',
-            label: 'Classrooms',
+            id: 'courses',
+            label: 'Courses',
             icon: (
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M3 7.5L12 3l9 4.5-9 4.5-9-4.5z" />
                 <path d="M7 10.5V15c0 1.8 2.2 3.2 5 3.2s5-1.4 5-3.2v-4.5" />
               </svg>
             ),
-            path: '/classes',
+            path: '/courses',
           },
         ]
       : []),

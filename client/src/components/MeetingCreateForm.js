@@ -22,12 +22,7 @@ import {
 } from 'lucide-react';
 import { isEducation } from '../config/product';
 import { FEATURE_INTERVIEW_UI } from '../config/featureFlags';
-import {
-  getClassrooms,
-  MAX_CLASSROOMS,
-  MAX_STUDENTS_PER_CLASSROOM,
-  MAX_SUBJECTS_PER_CLASSROOM,
-} from '../utils/classroomsStorage';
+import { listCourses } from '../utils/coursesApi';
 import {
   VOICE_ENROLLMENT_API_TEMPLATE,
   voiceEnrollmentSentenceForParticipant,
@@ -109,7 +104,8 @@ function resetAllState(setters) {
   setters.setScheduledDate(d.date);
   setters.setScheduledTime(d.time);
   setters.setLiveLocation('');
-  setters.setSelectedClassroomId('');
+  setters.setSelectedCourseId('');
+  if (setters.setSelectedSemesterId) setters.setSelectedSemesterId('');
   if (setters.setSelectedSubject) setters.setSelectedSubject('');
   setters.setSelectedBookEmails([]);
   setters.setParticipantBook([]);
@@ -151,7 +147,15 @@ export default function MeetingCreateForm({
   /** Server account product — voice + participant book are workplace-only. */
   const [accountProductType, setAccountProductType] = useState(null);
   const [liveLocation, setLiveLocation] = useState('');
-  const [selectedClassroomId, setSelectedClassroomId] = useState('');
+  const [educationCourses, setEducationCourses] = useState([]);
+  const [educationCourseLimits, setEducationCourseLimits] = useState({
+    MAX_COURSES: 12,
+    MAX_SEMESTERS_PER_COURSE: 12,
+    MAX_SUBJECTS_PER_SEMESTER: 15,
+    MAX_STUDENTS_PER_SEMESTER: 120,
+  });
+  const [selectedCourseId, setSelectedCourseId] = useState('');
+  const [selectedSemesterId, setSelectedSemesterId] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedBookEmails, setSelectedBookEmails] = useState([]);
   const [participantBook, setParticipantBook] = useState([]);
@@ -196,7 +200,8 @@ export default function MeetingCreateForm({
       setScheduledDate,
       setScheduledTime,
       setLiveLocation,
-      setSelectedClassroomId,
+      setSelectedCourseId,
+      setSelectedSemesterId,
       setSelectedSubject,
       setSelectedBookEmails,
       setParticipantBook,
@@ -254,6 +259,24 @@ export default function MeetingCreateForm({
         setAccountProductType(null);
       }
     })();
+  }, [active]);
+
+  useEffect(() => {
+    if (!active || !isEducation) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { courses, limits } = await listCourses();
+        if (cancelled) return;
+        setEducationCourses(courses);
+        if (limits && Object.keys(limits).length) setEducationCourseLimits((prev) => ({ ...prev, ...limits }));
+      } catch {
+        if (!cancelled) setEducationCourses([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [active]);
 
   useEffect(() => {
@@ -374,11 +397,11 @@ export default function MeetingCreateForm({
   };
 
   const payloadParticipants = () => {
-    if (isEducation && selectedClassroomId) {
-      const classroom = getClassrooms().find((c) => c.id === selectedClassroomId);
-      return (classroom?.studentEmails || []).map((email) => ({
-        name: email.split('@')[0],
-        email: email.trim(),
+    if (isEducation && selectedSemesterId) {
+      const semester = selectedSemester;
+      return (semester?.studentRoster || []).map((s) => ({
+        name: (s.name && String(s.name).trim()) || String(s.email).split('@')[0],
+        email: String(s.email).trim(),
         role: 'participant',
       }));
     }
@@ -395,38 +418,46 @@ export default function MeetingCreateForm({
     });
   };
 
-  const selectedClassroom = useMemo(() => {
-    if (!isEducation || !selectedClassroomId) return null;
-    return getClassrooms().find((c) => c.id === selectedClassroomId) || null;
-  }, [selectedClassroomId]);
+  const selectedCourse = useMemo(() => {
+    if (!isEducation || !selectedCourseId) return null;
+    return educationCourses.find((c) => c._id === selectedCourseId) || null;
+  }, [isEducation, selectedCourseId, educationCourses]);
 
-  const selectedClassroomAssignments = useMemo(() => {
-    if (!selectedClassroom) return [];
-    if (Array.isArray(selectedClassroom.subjectAssignments) && selectedClassroom.subjectAssignments.length) {
-      return selectedClassroom.subjectAssignments;
-    }
-    const legacy = Array.isArray(selectedClassroom.subjects) ? selectedClassroom.subjects : [];
-    return legacy.map((s) => ({ subject: s }));
-  }, [selectedClassroom]);
+  const educationSemesters = useMemo(
+    () => (Array.isArray(selectedCourse?.semesters) ? selectedCourse.semesters : []),
+    [selectedCourse]
+  );
 
-  const educationClassrooms = useMemo(() => (isEducation ? getClassrooms() : []), [selectedClassroomId]);
-  const selectedClassroomStudentCount = Array.isArray(selectedClassroom?.studentEmails)
-    ? selectedClassroom.studentEmails.length
+  const selectedSemester = useMemo(() => {
+    if (!selectedSemesterId) return null;
+    return educationSemesters.find((s) => s._id === selectedSemesterId) || null;
+  }, [educationSemesters, selectedSemesterId]);
+
+  const selectedSemesterSubjects = useMemo(
+    () => (Array.isArray(selectedSemester?.subjects) ? selectedSemester.subjects : []),
+    [selectedSemester]
+  );
+
+  const selectedSemesterStudentCount = Array.isArray(selectedSemester?.studentRoster)
+    ? selectedSemester.studentRoster.length
     : 0;
-  const selectedClassroomSubjectCount = Array.isArray(selectedClassroom?.subjects)
-    ? selectedClassroom.subjects.length
-    : selectedClassroomAssignments.length;
+  const selectedSemesterSubjectCount = selectedSemesterSubjects.length;
 
   useEffect(() => {
-    if (!isEducation || !selectedClassroomId) return;
-    if (!selectedClassroomAssignments.length) {
+    setSelectedSemesterId('');
+    setSelectedSubject('');
+  }, [selectedCourseId]);
+
+  useEffect(() => {
+    if (!isEducation || !selectedSemesterId) return;
+    if (!selectedSemesterSubjects.length) {
       setSelectedSubject('');
       return;
     }
-    if (!selectedClassroomAssignments.some((x) => x.subject === selectedSubject)) {
-      setSelectedSubject(selectedClassroomAssignments[0].subject);
+    if (!selectedSemesterSubjects.includes(selectedSubject)) {
+      setSelectedSubject(selectedSemesterSubjects[0]);
     }
-  }, [isEducation, selectedClassroomId, selectedClassroomAssignments, selectedSubject]);
+  }, [isEducation, selectedSemesterId, selectedSemesterSubjects, selectedSubject]);
 
   const validateCommon = () => {
     if (!scheduledDate || !scheduledTime) {
@@ -478,23 +509,11 @@ export default function MeetingCreateForm({
           : 'Authorized editor must be one of the selected participants.';
       }
     }
-    if (isEducation && !selectedClassroomId) return 'Select a classroom.';
+    if (isEducation && !selectedCourseId) return 'Select a course.';
+    if (isEducation && !selectedSemesterId) return 'Select a semester.';
     if (isEducation && !selectedSubject) return 'Select a subject.';
-    if (
-      isEducation &&
-      selectedClassroom &&
-      Array.isArray(selectedClassroom.subjects) &&
-      selectedClassroom.subjects.length > MAX_SUBJECTS_PER_CLASSROOM
-    ) {
-      return `This classroom exceeds the current subject cap (${MAX_SUBJECTS_PER_CLASSROOM}). Edit classroom subjects first.`;
-    }
-    if (
-      isEducation &&
-      selectedClassroom &&
-      Array.isArray(selectedClassroom.studentEmails) &&
-      selectedClassroom.studentEmails.length > MAX_STUDENTS_PER_CLASSROOM
-    ) {
-      return `This classroom exceeds the current student cap (${MAX_STUDENTS_PER_CLASSROOM}). Edit classroom students first.`;
+    if (isEducation && selectedSemester && selectedSemesterStudentCount === 0) {
+      return 'This semester has no students enrolled yet. Ask your admin to add students under Courses.';
     }
     return '';
   };
@@ -529,8 +548,10 @@ export default function MeetingCreateForm({
       authorizedEditorEmail: authorizedEditorEmail.trim() || undefined,
       transcriptionEnabled: true,
       meetingRoom: room,
-      educationClassroomId: isEducation ? selectedClassroomId : undefined,
-      educationClassroomName: isEducation ? String(selectedClassroom?.className || '').trim() : undefined,
+      educationClassroomId: isEducation ? `${selectedCourseId}:${selectedSemesterId}` : undefined,
+      educationClassroomName: isEducation
+        ? `${String(selectedCourse?.name || '').trim()} — ${String(selectedSemester?.name || '').trim()}`
+        : undefined,
       educationSubject: isEducation ? selectedSubject : undefined,
       educationTeacherName: undefined,
       educationTeacherEmail: undefined,
@@ -853,37 +874,60 @@ export default function MeetingCreateForm({
 
                 {isEducation && (
                   <div className="start-meeting-field start-meeting-classroom">
-                    <FieldLabel htmlFor="sm-classroom" icon={GraduationCap}>
-                      Classroom
+                    <FieldLabel htmlFor="sm-course" icon={GraduationCap}>
+                      Course
                     </FieldLabel>
                     <select
-                      id="sm-classroom"
-                      value={selectedClassroomId}
-                      onChange={(e) => setSelectedClassroomId(e.target.value)}
+                      id="sm-course"
+                      value={selectedCourseId}
+                      onChange={(e) => setSelectedCourseId(e.target.value)}
                       required
                       disabled={formDisabled}
                     >
-                      <option value="">Select a classroom</option>
-                      {educationClassrooms.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.className}
+                      <option value="">Select a course</option>
+                      {educationCourses.map((c) => (
+                        <option key={c._id} value={c._id}>
+                          {c.name}
                         </option>
                       ))}
                     </select>
                     <p className="start-meeting-field-hint">
-                      Caps: {educationClassrooms.length}/{MAX_CLASSROOMS} classrooms
+                      Caps: {educationCourses.length}/{educationCourseLimits.MAX_COURSES} courses
                     </p>
-                    {selectedClassroom && Array.isArray(selectedClassroom.subjects) && selectedClassroom.subjects.length > 0 ? (
+
+                    {educationSemesters.length > 0 ? (
+                      <>
+                        <FieldLabel htmlFor="sm-semester" icon={FileText}>
+                          Semester
+                        </FieldLabel>
+                        <select
+                          id="sm-semester"
+                          value={selectedSemesterId}
+                          onChange={(e) => setSelectedSemesterId(e.target.value)}
+                          required
+                          disabled={formDisabled}
+                        >
+                          <option value="">Select semester</option>
+                          {educationSemesters.map((s) => (
+                            <option key={s._id} value={s._id}>
+                              {s.name}
+                            </option>
+                          ))}
+                        </select>
+                      </>
+                    ) : null}
+
+                    {selectedSemester && selectedSemesterSubjects.length > 0 ? (
                       <p className="start-meeting-field-hint">
-                        Subjects: {selectedClassroom.subjects.slice(0, MAX_SUBJECTS_PER_CLASSROOM).join(', ')} ({selectedClassroomSubjectCount}/{MAX_SUBJECTS_PER_CLASSROOM})
+                        Subjects: {selectedSemesterSubjects.join(', ')} ({selectedSemesterSubjectCount})
                       </p>
                     ) : null}
-                    {selectedClassroom ? (
+                    {selectedSemester ? (
                       <p className="start-meeting-field-hint">
-                        Students: {selectedClassroomStudentCount}/{MAX_STUDENTS_PER_CLASSROOM}
+                        Students: {selectedSemesterStudentCount}
                       </p>
                     ) : null}
-                    {selectedClassroomAssignments.length > 0 ? (
+                    {selectedSemesterSubjects.length > 0 ? (
                       <>
                         <FieldLabel htmlFor="sm-subject" icon={FileText}>
                           Subject
@@ -896,9 +940,9 @@ export default function MeetingCreateForm({
                           disabled={formDisabled}
                         >
                           <option value="">Select subject</option>
-                          {selectedClassroomAssignments.map((row) => (
-                            <option key={row.subject} value={row.subject}>
-                              {row.subject}
+                          {selectedSemesterSubjects.map((subject) => (
+                            <option key={subject} value={subject}>
+                              {subject}
                             </option>
                           ))}
                         </select>
@@ -1300,7 +1344,7 @@ export default function MeetingCreateForm({
 
                       <div className="start-meeting-field">
                         <FieldLabel htmlFor="sm-location" icon={MapPin}>
-                          {isEducation ? 'Classroom location' : 'Location'}
+                          {isEducation ? 'Lecture location' : 'Location'}
                         </FieldLabel>
                         <input
                           id="sm-location"

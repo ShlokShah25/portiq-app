@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { BarChart3, GraduationCap, Users } from 'lucide-react';
-import { getClassrooms } from '../utils/classroomsStorage';
+import { listCourses } from '../utils/coursesApi';
 import { useTrialExperience } from './TrialExperienceProvider';
 
 export default function EducationAdminDashboard() {
@@ -11,31 +11,58 @@ export default function EducationAdminDashboard() {
   const role = String(profile?.role || '').toLowerCase();
   const isEducationAccount = String(profile?.productType || '').toLowerCase() === 'education';
   const canManageTeachers = isEducationAccount && (role === 'admin' || role === 'super_admin');
-  const classrooms = useMemo(() => getClassrooms(), []);
+  const [courses, setCourses] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { courses: list } = await listCourses();
+        if (!cancelled) setCourses(list);
+      } catch (_) {
+        if (!cancelled) setCourses([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const semestersCount = useMemo(
+    () => courses.reduce((sum, c) => sum + (Array.isArray(c.semesters) ? c.semesters.length : 0), 0),
+    [courses]
+  );
+
   const studentsCount = useMemo(
     () =>
-      classrooms.reduce(
-        (sum, c) => sum + (Array.isArray(c.studentEmails) ? c.studentEmails.length : 0),
+      courses.reduce(
+        (sum, c) =>
+          sum +
+          (Array.isArray(c.semesters)
+            ? c.semesters.reduce(
+                (s2, sem) => s2 + (Array.isArray(sem.studentRoster) ? sem.studentRoster.length : 0),
+                0
+              )
+            : 0),
         0
       ),
-    [classrooms]
+    [courses]
   );
 
   const subjectsCount = useMemo(
     () =>
-      classrooms.reduce(
+      courses.reduce(
         (sum, c) =>
           sum +
-          (Array.isArray(c.subjectAssignments)
-            ? c.subjectAssignments.filter((s) => String(s?.subject || '').trim()).length
+          (Array.isArray(c.semesters)
+            ? c.semesters.reduce((s2, sem) => s2 + (Array.isArray(sem.subjects) ? sem.subjects.length : 0), 0)
             : 0),
         0
       ),
-    [classrooms]
+    [courses]
   );
 
   useEffect(() => {
@@ -62,18 +89,18 @@ export default function EducationAdminDashboard() {
 
   const onboardingSteps = [
     {
-      title: 'Build your class roster',
-      body: 'Add classrooms, enroll students, and map subjects per class. Teachers then pick from what you configure—no duplicate data entry.',
+      title: 'Set up your courses',
+      body: 'Add courses (e.g. MBA Tech AI), semesters, subjects, and student rosters. Faculty then pick from what you configure—no duplicate data entry.',
       Icon: GraduationCap,
     },
     {
       title: 'Invite your teaching team',
-      body: 'Create teacher accounts from the Teachers page. Everyone signs in separately; lecture tools stay on their dashboards.',
+      body: 'Create faculty accounts from the Teachers page. Everyone signs in separately; lecture tools stay on their dashboards.',
       Icon: Users,
     },
     {
-      title: 'Watch your school at a glance',
-      body: 'These cards summarize classrooms, students, and subjects so you can spot gaps before the term gets busy.',
+      title: 'Watch your college at a glance',
+      body: 'These cards summarize courses, semesters, students, and subjects so you can spot gaps before the term gets busy.',
       Icon: BarChart3,
     },
   ];
@@ -119,7 +146,7 @@ export default function EducationAdminDashboard() {
           <header className="dashboard-hero-minimal" aria-label="Organization dashboard">
             <h1 className="dashboard-title">Organization Dashboard</h1>
             <p className="dashboard-subtitle">
-              Welcome, {adminName}. Manage classrooms and teachers. Lecture controls stay on teacher
+              Welcome, {adminName}. Manage courses and faculty. Lecture controls stay on faculty
               accounts.
             </p>
           </header>
@@ -128,12 +155,16 @@ export default function EducationAdminDashboard() {
             <article className="dashboard-education-admin-card">
               <div className="dashboard-education-admin-card__head">
                 <GraduationCap size={18} strokeWidth={1.75} />
-                <h2>Classrooms</h2>
+                <h2>Courses</h2>
               </div>
               <div className="dashboard-education-admin-stats">
                 <div>
-                  <span>Classrooms</span>
-                  <strong>{classrooms.length}</strong>
+                  <span>Courses</span>
+                  <strong>{courses.length}</strong>
+                </div>
+                <div>
+                  <span>Semesters</span>
+                  <strong>{semestersCount}</strong>
                 </div>
                 <div>
                   <span>Students</span>
@@ -145,12 +176,12 @@ export default function EducationAdminDashboard() {
                 </div>
               </div>
               <p className="dashboard-education-admin-card__hint">
-                Create and manage classrooms, students, and subject-teacher mappings (7 classrooms,
-                40 students/classroom, 9 subjects/classroom).
+                Create courses, add semesters with subjects, and enroll students per semester.
+                Faculty pick from this when starting a lecture.
               </p>
               <div className="dashboard-start-meeting__actions">
-                <Link className="dashboard-btn-primary dashboard-btn-micro" to="/classes">
-                  Open Classrooms
+                <Link className="dashboard-btn-primary dashboard-btn-micro" to="/courses">
+                  Open Courses
                 </Link>
                 <button
                   type="button"

@@ -2,24 +2,22 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useTrialExperience } from './TrialExperienceProvider';
-import { BookOpen, GraduationCap, Lightbulb, Zap } from 'lucide-react';
-import { getClassrooms } from '../utils/classroomsStorage';
+import { BookOpen, GraduationCap, Layers, Lightbulb, Zap } from 'lucide-react';
+import { listCourses } from '../utils/coursesApi';
 import { T } from '../config/terminology';
 import { TEACHER_FACULTY_TIPS, pickTipIndex, TIP_ROTATION_MS } from '../config/dashboardTips';
 import './Dashboard.css';
 
-function buildParticipantsFromClassroom(classroom, subject) {
-  if (!classroom) return [];
-  return Array.isArray(classroom.studentEmails)
-    ? classroom.studentEmails
-        .map((email) => String(email || '').trim())
-        .filter(Boolean)
-        .map((email) => ({
-          name: email.split('@')[0],
-          email,
-          role: 'participant',
-        }))
-    : [];
+function buildParticipantsFromSemester(semester) {
+  if (!semester || !Array.isArray(semester.studentRoster)) return [];
+  return semester.studentRoster
+    .map((s) => String(s?.email || '').trim())
+    .filter(Boolean)
+    .map((email) => ({
+      name: email.split('@')[0],
+      email,
+      role: 'participant',
+    }));
 }
 
 /** Local calendar YYYY-MM-DD for comparison (browser timezone). */
@@ -48,7 +46,11 @@ export default function TeacherDashboard() {
   const profile = trial?.profile;
   const navigate = useNavigate();
 
-  const [selectedClassroomId, setSelectedClassroomId] = useState('');
+  const [courses, setCourses] = useState([]);
+  const [coursesLoading, setCoursesLoading] = useState(true);
+  const [coursesError, setCoursesError] = useState('');
+  const [selectedCourseId, setSelectedCourseId] = useState('');
+  const [selectedSemesterId, setSelectedSemesterId] = useState('');
   const [lectureTitle, setLectureTitle] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
   const [creating, setCreating] = useState(false);
@@ -64,29 +66,50 @@ export default function TeacherDashboard() {
     pickTipIndex('portiq_teacher_tip_idx', TEACHER_FACULTY_TIPS.length)
   );
   const [spotlightRect, setSpotlightRect] = useState(null);
-  const classroomFieldRef = useRef(null);
+  const courseFieldRef = useRef(null);
+  const semesterFieldRef = useRef(null);
   const subjectFieldRef = useRef(null);
   const startButtonRef = useRef(null);
 
-  const classrooms = useMemo(() => getClassrooms(), []);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setCoursesLoading(true);
+      setCoursesError('');
+      try {
+        const { courses: list } = await listCourses();
+        if (!cancelled) setCourses(list);
+      } catch (err) {
+        if (!cancelled) {
+          setCoursesError(
+            err.response?.data?.error || err.message || 'Could not load courses.'
+          );
+        }
+      } finally {
+        if (!cancelled) setCoursesLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  const selectedClassroom = useMemo(
-    () => classrooms.find((c) => c.id === selectedClassroomId) || null,
-    [classrooms, selectedClassroomId]
+  const selectedCourse = useMemo(
+    () => courses.find((c) => c._id === selectedCourseId) || null,
+    [courses, selectedCourseId]
   );
-  const subjectAssignments = useMemo(() => {
-    if (!selectedClassroom) return [];
-    if (
-      Array.isArray(selectedClassroom.subjectAssignments) &&
-      selectedClassroom.subjectAssignments.length
-    ) {
-      return selectedClassroom.subjectAssignments;
-    }
-    const legacy = Array.isArray(selectedClassroom.subjects)
-      ? selectedClassroom.subjects
-      : [];
-    return legacy.map((s) => ({ subject: s }));
-  }, [selectedClassroom]);
+  const semesters = useMemo(
+    () => (Array.isArray(selectedCourse?.semesters) ? selectedCourse.semesters : []),
+    [selectedCourse]
+  );
+  const selectedSemester = useMemo(
+    () => semesters.find((s) => s._id === selectedSemesterId) || null,
+    [semesters, selectedSemesterId]
+  );
+  const subjects = useMemo(
+    () => (Array.isArray(selectedSemester?.subjects) ? selectedSemester.subjects : []),
+    [selectedSemester]
+  );
   const teacherName =
     (profile?.username && String(profile.username).trim()) ||
     (profile?.email && String(profile.email).trim()) ||
@@ -95,10 +118,16 @@ export default function TeacherDashboard() {
 
   const onboardingSteps = [
     {
-      title: 'Choose your classroom',
-      body: 'Select the group you are teaching. The roster is linked automatically so your session stays aligned with that class.',
-      target: 'classroom',
+      title: 'Choose your course',
+      body: 'Select the course you are teaching (e.g. MBA Tech AI). Your admin sets these up, along with semesters and rosters.',
+      target: 'course',
       Icon: GraduationCap,
+    },
+    {
+      title: 'Pick the semester',
+      body: 'The roster for this semester is linked automatically so your session stays aligned with that batch.',
+      target: 'semester',
+      Icon: Layers,
     },
     {
       title: 'Select the subject',
@@ -120,11 +149,13 @@ export default function TeacherDashboard() {
   const updateSpotlightRect = () => {
     if (!onboardingOpen) return;
     const target =
-      currentStep?.target === 'classroom'
-        ? classroomFieldRef.current
-        : currentStep?.target === 'subject'
-          ? subjectFieldRef.current
-          : startButtonRef.current;
+      currentStep?.target === 'course'
+        ? courseFieldRef.current
+        : currentStep?.target === 'semester'
+          ? semesterFieldRef.current
+          : currentStep?.target === 'subject'
+            ? subjectFieldRef.current
+            : startButtonRef.current;
     if (!target) return;
     const rect = target.getBoundingClientRect();
     const pad = 8;
@@ -268,8 +299,12 @@ export default function TeacherDashboard() {
       setError('Enter a lecture title.');
       return;
     }
-    if (!selectedClassroomId) {
-      setError('Select a classroom to start a lecture.');
+    if (!selectedCourseId) {
+      setError('Select a course to start a lecture.');
+      return;
+    }
+    if (!selectedSemesterId) {
+      setError('Select a semester to start a lecture.');
       return;
     }
     if (!selectedSubject) {
@@ -277,10 +312,11 @@ export default function TeacherDashboard() {
       return;
     }
 
-    const classroom = selectedClassroom;
-    const participants = buildParticipantsFromClassroom(classroom, selectedSubject);
+    const course = selectedCourse;
+    const semester = selectedSemester;
+    const participants = buildParticipantsFromSemester(semester);
     if (!participants.length) {
-      setError('Add at least one student to this classroom before starting a lecture.');
+      setError('Add at least one student to this semester before starting a lecture. Ask your admin to add students under Courses.');
       return;
     }
 
@@ -288,13 +324,15 @@ export default function TeacherDashboard() {
     try {
       const now = new Date();
       const iso = now.toISOString();
-      const className = String(classroom?.className || 'Classroom').trim();
+      const courseName = String(course?.name || 'Course').trim();
+      const semesterName = String(semester?.name || 'Semester').trim();
+      const groupLabel = `${courseName} — ${semesterName}`;
       const subjectLabel = String(selectedSubject || 'Lecture').trim();
       const titleLabel = String(lectureTitle || '').trim();
 
       const body = {
         title: titleLabel,
-        agenda: `Lecture for ${className} · Subject: ${subjectLabel}`,
+        agenda: `Lecture for ${groupLabel} · Subject: ${subjectLabel}`,
         organizer:
           (profile?.email && String(profile.email).trim()) ||
           (profile?.username && String(profile.username).trim()) ||
@@ -304,9 +342,9 @@ export default function TeacherDashboard() {
         sendNotification: false,
         authorizedEditorEmail: undefined,
         transcriptionEnabled: true,
-        meetingRoom: className || 'Live classroom',
-        educationClassroomId: classroom.id,
-        educationClassroomName: className,
+        meetingRoom: groupLabel || 'Live classroom',
+        educationClassroomId: `${course._id}:${semester._id || semesterName}`,
+        educationClassroomName: groupLabel,
         educationSubject: subjectLabel,
         educationTeacherName: teacherName,
         educationTeacherEmail:
@@ -348,7 +386,7 @@ export default function TeacherDashboard() {
           >
             <h1 className="dashboard-title">Welcome, {teacherName}</h1>
             <p className="dashboard-subtitle">
-              Start faster. Pick classroom and subject, then begin your lecture in one click.
+              Start faster. Pick your course, semester, and subject, then begin your lecture in one click.
             </p>
           </header>
 
@@ -383,23 +421,48 @@ export default function TeacherDashboard() {
                 />
               </div>
               <div
-                ref={classroomFieldRef}
+                ref={courseFieldRef}
                 className={`dashboard-education-pill dashboard-education-pill--wide dashboard-teacher-card${
-                  onboardingOpen && currentStep?.target === 'classroom' ? ' dashboard-teacher-focus' : ''
+                  onboardingOpen && currentStep?.target === 'course' ? ' dashboard-teacher-focus' : ''
                 }`}
               >
-                <span className="dashboard-education-pill__k">Classroom</span>
+                <span className="dashboard-education-pill__k">Course</span>
                 <select
-                  value={selectedClassroomId}
+                  value={selectedCourseId}
                   onChange={(e) => {
-                    setSelectedClassroomId(e.target.value);
+                    setSelectedCourseId(e.target.value);
+                    setSelectedSemesterId('');
                     setSelectedSubject('');
                   }}
+                  disabled={coursesLoading}
                 >
-                  <option value="">Select classroom</option>
-                  {classrooms.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.className}
+                  <option value="">{coursesLoading ? 'Loading courses…' : 'Select course'}</option>
+                  {courses.map((c) => (
+                    <option key={c._id} value={c._id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div
+                ref={semesterFieldRef}
+                className={`dashboard-education-pill dashboard-education-pill--wide dashboard-teacher-card${
+                  onboardingOpen && currentStep?.target === 'semester' ? ' dashboard-teacher-focus' : ''
+                }`}
+              >
+                <span className="dashboard-education-pill__k">Semester</span>
+                <select
+                  value={selectedSemesterId}
+                  onChange={(e) => {
+                    setSelectedSemesterId(e.target.value);
+                    setSelectedSubject('');
+                  }}
+                  disabled={!semesters.length}
+                >
+                  <option value="">{semesters.length ? 'Select semester' : 'Select course first'}</option>
+                  {semesters.map((s) => (
+                    <option key={s._id} value={s._id}>
+                      {s.name}
                     </option>
                   ))}
                 </select>
@@ -414,19 +477,20 @@ export default function TeacherDashboard() {
                 <select
                   value={selectedSubject}
                   onChange={(e) => setSelectedSubject(e.target.value)}
-                  disabled={!subjectAssignments.length}
+                  disabled={!subjects.length}
                 >
                   <option value="">
-                    {subjectAssignments.length ? 'Select subject' : 'Select classroom first'}
+                    {subjects.length ? 'Select subject' : 'Select semester first'}
                   </option>
-                  {subjectAssignments.map((row) => (
-                    <option key={row.subject} value={row.subject}>
-                      {row.subject}
+                  {subjects.map((subject) => (
+                    <option key={subject} value={subject}>
+                      {subject}
                     </option>
                   ))}
                 </select>
               </div>
             </div>
+            {coursesError && <div className="start-meeting-error">{coursesError}</div>}
             {error && <div className="start-meeting-error">{error}</div>}
 
             <div className="dashboard-start-meeting__actions">

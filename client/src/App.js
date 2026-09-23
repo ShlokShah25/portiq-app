@@ -45,8 +45,8 @@ const MeetingsScreen = lazyWithRetry(() => import('./components/MeetingsScreen')
 const Transcripts = lazyWithRetry(() => import('./components/Transcripts'), 'transcripts');
 const Participants = lazyWithRetry(() => import('./components/Participants'), 'participants');
 const Insights = lazyWithRetry(() => import('./components/Insights'), 'insights');
-const ClassesPage = lazyWithRetry(() => import('./components/ClassesPage'), 'classes');
-const ClassroomDetailPage = lazyWithRetry(() => import('./components/ClassroomDetailPage'), 'classroom-detail');
+const CoursesPage = lazyWithRetry(() => import('./components/CoursesPage'), 'courses');
+const CourseDetailPage = lazyWithRetry(() => import('./components/CourseDetailPage'), 'course-detail');
 const TeachersPage = lazyWithRetry(() => import('./components/TeachersPage'), 'teachers');
 const Settings = lazyWithRetry(() => import('./components/Settings'), 'settings');
 const MeetingInProgress = lazyWithRetry(() => import('./components/MeetingInProgress'), 'meeting-room');
@@ -252,8 +252,8 @@ function App() {
               <Route path="transcripts" element={<Transcripts />} />
               <Route path="participants" element={<Participants />} />
               <Route path="insights" element={<Insights />} />
-              <Route path="classes/:classroomId" element={<ClassroomDetailPage />} />
-              <Route path="classes" element={<ClassesPage />} />
+              <Route path="courses/:courseId" element={<CourseDetailPage />} />
+              <Route path="courses" element={<CoursesPage />} />
               <Route path="teachers" element={<TeachersPage />} />
               <Route path="settings" element={<Settings />} />
               <Route path="profile" element={<Navigate to="/settings" replace />} />

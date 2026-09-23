@@ -108,6 +108,9 @@ app.use('/api/meetings', require('./routes/meetings'));
 const smartboard = require('./routes/smartboard');
 app.use('/api/meetings', smartboard.teacherRouter);
 app.use('/api/public/lectures', smartboard.publicRouter);
+// Education mode: server-backed Course -> Semester -> Subject structure (replaces the
+// old client-only localStorage "Classroom" concept, which never synced across devices).
+app.use('/api/courses', require('./routes/courses'));
 app.use('/api/cura', require('./routes/cura'));
 app.use('/api/webhooks', require('./routes/whatsappWebhook'));
 app.use('/api/admin', require('./routes/admin'));
