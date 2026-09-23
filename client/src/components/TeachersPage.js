@@ -1,7 +1,14 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
+import { UserPlus } from 'lucide-react';
 import { useTrialExperience } from './TrialExperienceProvider';
+import OnboardingTour, { hasSeenTour } from './OnboardingTour';
 import './Dashboard.css';
+
+/** Admin onboarding, scoped to this page — distinct key from the dashboard's own tour. */
+function adminTeachersTourKey(uid) {
+  return `portiq_admin_onboarding_v1_${uid}_teachers`;
+}
 
 function emptyForm() {
   return { username: '', email: '' };
@@ -9,15 +16,20 @@ function emptyForm() {
 
 export default function TeachersPage() {
   const trial = useTrialExperience();
-  const role = String(trial?.profile?.role || '').toLowerCase();
+  const profile = trial?.profile;
+  const role = String(profile?.role || '').toLowerCase();
   const isEducationAccount =
-    String(trial?.profile?.productType || '').toLowerCase() === 'education';
+    String(profile?.productType || '').toLowerCase() === 'education';
   const [teachers, setTeachers] = useState([]);
   const [form, setForm] = useState(() => emptyForm());
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [tourOpen, setTourOpen] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
+  const usernameFieldRef = useRef(null);
+  const createButtonRef = useRef(null);
 
   const blocked = !isEducationAccount || role === 'faculty';
 
@@ -39,6 +51,36 @@ export default function TeachersPage() {
     if (trial?.loading) return;
     if (!blocked) fetchTeachers();
   }, [blocked, trial?.loading]);
+
+  const adminUid = String(profile?.id || profile?._id || profile?.email || '').trim();
+
+  useEffect(() => {
+    if (blocked || !adminUid) return;
+    if (!hasSeenTour(adminTeachersTourKey(adminUid))) {
+      setTourOpen(true);
+      setTourStep(0);
+    }
+  }, [blocked, adminUid]);
+
+  const tourSteps = useMemo(
+    () => [
+      {
+        id: 'username',
+        title: 'Create a teacher account',
+        body: 'Enter a name and email — PortIQ generates a temporary password automatically, so you never have to invent or share one.',
+        target: usernameFieldRef,
+        icon: UserPlus,
+      },
+      {
+        id: 'create',
+        title: 'One click to invite',
+        body: 'The teacher is prompted to set their own password on first login. You can create as many faculty accounts as you need.',
+        target: createButtonRef,
+        icon: UserPlus,
+      },
+    ],
+    []
+  );
 
   const canSubmit = useMemo(
     () => form.username.trim() && form.email.trim(),
@@ -108,9 +150,21 @@ export default function TeachersPage() {
           <section className="dashboard-education-admin-card" style={{ marginBottom: 14 }}>
             <div className="dashboard-education-admin-card__head">
               <h2>Create teacher</h2>
+              <button
+                type="button"
+                className="dashboard-btn-secondary dashboard-btn-micro"
+                style={{ marginLeft: 'auto' }}
+                onClick={() => {
+                  setTourStep(0);
+                  setTourOpen(true);
+                }}
+              >
+                Quick help
+              </button>
             </div>
             <form onSubmit={onCreateTeacher} className="dashboard-education-admin-form">
               <input
+                ref={usernameFieldRef}
                 placeholder="Username"
                 value={form.username}
                 onChange={(e) => setForm((p) => ({ ...p, username: e.target.value }))}
@@ -122,6 +176,7 @@ export default function TeachersPage() {
                 onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
               />
               <button
+                ref={createButtonRef}
                 type="submit"
                 className="dashboard-btn-primary dashboard-btn-micro"
                 disabled={!canSubmit || saving}
@@ -155,6 +210,17 @@ export default function TeachersPage() {
               </ul>
             )}
           </section>
+
+          <OnboardingTour
+            steps={tourSteps}
+            open={tourOpen}
+            currentStep={tourStep}
+            onNext={() => setTourStep((s) => Math.min(tourSteps.length - 1, s + 1))}
+            onBack={() => setTourStep((s) => Math.max(0, s - 1))}
+            onSkip={() => setTourOpen(false)}
+            onFinish={() => setTourOpen(false)}
+            storageKey={adminUid ? adminTeachersTourKey(adminUid) : undefined}
+          />
         </div>
       </div>
     </div>

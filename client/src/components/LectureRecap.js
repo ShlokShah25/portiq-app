@@ -10,9 +10,16 @@ import './LectureRecap.css';
 const STAGE_W = 1000;
 const STAGE_H = 562;
 
-/** One covered slide: the rasterized image with the teacher's saved annotations rendered read-only on top. */
-function RecapSlide({ slide, index }) {
+/**
+ * One covered page — a slide (rasterized image) or a whiteboard page (blank) — with
+ * the teacher's saved annotations rendered read-only on top. Pages are shown in the
+ * order the teacher actually used them during the lecture (see the `pages` timeline
+ * server/routes/smartboard.js builds), not grouped by type, so the recap replays the
+ * lecture the way it happened — slide, then a blank page to work a problem, then back.
+ */
+function RecapPage({ page, position }) {
   const canvasElRef = useRef(null);
+  const isWhiteboard = page.type === 'whiteboard';
 
   useEffect(() => {
     if (!canvasElRef.current) return undefined;
@@ -22,19 +29,25 @@ function RecapSlide({ slide, index }) {
       width: STAGE_W,
       height: STAGE_H,
     });
-    if (slide.annotations) {
-      canvas.loadFromJSON(slide.annotations).then(() => canvas.renderAll());
+    if (page.annotations) {
+      canvas.loadFromJSON(page.annotations).then(() => canvas.renderAll());
     }
     return () => canvas.dispose();
-  }, [slide.annotations]);
+  }, [page.annotations]);
 
   return (
-    <figure className="lecture-recap-slide">
+    <figure className={`lecture-recap-slide${isWhiteboard ? ' lecture-recap-slide--whiteboard' : ''}`}>
       <div className="lecture-recap-slide__stage" style={{ aspectRatio: `${STAGE_W} / ${STAGE_H}` }}>
-        <img className="lecture-recap-slide__img" src={slide.imageUrl} alt={`Slide ${index + 1}`} />
+        {isWhiteboard ? (
+          <div className="lecture-recap-slide__whiteboard-bg" aria-hidden />
+        ) : (
+          <img className="lecture-recap-slide__img" src={page.imageUrl} alt={`Slide ${position}`} />
+        )}
         <canvas ref={canvasElRef} className="lecture-recap-slide__canvas" />
       </div>
-      <figcaption>Slide {index + 1}</figcaption>
+      <figcaption>
+        {position}. {isWhiteboard ? 'Whiteboard' : 'Slide'}
+      </figcaption>
     </figure>
   );
 }
@@ -174,12 +187,12 @@ export default function LectureRecap() {
           </p>
         </header>
 
-        {data.slides.length > 0 && (
+        {(data.pages || data.slides || []).length > 0 && (
           <section className="lecture-recap-slides">
-            <h2>Slides covered in class</h2>
+            <h2>Covered in class</h2>
             <div className="lecture-recap-slides__grid">
-              {data.slides.map((s, i) => (
-                <RecapSlide key={s.index} slide={s} index={i} />
+              {(data.pages || data.slides || []).map((p, i) => (
+                <RecapPage key={`${p.type || 'slide'}-${p.index}`} page={p} position={i + 1} />
               ))}
             </div>
           </section>

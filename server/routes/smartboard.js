@@ -206,6 +206,81 @@ teacherRouter.put('/:id/slides/:index/annotations', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Live lecture: whiteboard pages (blank canvas, alternative to slides).
+// Mirrors the slide endpoints above — same "touched implies shown" rule, same
+// Fabric.js JSON blob shape — so the client can treat both page types almost
+// identically once fetched.
+// ---------------------------------------------------------------------------
+
+const MAX_WHITEBOARD_PAGES = 30; // generous for a single lecture; guards against runaway growth
+
+/** Add a new blank whiteboard page and return the full updated page list. */
+teacherRouter.post('/:id/whiteboard/pages', async (req, res) => {
+  try {
+    const meeting = await Meeting.findById(req.params.id);
+    if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
+    const admin = await getAdminFromRequest(req);
+    if (!canAccessMeeting(meeting, admin)) return res.status(404).json({ error: 'Meeting not found' });
+
+    if (!meeting.whiteboard) meeting.whiteboard = { pages: [] };
+    const pages = meeting.whiteboard.pages || [];
+    if (pages.length >= MAX_WHITEBOARD_PAGES) {
+      return res.status(400).json({ error: `Whiteboard page limit reached (${MAX_WHITEBOARD_PAGES}).` });
+    }
+    const nextIndex = pages.length ? Math.max(...pages.map((p) => p.index)) + 1 : 0;
+    pages.push({ index: nextIndex, annotations: null, touchedAt: null, updatedAt: null });
+    meeting.whiteboard.pages = pages;
+    await meeting.save();
+    res.json({ success: true, pages: meeting.whiteboard.pages });
+  } catch (error) {
+    console.error('Error adding whiteboard page:', error);
+    res.status(500).json({ error: 'Failed to add whiteboard page' });
+  }
+});
+
+/** Mark a whiteboard page as shown (navigated to), even before anything is drawn on it. */
+teacherRouter.post('/:id/whiteboard/pages/:index/shown', async (req, res) => {
+  try {
+    const meeting = await Meeting.findById(req.params.id);
+    if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
+    const admin = await getAdminFromRequest(req);
+    if (!canAccessMeeting(meeting, admin)) return res.status(404).json({ error: 'Meeting not found' });
+
+    const idx = parseInt(req.params.index, 10);
+    const page = (meeting.whiteboard?.pages || []).find((p) => p.index === idx);
+    if (!page) return res.status(404).json({ error: 'Whiteboard page not found' });
+    if (!page.touchedAt) page.touchedAt = new Date();
+    await meeting.save();
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error marking whiteboard page shown:', error);
+    res.status(500).json({ error: 'Failed to update whiteboard page' });
+  }
+});
+
+teacherRouter.put('/:id/whiteboard/pages/:index/annotations', async (req, res) => {
+  try {
+    const meeting = await Meeting.findById(req.params.id);
+    if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
+    const admin = await getAdminFromRequest(req);
+    if (!canAccessMeeting(meeting, admin)) return res.status(404).json({ error: 'Meeting not found' });
+
+    const idx = parseInt(req.params.index, 10);
+    const page = (meeting.whiteboard?.pages || []).find((p) => p.index === idx);
+    if (!page) return res.status(404).json({ error: 'Whiteboard page not found' });
+
+    page.annotations = req.body?.annotations ?? null;
+    page.updatedAt = new Date();
+    if (!page.touchedAt) page.touchedAt = new Date();
+    await meeting.save();
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error saving whiteboard annotations:', error);
+    res.status(500).json({ error: 'Failed to save whiteboard annotations' });
+  }
+});
+
+// ---------------------------------------------------------------------------
 // Quiz generation — one GPT call over the (already-generated) lecture summary.
 // Deliberately separate from the main summary pipeline in meetingTranscription.js:
 // if this call fails, the lecture summary/email flow is completely unaffected.
@@ -349,10 +424,30 @@ publicRouter.get('/:token', async (req, res) => {
     const meeting = await Meeting.findOne({ recapToken: req.params.token });
     if (!meeting) return res.status(404).json({ error: 'This lecture recap link is invalid or has expired.' });
 
+    // Unified chronological timeline: slides and whiteboard pages the teacher
+    // actually showed, interleaved in the order they were used during the lecture
+    // (not slides-then-whiteboard) — a teacher may hop back and forth between the
+    // two, and the recap should replay it the way it happened.
     const shownSlides = (meeting.slideDeck?.slides || [])
       .filter((s) => !!s.shownAt)
-      .sort((a, b) => a.index - b.index)
-      .map((s) => ({ index: s.index, imageUrl: s.imageUrl, annotations: s.annotations }));
+      .map((s) => ({
+        type: 'slide',
+        index: s.index,
+        imageUrl: s.imageUrl,
+        annotations: s.annotations,
+        at: s.shownAt,
+      }));
+    const shownWhiteboardPages = (meeting.whiteboard?.pages || [])
+      .filter((p) => !!p.touchedAt)
+      .map((p) => ({
+        type: 'whiteboard',
+        index: p.index,
+        annotations: p.annotations,
+        at: p.touchedAt,
+      }));
+    const pages = [...shownSlides, ...shownWhiteboardPages]
+      .sort((a, b) => new Date(a.at) - new Date(b.at))
+      .map(({ at, ...rest }) => rest);
 
     // Strip answers — the public view never reveals correctIndex/explanation up front.
     const quizQuestions = (meeting.quiz?.questions || []).map((q, i) => ({
@@ -369,7 +464,10 @@ publicRouter.get('/:token', async (req, res) => {
       summary: meeting.summary || '',
       keyPoints: meeting.keyPoints || [],
       revisionQuestions: meeting.revisionQuestions || '',
-      slides: shownSlides,
+      pages,
+      // Back-compat alias: older recap clients (or anyone hitting this API directly)
+      // read `slides`. Kept as slide-only entries in slide order.
+      slides: shownSlides.map(({ type, at, ...rest }) => rest).sort((a, b) => a.index - b.index),
       quiz: quizQuestions,
     });
   } catch (error) {

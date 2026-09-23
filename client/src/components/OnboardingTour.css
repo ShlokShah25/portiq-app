@@ -1,0 +1,208 @@
+/* OnboardingTour — reusable guided-tour overlay.
+   Spotlight is a genuine SVG-mask cutout (see OnboardingTour.js header
+   comment) rather than a z-index trick, so it works no matter what
+   stacking-context CSS the target's ancestors use. */
+
+.onboarding-tour {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.onboarding-tour__click-catcher {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  background: transparent;
+  cursor: default;
+}
+
+.onboarding-tour__mask-svg {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 20001;
+  pointer-events: none;
+}
+
+.onboarding-tour__ring {
+  position: fixed;
+  z-index: 20002;
+  border: 2px solid rgba(59, 130, 246, 0.95);
+  border-radius: 12px;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.35) inset,
+    0 12px 30px rgba(37, 99, 235, 0.28);
+  pointer-events: none;
+  transition: top 0.18s var(--ease-out, ease), left 0.18s var(--ease-out, ease),
+    width 0.18s var(--ease-out, ease), height 0.18s var(--ease-out, ease);
+}
+
+.onboarding-tour__card {
+  position: relative;
+  z-index: 20003;
+  width: min(440px, calc(100vw - 24px));
+  overflow: hidden;
+  border-radius: 16px;
+  border: 2px solid var(--border-color);
+  background: var(--surface-card, var(--surface-secondary));
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 24px 48px rgba(2, 6, 23, 0.38);
+  padding: 22px 22px 20px;
+}
+
+.onboarding-tour__card--centered {
+  position: relative;
+  margin: auto;
+}
+
+.onboarding-tour__card--spotlight {
+  transition: top 0.18s var(--ease-out, ease), left 0.18s var(--ease-out, ease);
+}
+
+.onboarding-tour__card-accent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #2563eb 0%, #7c3aed 50%, #0ea5e9 100%);
+  opacity: 0.95;
+}
+
+.onboarding-tour__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.onboarding-tour__icon-wrap {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(37, 99, 235, 0.2) 0%, rgba(124, 58, 237, 0.12) 100%);
+  border: 2px solid rgba(59, 130, 246, 0.35);
+  color: var(--accent-blue, #3b82f6);
+}
+
+.onboarding-tour__icon {
+  flex-shrink: 0;
+}
+
+.onboarding-tour__head-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.onboarding-tour__eyebrow {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+
+.onboarding-tour__step {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.onboarding-tour__dots {
+  display: flex;
+  gap: 6px;
+  margin: 0 0 14px;
+}
+
+.onboarding-tour__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--border-strong, rgba(148, 163, 184, 0.45));
+  opacity: 0.55;
+}
+
+.onboarding-tour__dot--active {
+  width: 22px;
+  opacity: 1;
+  background: linear-gradient(90deg, #2563eb, #7c3aed);
+}
+
+.onboarding-tour__title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  color: var(--text-primary);
+}
+
+.onboarding-tour__body {
+  margin: 10px 0 0;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.onboarding-tour__actions {
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.onboarding-tour__btn {
+  border-radius: 10px;
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background var(--dur-fast, 0.15s) ease, transform var(--dur-fast, 0.15s) ease,
+    border-color var(--dur-fast, 0.15s) ease;
+}
+
+.onboarding-tour__btn--ghost {
+  background: var(--pill-muted-bg, rgba(255, 255, 255, 0.05));
+  border-color: var(--border-color);
+  color: var(--text-secondary);
+}
+
+.onboarding-tour__btn--ghost:hover {
+  background: var(--dash-chip-hover-bg, rgba(255, 255, 255, 0.08));
+  color: var(--text-primary);
+}
+
+.onboarding-tour__btn--primary {
+  background: var(--accent-blue, #2563eb);
+  color: #ffffff;
+}
+
+.onboarding-tour__btn--primary:hover {
+  background: var(--accent-primary-hover, #1d4ed8);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 480px) {
+  .onboarding-tour__card {
+    padding: 18px 18px 16px;
+  }
+
+  .onboarding-tour__title {
+    font-size: 19px;
+  }
+}

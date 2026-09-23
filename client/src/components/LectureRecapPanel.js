@@ -7,7 +7,9 @@ import './LectureRecapPanel.css';
  * Post-lecture panel on MeetingSummary.js: generate the 5-question quiz (needs the
  * finished summary, which is why this lives here and not on the live Smartboard panel
  * in MeetingInProgress.js) and email the interactive recap link to the class.
- * Only rendered when this lecture has a slide deck — see server/routes/smartboard.js.
+ * Rendered when this lecture has either an uploaded slide deck or any touched
+ * whiteboard pages — a teacher who only used the whiteboard still gets a recap.
+ * See server/routes/smartboard.js.
  */
 export default function LectureRecapPanel({ meeting, onQuizGenerated }) {
   const [quizBusy, setQuizBusy] = useState(false);
@@ -17,9 +19,11 @@ export default function LectureRecapPanel({ meeting, onQuizGenerated }) {
   const [recapUrl, setRecapUrl] = useState('');
 
   const slideCount = (meeting?.slideDeck?.slides || []).filter((s) => s.shownAt).length;
+  const whiteboardCount = (meeting?.whiteboard?.pages || []).filter((p) => p.touchedAt).length;
+  const pageCount = slideCount + whiteboardCount;
   const hasQuiz = (meeting?.quiz?.questions || []).length > 0;
 
-  if (!meeting?.slideDeck || (meeting.slideDeck.slides || []).length === 0) return null;
+  if (pageCount === 0) return null;
 
   const handleGenerateQuiz = async () => {
     setQuizBusy(true);
@@ -53,11 +57,11 @@ export default function LectureRecapPanel({ meeting, onQuizGenerated }) {
     <div className="lecture-recap-panel">
       <div className="lecture-recap-panel__head">
         <h2 className="meeting-summary-heading">Interactive lecture recap</h2>
-        <span className="lecture-recap-panel__meta">{slideCount} slide{slideCount === 1 ? '' : 's'} covered</span>
+        <span className="lecture-recap-panel__meta">{pageCount} page{pageCount === 1 ? '' : 's'} covered</span>
       </div>
       <p className="lecture-recap-panel__body">
-        Give students the slides you actually covered — with your notes on them — plus this lecture's summary and
-        a 5-question quiz to check their understanding.
+        Give students what you actually covered — slides and whiteboard pages, with your notes on them, in the order
+        you used them — plus this lecture's summary and a 5-question quiz to check their understanding.
       </p>
       <div className="lecture-recap-panel__actions">
         <button type="button" className="meeting-summary-btn meeting-summary-btn--secondary" onClick={handleGenerateQuiz} disabled={quizBusy}>

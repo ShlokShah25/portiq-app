@@ -1,16 +1,54 @@
 .smartboard {
   margin: 20px 0;
-  padding: 16px;
+  padding: 18px;
   border-radius: var(--radius-card, 16px);
   background: var(--surface-card);
   border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-soft-sm);
 }
 
 .smartboard__head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  margin-bottom: 10px;
+  gap: 12px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.smartboard__mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--dash-chip-bg);
+  border: 1px solid var(--border-color);
+}
+
+.smartboard__mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--dur-fast, 0.15s) var(--ease-out), color var(--dur-fast, 0.15s) var(--ease-out);
+}
+
+.smartboard__mode-btn:hover {
+  color: var(--text-primary);
+}
+
+.smartboard__mode-btn.is-active {
+  background: var(--accent-blue);
+  color: #fff;
+  box-shadow: 0 2px 8px -2px rgba(37, 99, 235, 0.45);
 }
 
 .smartboard__title {
@@ -85,17 +123,40 @@
 .smartboard__toolbar {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   flex-wrap: wrap;
-  padding: 8px 10px;
+  padding: 10px 12px;
   border-radius: var(--radius-soft, 12px);
   background: var(--dash-chip-bg);
-  margin-bottom: 10px;
+  border: 1px solid var(--border-color);
+  margin-bottom: 12px;
+}
+
+.smartboard__tool-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-right: 12px;
+  border-right: 1px solid var(--divider);
+}
+
+.smartboard__tool-group:last-child {
+  padding-right: 0;
+  border-right: none;
+  margin-left: auto;
 }
 
 .smartboard__colors {
   display: flex;
+  align-items: center;
   gap: 6px;
+  padding-right: 12px;
+  border-right: 1px solid var(--divider);
+  transition: opacity var(--dur-fast, 0.15s) var(--ease-out);
+}
+
+.smartboard__colors[aria-hidden='true'] {
+  opacity: 0.35;
 }
 
 .smartboard__color-swatch {
@@ -138,6 +199,12 @@
 .smartboard__tool-btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+.smartboard__tool-btn.is-active {
+  background: var(--accent-blue-dim, var(--accent-blue));
+  border-color: var(--accent-blue);
+  color: var(--badge-text, #fff);
 }
 
 .smartboard__tool-btn--accent {
@@ -184,6 +251,15 @@
   width: 100% !important;
   height: 100% !important;
   cursor: crosshair;
+}
+
+.smartboard__whiteboard-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(var(--divider) 1px, transparent 1px) 0 0 / 100% 32px,
+    #fdfdfd;
+  opacity: 0.97;
 }
 
 .smartboard__nav {

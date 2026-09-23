@@ -6,7 +6,14 @@ import { BookOpen, GraduationCap, Layers, Lightbulb, Zap } from 'lucide-react';
 import { listCourses } from '../utils/coursesApi';
 import { T } from '../config/terminology';
 import { TEACHER_FACULTY_TIPS, pickTipIndex, TIP_ROTATION_MS } from '../config/dashboardTips';
+import OnboardingTour, { hasSeenTour } from './OnboardingTour';
 import './Dashboard.css';
+
+/** Same key pattern the teacher live-room tour (MeetingInProgress.js) reads to
+ * know whether this first leg of the tour was already seen/skipped. */
+export function teacherDashboardTourKey(uid) {
+  return `portiq_teacher_onboarding_v1_${uid}`;
+}
 
 function buildParticipantsFromSemester(semester) {
   if (!semester || !Array.isArray(semester.studentRoster)) return [];
@@ -65,7 +72,6 @@ export default function TeacherDashboard() {
   const [tipIndex, setTipIndex] = useState(() =>
     pickTipIndex('portiq_teacher_tip_idx', TEACHER_FACULTY_TIPS.length)
   );
-  const [spotlightRect, setSpotlightRect] = useState(null);
   const courseFieldRef = useRef(null);
   const semesterFieldRef = useRef(null);
   const subjectFieldRef = useRef(null);
@@ -116,58 +122,39 @@ export default function TeacherDashboard() {
     'Teacher';
   const teacherEmail = String(profile?.email || '').trim().toLowerCase();
 
-  const onboardingSteps = [
-    {
-      title: 'Choose your course',
-      body: 'Select the course you are teaching (e.g. MBA Tech AI). Your admin sets these up, along with semesters and rosters.',
-      target: 'course',
-      Icon: GraduationCap,
-    },
-    {
-      title: 'Pick the semester',
-      body: 'The roster for this semester is linked automatically so your session stays aligned with that batch.',
-      target: 'semester',
-      Icon: Layers,
-    },
-    {
-      title: 'Select the subject',
-      body: 'Match the subject you are covering today. Notes and summaries stay grouped by subject for easy review later.',
-      target: 'subject',
-      Icon: BookOpen,
-    },
-    {
-      title: 'Go live in one tap',
-      body: 'Hit Start lecture to open the room with recording and live notes ready—no extra setup.',
-      target: 'start',
-      Icon: Zap,
-    },
-  ];
-
-  const currentStep = onboardingSteps[onboardingStep] || onboardingSteps[0];
-  const StepIcon = currentStep?.Icon;
-
-  const updateSpotlightRect = () => {
-    if (!onboardingOpen) return;
-    const target =
-      currentStep?.target === 'course'
-        ? courseFieldRef.current
-        : currentStep?.target === 'semester'
-          ? semesterFieldRef.current
-          : currentStep?.target === 'subject'
-            ? subjectFieldRef.current
-            : startButtonRef.current;
-    if (!target) return;
-    const rect = target.getBoundingClientRect();
-    const pad = 8;
-    setSpotlightRect({
-      top: rect.top - pad,
-      left: rect.left - pad,
-      width: rect.width + pad * 2,
-      height: rect.height + pad * 2,
-      cardTop: rect.bottom + 14,
-      cardLeft: rect.left,
-    });
-  };
+  const onboardingSteps = useMemo(
+    () => [
+      {
+        id: 'course',
+        title: 'Choose your course',
+        body: 'Select the course you are teaching (e.g. MBA Tech AI). Your admin sets these up, along with semesters and rosters.',
+        target: courseFieldRef,
+        icon: GraduationCap,
+      },
+      {
+        id: 'semester',
+        title: 'Pick the semester',
+        body: 'The roster for this semester is linked automatically so your session stays aligned with that batch.',
+        target: semesterFieldRef,
+        icon: Layers,
+      },
+      {
+        id: 'subject',
+        title: 'Select the subject',
+        body: 'Match the subject you are covering today. Notes and summaries stay grouped by subject for easy review later.',
+        target: subjectFieldRef,
+        icon: BookOpen,
+      },
+      {
+        id: 'start',
+        title: 'Go live in one tap',
+        body: 'Hit Start lecture to open the room with recording and live notes ready—no extra setup.',
+        target: startButtonRef,
+        icon: Zap,
+      },
+    ],
+    []
+  );
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -179,42 +166,13 @@ export default function TeacherDashboard() {
   useEffect(() => {
     const uid = String(profile?.id || profile?._id || profile?.email || '').trim();
     if (!uid) return;
-    const key = `portiq_teacher_onboarding_v1_${uid}`;
-    try {
-      const done = window.localStorage.getItem(key) === '1';
-      if (!done) {
-        setOnboardingOpen(true);
-        setOnboardingStep(0);
-      }
-    } catch (_) {
+    if (!hasSeenTour(teacherDashboardTourKey(uid))) {
       setOnboardingOpen(true);
       setOnboardingStep(0);
     }
   }, [profile?.id, profile?._id, profile?.email]);
 
-  useEffect(() => {
-    if (!onboardingOpen) return undefined;
-    updateSpotlightRect();
-    const onResize = () => updateSpotlightRect();
-    window.addEventListener('resize', onResize);
-    window.addEventListener('scroll', onResize, true);
-    return () => {
-      window.removeEventListener('resize', onResize);
-      window.removeEventListener('scroll', onResize, true);
-    };
-  }, [onboardingOpen, onboardingStep]);
-
-  const closeOnboarding = (markDone = true) => {
-    const uid = String(profile?.id || profile?._id || profile?.email || '').trim();
-    if (markDone && uid) {
-      try {
-        window.localStorage.setItem(`portiq_teacher_onboarding_v1_${uid}`, '1');
-      } catch (_) {
-        // ignore
-      }
-    }
-    setOnboardingOpen(false);
-  };
+  const teacherUid = String(profile?.id || profile?._id || profile?.email || '').trim();
 
   useEffect(() => {
     const syncLocalDay = () => {
@@ -422,9 +380,7 @@ export default function TeacherDashboard() {
               </div>
               <div
                 ref={courseFieldRef}
-                className={`dashboard-education-pill dashboard-education-pill--wide dashboard-teacher-card${
-                  onboardingOpen && currentStep?.target === 'course' ? ' dashboard-teacher-focus' : ''
-                }`}
+                className="dashboard-education-pill dashboard-education-pill--wide dashboard-teacher-card"
               >
                 <span className="dashboard-education-pill__k">Course</span>
                 <select
@@ -446,9 +402,7 @@ export default function TeacherDashboard() {
               </div>
               <div
                 ref={semesterFieldRef}
-                className={`dashboard-education-pill dashboard-education-pill--wide dashboard-teacher-card${
-                  onboardingOpen && currentStep?.target === 'semester' ? ' dashboard-teacher-focus' : ''
-                }`}
+                className="dashboard-education-pill dashboard-education-pill--wide dashboard-teacher-card"
               >
                 <span className="dashboard-education-pill__k">Semester</span>
                 <select
@@ -469,9 +423,7 @@ export default function TeacherDashboard() {
               </div>
               <div
                 ref={subjectFieldRef}
-                className={`dashboard-education-pill dashboard-education-pill--wide dashboard-teacher-card${
-                  onboardingOpen && currentStep?.target === 'subject' ? ' dashboard-teacher-focus' : ''
-                }`}
+                className="dashboard-education-pill dashboard-education-pill--wide dashboard-teacher-card"
               >
                 <span className="dashboard-education-pill__k">Subject</span>
                 <select
@@ -497,9 +449,7 @@ export default function TeacherDashboard() {
               <button
                 ref={startButtonRef}
                 type="button"
-                className={`dashboard-btn-primary dashboard-btn-primary--hero dashboard-btn-micro${
-                  onboardingOpen && currentStep?.target === 'start' ? ' dashboard-teacher-focus-btn' : ''
-                }`}
+                className="dashboard-btn-primary dashboard-btn-primary--hero dashboard-btn-micro"
                 onClick={handleCreateAndStart}
                 disabled={creating}
               >
@@ -573,108 +523,16 @@ export default function TeacherDashboard() {
             </span>
           </div>
 
-          {onboardingOpen && (
-            <div className="dashboard-teacher-tour" role="dialog" aria-modal="true">
-              <div className="dashboard-teacher-tour__backdrop" onClick={() => closeOnboarding(true)} />
-              {spotlightRect && (
-                <div
-                  className="dashboard-teacher-tour__spotlight"
-                  style={{
-                    top: `${spotlightRect.top}px`,
-                    left: `${spotlightRect.left}px`,
-                    width: `${spotlightRect.width}px`,
-                    height: `${spotlightRect.height}px`,
-                  }}
-                />
-              )}
-              <div
-                className="dashboard-teacher-tour__card dashboard-teacher-tour__card--spotlight"
-                style={
-                  spotlightRect
-                    ? {
-                        top: `${Math.min(
-                          spotlightRect.cardTop,
-                          window.innerHeight - 210
-                        )}px`,
-                        left: `${Math.min(
-                          spotlightRect.cardLeft,
-                          window.innerWidth - 460
-                        )}px`,
-                      }
-                    : undefined
-                }
-              >
-                <div className="dashboard-teacher-tour__card-accent" aria-hidden />
-                <div className="dashboard-teacher-tour__head">
-                  {StepIcon ? (
-                    <div className="dashboard-teacher-tour__icon-wrap">
-                      <StepIcon
-                        className="dashboard-teacher-tour__icon"
-                        size={28}
-                        strokeWidth={1.75}
-                        aria-hidden
-                      />
-                    </div>
-                  ) : null}
-                  <div className="dashboard-teacher-tour__head-text">
-                    <p className="dashboard-teacher-tour__eyebrow">Your quick tour</p>
-                    <p className="dashboard-teacher-tour__step">
-                      Step {onboardingStep + 1} of {onboardingSteps.length}
-                    </p>
-                  </div>
-                </div>
-                <div className="dashboard-teacher-tour__dots" role="tablist" aria-label="Tour progress">
-                  {onboardingSteps.map((_, i) => (
-                    <span
-                      key={String(i)}
-                      className={
-                        i === onboardingStep
-                          ? 'dashboard-teacher-tour__dot dashboard-teacher-tour__dot--active'
-                          : 'dashboard-teacher-tour__dot'
-                      }
-                    />
-                  ))}
-                </div>
-                <h3 className="dashboard-teacher-tour__title">{currentStep.title}</h3>
-                <p className="dashboard-teacher-tour__body">{currentStep.body}</p>
-                <div className="dashboard-teacher-tour__actions">
-                  <button
-                    type="button"
-                    className="dashboard-btn-secondary dashboard-btn-micro"
-                    onClick={() => closeOnboarding(true)}
-                  >
-                    Skip
-                  </button>
-                  {onboardingStep > 0 ? (
-                    <button
-                      type="button"
-                      className="dashboard-btn-secondary dashboard-btn-micro"
-                      onClick={() => setOnboardingStep((s) => Math.max(0, s - 1))}
-                    >
-                      Back
-                    </button>
-                  ) : null}
-                  {onboardingStep < onboardingSteps.length - 1 ? (
-                    <button
-                      type="button"
-                      className="dashboard-btn-primary dashboard-btn-micro"
-                      onClick={() => setOnboardingStep((s) => Math.min(onboardingSteps.length - 1, s + 1))}
-                    >
-                      Next
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className="dashboard-btn-primary dashboard-btn-micro"
-                      onClick={() => closeOnboarding(true)}
-                    >
-                      Finish
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
+          <OnboardingTour
+            steps={onboardingSteps}
+            open={onboardingOpen}
+            currentStep={onboardingStep}
+            onNext={() => setOnboardingStep((s) => Math.min(onboardingSteps.length - 1, s + 1))}
+            onBack={() => setOnboardingStep((s) => Math.max(0, s - 1))}
+            onSkip={() => setOnboardingOpen(false)}
+            onFinish={() => setOnboardingOpen(false)}
+            storageKey={teacherUid ? teacherDashboardTourKey(teacherUid) : undefined}
+          />
         </div>
       </div>
     </div>

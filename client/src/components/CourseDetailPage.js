@@ -1,7 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
+import { Users, Layers } from 'lucide-react';
 import { getCourse, updateCourse, deleteCourse } from '../utils/coursesApi';
+import { useTrialExperience } from './TrialExperienceProvider';
+import OnboardingTour, { hasSeenTour } from './OnboardingTour';
 import './ClassesPage.css';
 import './ClassroomDetailPage.css';
 
@@ -10,6 +13,11 @@ const DEFAULT_LIMITS = {
   MAX_SUBJECTS_PER_SEMESTER: 15,
   MAX_STUDENTS_PER_SEMESTER: 120,
 };
+
+/** Admin onboarding, scoped to this page — distinct key from the dashboard's own tour. */
+function adminCourseDetailTourKey(uid) {
+  return `portiq_admin_onboarding_v1_${uid}_course_detail`;
+}
 
 function rowKey(prefix) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -28,6 +36,8 @@ function emptySemester() {
 const CourseDetailPage = () => {
   const { courseId } = useParams();
   const navigate = useNavigate();
+  const trial = useTrialExperience();
+  const profile = trial?.profile;
   const [course, setCourse] = useState(null);
   const [limits, setLimits] = useState(DEFAULT_LIMITS);
   const [semesters, setSemesters] = useState([]);
@@ -38,6 +48,9 @@ const CourseDetailPage = () => {
   const [notice, setNotice] = useState('');
   const [openSemesterKey, setOpenSemesterKey] = useState(null);
   const [faculty, setFaculty] = useState([]);
+  const [tourOpen, setTourOpen] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
+  const addSemesterButtonRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -91,6 +104,36 @@ const CourseDetailPage = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  const adminUid = String(profile?.id || profile?._id || profile?.email || '').trim();
+
+  useEffect(() => {
+    if (!adminUid || loading) return;
+    if (!hasSeenTour(adminCourseDetailTourKey(adminUid))) {
+      setTourOpen(true);
+      setTourStep(0);
+    }
+  }, [adminUid, loading]);
+
+  const tourSteps = useMemo(
+    () => [
+      {
+        id: 'add-semester',
+        title: 'Add a semester',
+        body: 'Each course is organized into semesters, and each semester holds its own subjects and student roster.',
+        target: addSemesterButtonRef,
+        icon: Layers,
+      },
+      {
+        id: 'assigned-faculty',
+        title: 'Assign faculty to a semester',
+        body: 'Expand a semester, then check the faculty who teach it. They will only see the semesters assigned to them on their dashboard.',
+        target: '[data-tour="course-assigned-faculty"]',
+        icon: Users,
+      },
+    ],
+    []
+  );
 
   const addSemester = () => {
     setSemesters((prev) => {
@@ -276,6 +319,16 @@ const CourseDetailPage = () => {
             </p>
           </div>
           <div className="class-detail-header-actions">
+            <button
+              type="button"
+              className="classes-btn-secondary"
+              onClick={() => {
+                setTourStep(0);
+                setTourOpen(true);
+              }}
+            >
+              Quick help
+            </button>
             <button type="button" className="classes-btn-secondary class-detail-btn-danger" onClick={handleDeleteCourse}>
               Delete course
             </button>
@@ -305,6 +358,7 @@ const CourseDetailPage = () => {
         <div className="classes-assignments-head">
           <h3>Semesters</h3>
           <button
+            ref={addSemesterButtonRef}
             type="button"
             className="classes-btn-secondary"
             onClick={addSemester}
@@ -383,7 +437,7 @@ const CourseDetailPage = () => {
                       ))}
                     </div>
 
-                    <div className="classes-assignments-head">
+                    <div className="classes-assignments-head" data-tour="course-assigned-faculty">
                       <h3>Assigned faculty ({s.assignedFacultyIds.length})</h3>
                     </div>
                     {faculty.length === 0 ? (
@@ -484,6 +538,17 @@ const CourseDetailPage = () => {
             {saving ? 'Saving…' : 'Save changes'}
           </button>
         </div>
+
+        <OnboardingTour
+          steps={tourSteps}
+          open={tourOpen}
+          currentStep={tourStep}
+          onNext={() => setTourStep((s) => Math.min(tourSteps.length - 1, s + 1))}
+          onBack={() => setTourStep((s) => Math.max(0, s - 1))}
+          onSkip={() => setTourOpen(false)}
+          onFinish={() => setTourOpen(false)}
+          storageKey={adminUid ? adminCourseDetailTourKey(adminUid) : undefined}
+        />
       </div>
     </div>
   );

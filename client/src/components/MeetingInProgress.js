@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { T } from '../config/terminology';
@@ -14,9 +14,23 @@ import {
 } from '../utils/recordingBlobStore';
 import { isEducation } from '../config/product';
 import Smartboard from './Smartboard';
+import OnboardingTour, { hasSeenTour } from './OnboardingTour';
+import { Upload, Presentation, PenLine, ListOrdered, Mic, Sparkles } from 'lucide-react';
 import './MeetingSummary.css';
 import './MeetingInProgress.css';
 import './MeetingDetail.css';
+
+/** Same key pattern the teacher dashboard tour (TeacherDashboard.js) writes,
+ * so this live-room leg only auto-opens after that first leg was seen (or
+ * skipped) — one continuous first-time tour spanning two routes. */
+function teacherDashboardTourKey(uid) {
+  return `portiq_teacher_onboarding_v1_${uid}`;
+}
+
+/** This screen's own leg of the same tour — separate key so it only shows once. */
+function teacherLiveRoomTourKey(uid) {
+  return `portiq_teacher_onboarding_v1_${uid}_live`;
+}
 
 function meetingHasEducationContext(m) {
   if (!m || typeof m !== 'object') return false;
@@ -246,6 +260,8 @@ const MeetingInProgress = () => {
   const [liveTranscript, setLiveTranscript] = useState('');
   const [liveTranscriptEntries, setLiveTranscriptEntries] = useState([]);
   const [liveTranscriptError, setLiveTranscriptError] = useState('');
+  const [liveTourOpen, setLiveTourOpen] = useState(false);
+  const [liveTourStep, setLiveTourStep] = useState(0);
   const mediaRecorderRef = React.useRef(null);
   const streamRef = React.useRef(null);
   const isMountedRef = useRef(true);
@@ -863,6 +879,77 @@ const MeetingInProgress = () => {
     }
   };
 
+  // Continue the teacher onboarding tour into the live room — but only once
+  // the dashboard leg (TeacherDashboard.js) has itself been seen or skipped,
+  // and only once, and only for education-mode lectures.
+  useEffect(() => {
+    if (!meeting || meetingEnded) return;
+    if (!(meetingHasEducationContext(meeting) || isEducation)) return;
+    const uid = String(meeting.educationTeacherEmail || '').trim().toLowerCase();
+    if (!uid) return;
+    if (!hasSeenTour(teacherDashboardTourKey(uid))) return;
+    if (hasSeenTour(teacherLiveRoomTourKey(uid))) return;
+    setLiveTourOpen(true);
+    setLiveTourStep(0);
+  }, [meeting, meetingEnded]);
+
+  const liveTourUid = String(meeting?.educationTeacherEmail || '').trim().toLowerCase();
+
+  const liveTourSteps = useMemo(
+    () => [
+      {
+        id: 'smartboard-intro',
+        title: 'Set up your board',
+        body: 'Upload slides or start a blank whiteboard page below — that unlocks the drawing tools for this step.',
+        target: null,
+        icon: Upload,
+      },
+      {
+        id: 'smartboard-mode',
+        title: 'Slides or Whiteboard',
+        body: 'Switch between Slides and Whiteboard anytime, even mid-lecture — your students always see the current one.',
+        target: '[data-tour="smartboard-mode"]',
+        icon: Presentation,
+      },
+      {
+        id: 'smartboard-tools',
+        title: 'Draw and annotate',
+        body: 'Pick a pen color and width, or switch to the eraser — click a stroke to remove just that one. Undo and Clear are here too.',
+        target: '[data-tour="smartboard-tools"]',
+        icon: PenLine,
+      },
+      {
+        id: 'smartboard-stage',
+        title: 'Your stage',
+        body: 'This is where you draw. Slides letterbox here so you can annotate over them; whiteboard pages start blank.',
+        target: '[data-tour="smartboard-stage"]',
+        icon: Presentation,
+      },
+      {
+        id: 'smartboard-nav',
+        title: 'Pages',
+        body: 'Move between slides or whiteboard pages here. "New page" adds a blank one; "Replace deck" swaps in a different PDF.',
+        target: '[data-tour="smartboard-nav"]',
+        icon: ListOrdered,
+      },
+      {
+        id: 'start-recording',
+        title: 'Start recording',
+        body: 'Recording captures audio for the transcript and AI summary. Start it whenever the lecture begins.',
+        target: '[data-tour="mip-start-recording"]',
+        icon: Mic,
+      },
+      {
+        id: 'end-meeting',
+        title: 'Ending the lecture',
+        body: "End Lecture once you're done. Students automatically get an AI summary, a quiz, and a full slide/whiteboard recap — no extra steps.",
+        target: '[data-tour="mip-end-meeting"]',
+        icon: Sparkles,
+      },
+    ],
+    []
+  );
+
   const formatTime = (seconds) => {
     const hrs = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
@@ -970,6 +1057,7 @@ const MeetingInProgress = () => {
       className={className}
       onClick={handleEndMeeting}
       disabled={uploading}
+      data-tour={meetingEducationMode ? 'mip-end-meeting' : undefined}
     >
       {uploading ? 'Uploading…' : endMeetingLabel}
     </button>
@@ -1073,7 +1161,12 @@ const MeetingInProgress = () => {
                           ? 'By starting recording, you confirm the patient is aware audio is captured for your visit summary.'
                           : 'By starting recording, you confirm participants are aware audio is captured for transcription and summary.'}
                       </p>
-                      <button type="button" className="mip-recording-hero__start" onClick={startRecording}>
+                      <button
+                        type="button"
+                        className="mip-recording-hero__start"
+                        onClick={startRecording}
+                        data-tour={meetingEducationMode ? 'mip-start-recording' : undefined}
+                      >
                         Start Recording
                       </button>
                     </>
@@ -1194,7 +1287,22 @@ const MeetingInProgress = () => {
                   meetingId={meeting._id}
                   slideDeck={meeting.slideDeck}
                   onSlideDeckChange={(slideDeck) => setMeeting((m) => (m ? { ...m, slideDeck } : m))}
+                  whiteboard={meeting.whiteboard}
+                  onWhiteboardChange={(whiteboard) => setMeeting((m) => (m ? { ...m, whiteboard } : m))}
                   disabled={false}
+                />
+              )}
+
+              {meetingEducationMode && (
+                <OnboardingTour
+                  steps={liveTourSteps}
+                  open={liveTourOpen}
+                  currentStep={liveTourStep}
+                  onNext={() => setLiveTourStep((s) => Math.min(liveTourSteps.length - 1, s + 1))}
+                  onBack={() => setLiveTourStep((s) => Math.max(0, s - 1))}
+                  onSkip={() => setLiveTourOpen(false)}
+                  onFinish={() => setLiveTourOpen(false)}
+                  storageKey={liveTourUid ? teacherLiveRoomTourKey(liveTourUid) : undefined}
                 />
               )}
 

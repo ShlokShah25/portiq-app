@@ -1,6 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { GraduationCap } from 'lucide-react';
 import { listCourses, createCourse, deleteCourse, updateCourse } from '../utils/coursesApi';
+import { useTrialExperience } from './TrialExperienceProvider';
+import OnboardingTour, { hasSeenTour } from './OnboardingTour';
 import './ClassesPage.css';
 
 const DEFAULT_LIMITS = {
@@ -10,7 +13,14 @@ const DEFAULT_LIMITS = {
   MAX_STUDENTS_PER_SEMESTER: 120,
 };
 
+/** Admin onboarding, scoped to this page — distinct key from the dashboard's own tour. */
+function adminCoursesTourKey(uid) {
+  return `portiq_admin_onboarding_v1_${uid}_courses`;
+}
+
 const CoursesPage = () => {
+  const trial = useTrialExperience();
+  const profile = trial?.profile;
   const [courses, setCourses] = useState([]);
   const [limits, setLimits] = useState(DEFAULT_LIMITS);
   const [loading, setLoading] = useState(true);
@@ -20,6 +30,10 @@ const CoursesPage = () => {
   const [renamingId, setRenamingId] = useState(null);
   const [renameValue, setRenameValue] = useState('');
   const [saving, setSaving] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
+  const nameFieldRef = useRef(null);
+  const createButtonRef = useRef(null);
 
   const load = async () => {
     setLoading(true);
@@ -40,6 +54,36 @@ const CoursesPage = () => {
   useEffect(() => {
     load();
   }, []);
+
+  const adminUid = String(profile?.id || profile?._id || profile?.email || '').trim();
+
+  useEffect(() => {
+    if (!adminUid) return;
+    if (!hasSeenTour(adminCoursesTourKey(adminUid))) {
+      setTourOpen(true);
+      setTourStep(0);
+    }
+  }, [adminUid]);
+
+  const tourSteps = useMemo(
+    () => [
+      {
+        id: 'name',
+        title: 'Set up your academic structure',
+        body: 'Name a course (e.g. MBA Tech AI). Once created, you add semesters, subjects, and student rosters inside it.',
+        target: nameFieldRef,
+        icon: GraduationCap,
+      },
+      {
+        id: 'create',
+        title: 'Faculty pick from this',
+        body: 'Teachers select course, semester, and subject from what you set up here when they start a lecture — no duplicate data entry.',
+        target: createButtonRef,
+        icon: GraduationCap,
+      },
+    ],
+    []
+  );
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -119,6 +163,17 @@ const CoursesPage = () => {
             {limits.MAX_SEMESTERS_PER_COURSE} semesters/course, {limits.MAX_SUBJECTS_PER_SEMESTER}{' '}
             subjects/semester, {limits.MAX_STUDENTS_PER_SEMESTER} students/semester.
           </p>
+          <button
+            type="button"
+            className="classes-btn-secondary"
+            style={{ marginTop: 12 }}
+            onClick={() => {
+              setTourStep(0);
+              setTourOpen(true);
+            }}
+          >
+            Quick help
+          </button>
         </div>
 
         <form className="classes-form" onSubmit={handleCreate}>
@@ -126,6 +181,7 @@ const CoursesPage = () => {
             <label>
               Course name
               <input
+                ref={nameFieldRef}
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 placeholder="e.g. MBA Tech AI"
@@ -135,7 +191,12 @@ const CoursesPage = () => {
           </div>
           {error ? <p className="classes-error">{error}</p> : null}
           <div className="classes-form-actions">
-            <button type="submit" className="classes-btn-primary" disabled={saving || courses.length >= limits.MAX_COURSES}>
+            <button
+              ref={createButtonRef}
+              type="submit"
+              className="classes-btn-primary"
+              disabled={saving || courses.length >= limits.MAX_COURSES}
+            >
               {saving ? 'Creating…' : 'Create course'}
             </button>
           </div>
@@ -221,6 +282,17 @@ const CoursesPage = () => {
             </div>
           )}
         </div>
+
+        <OnboardingTour
+          steps={tourSteps}
+          open={tourOpen}
+          currentStep={tourStep}
+          onNext={() => setTourStep((s) => Math.min(tourSteps.length - 1, s + 1))}
+          onBack={() => setTourStep((s) => Math.max(0, s - 1))}
+          onSkip={() => setTourOpen(false)}
+          onFinish={() => setTourOpen(false)}
+          storageKey={adminUid ? adminCoursesTourKey(adminUid) : undefined}
+        />
       </div>
     </div>
   );

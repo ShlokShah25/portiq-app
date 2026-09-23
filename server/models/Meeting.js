@@ -559,6 +559,25 @@ const meetingSchema = new mongoose.Schema({
       },
     ],
   },
+  /**
+   * Smartboard: freeform whiteboard pages (blank canvas, no uploaded image), the
+   * teacher's alternative to slides during a lecture — switchable mid-lecture.
+   * Each page is Fabric.js canvas JSON, same drawing engine/stage size as slide
+   * annotations. `touchedAt` is set the first time a page is drawn on or navigated
+   * to; only touched pages are surfaced in the recap (mirrors `slides[].shownAt`).
+   * Combined with slideDeck.slides and ordered by shownAt/touchedAt, this gives the
+   * recap a single chronological "pages" timeline — see server/routes/smartboard.js.
+   */
+  whiteboard: {
+    pages: [
+      {
+        index: { type: Number, required: true },
+        annotations: { type: mongoose.Schema.Types.Mixed, default: null },
+        touchedAt: { type: Date, default: null },
+        updatedAt: { type: Date, default: null },
+      },
+    ],
+  },
   /** Smartboard: 5-question MCQ quiz generated from the lecture transcript/summary. */
   quiz: {
     generatedAt: { type: Date, default: null },
