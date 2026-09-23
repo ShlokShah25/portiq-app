@@ -51,7 +51,7 @@ export default function Smartboard({ meetingId, slideDeck, onSlideDeckChange, di
       canvas.dispose();
       fabricRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Fabric canvas is created once per mount; `disabled` is applied by the effect below.
   }, []);
 
   useEffect(() => {
@@ -130,7 +130,7 @@ export default function Smartboard({ meetingId, slideDeck, onSlideDeckChange, di
     if (hasDeck && currentIndex === 0) {
       axios.post(`/meetings/${meetingId}/slides/${slides[0].index}/shown`).catch(() => {});
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Intentionally keyed only on a fresh upload landing, not on every slides/currentIndex change.
   }, [slideDeck?.uploadedAt]);
 
   // --- Upload --------------------------------------------------------------
