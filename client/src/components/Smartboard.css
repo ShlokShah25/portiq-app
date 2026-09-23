@@ -1,10 +1,10 @@
 .smartboard {
   margin: 20px 0;
-  padding: 18px;
-  border-radius: var(--radius-card, 16px);
-  background: var(--surface-card);
+  padding: 20px;
+  border-radius: var(--radius-card, 18px);
+  background: linear-gradient(180deg, var(--surface-card) 0%, var(--surface-card) 100%);
   border: 1px solid var(--border-color);
-  box-shadow: var(--shadow-soft-sm);
+  box-shadow: var(--shadow-soft-sm), 0 1px 0 rgba(255, 255, 255, 0.02) inset;
 }
 
 .smartboard__head {
@@ -12,7 +12,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--divider);
   flex-wrap: wrap;
 }
 
@@ -30,7 +32,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 14px;
+  padding: 7px 16px;
   border-radius: 999px;
   border: none;
   background: transparent;
@@ -48,28 +50,36 @@
 .smartboard__mode-btn.is-active {
   background: var(--accent-blue);
   color: #fff;
-  box-shadow: 0 2px 8px -2px rgba(37, 99, 235, 0.45);
+  box-shadow: 0 3px 10px -2px rgba(37, 99, 235, 0.5);
 }
 
 .smartboard__title {
   font-family: var(--font-display, var(--font-sans));
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--text-primary);
   margin: 0;
+  letter-spacing: -0.01em;
 }
 
 .smartboard__save-status {
   font-size: 12px;
+  font-weight: 600;
   color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .smartboard__empty {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 10px;
-  padding: 18px 4px;
+  gap: 12px;
+  padding: 32px 20px;
+  border-radius: var(--radius-soft, 14px);
+  background: var(--dash-chip-bg);
+  border: 1px dashed var(--border-color);
 }
 
 .smartboard__empty p {
@@ -83,7 +93,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 9px 16px;
+  padding: 10px 18px;
   border-radius: var(--radius-soft, 12px);
   background: var(--accent-blue);
   color: #fff;
@@ -91,23 +101,27 @@
   font-weight: 600;
   cursor: pointer;
   border: none;
-  transition: background var(--dur-fast, 0.15s) var(--ease-out);
+  box-shadow: 0 4px 12px -3px rgba(37, 99, 235, 0.45);
+  transition: background var(--dur-fast, 0.15s) var(--ease-out), transform var(--dur-fast, 0.15s) var(--ease-out);
 }
 
 .smartboard__upload-btn:hover {
   background: var(--accent-primary-hover);
+  transform: translateY(-1px);
 }
 
 .smartboard__upload-btn--compact {
   padding: 7px 12px;
   font-size: 12.5px;
-  background: var(--dash-chip-bg);
+  background: var(--surface-card);
   color: var(--text-primary);
   border: 1px solid var(--border-color);
+  box-shadow: none;
 }
 
 .smartboard__upload-btn--compact:hover {
   background: var(--dash-chip-hover-bg);
+  transform: none;
 }
 
 .smartboard__error {
@@ -120,23 +134,29 @@
   font-size: 12.5px;
 }
 
+/* ---------------------------------------------------------------------------
+ * Toolbar — a floating pill bar, one tool group per cluster (tools / colors /
+ * stroke width / actions), each visually separated by a soft divider.
+ * ------------------------------------------------------------------------ */
+
 .smartboard__toolbar {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
   flex-wrap: wrap;
-  padding: 10px 12px;
-  border-radius: var(--radius-soft, 12px);
+  padding: 10px 14px;
+  border-radius: 999px;
   background: var(--dash-chip-bg);
   border: 1px solid var(--border-color);
-  margin-bottom: 12px;
+  box-shadow: var(--shadow-soft-sm);
+  margin-bottom: 16px;
 }
 
 .smartboard__tool-group {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding-right: 12px;
+  padding-right: 14px;
   border-right: 1px solid var(--divider);
 }
 
@@ -151,18 +171,22 @@
 }
 
 .smartboard__icon-btn {
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: var(--radius-soft, 10px);
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
   border: 1px solid transparent;
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
   transition: background var(--dur-fast, 0.15s) var(--ease-out), color var(--dur-fast, 0.15s) var(--ease-out),
-    border-color var(--dur-fast, 0.15s) var(--ease-out);
+    border-color var(--dur-fast, 0.15s) var(--ease-out), transform var(--dur-fast, 0.15s) var(--ease-out);
 }
 
 .smartboard__icon-btn:hover {
@@ -174,14 +198,22 @@
   background: var(--accent-blue);
   border-color: var(--accent-blue);
   color: #fff;
-  box-shadow: 0 2px 8px -2px rgba(37, 99, 235, 0.5);
+  box-shadow: 0 3px 10px -2px rgba(37, 99, 235, 0.55);
+  transform: translateY(-1px);
 }
+
+/* ---------------------------------------------------------------------------
+ * Color swatches — fixed-size circles. `-webkit-appearance: none` matters
+ * here: Safari/WebKit applies native control chrome to <button> that can
+ * distort border-radius into a "pill" shape unless appearance is reset, and
+ * aspect-ratio is a second guarantee width/height never drift apart.
+ * ------------------------------------------------------------------------ */
 
 .smartboard__colors {
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding-right: 12px;
+  gap: 8px;
+  padding-right: 14px;
   border-right: 1px solid var(--divider);
   transition: opacity var(--dur-fast, 0.15s) var(--ease-out);
 }
@@ -192,43 +224,62 @@
 }
 
 .smartboard__color-swatch {
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
   display: inline-flex;
+  flex: 0 0 22px;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
+  aspect-ratio: 1 / 1;
+  min-width: 0;
+  min-height: 0;
   border-radius: 50%;
   border: 2px solid var(--surface-card);
-  box-shadow: 0 0 0 1px var(--border-color);
+  outline: 1px solid var(--border-color);
+  outline-offset: -1px;
+  box-shadow: none;
   cursor: pointer;
   padding: 0;
+  margin: 0;
+  line-height: 0;
+  font-size: 0;
+  overflow: hidden;
   transition: transform var(--dur-fast, 0.15s) var(--ease-out);
 }
 
 .smartboard__color-swatch:hover {
-  transform: scale(1.12);
+  transform: scale(1.15);
 }
 
 .smartboard__color-swatch.is-active {
-  box-shadow: 0 0 0 2px var(--accent-blue);
-  transform: scale(1.12);
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 1px;
+  transform: scale(1.15);
 }
 
 .smartboard__color-custom-wrap {
   position: relative;
   display: inline-flex;
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
 }
 
 .smartboard__color-swatch--custom {
   background: conic-gradient(from 180deg, #ef4444, #f59e0b, #16a34a, #2563eb, #7c3aed, #ec4899, #ef4444);
   color: #fff;
+  font-size: initial;
+  line-height: initial;
 }
 
 .smartboard__color-input {
   position: absolute;
   inset: 0;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   opacity: 0;
   cursor: pointer;
 }
@@ -239,17 +290,21 @@
 }
 
 .smartboard__tool-btn {
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
-  border-radius: var(--radius-soft, 10px);
+  padding: 7px 13px;
+  border-radius: 999px;
   border: 1px solid var(--border-color);
-  background: var(--surface-input);
+  background: var(--surface-card);
   color: var(--text-primary);
   font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
+  transition: background var(--dur-fast, 0.15s) var(--ease-out), border-color var(--dur-fast, 0.15s) var(--ease-out);
 }
 
 .smartboard__tool-btn:hover {
@@ -257,7 +312,7 @@
 }
 
 .smartboard__tool-btn:disabled {
-  opacity: 0.55;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
@@ -283,16 +338,20 @@
   }
 }
 
+/* ---------------------------------------------------------------------------
+ * Stage
+ * ------------------------------------------------------------------------ */
+
 .smartboard__stage {
   position: relative;
   width: 100%;
-  max-width: 760px;
+  max-width: 800px;
   margin: 0 auto;
-  border-radius: var(--radius-soft, 12px);
+  border-radius: var(--radius-card, 16px);
   overflow: hidden;
   background: #0b0b0c;
   border: 1px solid var(--border-color);
-  box-shadow: var(--shadow-soft-sm);
+  box-shadow: var(--shadow-soft-sm), 0 12px 32px -16px rgba(0, 0, 0, 0.35);
 }
 
 .smartboard__slide-img {
@@ -322,27 +381,47 @@
   opacity: 0.97;
 }
 
+/* ---------------------------------------------------------------------------
+ * Nav — a floating pill below the stage.
+ * ------------------------------------------------------------------------ */
+
 .smartboard__nav {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 14px;
-  margin-top: 12px;
+  gap: 10px;
+  margin-top: 16px;
   flex-wrap: wrap;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: var(--dash-chip-bg);
+  border: 1px solid var(--border-color);
+  width: fit-content;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .smartboard__nav-btn {
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 6px 12px;
-  border-radius: var(--radius-soft, 10px);
+  padding: 6px 13px;
+  border-radius: 999px;
   border: 1px solid var(--border-color);
-  background: var(--surface-input);
+  background: var(--surface-card);
   color: var(--text-primary);
   font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
+  transition: background var(--dur-fast, 0.15s) var(--ease-out);
+}
+
+.smartboard__nav-btn:hover:not(:disabled) {
+  background: var(--dash-chip-hover-bg);
 }
 
 .smartboard__nav-btn:disabled {
@@ -352,8 +431,10 @@
 
 .smartboard__nav-count {
   font-size: 12.5px;
+  font-weight: 600;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
+  padding: 0 4px;
 }
 
 .smartboard__quiz-row {
