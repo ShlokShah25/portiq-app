@@ -44,6 +44,16 @@ const MeetingsScreen = () => {
   const [selectedMeeting, setSelectedMeeting] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [polling, setPolling] = useState(false);
+  // pollForSummary's setTimeout loop can now run indefinitely (a long lecture can take
+  // longer than any fixed attempt cap) — this guards against it still firing after the
+  // component has unmounted (page navigated away).
+  const pollingActiveRef = useRef(true);
+  useEffect(
+    () => () => {
+      pollingActiveRef.current = false;
+    },
+    []
+  );
   const [recording, setRecording] = useState(false);
   const [rightTab, setRightTab] = useState('scheduled'); // 'scheduled' | 'recent'
   const [showAllMeetings, setShowAllMeetings] = useState(false);
@@ -318,26 +328,36 @@ const MeetingsScreen = () => {
 
   const pollForSummary = async (id) => {
     let attempts = 0;
-    const maxAttempts = 40; // Increased to wait longer for transcription
-    const interval = 5000;
+    // Fast polling for the first stretch (every 5s for ~3.3min) — most lectures finish
+    // in this window. After that we don't give up: a long lecture's transcription can
+    // genuinely take longer than this, so we fall back to slow polling (every 20s)
+    // indefinitely instead. We only ever stop polling / navigate away on a real
+    // Completed or Failed status — never just because a poll counter ran out while the
+    // pipeline is still legitimately "Processing" in the background.
+    const fastAttempts = 40;
+    const fastInterval = 5000;
+    const slowInterval = 20000;
 
     const poll = async () => {
+      if (!pollingActiveRef.current) return;
       try {
         const res = await axios.get(`/meetings/${id}`, {
           headers: editorOtpHeaders(id),
         });
+        if (!pollingActiveRef.current) return;
         const m = res.data.meeting;
         setSelectedMeeting(m);
-        
+
         // If summary is sent, stop polling and redirect to home
         if (m.summaryStatus === 'Sent') {
           setPolling(false);
           setTimeout(() => navigate('/'), 2000);
           return;
         }
-        
-        // If transcription completed or failed, stop polling
-        if (m.transcriptionStatus === 'Completed' || m.transcriptionStatus === 'Failed' || attempts >= maxAttempts) {
+
+        // If transcription completed or failed, stop polling — this is the only case
+        // that ends the loop; running out of attempts on its own does not.
+        if (m.transcriptionStatus === 'Completed' || m.transcriptionStatus === 'Failed') {
           setPolling(false);
           // If summary is ready for approval, ensure meeting is selected
           if (m.summaryStatus === 'Pending Approval' && m.transcriptionStatus === 'Completed') {
@@ -349,17 +369,20 @@ const MeetingsScreen = () => {
             // Stay on page to show code entry prompt
             return;
           }
-          // If no authorized editor or summary failed, redirect to home after delay
+          // If no authorized editor, or transcription genuinely failed, redirect home.
           if (!m.authorizedEditorEmail || m.transcriptionStatus === 'Failed') {
             setTimeout(() => navigate('/'), 3000);
           }
           return;
         }
         attempts += 1;
-        setTimeout(poll, interval);
+        setTimeout(poll, attempts < fastAttempts ? fastInterval : slowInterval);
       } catch (err) {
         console.error('Error polling meeting summary:', err);
-        setPolling(false);
+        // A transient network hiccup shouldn't stop watching a lecture that's still
+        // processing — back off and keep trying rather than abandoning the page.
+        attempts += 1;
+        setTimeout(poll, slowInterval);
       }
     };
 

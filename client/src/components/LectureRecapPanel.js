@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Sparkles, Mail, Loader2, BarChart3 } from 'lucide-react';
+import { Sparkles, Mail, Loader2, BarChart3, PenLine, Presentation } from 'lucide-react';
 import './LectureRecapPanel.css';
 
 /**
@@ -27,6 +27,20 @@ export default function LectureRecapPanel({ meeting, onQuizGenerated }) {
   const hasQuiz = (meeting?.quiz?.questions || []).length > 0;
   const mandatory = Boolean(meeting?.quiz?.mandatory);
   const attemptCount = (meeting?.quiz?.attempts || []).length;
+
+  // Same merge server/routes/smartboard.js does for the student recap page, done
+  // client-side here so the teacher can see — before sending anything — that both
+  // slides and whiteboard pages actually made it into what students will see, in the
+  // order they were used, not just whichever type happens to render first.
+  const coveredPages = useMemo(() => {
+    const slides = (meeting?.slideDeck?.slides || [])
+      .filter((s) => !!s.shownAt)
+      .map((s) => ({ type: 'slide', index: s.index, imageUrl: s.imageUrl, at: s.shownAt }));
+    const wbPages = (meeting?.whiteboard?.pages || [])
+      .filter((p) => !!p.touchedAt)
+      .map((p) => ({ type: 'whiteboard', index: p.index, at: p.touchedAt }));
+    return [...slides, ...wbPages].sort((a, b) => new Date(a.at) - new Date(b.at));
+  }, [meeting?.slideDeck?.slides, meeting?.whiteboard?.pages]);
 
   if (pageCount === 0) return null;
 
@@ -81,6 +95,25 @@ export default function LectureRecapPanel({ meeting, onQuizGenerated }) {
         Give students what you actually covered — slides and whiteboard pages, with your notes on them, in the order
         you used them — plus this lecture's summary and a 5-question quiz to check their understanding.
       </p>
+
+      <div className="lecture-recap-panel__pages">
+        {coveredPages.map((p, i) => (
+          <div key={`${p.type}-${p.index}`} className="lecture-recap-panel__page-thumb" title={`${i + 1}. ${p.type === 'slide' ? 'Slide' : 'Whiteboard'}`}>
+            {p.type === 'slide' ? (
+              <img src={p.imageUrl} alt={`Slide ${p.index + 1}`} />
+            ) : (
+              <div className="lecture-recap-panel__page-thumb-wb">
+                <PenLine size={16} strokeWidth={2} aria-hidden />
+              </div>
+            )}
+            <span className="lecture-recap-panel__page-thumb-badge">
+              {p.type === 'slide' ? <Presentation size={10} strokeWidth={2.5} aria-hidden /> : <PenLine size={10} strokeWidth={2.5} aria-hidden />}
+              {i + 1}
+            </span>
+          </div>
+        ))}
+      </div>
+
       <div className="lecture-recap-panel__actions">
         <button type="button" className="meeting-summary-btn meeting-summary-btn--secondary" onClick={handleGenerateQuiz} disabled={quizBusy}>
           {quizBusy ? <Loader2 size={16} className="lecture-recap-panel__spin" aria-hidden /> : <Sparkles size={16} strokeWidth={2} aria-hidden />}
