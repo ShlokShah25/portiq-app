@@ -1,21 +1,34 @@
+/* ========================================================================
+   Course detail (admin) — Course → Semesters → Subjects → Roster → Faculty
+   Composes on top of ClassesPage.css (imported first by CourseDetailPage.js)
+   and the shared education-design-system.css tokens.
+   ==================================================================== */
+
 .class-detail-page .class-detail-wrapper {
-  max-width: 880px;
+  max-width: 900px;
 }
 
 .class-detail-breadcrumb {
-  margin-bottom: 20px;
+  margin-bottom: 22px;
 }
 
 .class-detail-back-link {
-  font-size: 14px;
-  color: #60a5fa;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--accent-hover, #60a5fa);
   text-decoration: none;
-  font-weight: 500;
+  transition: color 0.15s ease;
 }
 
 .class-detail-back-link:hover {
+  color: var(--accent-blue);
   text-decoration: underline;
 }
+
+/* ---- Header ------------------------------------------------------------ */
 
 .class-detail-header {
   display: flex;
@@ -24,10 +37,11 @@
   justify-content: space-between;
   gap: 20px;
   margin-bottom: 24px;
-  padding: 22px 24px;
-  border-radius: 14px;
-  border: 1px solid #1f2937;
-  background: rgba(255, 255, 255, 0.03);
+  padding: 24px 26px;
+  border-radius: var(--edu-radius-lg, 16px);
+  border: 1px solid var(--border-color);
+  background: var(--surface-card, var(--surface-secondary));
+  box-shadow: var(--edu-shadow-2);
 }
 
 .class-detail-header-main {
@@ -36,16 +50,17 @@
 
 .class-detail-title {
   margin: 0 0 8px;
-  font-size: 26px;
-  font-weight: 600;
+  font-size: 27px;
+  font-weight: 700;
   letter-spacing: -0.02em;
+  color: var(--text-primary);
 }
 
 .class-detail-muted {
   margin: 0;
   font-size: 14px;
-  color: #9ca3af;
-  line-height: 1.5;
+  color: var(--text-secondary);
+  line-height: 1.55;
 }
 
 .class-detail-header-actions {
@@ -63,49 +78,78 @@
 }
 
 .class-detail-btn-danger {
-  color: #f87171 !important;
-  border-color: #7f1d1d !important;
+  color: var(--error-red, #f87171) !important;
+  border-color: rgba(248, 113, 113, 0.4) !important;
 }
+
+.class-detail-btn-danger:hover:not(:disabled) {
+  background: rgba(248, 113, 113, 0.1) !important;
+  border-color: var(--error-red, #f87171) !important;
+}
+
+/* ---- Stat tiles ---------------------------------------------------------- */
 
 .class-detail-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 12px;
-  margin-bottom: 28px;
+  gap: 14px;
+  margin-bottom: 30px;
 }
 
 .class-detail-stat {
-  padding: 16px 18px;
-  border-radius: 12px;
-  border: 1px solid #1f2937;
-  background: rgba(15, 23, 42, 0.35);
+  padding: 18px 20px;
+  border-radius: var(--edu-radius-md, 12px);
+  border: 1px solid var(--border-color);
+  background: var(--dash-chip-bg, var(--surface-input));
+  box-shadow: var(--edu-shadow-1);
+  transition: box-shadow 0.16s var(--edu-ease, ease), border-color 0.16s ease, transform 0.16s ease;
+}
+
+.class-detail-stat:hover {
+  box-shadow: var(--edu-shadow-2);
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
 }
 
 .class-detail-stat__label {
   display: block;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11.5px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #9ca3af;
-  margin-bottom: 6px;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
 }
 
 .class-detail-stat__value {
-  font-size: 22px;
-  font-weight: 600;
+  font-size: 24px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
 }
 
+/* ---- Semester sections --------------------------------------------------- */
+
 .class-detail-section {
-  margin-bottom: 28px;
+  margin-bottom: 22px;
+  padding: 18px 20px;
+  border-radius: var(--edu-radius-lg, 14px);
+  border: 1px solid var(--border-color);
+  background: var(--surface-card, var(--surface-secondary));
+  box-shadow: var(--edu-shadow-1);
+  transition: box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+.class-detail-section:hover {
+  box-shadow: var(--edu-shadow-2);
 }
 
 .class-detail-section-title {
   margin: 0 0 12px;
   font-size: 15px;
-  font-weight: 600;
-  color: #e5e7eb;
+  font-weight: 700;
+  color: var(--text-primary);
 }
 
 .class-detail-subject-wrap {
@@ -123,17 +167,20 @@
   text-align: right;
 }
 
+/* ---- Generic centered / empty card -------------------------------------- */
+
 .class-detail-card {
-  padding: 32px 28px;
-  border-radius: 14px;
-  border: 1px solid #1f2937;
-  background: rgba(255, 255, 255, 0.03);
+  padding: 34px 30px;
+  border-radius: var(--edu-radius-lg, 14px);
+  border: 1px solid var(--border-color);
+  background: var(--surface-card, var(--surface-secondary));
+  box-shadow: var(--edu-shadow-2);
 }
 
 .class-detail-card--center {
   text-align: center;
-  max-width: 420px;
-  margin: 40px auto 0;
+  max-width: 440px;
+  margin: 48px auto 0;
 }
 
 .class-detail-card--center .class-detail-title {
@@ -142,14 +189,20 @@
 
 .class-detail-primary-link {
   display: inline-block;
-  margin-top: 20px;
+  margin-top: 22px;
   text-decoration: none;
 }
 
-:root[data-theme='light'] .class-detail-header {
-  border-color: #dbe6f3;
+/* ========================================================================
+   Light theme
+   ==================================================================== */
+
+:root[data-theme='light'] .class-detail-header,
+:root[data-theme='light'] .class-detail-section,
+:root[data-theme='light'] .class-detail-card {
+  border-color: #e2e8f0;
   background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-  box-shadow: 0 16px 34px -28px rgba(15, 23, 42, 0.35);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 16px 34px -24px rgba(15, 23, 42, 0.3);
 }
 
 :root[data-theme='light'] .class-detail-title {
@@ -167,6 +220,11 @@
 :root[data-theme='light'] .class-detail-stat {
   border-color: #e2e8f0;
   background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+:root[data-theme='light'] .class-detail-stat:hover {
+  box-shadow: 0 8px 20px -10px rgba(15, 23, 42, 0.18);
 }
 
 :root[data-theme='light'] .class-detail-stat__label {
@@ -187,7 +245,7 @@
   background: #fff1f2 !important;
 }
 
-:root[data-theme='light'] .class-detail-card {
-  border-color: #dbe6f3;
-  background: #ffffff;
+:root[data-theme='light'] .class-detail-btn-danger:hover:not(:disabled) {
+  background: #fee2e2 !important;
+  border-color: #dc2626 !important;
 }

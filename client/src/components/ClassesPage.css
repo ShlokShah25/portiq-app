@@ -1,42 +1,60 @@
+@import '../styles/education-design-system.css';
+
+/* ========================================================================
+   Courses (admin) — education mode
+   Course list, create-course form, and the Course → Semester → Subject →
+   Roster editor on the course detail screen share these primitives.
+   ==================================================================== */
+
 .classes-page {
   min-height: 100vh;
-  background-color: var(--bg-primary, #0a0a0a);
+  background-color: var(--bg-primary);
   background-image: var(--page-ambient-gradient, none);
   background-size: 100% 100%;
   background-attachment: fixed;
-  color: var(--text-primary, #e5e5e5);
+  color: var(--text-primary);
   font-family: var(--font-sans, 'Inter', system-ui, sans-serif);
 }
 
 .classes-wrapper {
-  max-width: 960px;
+  max-width: 980px;
   margin: 0 auto;
-  padding: 32px 24px;
-  padding-top: 80px;
+  padding: 32px 24px 72px;
+  padding-top: 84px;
 }
 
+/* ---- Header ---------------------------------------------------------- */
+
 .classes-header {
-  margin-bottom: 24px;
+  margin-bottom: 28px;
 }
 
 .classes-header h1 {
-  font-size: 24px;
-  font-weight: 600;
-  margin: 0 0 8px;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 10px;
+  color: var(--text-primary);
 }
 
 .classes-header p {
   font-size: 14px;
-  color: #9ca3af;
+  line-height: 1.6;
+  color: var(--text-secondary);
   margin: 0;
+  max-width: 68ch;
 }
 
+/* ---- Create-course form ----------------------------------------------- */
+
 .classes-form {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid #1f1f1f;
-  border-radius: 12px;
-  padding: 20px;
+  background: var(--surface-card, var(--surface-secondary));
+  border: 1px solid var(--border-color);
+  border-radius: var(--edu-radius-lg, 16px);
+  padding: 24px;
   margin-bottom: 32px;
+  box-shadow: var(--edu-shadow-2);
+  transition: box-shadow 0.2s var(--edu-ease, ease);
 }
 
 .classes-form-row {
@@ -49,31 +67,59 @@
 .classes-form label {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  font-size: 13px;
-  color: #d1d5db;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
 
 .classes-form input,
 .classes-form textarea {
-  background: #111;
-  border: 1px solid #333;
-  border-radius: 8px;
-  padding: 10px 12px;
-  color: #f5f5f5;
+  background: var(--surface-input, var(--dash-chip-bg));
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--edu-radius-sm, 8px);
+  padding: 11px 13px;
+  color: var(--text-primary);
   font-size: 14px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+  font-family: var(--font-sans, 'Inter', system-ui, sans-serif);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.classes-form input::placeholder,
+.classes-form textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.classes-form input:hover,
+.classes-form textarea:hover {
+  border-color: var(--border-strong);
+}
+
+.classes-form input:focus,
+.classes-form textarea:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  box-shadow: var(--edu-shadow-focus);
+  background: var(--surface-card, var(--surface-secondary));
 }
 
 .classes-form-full {
   margin-bottom: 16px;
 }
 
+/* ---- Section heads (Subjects / Faculty / Students rows) --------------- */
+
 .classes-assignments-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .classes-assignments-actions {
@@ -85,14 +131,17 @@
 
 .classes-assignments-head h3 {
   margin: 0;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
 }
 
 .classes-assignments-list {
   display: grid;
   gap: 10px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .classes-assignment-row {
@@ -100,39 +149,73 @@
   grid-template-columns: minmax(160px, 1fr) minmax(160px, 1fr) minmax(180px, 1fr) auto;
   gap: 10px;
   align-items: end;
-  padding: 10px;
-  border: 1px solid #1f2937;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.02);
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--edu-radius-md, 12px);
+  background: var(--dash-chip-bg, var(--surface-input));
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.classes-assignment-row:hover {
+  border-color: var(--border-strong);
+  background: var(--dash-chip-hover-bg, var(--surface-input));
 }
 
 .classes-error {
-  margin: 0 0 10px;
-  color: #fca5a5;
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border-radius: var(--edu-radius-sm, 8px);
+  background: var(--message-error-bg, rgba(220, 38, 38, 0.08));
+  border: 1px solid var(--message-error-border, rgba(220, 38, 38, 0.25));
+  color: var(--message-error-text, #f87171);
   font-size: 13px;
   font-weight: 600;
 }
 
 .classes-subject-cap-note {
-  margin: 0 0 12px;
+  margin: 0 0 14px;
   font-size: 12px;
-  color: var(--text-secondary, #9ca3af);
+  color: var(--text-muted);
 }
 
 .classes-form-actions {
   display: flex;
   gap: 12px;
-  margin-top: 16px;
+  margin-top: 20px;
 }
 
+/* ---- Buttons ------------------------------------------------------------
+   Shared across CoursesPage + CourseDetailPage. Kept as flat class names
+   (no BEM split) to match every existing className reference in the JSX. */
+
 .classes-btn-primary {
-  background: #2563eb;
+  background: var(--accent-blue);
   color: #fff;
   border: none;
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-weight: 500;
+  padding: 11px 22px;
+  border-radius: var(--edu-radius-sm, 8px);
+  font-weight: 600;
+  font-size: 14px;
   cursor: pointer;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 6px 16px -6px rgba(37, 99, 235, 0.45);
+  transition: background 0.16s ease, box-shadow 0.16s ease, transform 0.12s ease;
+}
+
+.classes-btn-primary:hover:not(:disabled) {
+  background: var(--accent-primary-hover, var(--accent-hover));
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.08), 0 10px 22px -6px rgba(37, 99, 235, 0.5);
+  transform: translateY(-1px);
+}
+
+.classes-btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.classes-btn-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 a.classes-btn-primary {
@@ -145,24 +228,47 @@ a.classes-btn-primary {
 
 .classes-btn-secondary {
   background: transparent;
-  color: #9ca3af;
-  border: 1px solid #333;
+  color: var(--text-secondary);
+  border: 1.5px solid var(--border-color);
   padding: 10px 20px;
-  border-radius: 8px;
+  border-radius: var(--edu-radius-sm, 8px);
+  font-weight: 600;
+  font-size: 14px;
   cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.12s ease;
 }
 
+.classes-btn-secondary:hover:not(:disabled) {
+  background: var(--dash-subtle-hover, rgba(37, 99, 235, 0.06));
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.classes-btn-secondary:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.classes-btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---- Course list panel ------------------------------------------------ */
+
 .classes-list-panel {
-  padding: 22px 22px 8px;
-  border-radius: 14px;
-  border: 1px solid #1f2937;
-  background: rgba(15, 23, 42, 0.25);
+  padding: 24px 24px 10px;
+  border-radius: var(--edu-radius-lg, 16px);
+  border: 1px solid var(--border-color);
+  background: var(--surface-card, var(--surface-secondary));
+  box-shadow: var(--edu-shadow-2);
 }
 
 .classes-list h2 {
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
   margin: 0 0 16px;
+  color: var(--text-primary);
 }
 
 .classes-list-head {
@@ -171,17 +277,28 @@ a.classes-btn-primary {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .classes-search {
   width: min(420px, 100%);
-  background: #111;
-  border: 1px solid #333;
-  border-radius: 8px;
-  padding: 10px 12px;
-  color: #f5f5f5;
+  background: var(--surface-input, var(--dash-chip-bg));
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--edu-radius-sm, 8px);
+  padding: 10px 14px;
+  color: var(--text-primary);
   font-size: 14px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.classes-search::placeholder {
+  color: var(--text-muted);
+}
+
+.classes-search:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  box-shadow: var(--edu-shadow-focus);
 }
 
 .classes-search--students {
@@ -189,9 +306,13 @@ a.classes-btn-primary {
 }
 
 .classes-empty {
-  color: #6b7280;
+  color: var(--text-muted);
   font-size: 14px;
+  padding: 28px 12px;
+  text-align: center;
 }
+
+/* ---- Course table ------------------------------------------------------ */
 
 .classes-table-scroll {
   overflow-x: auto;
@@ -202,7 +323,8 @@ a.classes-btn-primary {
 
 .classes-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 14px;
   table-layout: fixed;
 }
@@ -211,16 +333,16 @@ a.classes-btn-primary {
 .classes-table td {
   padding: 14px 14px;
   text-align: left;
-  border-bottom: 1px solid #1f1f1f;
+  border-bottom: 1px solid var(--divider, var(--border-color));
   vertical-align: middle;
 }
 
 .classes-table th {
-  color: #9ca3af;
-  font-weight: 500;
-  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 700;
+  font-size: 11.5px;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
 }
 
 .classes-table__class {
@@ -240,24 +362,29 @@ a.classes-btn-primary {
   text-align: right;
 }
 
+.classes-table-row {
+  transition: background 0.12s ease;
+}
+
 .classes-table-row:hover td {
-  background: rgba(37, 99, 235, 0.06);
+  background: var(--dash-row-hover-bg, rgba(37, 99, 235, 0.06));
 }
 
 .classes-table-dash {
-  color: #6b7280;
+  color: var(--text-muted);
 }
 
 .classes-class-link {
-  color: #93c5fd;
+  color: var(--accent-hover, #93c5fd);
   font-weight: 600;
   text-decoration: none;
   border-bottom: 1px solid transparent;
+  transition: color 0.15s ease, border-color 0.15s ease;
 }
 
 .classes-class-link:hover {
-  color: #bfdbfe;
-  border-bottom-color: rgba(191, 219, 254, 0.45);
+  color: var(--accent-blue);
+  border-bottom-color: currentColor;
 }
 
 .classes-student-summary {
@@ -275,21 +402,23 @@ a.classes-btn-primary {
   padding: 4px 10px;
   border-radius: 999px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: #cbd5e1;
-  border: 1px solid #334155;
-  background: rgba(30, 41, 59, 0.45);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  background: var(--dash-chip-bg, var(--surface-input));
 }
 
 .classes-roster-link {
   font-size: 13px;
-  font-weight: 500;
-  color: #60a5fa;
+  font-weight: 600;
+  color: var(--accent-hover, #60a5fa);
   text-decoration: none;
+  transition: color 0.15s ease;
 }
 
 .classes-roster-link:hover {
+  color: var(--accent-blue);
   text-decoration: underline;
 }
 
@@ -306,31 +435,57 @@ a.classes-btn-primary {
 
 .classes-btn-sm {
   background: transparent;
-  color: #60a5fa;
-  border: 1px solid #334155;
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 12px;
+  color: var(--accent-hover, #60a5fa);
+  border: 1.5px solid var(--border-color);
+  padding: 6px 13px;
+  border-radius: var(--edu-radius-sm, 6px);
+  font-size: 12.5px;
+  font-weight: 600;
   cursor: pointer;
   margin-right: 8px;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.12s ease;
+}
+
+.classes-btn-sm:hover:not(:disabled) {
+  background: var(--accent-blue-dim, rgba(37, 99, 235, 0.1));
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+}
+
+.classes-btn-sm:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.classes-btn-sm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .classes-btn-danger {
-  color: #f87171;
-  border-color: #7f1d1d;
+  color: var(--error-red, #f87171);
+  border-color: rgba(248, 113, 113, 0.35);
+}
+
+.classes-btn-danger:hover:not(:disabled) {
+  background: rgba(248, 113, 113, 0.1);
+  border-color: var(--error-red, #f87171);
+  color: var(--error-red, #f87171);
 }
 
 .classes-table-mappings {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
 }
+
+/* ---- Students table (per-semester roster) ------------------------------ */
 
 .classes-students-table-wrap {
   overflow-x: auto;
   margin-bottom: 16px;
-  border: 1px solid #1f2937;
-  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--edu-radius-md, 10px);
+  box-shadow: var(--edu-shadow-1);
 }
 
 .classes-students-table {
@@ -340,15 +495,23 @@ a.classes-btn-primary {
 
 .classes-students-table th,
 .classes-students-table td {
-  border-bottom: 1px solid #1f2937;
-  padding: 10px;
+  border-bottom: 1px solid var(--divider, var(--border-color));
+  padding: 11px 10px;
   vertical-align: top;
 }
 
+.classes-students-table tr:last-child th,
+.classes-students-table tr:last-child td {
+  border-bottom: none;
+}
+
 .classes-students-table th {
-  font-size: 12px;
-  color: #9ca3af;
-  font-weight: 600;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--dash-chip-bg, var(--surface-input));
 }
 
 .classes-students-table th.classes-students-table__roll,
@@ -358,14 +521,27 @@ a.classes-btn-primary {
   white-space: nowrap;
   text-align: center;
   font-variant-numeric: tabular-nums;
-  color: #9ca3af;
+  color: var(--text-muted);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .classes-students-table td input {
   width: 100%;
   min-width: 220px;
+  background: var(--surface-input, var(--dash-chip-bg));
+  border: 1.5px solid var(--border-color);
+  border-radius: 7px;
+  padding: 8px 10px;
+  color: var(--text-primary);
+  font-size: 13.5px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.classes-students-table td input:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  box-shadow: var(--edu-shadow-focus);
 }
 
 .classes-student-preview-list {
@@ -380,15 +556,15 @@ a.classes-btn-primary {
   align-items: center;
   gap: 6px;
   max-width: 100%;
-  padding: 4px 8px;
+  padding: 4px 9px;
   border-radius: 999px;
-  border: 1px solid #334155;
-  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid var(--border-color);
+  background: var(--dash-chip-bg, var(--surface-input));
 }
 
 .classes-student-chip__text {
   font-size: 12px;
-  color: var(--text-secondary, #9ca3af);
+  color: var(--text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -397,11 +573,12 @@ a.classes-btn-primary {
 .classes-student-chip__remove {
   border: none;
   background: transparent;
-  color: #fca5a5;
+  color: var(--error-red, #fca5a5);
   cursor: pointer;
   font-size: 14px;
   line-height: 1;
   padding: 0 2px;
+  transition: color 0.15s ease;
 }
 
 .classes-student-chip__remove:hover {
@@ -409,76 +586,73 @@ a.classes-btn-primary {
 }
 
 .classes-assignments-head--students {
-  margin-top: 8px;
+  margin-top: 10px;
 }
 
 .classes-mapping-pill {
   display: inline-flex;
   align-items: center;
-  padding: 4px 8px;
-  border: 1px solid #334155;
+  padding: 5px 11px;
+  border: 1.5px solid var(--border-color);
   border-radius: 999px;
-  font-size: 12px;
-  color: #cbd5e1;
-  background: rgba(30, 41, 59, 0.4);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--dash-chip-bg, var(--surface-input));
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
+
+.classes-mapping-pill:hover {
+  border-color: var(--accent-blue);
+  color: var(--text-primary);
+  background: var(--accent-blue-dim, rgba(37, 99, 235, 0.08));
+}
+
+.classes-mapping-pill input[type='checkbox'] {
+  accent-color: var(--accent-blue);
+}
+
+/* ========================================================================
+   Light theme — keep the same layered-elevation language, just re-tuned
+   for a white canvas so nothing reads flat.
+   ==================================================================== */
 
 :root[data-theme='light'] .classes-page {
   background:
-    radial-gradient(1200px 540px at 0% -10%, rgba(37, 99, 235, 0.08), transparent 55%),
-    radial-gradient(1000px 420px at 95% 0%, rgba(20, 184, 166, 0.07), transparent 58%),
+    radial-gradient(1200px 540px at 0% -10%, rgba(37, 99, 235, 0.06), transparent 55%),
+    radial-gradient(1000px 420px at 95% 0%, rgba(20, 184, 166, 0.05), transparent 58%),
     #f8fafc;
   color: #0f172a;
 }
 
-:root[data-theme='light'] .classes-header p {
-  color: #64748b;
-}
-
-:root[data-theme='light'] .classes-form {
+:root[data-theme='light'] .classes-form,
+:root[data-theme='light'] .classes-list-panel {
   background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-  border: 1px solid #dbe6f3;
-  box-shadow: 0 16px 34px -28px rgba(15, 23, 42, 0.35);
-}
-
-:root[data-theme='light'] .classes-form label {
-  color: #334155;
-  font-weight: 600;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 16px 34px -22px rgba(15, 23, 42, 0.28);
 }
 
 :root[data-theme='light'] .classes-form input,
-:root[data-theme='light'] .classes-form textarea {
+:root[data-theme='light'] .classes-form textarea,
+:root[data-theme='light'] .classes-search,
+:root[data-theme='light'] .classes-students-table td input {
   background: #ffffff;
-  border: 1px solid #cbd5e1;
+  border-color: #cbd5e1;
   color: #0f172a;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
 }
 
-:root[data-theme='light'] .classes-form input::placeholder,
-:root[data-theme='light'] .classes-form textarea::placeholder {
-  color: #94a3b8;
-}
-
 :root[data-theme='light'] .classes-form input:focus,
-:root[data-theme='light'] .classes-form textarea:focus {
+:root[data-theme='light'] .classes-form textarea:focus,
+:root[data-theme='light'] .classes-search:focus,
+:root[data-theme='light'] .classes-students-table td input:focus {
   border-color: #2563eb;
-  box-shadow:
-    0 0 0 3px rgba(37, 99, 235, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.95);
-  outline: none;
-}
-
-:root[data-theme='light'] .classes-subject-cap-note {
-  color: #64748b;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.95);
 }
 
 :root[data-theme='light'] .classes-assignment-row {
-  border: 1px solid #dbe6f3;
+  border-color: #dbe6f3;
   background: rgba(241, 245, 249, 0.65);
-}
-
-:root[data-theme='light'] .classes-error {
-  color: #b91c1c;
 }
 
 :root[data-theme='light'] .classes-btn-primary {
@@ -486,30 +660,19 @@ a.classes-btn-primary {
   box-shadow: 0 10px 18px -12px rgba(37, 99, 235, 0.6);
 }
 
-:root[data-theme='light'] .classes-btn-primary:hover {
-  filter: brightness(1.02);
+:root[data-theme='light'] .classes-btn-primary:hover:not(:disabled) {
+  filter: brightness(1.04);
+  box-shadow: 0 14px 24px -12px rgba(37, 99, 235, 0.62);
 }
 
 :root[data-theme='light'] .classes-btn-secondary {
   color: #334155;
-  border: 1px solid #cbd5e1;
+  border-color: #cbd5e1;
   background: #ffffff;
-}
-
-:root[data-theme='light'] .classes-search {
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  color: #0f172a;
 }
 
 :root[data-theme='light'] .classes-empty {
   color: #64748b;
-}
-
-:root[data-theme='light'] .classes-list-panel {
-  border-color: #dbe6f3;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-  box-shadow: 0 16px 34px -28px rgba(15, 23, 42, 0.35);
 }
 
 :root[data-theme='light'] .classes-class-link {
@@ -518,7 +681,6 @@ a.classes-btn-primary {
 
 :root[data-theme='light'] .classes-class-link:hover {
   color: #1e40af;
-  border-bottom-color: rgba(29, 78, 216, 0.35);
 }
 
 :root[data-theme='light'] .classes-student-count {
@@ -529,10 +691,6 @@ a.classes-btn-primary {
 
 :root[data-theme='light'] .classes-roster-link {
   color: #1d4ed8;
-}
-
-:root[data-theme='light'] .classes-table-row:hover td {
-  background: rgba(37, 99, 235, 0.05);
 }
 
 :root[data-theme='light'] .classes-table th,
@@ -550,16 +708,32 @@ a.classes-btn-primary {
   background: #eff6ff;
 }
 
+:root[data-theme='light'] .classes-btn-sm:hover:not(:disabled) {
+  background: #dbeafe;
+  border-color: #2563eb;
+}
+
 :root[data-theme='light'] .classes-btn-danger {
   color: #b91c1c;
   border-color: #fecaca;
   background: #fff1f2;
 }
 
+:root[data-theme='light'] .classes-btn-danger:hover:not(:disabled) {
+  background: #fee2e2;
+  border-color: #dc2626;
+  color: #b91c1c;
+}
+
 :root[data-theme='light'] .classes-mapping-pill {
   color: #1e293b;
   border-color: #cbd5e1;
   background: #f8fafc;
+}
+
+:root[data-theme='light'] .classes-mapping-pill:hover {
+  border-color: #2563eb;
+  background: #eff6ff;
 }
 
 :root[data-theme='light'] .classes-student-chip {
@@ -576,8 +750,9 @@ a.classes-btn-primary {
 }
 
 :root[data-theme='light'] .classes-students-table-wrap {
-  border-color: #dbe6f3;
+  border-color: #e2e8f0;
   background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 :root[data-theme='light'] .classes-students-table th,
@@ -587,6 +762,7 @@ a.classes-btn-primary {
 
 :root[data-theme='light'] .classes-students-table th {
   color: #64748b;
+  background: #f8fafc;
 }
 
 :root[data-theme='light'] .classes-students-table th.classes-students-table__roll,

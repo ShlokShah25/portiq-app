@@ -1,0 +1,191 @@
+/*
+ * Education Design System
+ * -----------------------
+ * Shared primitives for the education-mode admin & faculty screens
+ * (Courses, Course detail, Org dashboard, Teachers, Teacher dashboard,
+ * and the education panel inside Settings).
+ *
+ * This file does NOT redefine brand color/font tokens — it composes on
+ * top of the tokens already owned by client/src/styles/theme.css
+ * (--bg-primary, --surface-card, --border-color, --accent-blue,
+ * --text-primary/secondary/muted, --shadow-soft-sm/lg, --radius-soft, …)
+ * so education screens stay visually consistent with the rest of PortIQ
+ * instead of introducing a competing palette.
+ *
+ * Every class here is prefixed `edu-` and is only ever referenced from
+ * education-only components/branches, so nothing here can leak into the
+ * workplace or cura verticals.
+ */
+
+:root {
+  /* Spacing rhythm */
+  --edu-space-1: 4px;
+  --edu-space-2: 8px;
+  --edu-space-3: 12px;
+  --edu-space-4: 16px;
+  --edu-space-5: 20px;
+  --edu-space-6: 24px;
+  --edu-space-8: 32px;
+  --edu-space-10: 40px;
+
+  /* Radius scale (kept close to the app's --radius-soft / --radius-card) */
+  --edu-radius-sm: 8px;
+  --edu-radius-md: 12px;
+  --edu-radius-lg: 16px;
+  --edu-radius-xl: 20px;
+
+  /* Layered elevation — flat borders alone read as "unstyled prototype";
+     these give cards real depth without becoming heavy or glossy. */
+  --edu-shadow-1: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 1px rgba(15, 23, 42, 0.03);
+  --edu-shadow-2: 0 2px 6px rgba(15, 23, 42, 0.06), 0 8px 24px -8px rgba(15, 23, 42, 0.12);
+  --edu-shadow-3: 0 8px 20px -6px rgba(15, 23, 42, 0.16), 0 24px 48px -20px rgba(15, 23, 42, 0.22);
+  --edu-shadow-focus: 0 0 0 3px var(--accent-blue-dim, rgba(37, 99, 235, 0.16));
+
+  --edu-ease: cubic-bezier(0.33, 1, 0.68, 1);
+  --edu-dur: 0.18s;
+}
+
+:root[data-theme='dark'] {
+  --edu-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.28);
+  --edu-shadow-2: 0 2px 8px rgba(0, 0, 0, 0.3), 0 10px 28px -10px rgba(0, 0, 0, 0.5);
+  --edu-shadow-3: 0 10px 24px -8px rgba(0, 0, 0, 0.55), 0 28px 56px -20px rgba(0, 0, 0, 0.6);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Typography helpers                                                     */
+/* ---------------------------------------------------------------------- */
+
+.edu-eyebrow {
+  display: block;
+  margin: 0 0 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-blue);
+}
+
+.edu-page-title {
+  margin: 0 0 8px;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--text-primary);
+}
+
+.edu-page-subtitle {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  max-width: 62ch;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Surfaces / cards                                                       */
+/* ---------------------------------------------------------------------- */
+
+.edu-card {
+  border-radius: var(--edu-radius-lg);
+  border: 1px solid var(--border-color);
+  background: var(--surface-card, var(--surface-secondary));
+  box-shadow: var(--edu-shadow-2);
+  transition: box-shadow var(--edu-dur) var(--edu-ease), border-color var(--edu-dur) var(--edu-ease),
+    transform var(--edu-dur) var(--edu-ease);
+}
+
+.edu-card--interactive:hover {
+  box-shadow: var(--edu-shadow-3);
+  border-color: var(--border-strong);
+  transform: translateY(-2px);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Empty states                                                           */
+/* ---------------------------------------------------------------------- */
+
+.edu-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: var(--edu-space-2);
+  padding: var(--edu-space-10) var(--edu-space-6);
+  border-radius: var(--edu-radius-lg);
+  border: 1px dashed var(--border-strong);
+  background: var(--dash-chip-bg, var(--surface-input));
+  color: var(--text-secondary);
+}
+
+.edu-empty__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  margin-bottom: var(--edu-space-2);
+  background: var(--accent-blue-dim, rgba(37, 99, 235, 0.12));
+  color: var(--accent-blue);
+}
+
+.edu-empty__title {
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.edu-empty__desc {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  max-width: 40ch;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Settings callout (used only inside the isEducation branch of Settings) */
+/* ---------------------------------------------------------------------- */
+
+.edu-settings-callout {
+  margin-top: var(--edu-space-3);
+  padding: var(--edu-space-5);
+  border-radius: var(--edu-radius-lg);
+  border: 1px solid var(--border-color);
+  background: linear-gradient(
+    150deg,
+    var(--accent-blue-dim, rgba(37, 99, 235, 0.1)) 0%,
+    var(--surface-card, var(--surface-secondary)) 55%
+  );
+  box-shadow: var(--edu-shadow-1);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--edu-space-4);
+}
+
+.edu-settings-callout__text {
+  min-width: 220px;
+  flex: 1;
+}
+
+.edu-settings-callout__title {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.edu-settings-callout__hint {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.edu-settings-callout .profile-manage-btn {
+  flex-shrink: 0;
+}

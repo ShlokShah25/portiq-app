@@ -7,6 +7,7 @@ import { L, SUPPORTED_UI_LANGUAGES, getUiLanguage, setUiLanguage } from '../conf
 import { isEducation } from '../config/product';
 import './Settings.css';
 import './Profile.css';
+import '../styles/education-design-system.css';
 
 const SETTINGS_SECTIONS = ['account', 'workspace', 'preferences', 'notifications'];
 
@@ -379,17 +380,20 @@ const Settings = () => {
                   </div>
                 </div>
                 {isEducation ? (
-                  <>
+                  <div className="edu-settings-callout">
+                    <div className="edu-settings-callout__text">
+                      <p className="edu-settings-callout__title">Course &amp; roster setup</p>
+                      <p className="edu-settings-callout__hint">
+                        Education caps: 12 courses, 12 semesters per course, 15 subjects per
+                        semester, and 120 students per semester. Faculty accounts are unlimited.
+                      </p>
+                    </div>
                     <div className="settings-actions-inline">
                       <Link to="/courses" className="profile-manage-btn">
                         Open Courses
                       </Link>
                     </div>
-                    <p className="settings-company-hint">
-                      Education caps: 12 courses, 12 semesters per course, 15 subjects per semester,
-                      and 120 students per semester. Faculty accounts are unlimited.
-                    </p>
-                  </>
+                  </div>
                 ) : (
                   <>
                     <div className="settings-workspace-embed">
