@@ -23,6 +23,10 @@ const semesterSchema = new mongoose.Schema(
     name: { type: String, required: true, trim: true }, // e.g. "Semester 3"
     subjects: { type: [String], default: [] },
     studentRoster: { type: [studentSchema], default: [] },
+    // Which faculty (Admin docs with role:'faculty') are assigned to teach this
+    // semester. A faculty account only sees semesters they're assigned to — without
+    // this, every teacher at the college would see the entire course catalog.
+    assignedFacultyIds: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Admin' }], default: [] },
   },
   { _id: true }
 );

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import axios from 'axios';
 import { getCourse, updateCourse, deleteCourse } from '../utils/coursesApi';
 import './ClassesPage.css';
 import './ClassroomDetailPage.css';
@@ -15,7 +16,13 @@ function rowKey(prefix) {
 }
 
 function emptySemester() {
-  return { rowKey: rowKey('sem'), name: '', subjects: [''], studentRoster: [{ name: '', email: '' }] };
+  return {
+    rowKey: rowKey('sem'),
+    name: '',
+    subjects: [''],
+    studentRoster: [{ name: '', email: '' }],
+    assignedFacultyIds: [],
+  };
 }
 
 const CourseDetailPage = () => {
@@ -30,6 +37,22 @@ const CourseDetailPage = () => {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [openSemesterKey, setOpenSemesterKey] = useState(null);
+  const [faculty, setFaculty] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await axios.get('/admin/teachers');
+        if (!cancelled) setFaculty(Array.isArray(res.data?.teachers) ? res.data.teachers : []);
+      } catch (_) {
+        if (!cancelled) setFaculty([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -51,6 +74,9 @@ const CourseDetailPage = () => {
           Array.isArray(s.studentRoster) && s.studentRoster.length
             ? s.studentRoster
             : [{ name: '', email: '' }],
+        assignedFacultyIds: Array.isArray(s.assignedFacultyIds)
+          ? s.assignedFacultyIds.map((id) => String(id))
+          : [],
       }));
       setSemesters(withKeys.length ? withKeys : []);
       if (withKeys.length) setOpenSemesterKey(withKeys[0].rowKey);
@@ -142,6 +168,21 @@ const CourseDetailPage = () => {
     );
   };
 
+  const toggleFaculty = (key, teacherId) => {
+    setSemesters((prev) =>
+      prev.map((s) => {
+        if (s.rowKey !== key) return s;
+        const has = s.assignedFacultyIds.includes(teacherId);
+        return {
+          ...s,
+          assignedFacultyIds: has
+            ? s.assignedFacultyIds.filter((id) => id !== teacherId)
+            : [...s.assignedFacultyIds, teacherId],
+        };
+      })
+    );
+  };
+
   const handleSaveAll = async () => {
     setError('');
     setNotice('');
@@ -152,6 +193,7 @@ const CourseDetailPage = () => {
         studentRoster: s.studentRoster
           .map((r) => ({ name: String(r.name || '').trim(), email: String(r.email || '').trim().toLowerCase() }))
           .filter((r) => r.email),
+        assignedFacultyIds: s.assignedFacultyIds,
       }))
       .filter((s) => s.name);
 
@@ -340,6 +382,37 @@ const CourseDetailPage = () => {
                         </div>
                       ))}
                     </div>
+
+                    <div className="classes-assignments-head">
+                      <h3>Assigned faculty ({s.assignedFacultyIds.length})</h3>
+                    </div>
+                    {faculty.length === 0 ? (
+                      <p className="class-detail-muted">
+                        No faculty accounts yet — add teachers from the Teachers page first, then assign
+                        them here so they only see the semesters they teach.
+                      </p>
+                    ) : (
+                      <div className="classes-table-mappings class-detail-subject-wrap">
+                        {faculty.map((t) => {
+                          const checked = s.assignedFacultyIds.includes(t._id || t.id);
+                          const tid = t._id || t.id;
+                          return (
+                            <label
+                              key={tid}
+                              className="classes-mapping-pill"
+                              style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleFaculty(s.rowKey, tid)}
+                              />
+                              {t.username || t.email}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
 
                     <div className="classes-assignments-head classes-assignments-head--students">
                       <h3>

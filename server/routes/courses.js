@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const router = express.Router();
 const Course = require('../models/Course');
 const { authenticateAdmin } = require('../middleware/auth');
@@ -58,6 +59,19 @@ function normalizeRoster(input) {
   return out;
 }
 
+function normalizeFacultyIds(input) {
+  const arr = Array.isArray(input) ? input : [];
+  const out = [];
+  const seen = new Set();
+  for (const raw of arr) {
+    const id = String(raw || '').trim();
+    if (!id || !mongoose.Types.ObjectId.isValid(id) || seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+  }
+  return out;
+}
+
 function normalizeSemesters(input) {
   const arr = Array.isArray(input) ? input : [];
   const out = [];
@@ -68,10 +82,26 @@ function normalizeSemesters(input) {
       name,
       subjects: normalizeSubjects(raw?.subjects),
       studentRoster: normalizeRoster(raw?.studentRoster),
+      assignedFacultyIds: normalizeFacultyIds(raw?.assignedFacultyIds),
     });
     if (out.length >= MAX_SEMESTERS_PER_COURSE) break;
   }
   return out;
+}
+
+/**
+ * Faculty (not admin/super_admin) only see semesters they're assigned to teach —
+ * otherwise every teacher at the college would see the whole department's catalog.
+ * Admin/super_admin always see everything unfiltered (they manage assignments).
+ */
+function filterCourseForViewer(course, admin) {
+  const role = String(admin.role || '').toLowerCase();
+  if (role !== 'faculty') return course;
+  const facultyId = String(admin._id);
+  const semesters = (course.semesters || []).filter((s) =>
+    (s.assignedFacultyIds || []).some((id) => String(id) === facultyId)
+  );
+  return { ...course, semesters };
 }
 
 /**
@@ -88,7 +118,11 @@ router.get('/', authenticateAdmin, async (req, res) => {
     if (String(req.admin.role || '').toLowerCase() !== 'super_admin') {
       query.createdByAdminId = ownerAdminIdFor(req.admin);
     }
-    const courses = await Course.find(query).sort({ name: 1 }).lean();
+    const rawCourses = await Course.find(query).sort({ name: 1 }).lean();
+    const courses = rawCourses
+      .map((c) => filterCourseForViewer(c, req.admin))
+      // Faculty shouldn't see a course they have zero assigned semesters in.
+      .filter((c) => String(req.admin.role || '').toLowerCase() !== 'faculty' || c.semesters.length > 0);
     res.json({ courses, limits: { MAX_COURSES, MAX_SEMESTERS_PER_COURSE, MAX_SUBJECTS_PER_SEMESTER, MAX_STUDENTS_PER_SEMESTER } });
   } catch (error) {
     console.error('Error listing courses:', error);
@@ -110,7 +144,11 @@ router.get('/:id', authenticateAdmin, async (req, res) => {
     ) {
       return res.status(403).json({ error: 'You do not have access to this course.' });
     }
-    res.json({ course, limits: { MAX_COURSES, MAX_SEMESTERS_PER_COURSE, MAX_SUBJECTS_PER_SEMESTER, MAX_STUDENTS_PER_SEMESTER } });
+    const visible = filterCourseForViewer(course, req.admin);
+    if (String(req.admin.role || '').toLowerCase() === 'faculty' && visible.semesters.length === 0) {
+      return res.status(403).json({ error: 'You are not assigned to any semester in this course.' });
+    }
+    res.json({ course: visible, limits: { MAX_COURSES, MAX_SEMESTERS_PER_COURSE, MAX_SUBJECTS_PER_SEMESTER, MAX_STUDENTS_PER_SEMESTER } });
   } catch (error) {
     console.error('Error fetching course:', error);
     res.status(500).json({ error: 'Failed to fetch course.' });
