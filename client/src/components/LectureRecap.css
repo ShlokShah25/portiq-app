@@ -128,11 +128,162 @@
   padding-top: 24px;
 }
 
+.lecture-recap-qa {
+  border-top: 1px solid var(--divider, rgba(255, 255, 255, 0.08));
+  padding-top: 24px;
+  margin-bottom: 24px;
+}
+
+.lecture-recap-qa__hint {
+  font-size: 13px;
+  color: var(--text-secondary, rgba(255, 255, 255, 0.65));
+  margin: -6px 0 16px;
+  max-width: 60ch;
+}
+
+.lecture-recap-qa__item {
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--surface-card, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--divider, rgba(255, 255, 255, 0.1));
+  margin-bottom: 12px;
+}
+
+.lecture-recap-qa__q {
+  font-weight: 600;
+  font-size: 13.5px;
+  margin: 0 0 6px;
+}
+
+.lecture-recap-qa__a {
+  font-size: 13.5px;
+  color: var(--text-secondary, rgba(255, 255, 255, 0.75));
+  margin: 0 0 8px;
+  white-space: pre-wrap;
+}
+
+.lecture-recap-qa__escalate-btn {
+  border: none;
+  background: none;
+  color: var(--accent-blue, #60a5fa);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.lecture-recap-qa__escalate-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.lecture-recap-qa__escalate-form input {
+  flex: 1 1 220px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--divider, rgba(255, 255, 255, 0.14));
+  background: var(--surface-input, rgba(255, 255, 255, 0.05));
+  color: inherit;
+  font-size: 13px;
+}
+
+.lecture-recap-qa__escalate-form button {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent-blue, #2563eb);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lecture-recap-qa__escalate-cancel {
+  background: transparent !important;
+  color: var(--text-muted, rgba(255, 255, 255, 0.5)) !important;
+}
+
+.lecture-recap-qa__escalate-status {
+  font-size: 12.5px;
+  margin: 4px 0 0;
+}
+
+.lecture-recap-qa__escalate-status.is-sent {
+  color: var(--success-green, #34d399);
+}
+
+.lecture-recap-qa__escalate-status.is-error {
+  color: var(--error-red, #f87171);
+}
+
+.lecture-recap-qa__composer {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.lecture-recap-qa__composer input {
+  flex: 1 1 320px;
+  padding: 11px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--divider, rgba(255, 255, 255, 0.14));
+  background: var(--surface-input, rgba(255, 255, 255, 0.05));
+  color: inherit;
+  font-size: 13.5px;
+}
+
+.lecture-recap-qa__composer button {
+  padding: 11px 18px;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent-blue, #2563eb);
+  color: #fff;
+  font-weight: 600;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+
+.lecture-recap-qa__composer button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.lecture-recap-qa__error {
+  color: var(--error-red, #f87171);
+  font-size: 12.5px;
+  margin-top: 8px;
+}
+
 .lecture-recap-quiz__score {
   font-weight: 700;
   font-size: 15px;
   margin: 0 0 18px;
   color: var(--success-green, #34d399);
+}
+
+.lecture-recap-quiz__mandatory-note {
+  font-size: 13px;
+  color: var(--text-secondary, rgba(255, 255, 255, 0.65));
+  margin: -6px 0 14px;
+}
+
+.lecture-recap-quiz__identity {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.lecture-recap-quiz__identity-input {
+  flex: 1 1 200px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--divider, rgba(255, 255, 255, 0.14));
+  background: var(--surface-input, rgba(255, 255, 255, 0.05));
+  color: inherit;
+  font-size: 13.5px;
 }
 
 .lecture-recap-quiz__question {

@@ -587,9 +587,44 @@ const meetingSchema = new mongoose.Schema({
         options: [{ type: String, trim: true }],
         correctIndex: { type: Number, required: true },
         explanation: { type: String, default: '', trim: true },
+        // Short topic label (e.g. "Supervised Learning") this question tests, so the
+        // results page can group right/wrong answers by topic. Optional — older
+        // quizzes generated before this field existed just won't have a breakdown.
+        topic: { type: String, default: '', trim: true },
+      },
+    ],
+    // When true, the recap page asks every student for their name/email before
+    // letting them take the quiz, and blocks skipping it — see smartboard.js.
+    mandatory: { type: Boolean, default: false },
+    // Every submitted attempt, so the teacher can see who has (and hasn't) taken
+    // the quiz regardless of whether it's mandatory — surfaced on the teacher's
+    // "Quiz Results" sidebar page, never on the main dashboard.
+    attempts: [
+      {
+        studentName: { type: String, default: '', trim: true },
+        studentEmail: { type: String, default: '', trim: true, lowercase: true },
+        score: { type: Number, required: true },
+        total: { type: Number, required: true },
+        submittedAt: { type: Date, default: Date.now },
       },
     ],
   },
+  /**
+   * Smartboard: questions students asked the AI about this lecture from the public
+   * recap page (no login), and whether they escalated it to the teacher because the
+   * AI's answer wasn't good enough. Lets a teacher see what confused students without
+   * needing a separate inbox system — see server/routes/smartboard.js.
+   */
+  studentQuestions: [
+    {
+      question: { type: String, required: true, trim: true },
+      aiAnswer: { type: String, default: '', trim: true },
+      askedAt: { type: Date, default: Date.now },
+      escalated: { type: Boolean, default: false },
+      escalatedAt: { type: Date, default: null },
+      studentEmail: { type: String, default: '', trim: true, lowercase: true },
+    },
+  ],
   /**
    * Opaque token granting no-login access to this lecture's student recap page
    * (GET /api/public/lectures/:token). Generated lazily the first time a smartboard

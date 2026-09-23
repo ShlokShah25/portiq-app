@@ -36,6 +36,11 @@ const Sidebar = () => {
   const [pinned, setPinned] = useState(readSidebarPinnedPref);
   const [railHovered, setRailHovered] = useState(false);
 
+  const accountName = String(trial?.profile?.username || '').trim();
+  const accountEmail = String(trial?.profile?.email || '').trim();
+  const accountInitial = (accountName || accountEmail || 'U').charAt(0).toUpperCase();
+  const accountRoleLabel = role === 'faculty' ? 'Teacher' : role === 'super_admin' ? 'Super Admin' : 'Admin';
+
   const sidebarExpanded = pinned || railHovered;
 
   useEffect(() => {
@@ -170,6 +175,21 @@ const Sidebar = () => {
               </svg>
             ),
             path: '/settings',
+          },
+        ]
+      : []),
+    ...(isEducation
+      ? [
+          {
+            id: 'quiz-results',
+            label: 'Quiz Results',
+            icon: (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M9 11l3 3L22 4" />
+                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+              </svg>
+            ),
+            path: '/quiz-results',
           },
         ]
       : []),
@@ -328,6 +348,22 @@ const Sidebar = () => {
         ) : null}
 
         <div className="sidebar__footer">
+          {(accountName || accountEmail) && (
+            <button
+              type="button"
+              className="sidebar-account"
+              onClick={() => navigate('/settings')}
+              title={!sidebarExpanded ? [accountName, accountEmail].filter(Boolean).join(' · ') : undefined}
+            >
+              <span className="sidebar-account__avatar" aria-hidden>
+                {accountInitial}
+              </span>
+              <span className="sidebar-account__body sidebar__label">
+                <strong className="sidebar-account__name">{accountName || accountEmail}</strong>
+                <span className="sidebar-account__meta">{accountRoleLabel}</span>
+              </span>
+            </button>
+          )}
           {role !== 'faculty' && (
             <button
               type="button"

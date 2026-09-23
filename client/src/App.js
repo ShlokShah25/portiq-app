@@ -48,6 +48,7 @@ const Insights = lazyWithRetry(() => import('./components/Insights'), 'insights'
 const CoursesPage = lazyWithRetry(() => import('./components/CoursesPage'), 'courses');
 const CourseDetailPage = lazyWithRetry(() => import('./components/CourseDetailPage'), 'course-detail');
 const TeachersPage = lazyWithRetry(() => import('./components/TeachersPage'), 'teachers');
+const QuizResultsPage = lazyWithRetry(() => import('./components/QuizResultsPage'), 'quiz-results');
 const Settings = lazyWithRetry(() => import('./components/Settings'), 'settings');
 const MeetingInProgress = lazyWithRetry(() => import('./components/MeetingInProgress'), 'meeting-room');
 const MeetingDetail = lazyWithRetry(() => import('./components/MeetingDetail'), 'meeting-detail');
@@ -255,6 +256,7 @@ function App() {
               <Route path="courses/:courseId" element={<CourseDetailPage />} />
               <Route path="courses" element={<CoursesPage />} />
               <Route path="teachers" element={<TeachersPage />} />
+              <Route path="quiz-results" element={<QuizResultsPage />} />
               <Route path="settings" element={<Settings />} />
               <Route path="profile" element={<Navigate to="/settings" replace />} />
               <Route path="admin" element={<ClientAdmin />} />

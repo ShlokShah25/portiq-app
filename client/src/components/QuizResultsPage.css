@@ -1,0 +1,115 @@
+.quiz-results__status {
+  color: var(--text-muted);
+  font-size: 13.5px;
+  padding: 8px 0;
+}
+
+.quiz-results__list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.quiz-results__lecture {
+  padding: 0;
+  overflow: hidden;
+}
+
+.quiz-results__lecture-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 16px 18px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.quiz-results__lecture-title {
+  font-weight: 700;
+  font-size: 14.5px;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.quiz-results__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  background: var(--accent-blue-dim);
+  color: var(--accent-blue);
+  border: 1px solid var(--badge-border);
+}
+
+.quiz-results__lecture-meta {
+  margin-top: 3px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.quiz-results__lecture-count {
+  flex-shrink: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--dash-chip-bg);
+  border: 1px solid var(--border-color);
+  padding: 5px 10px;
+  border-radius: 999px;
+}
+
+.quiz-results__table {
+  width: 100%;
+  border-collapse: collapse;
+  border-top: 1px solid var(--divider);
+}
+
+.quiz-results__table th {
+  text-align: left;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  padding: 10px 18px;
+  font-weight: 600;
+}
+
+.quiz-results__table td {
+  padding: 10px 18px;
+  font-size: 13px;
+  color: var(--text-primary);
+  border-top: 1px solid var(--divider);
+}
+
+.quiz-results__pct {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.quiz-results__pct.is-good {
+  color: var(--success-green);
+}
+
+.quiz-results__pct.is-low {
+  color: var(--text-muted);
+}
+
+.quiz-results__empty-row {
+  color: var(--text-muted);
+  font-style: italic;
+}

@@ -313,12 +313,13 @@ teacherRouter.post('/:id/quiz/generate', async (req, res) => {
           content:
             'You write short multiple-choice quizzes that check whether a student was paying attention in class ' +
             'and understood the material. Respond with JSON only: {"questions":[{"question":"...", ' +
-            '"options":["...","...","...","..."], "correctIndex":0, "explanation":"..."}, ...]}. ' +
+            '"options":["...","...","...","..."], "correctIndex":0, "explanation":"...", "topic":"..."}, ...]}. ' +
             'Produce exactly 5 questions. Each question needs exactly 4 options and exactly one correct answer ' +
             '(correctIndex is 0-based). Questions must be answerable only from the lecture content given — no ' +
             'outside knowledge, no trick questions. Vary question type: recall, application, and one "why/because" ' +
             'reasoning question. Keep each option short (a phrase, not a paragraph). explanation is one sentence ' +
-            'on why the correct answer is right, shown to the student after they answer.',
+            'on why the correct answer is right, shown to the student after they answer. topic is a short (2-4 word) ' +
+            'label for the specific concept this question tests (e.g. "Supervised Learning"), used to group results.',
         },
         {
           role: 'user',
@@ -342,6 +343,7 @@ teacherRouter.post('/:id/quiz/generate', async (req, res) => {
         options: Array.isArray(q?.options) ? q.options.slice(0, 4).map((o) => String(o || '').trim()) : [],
         correctIndex: Number.isInteger(q?.correctIndex) ? q.correctIndex : -1,
         explanation: String(q?.explanation || '').trim(),
+        topic: String(q?.topic || '').trim().slice(0, 60),
       }))
       .filter((q) => q.question && q.options.length === 4 && q.correctIndex >= 0 && q.correctIndex < 4);
 
@@ -349,7 +351,14 @@ teacherRouter.post('/:id/quiz/generate', async (req, res) => {
       return res.status(502).json({ error: 'AI did not return a usable quiz. Try again.' });
     }
 
-    meeting.quiz = { generatedAt: new Date(), questions: cleanQuestions };
+    // Regenerating a quiz replaces its questions but keeps the teacher's mandatory
+    // setting and any attempts already recorded against the old question set.
+    meeting.quiz = {
+      generatedAt: new Date(),
+      questions: cleanQuestions,
+      mandatory: Boolean(meeting.quiz?.mandatory),
+      attempts: meeting.quiz?.attempts || [],
+    };
     ensureRecapToken(meeting);
     await meeting.save();
 
@@ -357,6 +366,75 @@ teacherRouter.post('/:id/quiz/generate', async (req, res) => {
   } catch (error) {
     console.error('Error generating quiz:', error);
     res.status(500).json({ error: 'Failed to generate quiz', details: error.message });
+  }
+});
+
+/** Teacher toggles whether every student must attempt this lecture's quiz. */
+teacherRouter.put('/:id/quiz/mandatory', async (req, res) => {
+  try {
+    const meeting = await Meeting.findById(req.params.id);
+    if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
+    const admin = await getAdminFromRequest(req);
+    if (!canAccessMeeting(meeting, admin)) return res.status(404).json({ error: 'Meeting not found' });
+    if (!meeting.quiz?.questions?.length) {
+      return res.status(400).json({ error: 'Generate a quiz for this lecture first.' });
+    }
+
+    meeting.quiz.mandatory = Boolean(req.body?.mandatory);
+    await meeting.save();
+    res.json({ success: true, mandatory: meeting.quiz.mandatory });
+  } catch (error) {
+    console.error('Error updating quiz mandatory flag:', error);
+    res.status(500).json({ error: 'Failed to update quiz setting' });
+  }
+});
+
+/**
+ * Every quiz attempt across every one of this teacher's lectures, newest first —
+ * who took it, their score, and whether it was mandatory when they took it. This
+ * is deliberately its own page (reached from the sidebar), not part of the main
+ * dashboard, since it's a drill-down a teacher checks on demand rather than a
+ * headline number.
+ */
+teacherRouter.get('/quiz-results/summary', async (req, res) => {
+  try {
+    const admin = await getAdminFromRequest(req);
+    // Include lectures with at least one attempt, and mandatory quizzes with zero
+    // attempts so far — a teacher needs to see "no one has done it yet" too.
+    const filter = {
+      $or: [{ 'quiz.attempts.0': { $exists: true } }, { 'quiz.mandatory': true, 'quiz.questions.0': { $exists: true } }],
+    };
+    if (admin && admin.username !== 'admin') {
+      filter.adminId = admin._id;
+    }
+    const meetings = await Meeting.find(filter)
+      .select('title educationSubject educationTeacherName startTime createdAt quiz')
+      .sort({ createdAt: -1 })
+      .limit(300);
+
+    const lectures = meetings.map((m) => ({
+      id: m._id,
+      title: m.title,
+      subject: m.educationSubject || '',
+      teacherName: m.educationTeacherName || '',
+      lectureDate: m.startTime || m.createdAt,
+      mandatory: Boolean(m.quiz?.mandatory),
+      questionCount: m.quiz?.questions?.length || 0,
+      attempts: [...(m.quiz?.attempts || [])]
+        .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt))
+        .map((a) => ({
+          studentName: a.studentName || '',
+          studentEmail: a.studentEmail || '',
+          score: a.score,
+          total: a.total,
+          submittedAt: a.submittedAt,
+        })),
+    }));
+
+    res.json({ lectures });
+  } catch (error) {
+    console.error('Error fetching quiz results summary:', error);
+    res.status(500).json({ error: 'Failed to fetch quiz results' });
   }
 });
 
@@ -454,12 +532,14 @@ publicRouter.get('/:token', async (req, res) => {
       index: i,
       question: q.question,
       options: q.options,
+      topic: q.topic || '',
     }));
 
     res.json({
       title: meeting.title,
       subject: meeting.educationSubject || '',
       teacherName: meeting.educationTeacherName || meeting.organizer || '',
+      teacherContactAvailable: Boolean(String(meeting.educationTeacherEmail || '').trim()),
       lectureDate: meeting.startTime || meeting.createdAt,
       summary: meeting.summary || '',
       keyPoints: meeting.keyPoints || [],
@@ -469,6 +549,7 @@ publicRouter.get('/:token', async (req, res) => {
       // read `slides`. Kept as slide-only entries in slide order.
       slides: shownSlides.map(({ type, at, ...rest }) => rest).sort((a, b) => a.index - b.index),
       quiz: quizQuestions,
+      quizMandatory: Boolean(meeting.quiz?.mandatory) && quizQuestions.length > 0,
     });
   } catch (error) {
     console.error('Error loading public recap:', error);
@@ -481,6 +562,12 @@ publicRouter.post('/:token/quiz-attempt', async (req, res) => {
     const meeting = await Meeting.findOne({ recapToken: req.params.token });
     if (!meeting) return res.status(404).json({ error: 'This lecture recap link is invalid or has expired.' });
 
+    const studentName = String(req.body?.studentName || '').trim().slice(0, 200);
+    const studentEmail = String(req.body?.studentEmail || '').trim().toLowerCase().slice(0, 200);
+    if (meeting.quiz?.mandatory && (!studentName || !studentEmail)) {
+      return res.status(400).json({ error: 'This quiz is mandatory — enter your name and email before submitting.' });
+    }
+
     const answers = Array.isArray(req.body?.answers) ? req.body.answers : [];
     const questions = meeting.quiz?.questions || [];
     let score = 0;
@@ -488,13 +575,183 @@ publicRouter.post('/:token/quiz-attempt', async (req, res) => {
       const chosen = Number.isInteger(answers[i]) ? answers[i] : -1;
       const correct = chosen === q.correctIndex;
       if (correct) score += 1;
-      return { index: i, correct, chosenIndex: chosen, correctIndex: q.correctIndex, explanation: q.explanation };
+      return {
+        index: i,
+        correct,
+        chosenIndex: chosen,
+        correctIndex: q.correctIndex,
+        explanation: q.explanation,
+        topic: q.topic || '',
+      };
     });
+
+    // Record the attempt (so the teacher can see who took it) whenever the
+    // student gave a name/email — best-effort, never blocks the score response.
+    if (studentName || studentEmail) {
+      try {
+        if (!meeting.quiz.attempts) meeting.quiz.attempts = [];
+        meeting.quiz.attempts.push({ studentName, studentEmail, score, total: questions.length, submittedAt: new Date() });
+        await meeting.save();
+      } catch (saveErr) {
+        console.error('Error saving quiz attempt (non-fatal):', saveErr);
+      }
+    }
 
     res.json({ score, total: questions.length, results });
   } catch (error) {
     console.error('Error scoring quiz attempt:', error);
     res.status(500).json({ error: 'Failed to score quiz' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Student Q&A: ask the AI a question about this lecture, and escalate to the
+// teacher if the answer isn't good enough. No login required (token-scoped,
+// same as the rest of the public recap), and every question is saved on the
+// meeting so the teacher can see what students were confused about — see
+// GET /:id/questions below.
+// ---------------------------------------------------------------------------
+
+const MAX_STUDENT_QUESTIONS = 200; // per lecture — generous, just a sanity cap
+
+publicRouter.post('/:token/ask', async (req, res) => {
+  try {
+    const meeting = await Meeting.findOne({ recapToken: req.params.token });
+    if (!meeting) return res.status(404).json({ error: 'This lecture recap link is invalid or has expired.' });
+    if (!openai) return res.status(503).json({ error: 'AI Q&A is not configured (missing OPENAI_API_KEY).' });
+
+    const question = String(req.body?.question || '').trim().slice(0, 1000);
+    if (!question) return res.status(400).json({ error: 'Enter a question first.' });
+
+    const context =
+      String(meeting.summary || '').trim() ||
+      String(meeting.transcription || '').trim();
+    if (!context) {
+      return res.status(400).json({ error: 'This lecture has no summary or transcript yet to answer questions from.' });
+    }
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      temperature: 0.3,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You answer a student\'s question about one specific class lecture, using only the lecture summary/' +
+            'transcript given to you. Be concise and direct — a few sentences, not an essay. If the material given ' +
+            'does not actually cover what they are asking, say so plainly rather than guessing or using outside ' +
+            'knowledge — the student can then ask their teacher instead.',
+        },
+        {
+          role: 'user',
+          content:
+            `Lecture: ${meeting.title || 'Untitled lecture'}${meeting.educationSubject ? ` (${meeting.educationSubject})` : ''}\n\n` +
+            `Lecture content:\n${context.slice(0, 12000)}\n\nStudent question: ${question}`,
+        },
+      ],
+    });
+
+    const answer = String(completion.choices?.[0]?.message?.content || '').trim() || 'Sorry, I could not generate an answer just now.';
+
+    // Best-effort — a save failure here shouldn't block the student from getting their answer.
+    try {
+      if (!Array.isArray(meeting.studentQuestions)) meeting.studentQuestions = [];
+      meeting.studentQuestions.push({ question, aiAnswer: answer, askedAt: new Date() });
+      if (meeting.studentQuestions.length > MAX_STUDENT_QUESTIONS) {
+        meeting.studentQuestions = meeting.studentQuestions.slice(-MAX_STUDENT_QUESTIONS);
+      }
+      await meeting.save();
+    } catch (saveErr) {
+      console.error('Error saving student question (non-fatal):', saveErr);
+    }
+
+    res.json({ answer });
+  } catch (error) {
+    console.error('Error answering student question:', error);
+    res.status(500).json({ error: 'Could not get an answer right now. Try again in a moment.' });
+  }
+});
+
+/** Student wasn't satisfied with the AI's answer — email the teacher the question directly. */
+publicRouter.post('/:token/escalate', async (req, res) => {
+  try {
+    const meeting = await Meeting.findOne({ recapToken: req.params.token });
+    if (!meeting) return res.status(404).json({ error: 'This lecture recap link is invalid or has expired.' });
+
+    const question = String(req.body?.question || '').trim().slice(0, 1000);
+    const aiAnswer = String(req.body?.aiAnswer || '').trim().slice(0, 4000);
+    const studentEmail = String(req.body?.studentEmail || '').trim().toLowerCase().slice(0, 200);
+    if (!question) return res.status(400).json({ error: 'Missing the question to send.' });
+
+    const teacherEmail = String(meeting.educationTeacherEmail || '').trim();
+    if (!teacherEmail) {
+      return res.status(400).json({ error: "This lecture doesn't have a teacher email on file to send this to." });
+    }
+
+    try {
+      if (!Array.isArray(meeting.studentQuestions)) meeting.studentQuestions = [];
+      meeting.studentQuestions.push({
+        question,
+        aiAnswer,
+        askedAt: new Date(),
+        escalated: true,
+        escalatedAt: new Date(),
+        studentEmail,
+      });
+      if (meeting.studentQuestions.length > MAX_STUDENT_QUESTIONS) {
+        meeting.studentQuestions = meeting.studentQuestions.slice(-MAX_STUDENT_QUESTIONS);
+      }
+      await meeting.save();
+    } catch (saveErr) {
+      console.error('Error saving escalated question (non-fatal):', saveErr);
+    }
+
+    if (isEmailConfigured()) {
+      try {
+        await sendEmail({
+          to: teacherEmail,
+          replyTo: studentEmail || undefined,
+          subject: `Student question on "${meeting.title}" — AI answer wasn't enough`,
+          html:
+            `<p>A student asked a question on the recap page for <strong>${meeting.title}</strong> and didn't find ` +
+            `the AI's answer sufficient:</p>` +
+            `<p style="padding:12px;background:#f4f4f5;border-radius:8px;"><strong>Question:</strong> ${question}</p>` +
+            (aiAnswer
+              ? `<p style="padding:12px;background:#f4f4f5;border-radius:8px;"><strong>AI's answer:</strong> ${aiAnswer}</p>`
+              : '') +
+            (studentEmail ? `<p style="color:#666;font-size:13px;">Student's email (for reply): ${studentEmail}</p>` : ''),
+          text:
+            `Question: ${question}\n\n` +
+            (aiAnswer ? `AI's answer: ${aiAnswer}\n\n` : '') +
+            (studentEmail ? `Student's email: ${studentEmail}` : ''),
+        });
+      } catch (emailErr) {
+        console.error('Error emailing teacher for escalation:', emailErr);
+        return res.status(502).json({ error: "Saved your question, but couldn't email your teacher right now." });
+      }
+    } else {
+      return res.status(503).json({ error: 'Saved your question, but email is not configured on this server.' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error escalating student question:', error);
+    res.status(500).json({ error: 'Could not send this to your teacher right now.' });
+  }
+});
+
+/** Teacher-facing: see every question students asked on this lecture's recap page. */
+teacherRouter.get('/:id/questions', async (req, res) => {
+  try {
+    const meeting = await Meeting.findById(req.params.id);
+    if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
+    const admin = await getAdminFromRequest(req);
+    if (!canAccessMeeting(meeting, admin)) return res.status(404).json({ error: 'Meeting not found' });
+    const questions = [...(meeting.studentQuestions || [])].sort((a, b) => new Date(b.askedAt) - new Date(a.askedAt));
+    res.json({ questions });
+  } catch (error) {
+    console.error('Error fetching student questions:', error);
+    res.status(500).json({ error: 'Failed to fetch student questions' });
   }
 });
 
