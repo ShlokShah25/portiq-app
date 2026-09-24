@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useTrialExperience } from './TrialExperienceProvider';
-import { BookOpen, GraduationCap, Layers, Lightbulb, Zap } from 'lucide-react';
+import { BookOpen, GraduationCap, Layers, Lightbulb, Zap, CalendarDays, Target, AlertCircle } from 'lucide-react';
 import { listCourses } from '../utils/coursesApi';
 import { T } from '../config/terminology';
 import { TEACHER_FACULTY_TIPS, pickTipIndex, TIP_ROTATION_MS } from '../config/dashboardTips';
@@ -65,6 +65,8 @@ export default function TeacherDashboard() {
   const [lectureRecords, setLectureRecords] = useState([]);
   const [recordsLoading, setRecordsLoading] = useState(false);
   const [recordsError, setRecordsError] = useState('');
+  const [weekLectureCount, setWeekLectureCount] = useState(null);
+  const [quizStats, setQuizStats] = useState({ loading: true, avgPct: null, pendingMandatory: 0 });
   /** Bumps when the local calendar day changes so we refetch / refilter “today’s” list. */
   const [localDayKey, setLocalDayKey] = useState(() => getLocalDayKey());
   const [onboardingOpen, setOnboardingOpen] = useState(false);
@@ -208,16 +210,16 @@ export default function TeacherDashboard() {
         const res = await axios.get('/meetings', { timeout: 30000 });
         if (cancelled) return;
         const rows = Array.isArray(res.data?.meetings) ? res.data.meetings : [];
+        const isOwnedByTeacher = (m) => {
+          const ownerEmail = String(m?.educationTeacherEmail || '').trim().toLowerCase();
+          const organizer = String(m?.organizer || '').trim().toLowerCase();
+          if (teacherEmail) {
+            return ownerEmail === teacherEmail || organizer === teacherEmail;
+          }
+          return String(m?.educationTeacherName || '').trim().toLowerCase() === teacherName.toLowerCase();
+        };
         const teacherRecords = rows
-          .filter((m) => {
-            if (!isMeetingOnLocalDay(m, localDayKey)) return false;
-            const ownerEmail = String(m?.educationTeacherEmail || '').trim().toLowerCase();
-            const organizer = String(m?.organizer || '').trim().toLowerCase();
-            if (teacherEmail) {
-              return ownerEmail === teacherEmail || organizer === teacherEmail;
-            }
-            return String(m?.educationTeacherName || '').trim().toLowerCase() === teacherName.toLowerCase();
-          })
+          .filter((m) => isOwnedByTeacher(m) && isMeetingOnLocalDay(m, localDayKey))
           .sort((a, b) => {
             const aTime = new Date(a?.startTime || a?.scheduledTime || a?.createdAt || 0).getTime();
             const bTime = new Date(b?.startTime || b?.scheduledTime || b?.createdAt || 0).getTime();
@@ -225,6 +227,15 @@ export default function TeacherDashboard() {
           })
           .slice(0, 20);
         setLectureRecords(teacherRecords);
+
+        // At-a-glance stat: lectures run in the last 7 days (not just today).
+        const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        const weekCount = rows.filter((m) => {
+          if (!isOwnedByTeacher(m)) return false;
+          const t = getMeetingSortDate(m);
+          return t && t.getTime() >= weekAgo;
+        }).length;
+        if (!cancelled) setWeekLectureCount(weekCount);
       } catch (err) {
         if (cancelled) return;
         const d = err.response?.data;
@@ -242,6 +253,40 @@ export default function TeacherDashboard() {
       cancelled = true;
     };
   }, [teacherEmail, teacherName, localDayKey]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await axios.get('/meetings/quiz-results/summary');
+        if (cancelled) return;
+        const lectures = Array.isArray(res.data?.lectures) ? res.data.lectures : [];
+        let correctSum = 0;
+        let totalSum = 0;
+        let pendingMandatory = 0;
+        lectures.forEach((lec) => {
+          const attempts = Array.isArray(lec.attempts) ? lec.attempts : [];
+          if (lec.mandatory && attempts.length === 0) pendingMandatory += 1;
+          attempts.forEach((a) => {
+            if (a.total > 0) {
+              correctSum += a.score;
+              totalSum += a.total;
+            }
+          });
+        });
+        setQuizStats({
+          loading: false,
+          avgPct: totalSum > 0 ? Math.round((correctSum / totalSum) * 100) : null,
+          pendingMandatory,
+        });
+      } catch (err) {
+        if (!cancelled) setQuizStats({ loading: false, avgPct: null, pendingMandatory: 0 });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const formatLectureTime = (meeting) => {
     const value = meeting?.startTime || meeting?.scheduledTime || meeting?.createdAt;
@@ -347,6 +392,44 @@ export default function TeacherDashboard() {
               Start faster. Pick your course, semester, and subject, then begin your lecture in one click.
             </p>
           </header>
+
+          <div className="dashboard-teacher-stats ux-dashboard-stagger" style={{ animationDelay: '20ms' }}>
+            <div className="dashboard-teacher-stat">
+              <span className="dashboard-teacher-stat__ic" aria-hidden>
+                <CalendarDays size={18} strokeWidth={1.75} />
+              </span>
+              <div>
+                <div className="dashboard-teacher-stat__value">
+                  {weekLectureCount === null ? '—' : weekLectureCount}
+                </div>
+                <div className="dashboard-teacher-stat__label">Lectures this week</div>
+              </div>
+            </div>
+            <div className="dashboard-teacher-stat">
+              <span className="dashboard-teacher-stat__ic" aria-hidden>
+                <Target size={18} strokeWidth={1.75} />
+              </span>
+              <div>
+                <div className="dashboard-teacher-stat__value">
+                  {quizStats.loading ? '—' : quizStats.avgPct === null ? 'No data' : `${quizStats.avgPct}%`}
+                </div>
+                <div className="dashboard-teacher-stat__label">Avg quiz score</div>
+              </div>
+            </div>
+            <div
+              className={`dashboard-teacher-stat${quizStats.pendingMandatory > 0 ? ' is-alert' : ''}`}
+            >
+              <span className="dashboard-teacher-stat__ic" aria-hidden>
+                <AlertCircle size={18} strokeWidth={1.75} />
+              </span>
+              <div>
+                <div className="dashboard-teacher-stat__value">
+                  {quizStats.loading ? '—' : quizStats.pendingMandatory}
+                </div>
+                <div className="dashboard-teacher-stat__label">Mandatory quizzes with 0 attempts</div>
+              </div>
+            </div>
+          </div>
 
           <section
             className="dashboard-education-strip dashboard-teacher-shell ux-dashboard-stagger"

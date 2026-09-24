@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { BarChart3, CheckCircle2, Circle } from 'lucide-react';
+import Skeleton from './Skeleton';
 import './QuizResultsPage.css';
 
 /**
@@ -50,14 +51,29 @@ export default function QuizResultsPage() {
           <p>Every quiz attempt across your lectures — who took it, their score, and whether it was mandatory.</p>
         </div>
 
-        {loading && <p className="quiz-results__status">Loading…</p>}
+        {loading && (
+          <div className="quiz-results__list" aria-label="Loading quiz results">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="edu-card quiz-results__lecture quiz-results__skeleton-row">
+                <div style={{ flex: 1 }}>
+                  <Skeleton width="45%" height={14} style={{ marginBottom: 8 }} />
+                  <Skeleton width="30%" height={11} />
+                </div>
+                <Skeleton width={72} height={22} radius={999} />
+              </div>
+            ))}
+          </div>
+        )}
         {error && <p className="classes-error">{error}</p>}
 
         {!loading && !error && lectures.length === 0 && (
           <div className="edu-empty">
+            <div className="edu-empty__icon" aria-hidden>
+              <BarChart3 size={26} strokeWidth={1.75} />
+            </div>
             <div className="edu-empty__title">No quiz attempts yet</div>
             <p className="edu-empty__desc">
-              Once a lecture has a quiz and a student attempts it, results will show up here.
+              Once a student takes a lecture's quiz, their score shows up here — mandatory or not.
             </p>
           </div>
         )}

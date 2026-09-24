@@ -17,6 +17,10 @@ import {
   Minus,
   Type,
   X,
+  Check,
+  Loader2,
+  HelpCircle,
+  Target,
 } from 'lucide-react';
 import './Smartboard.css';
 
@@ -66,9 +70,13 @@ export default function Smartboard({
   const [brushWidth, setBrushWidth] = useState(4);
   const [saveStatus, setSaveStatus] = useState('idle'); // idle | saving | saved
   const [customColorOpen, setCustomColorOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [laserPoints, setLaserPoints] = useState([]); // ephemeral only — never saved to annotations
 
   const canvasElRef = useRef(null);
   const fabricRef = useRef(null);
+  const stageRef = useRef(null);
+  const laserIdRef = useRef(0);
   const saveTimerRef = useRef(null);
   const fileInputRef = useRef(null);
   const loadingPageRef = useRef(false); // guards against autosave firing while we're loading a page's saved strokes
@@ -105,6 +113,38 @@ export default function Smartboard({
     canvas.requestRenderAll();
     scheduleSaveRef.current();
   }, []);
+
+  // --- Laser pointer ------------------------------------------------------------
+  // A trail of fading dots rendered as plain DOM elements over the stage — deliberately
+  // NOT drawn onto the Fabric canvas, so it's never part of `annotations` and never
+  // saved or shown on the student recap. Purely a live "look here" aid for the teacher.
+  const LASER_TTL_MS = 700;
+
+  const handleStageMouseMove = useCallback(
+    (e) => {
+      if (tool !== 'laser' || disabled) return;
+      const rect = stageRef.current?.getBoundingClientRect();
+      if (!rect || !rect.width || !rect.height) return;
+      const x = ((e.clientX - rect.left) / rect.width) * 100;
+      const y = ((e.clientY - rect.top) / rect.height) * 100;
+      const now = Date.now();
+      laserIdRef.current += 1;
+      setLaserPoints((prev) => [
+        ...prev.filter((p) => now - p.at < LASER_TTL_MS),
+        { id: laserIdRef.current, x, y, at: now },
+      ]);
+    },
+    [tool, disabled]
+  );
+
+  const handleStageMouseLeave = useCallback(() => {
+    if (tool === 'laser') setLaserPoints([]);
+  }, [tool]);
+
+  // Clear any lingering trail immediately when switching away from the laser tool.
+  useEffect(() => {
+    if (tool !== 'laser') setLaserPoints([]);
+  }, [tool]);
 
   // --- Fabric canvas lifecycle ---------------------------------------------------
   // (Re)created whenever the <canvas> element actually exists — see file header.
@@ -155,8 +195,8 @@ export default function Smartboard({
     canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
     canvas.freeDrawingBrush.color = color;
     canvas.freeDrawingBrush.width = brushWidth;
-    canvas.defaultCursor = tool === 'select' ? 'default' : tool === 'pen' ? 'crosshair' : 'crosshair';
-    canvas.hoverCursor = tool === 'select' ? 'move' : 'crosshair';
+    canvas.defaultCursor = tool === 'select' ? 'default' : tool === 'laser' ? 'none' : 'crosshair';
+    canvas.hoverCursor = tool === 'select' ? 'move' : tool === 'laser' ? 'none' : 'crosshair';
     canvas.requestRenderAll();
   }, [tool, color, brushWidth, disabled]);
 
@@ -288,6 +328,43 @@ export default function Smartboard({
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [tool, deleteSelected]);
+
+  // Tool shortcuts (V/P/E/R/O/L/T) and '?' for the cheat sheet — a teacher mid-lecture
+  // shouldn't have to reach for the mouse to switch tools. Ignored while typing in a
+  // real form field or editing text on the canvas itself.
+  useEffect(() => {
+    if (!showsCanvas || disabled) return undefined;
+    const shortcutToolKeys = {
+      v: 'select',
+      p: 'pen',
+      e: 'eraser',
+      r: 'rect',
+      o: 'ellipse',
+      l: 'line',
+      t: 'text',
+      k: 'laser',
+    };
+    const onKeyDown = (e) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      const active = fabricRef.current?.getActiveObject();
+      if (active?.isEditing) return;
+
+      if (e.key === '?') {
+        e.preventDefault();
+        setShortcutsOpen((v) => !v);
+        return;
+      }
+      const key = e.key.toLowerCase();
+      if (shortcutToolKeys[key]) {
+        e.preventDefault();
+        setTool(shortcutToolKeys[key]);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showsCanvas, disabled]);
 
   const pageEndpoint = useCallback(
     (m, idx) =>
@@ -496,6 +573,7 @@ export default function Smartboard({
     { id: 'ellipse', label: 'Ellipse', Icon: Circle, title: 'Ellipse' },
     { id: 'line', label: 'Line', Icon: Minus, title: 'Line' },
     { id: 'text', label: 'Text', Icon: Type, title: 'Text — click the board to place it' },
+    { id: 'laser', label: 'Laser pointer', Icon: Target, title: 'Laser pointer — highlights for students, never saved' },
   ];
 
   return (
@@ -524,9 +602,14 @@ export default function Smartboard({
             Whiteboard
           </button>
         </div>
-        {showsCanvas && (
-          <span className="smartboard__save-status" aria-live="polite">
-            {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved' : ''}
+        {showsCanvas && saveStatus !== 'idle' && (
+          <span className={`smartboard__save-status is-${saveStatus}`} aria-live="polite">
+            {saveStatus === 'saving' ? (
+              <Loader2 size={13} strokeWidth={2.5} className="smartboard__spin" aria-hidden />
+            ) : (
+              <Check size={13} strokeWidth={3} className="smartboard__save-status-check" aria-hidden />
+            )}
+            {saveStatus === 'saving' ? 'Saving…' : 'Saved'}
           </span>
         )}
       </div>
@@ -578,7 +661,7 @@ export default function Smartboard({
               ))}
             </div>
 
-            <div className="smartboard__colors" aria-hidden={tool === 'eraser' || tool === 'select'}>
+            <div className="smartboard__colors" aria-hidden={tool === 'eraser' || tool === 'select' || tool === 'laser'}>
               {PEN_COLORS.map((c) => (
                 <button
                   key={c}
@@ -621,7 +704,7 @@ export default function Smartboard({
               onChange={(e) => setBrushWidth(Number(e.target.value))}
               className="smartboard__width-slider"
               aria-label="Stroke width"
-              disabled={tool === 'eraser' || tool === 'select'}
+              disabled={tool === 'eraser' || tool === 'select' || tool === 'laser'}
             />
 
             <div className="smartboard__tool-group">
@@ -640,15 +723,70 @@ export default function Smartboard({
               <button type="button" className="smartboard__tool-btn" onClick={handleClear} title="Clear this page">
                 <Trash2 size={16} strokeWidth={2} aria-hidden /> Clear
               </button>
+              <button
+                type="button"
+                className="smartboard__icon-btn"
+                onClick={() => setShortcutsOpen(true)}
+                title="Keyboard shortcuts (?)"
+                aria-label="Keyboard shortcuts"
+              >
+                <HelpCircle size={16} strokeWidth={2} aria-hidden />
+              </button>
             </div>
           </div>
 
-          <div className="smartboard__stage" style={{ aspectRatio: `${STAGE_W} / ${STAGE_H}` }} data-tour="smartboard-stage">
+          {shortcutsOpen && (
+            <div className="smartboard__shortcuts-backdrop" onClick={() => setShortcutsOpen(false)}>
+              <div className="smartboard__shortcuts-card" onClick={(e) => e.stopPropagation()}>
+                <div className="smartboard__shortcuts-head">
+                  <h3>Keyboard shortcuts</h3>
+                  <button type="button" className="smartboard__icon-btn" onClick={() => setShortcutsOpen(false)} aria-label="Close">
+                    <X size={16} strokeWidth={2} aria-hidden />
+                  </button>
+                </div>
+                <ul className="smartboard__shortcuts-list">
+                  {[
+                    ['V', 'Select'],
+                    ['P', 'Pen'],
+                    ['E', 'Eraser'],
+                    ['R', 'Rectangle'],
+                    ['O', 'Ellipse'],
+                    ['L', 'Line'],
+                    ['T', 'Text'],
+                    ['K', 'Laser pointer'],
+                    ['Delete', 'Delete selection'],
+                    ['?', 'Toggle this help'],
+                  ].map(([key, label]) => (
+                    <li key={key}>
+                      <kbd>{key}</kbd>
+                      <span>{label}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+
+          <div
+            className="smartboard__stage"
+            ref={stageRef}
+            style={{ aspectRatio: `${STAGE_W} / ${STAGE_H}` }}
+            data-tour="smartboard-stage"
+            onMouseMove={handleStageMouseMove}
+            onMouseLeave={handleStageMouseLeave}
+          >
             {mode === 'slides' && currentPage && (
               <img className="smartboard__slide-img" src={currentPage.imageUrl} alt={`Slide ${slideIndex + 1}`} />
             )}
             {mode === 'whiteboard' && <div className="smartboard__whiteboard-bg" aria-hidden />}
             <canvas ref={canvasElRef} className="smartboard__canvas" />
+            {tool === 'laser' && laserPoints.length > 0 && (
+              <div className="smartboard__laser-layer" aria-hidden>
+                {laserPoints.map((p) => (
+                  <span key={p.id} className="smartboard__laser-dot" style={{ left: `${p.x}%`, top: `${p.y}%` }} />
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="smartboard__nav" data-tour="smartboard-nav">

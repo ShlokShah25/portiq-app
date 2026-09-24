@@ -4,6 +4,14 @@
   padding: 8px 0;
 }
 
+.quiz-results__skeleton-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+}
+
 .quiz-results__list {
   display: flex;
   flex-direction: column;

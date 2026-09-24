@@ -154,7 +154,9 @@ export default function ProtectedLayout({ config }) {
       <div className={shellClass}>
         {isInterviewRoute ? <InterviewSidebar /> : isCuraRoute ? null : <Sidebar />}
         <main className="app-shell__main" id="app-main" ref={mainRef} onKeyDown={onMainKeyDown}>
-          <Outlet context={{ config }} />
+          <div key={location.pathname} className="app-shell__route-fade">
+            <Outlet context={{ config }} />
+          </div>
         </main>
       </div>
     </TrialExperienceProvider>

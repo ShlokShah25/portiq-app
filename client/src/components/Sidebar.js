@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { T } from '../config/terminology';
@@ -245,6 +245,30 @@ const Sidebar = () => {
     return location.pathname === path || location.pathname.startsWith(`${path}/`);
   };
 
+  // Sliding active-item pill: measured (not CSS-only) because nav items live in a
+  // plain flex column, so the pill's target position/height are read straight off
+  // the active button's own layout box rather than assumed from index.
+  const navRef = useRef(null);
+  const itemRefs = useRef({});
+  const [pillStyle, setPillStyle] = useState({ opacity: 0 });
+
+  useLayoutEffect(() => {
+    const activeItem = menuItems.find((item) => isActive(item.path));
+    const nav = navRef.current;
+    const el = activeItem ? itemRefs.current[activeItem.id] : null;
+    if (!nav || !el) {
+      setPillStyle((prev) => (prev.opacity === 0 ? prev : { opacity: 0 }));
+      return;
+    }
+    const navRect = nav.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    setPillStyle({
+      top: elRect.top - navRect.top,
+      height: elRect.height,
+      opacity: 1,
+    });
+  }, [location.pathname, sidebarExpanded, pinned, railHovered, menuItems, isActive]);
+
   const logout = () => {
     try {
       window.localStorage.removeItem('clientAdminToken');
@@ -309,10 +333,14 @@ const Sidebar = () => {
           ) : null}
         </div>
 
-        <nav className="sidebar__nav">
+        <nav className="sidebar__nav" ref={navRef}>
+          <div className="sidebar__active-pill" style={pillStyle} aria-hidden />
           {menuItems.map((item) => (
             <button
               key={item.id}
+              ref={(node) => {
+                itemRefs.current[item.id] = node;
+              }}
               type="button"
               className={`sidebar-item${isActive(item.path) ? ' active' : ''}`}
               onClick={() => navigate(item.path)}

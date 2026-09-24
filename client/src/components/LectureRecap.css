@@ -13,6 +13,60 @@
   margin: 0 auto;
 }
 
+.lecture-recap-progress-track {
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  z-index: 20;
+  margin: -32px -16px 0;
+}
+
+.lecture-recap-progress-bar {
+  height: 100%;
+  background: var(--accent-blue, #60a5fa);
+  transition: width 0.1s linear;
+}
+
+.lecture-recap-confetti-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  overflow: hidden;
+}
+
+.lecture-recap-confetti-piece {
+  position: absolute;
+  top: -12px;
+  width: 8px;
+  height: 14px;
+  border-radius: 2px;
+  opacity: 0.95;
+  animation-name: lecture-recap-confetti-fall;
+  animation-timing-function: ease-in;
+  animation-fill-mode: forwards;
+}
+
+@keyframes lecture-recap-confetti-fall {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--drift), 100vh) rotate(var(--rot));
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lecture-recap-confetti-layer {
+    display: none;
+  }
+}
+
 .lecture-recap-loading,
 .lecture-recap-error {
   max-width: 480px;
@@ -162,6 +216,53 @@
   white-space: pre-wrap;
 }
 
+.lecture-recap-qa__item--pending {
+  opacity: 0.85;
+}
+
+.lecture-recap-qa__thinking {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 14px;
+}
+
+.lecture-recap-qa__thinking span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted, #9aa);
+  animation: lecture-recap-qa-thinking-bounce 1.1s ease-in-out infinite;
+}
+
+.lecture-recap-qa__thinking span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.lecture-recap-qa__thinking span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes lecture-recap-qa-thinking-bounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lecture-recap-qa__thinking span {
+    animation: none;
+    opacity: 0.8;
+  }
+}
+
 .lecture-recap-qa__escalate-btn {
   border: none;
   background: none;
@@ -267,6 +368,128 @@
   font-size: 13px;
   color: var(--text-secondary, rgba(255, 255, 255, 0.65));
   margin: -6px 0 14px;
+}
+
+.lecture-recap-quiz__dots {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.lecture-recap-quiz__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  background: var(--border-color, rgba(255, 255, 255, 0.16));
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.lecture-recap-quiz__dot.is-answered {
+  background: var(--accent-hover, #a5b4fc);
+}
+
+.lecture-recap-quiz__dot.is-current {
+  transform: scale(1.35);
+  background: var(--accent-blue, #4f46e5);
+}
+
+.lecture-recap-quiz__step {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-muted, #9aa);
+  margin: 0 0 8px;
+}
+
+.lecture-recap-quiz__question--single {
+  animation: lecture-recap-quiz-question-in 0.2s ease;
+}
+
+@keyframes lecture-recap-quiz-question-in {
+  from {
+    opacity: 0;
+    transform: translateX(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.lecture-recap-quiz__option.is-selected {
+  border-color: var(--accent-blue, #60a5fa);
+  background: rgba(96, 165, 250, 0.08);
+}
+
+.lecture-recap-quiz__nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.lecture-recap-quiz__nav-btn {
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: 1px solid var(--divider, rgba(255, 255, 255, 0.14));
+  background: transparent;
+  color: inherit;
+  font-weight: 600;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+
+.lecture-recap-quiz__nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.lecture-recap-quiz__nav-btn--primary {
+  border: none;
+  background: var(--accent-blue, #4f46e5);
+  color: #fff;
+  margin-left: auto;
+}
+
+.lecture-recap-quiz__breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0 0 24px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--surface-card, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--divider, rgba(255, 255, 255, 0.1));
+}
+
+.lecture-recap-quiz__breakdown-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12.5px;
+  color: var(--text-secondary, rgba(255, 255, 255, 0.75));
+  margin-bottom: 4px;
+}
+
+.lecture-recap-quiz__breakdown-track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.lecture-recap-quiz__breakdown-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--success-green, #34d399);
+}
+
+.lecture-recap-quiz__breakdown-fill.is-low {
+  background: var(--error-red, #f87171);
 }
 
 .lecture-recap-quiz__identity {
