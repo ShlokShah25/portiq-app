@@ -1,11 +1,14 @@
 .lecture-recap-screen {
-  min-height: 100vh;
+  /* A fixed height (not just min-height) makes this element the scroll container
+     no matter how #root/body overflow rules resolve, so the sticky progress bar and
+     the scroll listener in LectureRecap.js both track *this* element. */
+  height: 100vh;
   width: 100%;
   overflow-y: auto;
   background: var(--bg-primary, #1c1c1e);
   color: var(--text-primary, #eaf0ff);
   font-family: var(--font-sans, 'Inter', system-ui, sans-serif);
-  padding: 32px 16px 80px;
+  padding: 0 16px 80px;
 }
 
 .lecture-recap-container {
@@ -21,7 +24,9 @@
   height: 3px;
   background: rgba(255, 255, 255, 0.08);
   z-index: 20;
-  margin: -32px -16px 0;
+  /* Full-bleed across the screen's side padding; bottom margin restores the
+     top breathing room the header used to get from padding-top. */
+  margin: 0 -16px 32px;
 }
 
 .lecture-recap-progress-bar {
@@ -104,6 +109,7 @@
 
 .lecture-recap-slides h2,
 .lecture-recap-summary h2,
+.lecture-recap-qa h2,
 .lecture-recap-quiz h2 {
   font-family: var(--font-display, var(--font-sans));
   font-size: 16px;
