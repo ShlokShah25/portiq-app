@@ -788,13 +788,22 @@ async function embedAudioWindows(wavPath, windows, model = defaultNeuralModel())
   const pythonBin = resolvePythonBinaryForVoice();
   if (!pythonBin || !Array.isArray(windows) || !windows.length) return null;
   const env = voiceWorkerEnv();
+  // The worker is sequential: small batches let live-meeting requests interleave instead of
+  // queuing behind a whole recording (and timing out, which would restart the worker mid-job).
+  const batchSize = Math.max(1, parseInt(process.env.VOICE_WINDOW_BATCH || '24', 10) || 24);
+  const out = [];
   try {
-    const resp = await workerRequest(
-      { cmd: 'embed_windows', path: wavPath, windows, model },
-      // ~0.3s per window on CPU; generous ceiling for long meetings.
-      { pythonBin, env, timeoutMs: Math.min(1800000, 60000 + windows.length * 2000) }
-    );
-    return Array.isArray(resp.embeddings) ? resp.embeddings : null;
+    for (let i = 0; i < windows.length; i += batchSize) {
+      const batch = windows.slice(i, i + batchSize);
+      const resp = await workerRequest(
+        { cmd: 'embed_windows', path: wavPath, windows: batch, model },
+        // ~0.3s per window on CPU plus audio load; generous ceiling.
+        { pythonBin, env, timeoutMs: 60000 + batch.length * 3000 }
+      );
+      if (!Array.isArray(resp.embeddings) || resp.embeddings.length !== batch.length) return null;
+      out.push(...resp.embeddings);
+    }
+    return out;
   } catch (e) {
     console.warn('⚠️  Window embeddings unavailable:', e.message || e);
     return null;

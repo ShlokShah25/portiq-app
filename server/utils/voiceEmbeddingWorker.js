@@ -98,7 +98,7 @@ function startWorker(pythonBin, env) {
         clearTimeout(startTimer);
         if (msg.ok) {
           startFailures = 0;
-          console.log('✅ Voice embedding worker ready (pyannote loaded once)');
+          console.log('✅ Voice embedding worker ready (speaker model loaded once)');
           resolve();
         } else {
           reject(new Error(msg.error || 'Voice worker failed to load the embedding model'));
