@@ -11,6 +11,8 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
+const { nameUnknownSpeakersFromText } = require('./speakerTextNaming');
+const { persistLearnedVoiceprints } = require('./voiceAdaptation');
 const { execFile } = require('child_process');
 const util = require('util');
 
@@ -373,7 +375,8 @@ async function runLongAudioPipeline(audioFilePath, meeting, options) {
   const chunkRecords = [];
   // One voice session across chunks so a person learned in chunk 1 is recognised in chunk 5.
   const voiceSessionContext = { lastEmbedding: null, lastEmail: null, lastEmbeddingKind: null, centroids: new Map() };
-  const speakerSegments = [];
+  let speakerSegments = [];
+  const learnedVoiceprints = [];
 
   try {
     for (let i = 0; i < nChunks; i++) {
@@ -411,6 +414,9 @@ async function runLongAudioPipeline(audioFilePath, meeting, options) {
       if (summaryData && Array.isArray(summaryData.speakerSegments)) {
         speakerSegments.push(...summaryData.speakerSegments);
       }
+      if (summaryData && Array.isArray(summaryData.learnedVoiceprints)) {
+        learnedVoiceprints.push(...summaryData.learnedVoiceprints);
+      }
 
       const t0 = formatClock(startSec);
       const t1 = formatClock(startSec + dur);
@@ -445,6 +451,20 @@ async function runLongAudioPipeline(audioFilePath, meeting, options) {
       .join('\n\n');
 
     await saveTranscriptCheckpoint(meetingId, fullTranscription);
+
+    // Whole-meeting speaker pass: name unenrolled voices from what they said, learn voiceprints.
+    if (speakerSegments.length && !isEducation) {
+      try {
+        const aggForNaming = getOpenAiForAggregation();
+        speakerSegments = await nameUnknownSpeakersFromText(speakerSegments, meeting.participants, {
+          openai: aggForNaming,
+          model: process.env.OPENAI_SUMMARY_MODEL || 'gpt-4o-mini',
+        });
+      } catch (e) {
+        console.warn('[long-audio] text speaker naming skipped:', e.message || e);
+      }
+      if (meetingId) persistLearnedVoiceprints(learnedVoiceprints, meetingId).catch(() => {});
+    }
 
     const aggOpenai = getOpenAiForAggregation();
     if (!aggOpenai) throw new Error('OpenAI API key not configured');

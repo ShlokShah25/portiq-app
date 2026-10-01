@@ -27,8 +27,11 @@ const {
   convertVoiceEnrollmentToWav,
   embeddingKindForVector,
   profileEmbeddingKind,
+  newVoiceSessionContext,
+  assessEnrollmentConsistency,
 } = require('../utils/voiceRecognition');
 const { logCuraAudit } = require('../utils/curaAuditLog');
+const { getVoiceCohort, invalidateVoiceCohort } = require('../utils/voiceCohort');
 
 /** Per-meeting state so similar-sounding speakers can be separated via continuity + centroids */
 const liveVoiceSessionByMeetingId = new Map();
@@ -41,12 +44,7 @@ function getLiveVoiceSessionContext(meetingId) {
     if (first) liveVoiceSessionByMeetingId.delete(first);
   }
   if (!liveVoiceSessionByMeetingId.has(id)) {
-    liveVoiceSessionByMeetingId.set(id, {
-      lastEmbedding: null,
-      lastEmail: null,
-      lastEmbeddingKind: null,
-      centroids: new Map(),
-    });
+    liveVoiceSessionByMeetingId.set(id, newVoiceSessionContext());
   }
   return liveVoiceSessionByMeetingId.get(id);
 }
@@ -1037,11 +1035,12 @@ router.post('/:id/live-transcribe-chunk', withMeetingAudioUpload, async (req, re
         const emails = [...new Set([...participantEmails, ...interviewEmails, ...(adminEmail ? [adminEmail] : [])])];
         if (emails.length === 0) return null;
         const profiles = await VoiceProfile.find({ email: { $in: emails } }).select(
-          'email name voiceVector embeddingKind lastUsed'
+          'email name voiceVector voiceEmbeddings embeddingKind lastUsed'
         );
         if (!profiles.length) return null;
         const voiceCtx = getLiveVoiceSessionContext(meeting._id);
-        const match = await identifySpeaker(filePath, profiles, voiceCtx);
+        const cohortByKind = await getVoiceCohort();
+        const match = await identifySpeaker(filePath, profiles, voiceCtx, { cohortByKind });
         if (!match || !match.profile) return null;
         VoiceProfile.updateOne({ _id: match.profile._id }, { $set: { lastUsed: new Date() } }).catch(() => {});
         return {
@@ -2529,8 +2528,18 @@ router.post('/voice/register', withVoiceUpload, async (req, res) => {
 
     // Generate voice embedding (server cleans audio: VAD trim + ffmpeg band-limit/normalize for enrollment)
     let voiceVector;
+    let enrollmentConsistency = null;
     try {
       voiceVector = await generateVoiceEmbedding(enrollmentAudioPath);
+      try {
+        enrollmentConsistency = await assessEnrollmentConsistency(
+          enrollmentAudioPath,
+          quality && quality.ok ? quality.durationSec : 0,
+          embeddingKindForVector(voiceVector)
+        );
+      } catch (_) {
+        enrollmentConsistency = null;
+      }
     } finally {
       if (enrollmentTempWav) {
         try {
@@ -2543,6 +2552,26 @@ router.post('/voice/register', withVoiceUpload, async (req, res) => {
 
     const embeddingKind = embeddingKindForVector(voiceVector);
 
+    // Reject samples whose two halves do not sound like the same single voice (noise, music,
+    // someone else talking) — they produce voiceprints that never match reliably.
+    const minConsistency = Math.min(
+      0.9,
+      Math.max(0, parseFloat(process.env.VOICE_ENROLL_MIN_CONSISTENCY || '0.45') || 0.45)
+    );
+    if (enrollmentConsistency != null && enrollmentConsistency < minConsistency) {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (_) {
+        /* ignore */
+      }
+      return res.status(400).json({
+        error:
+          'This sample does not sound like one clear voice. Record again somewhere quiet, with only you speaking, and read the full sentence.',
+        details: `Sample consistency ${enrollmentConsistency.toFixed(2)} (minimum ${minConsistency}).`,
+        code: 'inconsistent_voice',
+      });
+    }
+
     // Check if profile already exists
     let voiceProfile = await VoiceProfile.findOne({ email: email.toLowerCase() });
     
@@ -2552,6 +2581,7 @@ router.post('/voice/register', withVoiceUpload, async (req, res) => {
       // Re-record: replace stored embedding entirely — old vector is discarded (not averaged with the new one).
       voiceProfile.voiceVector = voiceVector;
       voiceProfile.embeddingKind = embeddingKind;
+      voiceProfile.enrollmentConsistency = enrollmentConsistency;
       voiceProfile.voiceSampleFile = newSampleRel;
       voiceProfile.standardSentence = standardSentence || voiceProfile.standardSentence;
       voiceProfile.name = name;
@@ -2575,12 +2605,14 @@ router.post('/voice/register', withVoiceUpload, async (req, res) => {
         name,
         voiceVector,
         embeddingKind,
+        enrollmentConsistency,
         voiceSampleFile: newSampleRel,
         standardSentence: standardSentence || `Hello, my name is ${name} and I am ready for the meeting.`
       });
     }
 
     await voiceProfile.save();
+    invalidateVoiceCohort();
 
     res.json({
       success: true,
@@ -2592,6 +2624,7 @@ router.post('/voice/register', withVoiceUpload, async (req, res) => {
       },
       embeddingKind,
       embeddingFallback: embeddingKind === 'fft',
+      enrollmentConsistency,
       autoMatched: !req.body.email || !req.body.name, // Indicates if name was auto-detected
       qualityCheckSkipped: !!skipQualityDueToDecode,
       enrollmentQuality: quality && quality.ok

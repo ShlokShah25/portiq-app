@@ -15,7 +15,7 @@ function formatClock(sec) {
 export default function SpeakerTranscript({ segments }) {
   const turns = Array.isArray(segments) ? segments.filter((t) => t && String(t.text || '').trim()) : [];
   if (!turns.length) return null;
-  const named = new Set(turns.filter((t) => t.email).map((t) => t.speaker));
+  const named = new Set(turns.filter((t) => t.email && t.via !== 'text').map((t) => t.speaker));
   return (
     <details className="speaker-transcript">
       <summary className="speaker-transcript__summary">
@@ -30,6 +30,13 @@ export default function SpeakerTranscript({ segments }) {
             <div className="speaker-transcript__head">
               <span
                 className={`speaker-transcript__name${t.email ? '' : ' speaker-transcript__name--unknown'}`}
+                title={
+                  t.via === 'text'
+                    ? 'Named from the conversation (introduced themselves or was addressed by name)'
+                    : t.email
+                      ? 'Recognised by voice'
+                      : 'Voice not enrolled — add a voice sample to name this speaker automatically'
+                }
               >
                 {t.speaker || 'Unidentified speaker'}
               </span>

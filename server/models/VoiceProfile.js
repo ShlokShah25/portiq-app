@@ -24,7 +24,31 @@ const voiceProfileSchema = new mongoose.Schema({
    */
   embeddingKind: {
     type: String,
-    enum: ['pyannote', 'fft', null],
+    enum: ['wespeaker', 'pyannote', 'fft', null],
+    default: null,
+  },
+  /**
+   * Extra voiceprints matched alongside voiceVector (score = best template):
+   *  - source 'meeting': learned from a past meeting where this person was named with high
+   *    confidence — captures their voice through real room mics, not just the enrollment mic.
+   *  - source 'legacy': the previous-model vector kept after re-embedding with a newer model.
+   */
+  voiceEmbeddings: {
+    type: [
+      {
+        _id: false,
+        kind: { type: String, enum: ['wespeaker', 'pyannote', 'fft'] },
+        vector: [Number],
+        source: { type: String, enum: ['meeting', 'legacy', 'enrollment'], default: 'meeting' },
+        meetingId: { type: String, default: null },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
+    default: [],
+  },
+  /** Self-consistency of the enrollment sample (cosine between its two halves); low = noisy sample. */
+  enrollmentConsistency: {
+    type: Number,
     default: null,
   },
   voiceSampleFile: {
@@ -34,7 +58,7 @@ const voiceProfileSchema = new mongoose.Schema({
   standardSentence: {
     type: String,
     default:
-      'Hello, my name is {name}. This is my sample voice for PortIQ so the system can recognize me clearly in future meetings.'
+      'Hello, my name is {name}. This is my sample voice for PortIQ so the system can recognize me clearly in future meetings. I usually speak like this when I share updates with my team.'
   },
   createdAt: {
     type: Date,

@@ -31,7 +31,10 @@ const { getFfmpegPath } = require('./ffmpegPaths');
 const { ensureWhisperSizedAudio, WHISPER_MAX_BYTES } = require('./audioCompressForWhisper');
 const { isLikelyWhisperHallucination, sanitizeWhisperTranscript } = require('./whisperTextSanitizer');
 const { identifySpeaker } = require('./voiceRecognition');
-const { buildSpeakerTimeline, turnsToLabelledText } = require('./speakerTimeline');
+const { buildSpeakerTimeline, turnsToLabelledText, turnsToEvidenceTranscript } = require('./speakerTimeline');
+const { nameUnknownSpeakersFromText } = require('./speakerTextNaming');
+const { persistLearnedVoiceprints } = require('./voiceAdaptation');
+const { getVoiceCohort } = require('./voiceCohort');
 const {
   pickEducationThoughtOfTheDay,
   formatEducationProfessorRider,
@@ -2173,7 +2176,23 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
         speakerTimeline = await buildSpeakerTimeline(finalAudioPath, transcription.segments, voiceProfiles, {
           offsetSec: lp.offsetSec,
           sessionContext: lp.voiceSessionContext,
+          cohortByKind: await getVoiceCohort(),
         });
+        // Long-audio chunks defer text naming + learning to the whole-meeting pass.
+        if (speakerTimeline && !skipMeetingSideEffects) {
+          const named = await nameUnknownSpeakersFromText(speakerTimeline.turns, meetingObj.participants, {
+            openai,
+            model: summaryChatModel,
+          });
+          if (named !== speakerTimeline.turns) {
+            speakerTimeline.turns = named;
+            speakerTimeline.labelledText = turnsToLabelledText(named);
+            speakerTimeline.evidenceTranscript = turnsToEvidenceTranscript(named);
+          }
+          if (meetingObj._id) {
+            persistLearnedVoiceprints(speakerTimeline.learned, meetingObj._id).catch(() => {});
+          }
+        }
       } catch (timelineErr) {
         console.warn('⚠️ Speaker timeline skipped:', timelineErr.message || timelineErr);
       }
@@ -2266,6 +2285,7 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
 
     if (summaryResult && speakerTimeline && speakerTimeline.turns.length) {
       summaryResult.speakerSegments = speakerTimeline.turns;
+      summaryResult.learnedVoiceprints = speakerTimeline.learned || [];
     }
     return summaryResult;
   } catch (error) {

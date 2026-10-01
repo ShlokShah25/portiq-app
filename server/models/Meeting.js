@@ -221,7 +221,7 @@ const meetingSchema = new mongoose.Schema({
   },
   /**
    * Speaker-labelled turns of the final transcript (voice recognition against enrolled voiceprints).
-   * speaker = participant name, or "Speaker N" for a voice nobody enrolled. Empty when unavailable.
+   * speaker = participant name, or "Speaker N" for a voice that could not be named. Empty when unavailable.
    */
   transcriptSegments: {
     type: [
@@ -231,6 +231,8 @@ const meetingSchema = new mongoose.Schema({
         end: Number,
         speaker: String,
         email: String,
+        /** 'voice' = matched an enrolled voiceprint; 'text' = named from a self-introduction / direct address. */
+        via: String,
         text: String,
       },
     ],

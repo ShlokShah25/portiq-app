@@ -265,6 +265,11 @@ mongoose.connect(mongoUri, mongoOptions)
   try {
     const { warmVoiceWorker } = require('./utils/voiceRecognition');
     warmVoiceWorker();
+    // Older voiceprints are re-embedded with the current speaker model from their stored samples.
+    const { upgradeLegacyVoiceProfiles } = require('./utils/voiceProfileUpgrade');
+    setTimeout(() => {
+      upgradeLegacyVoiceProfiles().catch((e) => console.warn('⚠️  Voiceprint upgrade failed:', e.message));
+    }, 30000);
   } catch (err) {
     console.warn('⚠️  Voice worker warm-up skipped:', err.message);
   }

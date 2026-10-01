@@ -11,7 +11,8 @@
     "install-all": "npm install && cd client && npm install && cd ../admin && npm install",
     "build": "cd client && npm install && npm run build",
     "activate-subscription": "node server/scripts/activate-subscription.js",
-    "create-free-business-user": "node server/scripts/create-free-business-user.js"
+    "create-free-business-user": "node server/scripts/create-free-business-user.js",
+    "calibrate-voice": "node server/scripts/calibrate-voice-thresholds.js"
   },
   "keywords": [
     "meeting-transcription",

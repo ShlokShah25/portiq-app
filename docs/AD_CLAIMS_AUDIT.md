@@ -33,3 +33,29 @@ what changed. Status: ✅ holds · 🔧 was broken/weak, fixed in this change ·
 - Reminder recipient resolution (first name, full name, email, unknown owner → fallback).
 - Client production build compiles cleanly; all changed server modules load.
 - **Not yet run:** the real pyannote model end to end (needs `HF_TOKEN` and the torch stack). Please do one live meeting on staging before filming.
+
+## Speaker naming — accuracy upgrade (follow-up)
+
+What changed to make "every speaker named" hold up in real rooms:
+
+| Layer | Before | Now |
+|---|---|---|
+| Speaker model | `pyannote/embedding` (older x-vector) | **WeSpeaker ResNet34** (`pyannote/wespeaker-voxceleb-resnet34-LM`, the model behind pyannote's diarization 3.1), with much lower verification error on short, noisy clips. The old model is still loaded for voiceprints that haven't been upgraded. |
+| Voiceprints per person | 1 enrollment clip | Enrollment clip **plus up to 6 voiceprints learned from past meetings**, only saved when a person was named with a long, clear, unambiguous match. The score is the best of these. This covers real room mics, not just the enrollment laptop mic. |
+| Old voiceprints | Kept on the old model | Re-embedded at boot from the stored enrollment sample. The old vector is kept as a fallback, so nothing that matched before stops matching. |
+| Full-recording attribution | Each ~2 s segment named on its own | **Cluster by voice first, then name whole clusters.** Each person is used once, unless one voice was split into two clusters and both match strongly. A cluster's averaged voice is far more reliable than one segment. |
+| Ambiguity | — | Runner-up margin: if two people both partly match, the voice is left unnamed rather than guessed. Score normalisation against other people's voiceprints adds a guard against voices that score well with everyone. |
+| People who never enrolled | "Speaker N" | Named from the conversation **only with proof**: they introduce themselves, or are addressed by name and reply. The model must quote the transcript; quotes not found verbatim are discarded. Shown as "named from the conversation". |
+| Enrollment quality | Length + volume checks | Plus a **self-consistency check**: the two halves of the sample must sound like the same single voice. Samples with background talk, music or a second speaker are rejected with a clear re-record message. The script is longer (~10 s) and the minimum is 6 s. |
+
+**Calibrate on your own audio before filming.** Record 3–5 short clips per person in the real room. Put them in `calib/<name>/`, put a few non-enrolled people in `calib/_guests/`, then run:
+
+```
+npm run calibrate-voice -- calib
+```
+
+It prints how many clips were named correctly, wrongly or left unnamed with the current settings, how often a guest gets misnamed, and the `VOICE_WESPEAKER_MIN` value to set.
+
+New env knobs: `VOICE_EMBEDDING_MODEL` (`wespeaker` | `pyannote`), `VOICE_WESPEAKER_MIN` / `_MARGIN` / `_CLUSTER_MERGE`, `VOICE_COHORT_NORM`, `VOICE_COHORT_MIN_SCORE`, `VOICE_ADAPTIVE_ENROLLMENT`, `VOICE_TEXT_NAMING`, `VOICE_PROFILE_UPGRADE`, `VOICE_ENROLL_MIN_CONSISTENCY`.
+
+Stored voice samples (`uploads/voice-samples`) must be on persistent storage for the boot-time upgrade to work. People whose sample is gone keep their old voiceprint until they re-record.
