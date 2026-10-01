@@ -315,7 +315,11 @@ export default function MeetingCreateForm({
           const profile = profiles.find(
             (pr) => pr.email && String(pr.email).trim().toLowerCase() === email
           );
-          next[email] = { hasProfile: !!profile };
+          next[email] = {
+            hasProfile: !!profile,
+            // 'fft' = basic fallback voiceprint that cannot match reliably — ask for a re-record.
+            basicVoiceprint: !!profile && profile.embeddingKind === 'fft',
+          };
         });
         if (!cancelled) setVoiceProfiles(next);
       } catch {
@@ -738,7 +742,10 @@ export default function MeetingCreateForm({
       const matched = res.data?.voiceProfile?.email;
       if (matched) {
         const key = String(matched).trim().toLowerCase();
-        setVoiceProfiles((prev) => ({ ...prev, [key]: { hasProfile: true } }));
+        setVoiceProfiles((prev) => ({
+          ...prev,
+          [key]: { hasProfile: true, basicVoiceprint: res.data?.embeddingKind === 'fft' },
+        }));
       }
     } catch (err) {
       setVoiceSuccessMessage('');
@@ -1049,6 +1056,7 @@ export default function MeetingCreateForm({
                             if (!em) return null;
                             const checked = selectedBookEmails.includes(em);
                             const hasVoice = !!voiceProfiles[em]?.hasProfile;
+                            const basicVoice = !!voiceProfiles[em]?.basicVoiceprint;
                             return (
                               <button
                                 key={em}
@@ -1068,7 +1076,15 @@ export default function MeetingCreateForm({
                                   </span>
                                   <span className="meeting-create-participant-dd__email">{em}</span>
                                 </span>
-                                {hasVoice ? (
+                                {hasVoice && basicVoice ? (
+                                  <span
+                                    className="meeting-create-participant-dd__voice-status"
+                                    title="Saved with the basic fallback voiceprint — re-record to enable reliable speaker naming."
+                                  >
+                                    <Mic size={12} strokeWidth={2} aria-hidden />
+                                    Re-record voice
+                                  </span>
+                                ) : hasVoice ? (
                                   <span className="meeting-create-participant-dd__voice-status meeting-create-participant-dd__voice-status--ok">
                                     <Mic size={12} strokeWidth={2} aria-hidden />
                                     Configured

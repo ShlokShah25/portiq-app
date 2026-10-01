@@ -146,10 +146,19 @@ def _get_diarization_pipeline(auth_token):
     return _DIARIZATION_PIPELINE
 
 
-def _maybe_crop_to_dominant_speaker(waveform, sample_rate, auth_token):
+def _diarization_enabled():
+    # Off by default: the crop keeps only the longest single segment (discarding most of a short
+    # enrollment / live utterance) and loads a second heavy pipeline. Live utterances are VAD-split
+    # per speaker turn and the final transcript is attributed per Whisper segment, so it is not needed.
+    flag = os.environ.get("VOICE_PYANNOTE_DIARIZATION", "false").lower()
+    return flag in ("1", "true", "yes", "on")
+
+
+def _maybe_crop_to_dominant_speaker(waveform, sample_rate, auth_token, diarize=None):
     """Pick the speaker with the most time; embed their longest single segment."""
-    flag = os.environ.get("VOICE_PYANNOTE_DIARIZATION", "true").lower()
-    if flag in ("0", "false", "no", "off"):
+    if diarize is None:
+        diarize = _diarization_enabled()
+    if not diarize:
         return waveform, sample_rate
 
     pipeline = _get_diarization_pipeline(auth_token)
@@ -200,23 +209,10 @@ def _maybe_crop_to_dominant_speaker(waveform, sample_rate, auth_token):
     return cropped, sample_rate
 
 
-def generate_embedding(audio_path, token=None):
-    """Load audio → optional diarization crop → pyannote embedding."""
-    if not os.path.exists(audio_path):
-        raise FileNotFoundError(f"Audio file not found: {audio_path}")
-
-    audio_path_abs = os.path.abspath(audio_path)
-    auth_token = _resolve_token(token)
-
-    try:
-        embedding_model, inference = _load_embedding_inference(auth_token)
-    except Exception as e:
-        _print_hf_help(str(e).lower())
-        raise
-
+def _load_waveform_16k(audio_path):
     import torchaudio
 
-    waveform, sample_rate = torchaudio.load(audio_path_abs)
+    waveform, sample_rate = torchaudio.load(os.path.abspath(audio_path))
     if waveform.shape[0] > 1:
         waveform = torch.mean(waveform, dim=0, keepdim=True)
     if sample_rate != 16000:
@@ -225,12 +221,10 @@ def generate_embedding(audio_path, token=None):
         sample_rate = 16000
     if waveform.dtype != torch.float32:
         waveform = waveform.float()
-    waveform = waveform.cpu()
+    return waveform.cpu(), sample_rate
 
-    waveform, sample_rate = _maybe_crop_to_dominant_speaker(
-        waveform, sample_rate, auth_token
-    )
 
+def _embed_waveform(embedding_model, inference, waveform, sample_rate):
     try:
         try:
             embedding = inference({"waveform": waveform, "sample_rate": sample_rate})
@@ -257,6 +251,119 @@ def generate_embedding(audio_path, token=None):
     return embedding_np.tolist()
 
 
+def _load_models_or_explain(auth_token):
+    try:
+        return _load_embedding_inference(auth_token)
+    except Exception as e:
+        _print_hf_help(str(e).lower())
+        raise
+
+
+def generate_embedding(audio_path, token=None, diarize=None):
+    """Load audio → optional diarization crop → pyannote embedding."""
+    if not os.path.exists(audio_path):
+        raise FileNotFoundError(f"Audio file not found: {audio_path}")
+
+    auth_token = _resolve_token(token)
+    embedding_model, inference = _load_models_or_explain(auth_token)
+    waveform, sample_rate = _load_waveform_16k(audio_path)
+    waveform, sample_rate = _maybe_crop_to_dominant_speaker(
+        waveform, sample_rate, auth_token, diarize=diarize
+    )
+    return _embed_waveform(embedding_model, inference, waveform, sample_rate)
+
+
+def generate_window_embeddings(audio_path, windows, token=None, min_sec=0.6):
+    """
+    Embed many [start, end] second windows of ONE file with a single load — used to attribute
+    every Whisper segment of a recording to a speaker. Windows shorter than min_sec return None.
+    """
+    if not os.path.exists(audio_path):
+        raise FileNotFoundError(f"Audio file not found: {audio_path}")
+    auth_token = _resolve_token(token)
+    embedding_model, inference = _load_models_or_explain(auth_token)
+    waveform, sample_rate = _load_waveform_16k(audio_path)
+    total = waveform.shape[1]
+    out = []
+    for w in windows or []:
+        try:
+            start = max(0, int(float(w[0]) * sample_rate))
+            end = min(total, int(float(w[1]) * sample_rate))
+        except Exception:
+            out.append(None)
+            continue
+        if end - start < int(min_sec * sample_rate):
+            out.append(None)
+            continue
+        try:
+            out.append(
+                _embed_waveform(embedding_model, inference, waveform[:, start:end], sample_rate)
+            )
+        except Exception as e:
+            print(f"⚠️  Window embedding failed ({w}): {e}", file=sys.stderr)
+            out.append(None)
+    return out
+
+
+def serve():
+    """
+    Long-lived worker: one JSON request per stdin line, one JSON response per stdout line.
+    Keeps torch + pyannote loaded so a live utterance costs ~a few hundred ms instead of a
+    fresh interpreter + model load (10s+) per call.
+      {"id": 1, "cmd": "embed", "path": "...", "diarize": false}
+      {"id": 2, "cmd": "embed_windows", "path": "...", "windows": [[0.0, 2.1], ...]}
+      {"id": 3, "cmd": "ping"}
+    """
+    # Responses go to the real stdout; anything a library prints is routed to stderr so it cannot
+    # corrupt the line protocol.
+    protocol_out = sys.stdout
+    sys.stdout = sys.stderr
+
+    def respond(obj):
+        protocol_out.write(json.dumps(obj) + "\n")
+        protocol_out.flush()
+
+    token = _resolve_token(None)
+    try:
+        _load_models_or_explain(token)
+        respond({"id": 0, "ok": True, "ready": True})
+    except Exception as e:
+        respond({"id": 0, "ok": False, "error": str(e)[:2000]})
+        sys.exit(1)
+
+    for line in sys.stdin:
+        line = line.strip()
+        if not line:
+            continue
+        req_id = None
+        try:
+            req = json.loads(line)
+            req_id = req.get("id")
+            cmd = req.get("cmd", "embed")
+            if cmd == "ping":
+                resp = {"id": req_id, "ok": True}
+            elif cmd == "embed_windows":
+                resp = {
+                    "id": req_id,
+                    "ok": True,
+                    "embeddings": generate_window_embeddings(
+                        req["path"], req.get("windows") or [], token=token,
+                        min_sec=float(req.get("minSec", 0.6)),
+                    ),
+                }
+            else:
+                resp = {
+                    "id": req_id,
+                    "ok": True,
+                    "embedding": generate_embedding(
+                        req["path"], token=token, diarize=req.get("diarize")
+                    ),
+                }
+        except Exception as e:
+            resp = {"id": req_id, "ok": False, "error": str(e)[:2000]}
+        respond(resp)
+
+
 def _print_hf_help(error_lower):
     if "locate the file" in error_lower or "cannot find" in error_lower or "connection" in error_lower:
         print("Error: Network or download issue.", file=sys.stderr)
@@ -272,10 +379,14 @@ def _print_hf_help(error_lower):
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print(
-            "Usage: python3 voice_embedding.py <audio_file_path> [token]",
+            "Usage: python3 voice_embedding.py <audio_file_path> [token] | --serve",
             file=sys.stderr,
         )
         sys.exit(1)
+
+    if sys.argv[1] == "--serve":
+        serve()
+        sys.exit(0)
 
     audio_path = sys.argv[1]
     token_arg = sys.argv[2] if len(sys.argv) > 2 else None

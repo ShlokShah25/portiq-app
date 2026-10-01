@@ -25,7 +25,8 @@ const {
   identifySpeaker,
   validateVoiceEnrollmentQuality,
   convertVoiceEnrollmentToWav,
-  FFT_VOICE_EMBEDDING_DIM,
+  embeddingKindForVector,
+  profileEmbeddingKind,
 } = require('../utils/voiceRecognition');
 const { logCuraAudit } = require('../utils/curaAuditLog');
 
@@ -1005,52 +1006,59 @@ router.post('/:id/live-transcribe-chunk', withMeetingAudioUpload, async (req, re
       });
     }
     filePath = req.file.path;
-    const text = await transcribeLiveChunkFile(filePath);
-    let speaker = null;
-    try {
-      const isEducationMeeting =
-        String(meeting?.educationTeacherEmail || '').trim().length > 0 ||
-        String(meeting?.educationSubject || '').trim().length > 0;
-      if (isEducationMeeting) {
-        return res.json({ text: text || '', speaker: null });
-      }
-      const participantEmails = Array.isArray(meeting.participants)
-        ? meeting.participants
-            .map((p) => (p && p.email ? String(p.email).trim().toLowerCase() : ''))
-            .filter(Boolean)
-        : [];
-      const interviewEmails =
-        meeting.summaryMode === 'interview' && Array.isArray(meeting.interviewCandidates)
-          ? meeting.interviewCandidates
-              .map((c) => (c && c.voiceEmail ? String(c.voiceEmail).trim().toLowerCase() : ''))
+
+    const isEducationMeeting =
+      String(meeting?.educationTeacherEmail || '').trim().length > 0 ||
+      String(meeting?.educationSubject || '').trim().length > 0;
+    const participantNames = (Array.isArray(meeting.participants) ? meeting.participants : [])
+      .map((p) => String((p && p.name) || '').trim())
+      .filter(Boolean);
+    const liveContext = String(req.body?.context || '').slice(-600);
+
+    // Speaker ID and Whisper are independent — run them together so naming adds no latency.
+    const identifyLiveSpeaker = async () => {
+      if (isEducationMeeting) return null;
+      try {
+        const participantEmails = Array.isArray(meeting.participants)
+          ? meeting.participants
+              .map((p) => (p && p.email ? String(p.email).trim().toLowerCase() : ''))
               .filter(Boolean)
           : [];
-      let adminEmail = '';
-      if (admin && admin.email && String(admin.email).includes('@')) {
-        adminEmail = String(admin.email).trim().toLowerCase();
-      }
-      const emails = [...new Set([...participantEmails, ...interviewEmails, ...(adminEmail ? [adminEmail] : [])])];
-      if (emails.length > 0) {
+        const interviewEmails =
+          meeting.summaryMode === 'interview' && Array.isArray(meeting.interviewCandidates)
+            ? meeting.interviewCandidates
+                .map((c) => (c && c.voiceEmail ? String(c.voiceEmail).trim().toLowerCase() : ''))
+                .filter(Boolean)
+            : [];
+        let adminEmail = '';
+        if (admin && admin.email && String(admin.email).includes('@')) {
+          adminEmail = String(admin.email).trim().toLowerCase();
+        }
+        const emails = [...new Set([...participantEmails, ...interviewEmails, ...(adminEmail ? [adminEmail] : [])])];
+        if (emails.length === 0) return null;
         const profiles = await VoiceProfile.find({ email: { $in: emails } }).select(
-          'email name voiceVector lastUsed'
+          'email name voiceVector embeddingKind lastUsed'
         );
+        if (!profiles.length) return null;
         const voiceCtx = getLiveVoiceSessionContext(meeting._id);
         const match = await identifySpeaker(filePath, profiles, voiceCtx);
-        if (match && match.profile) {
-          speaker = {
-            email: match.profile.email,
-            name: match.profile.name || match.profile.email,
-            confidence: Number(match.confidence || 0),
-          };
-          VoiceProfile.updateOne(
-            { _id: match.profile._id },
-            { $set: { lastUsed: new Date() } }
-          ).catch(() => {});
-        }
+        if (!match || !match.profile) return null;
+        VoiceProfile.updateOne({ _id: match.profile._id }, { $set: { lastUsed: new Date() } }).catch(() => {});
+        return {
+          email: match.profile.email,
+          name: match.profile.name || match.profile.email,
+          confidence: Number(match.confidence || 0),
+        };
+      } catch (speakerErr) {
+        console.warn('live-transcribe-chunk speaker attribution:', speakerErr.message);
+        return null;
       }
-    } catch (speakerErr) {
-      console.warn('live-transcribe-chunk speaker attribution:', speakerErr.message);
-    }
+    };
+
+    const [text, speaker] = await Promise.all([
+      transcribeLiveChunkFile(filePath, { context: liveContext, participantNames }),
+      identifyLiveSpeaker(),
+    ]);
     res.json({ text: text || '', speaker });
   } catch (error) {
     console.warn('live-transcribe-chunk:', error.message);
@@ -2533,6 +2541,8 @@ router.post('/voice/register', withVoiceUpload, async (req, res) => {
       }
     }
 
+    const embeddingKind = embeddingKindForVector(voiceVector);
+
     // Check if profile already exists
     let voiceProfile = await VoiceProfile.findOne({ email: email.toLowerCase() });
     
@@ -2541,6 +2551,7 @@ router.post('/voice/register', withVoiceUpload, async (req, res) => {
       const previousSampleRel = voiceProfile.voiceSampleFile;
       // Re-record: replace stored embedding entirely — old vector is discarded (not averaged with the new one).
       voiceProfile.voiceVector = voiceVector;
+      voiceProfile.embeddingKind = embeddingKind;
       voiceProfile.voiceSampleFile = newSampleRel;
       voiceProfile.standardSentence = standardSentence || voiceProfile.standardSentence;
       voiceProfile.name = name;
@@ -2563,17 +2574,13 @@ router.post('/voice/register', withVoiceUpload, async (req, res) => {
         email: email.toLowerCase(),
         name,
         voiceVector,
+        embeddingKind,
         voiceSampleFile: newSampleRel,
         standardSentence: standardSentence || `Hello, my name is ${name} and I am ready for the meeting.`
       });
     }
 
     await voiceProfile.save();
-
-    const embeddingKind =
-      Array.isArray(voiceVector) && voiceVector.length === FFT_VOICE_EMBEDDING_DIM
-        ? 'fft'
-        : 'pyannote';
 
     res.json({
       success: true,
@@ -2632,6 +2639,8 @@ router.get('/voice/profiles', async (req, res) => {
         email: p.email,
         name: p.name,
         hasProfile: true,
+        // 'fft' = basic fallback voiceprint; re-record once pyannote is available for reliable naming.
+        embeddingKind: profileEmbeddingKind(p),
         lastUsed: p.lastUsed
       }))
     });

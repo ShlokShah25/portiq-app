@@ -13,6 +13,56 @@ function looksLikeEmail(value) {
   return typeof value === 'string' && /\S+@\S+\.\S+/.test(value);
 }
 
+function normName(v) {
+  return String(v || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9@.\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Match an action item's assignee ("Marcus", "Marcus Lee", "marcus@acme.com") to a participant.
+ * Returns the participant's email, or '' when there is no single confident match.
+ */
+function resolveAssigneeEmail(meeting, assignee) {
+  const a = normName(assignee);
+  if (!a) return '';
+  const people = (meeting.participants || []).filter((p) => p && looksLikeEmail(p.email));
+  const byEmail = people.find((p) => normName(p.email) === a);
+  if (byEmail) return byEmail.email.trim();
+  const byFull = people.filter((p) => normName(p.name) && normName(p.name) === a);
+  if (byFull.length === 1) return byFull[0].email.trim();
+  // First name / local-part match only when it is unambiguous within the meeting.
+  const first = a.split(' ')[0];
+  const byFirst = people.filter((p) => {
+    const nm = normName(p.name);
+    const local = normName(String(p.email).split('@')[0]).split(/[.\s_-]/)[0];
+    return (nm && nm.split(' ')[0] === first) || local === first;
+  });
+  return byFirst.length === 1 ? byFirst[0].email.trim() : '';
+}
+
+/**
+ * Reminders go to the task owner (plus the organizer) — not the whole meeting. Falls back to every
+ * participant when the owner cannot be matched to an email, so nothing is silently dropped.
+ */
+function reminderRecipients(meeting, actionItem) {
+  const recipients = new Set();
+  const ownerEmail = resolveAssigneeEmail(meeting, actionItem && actionItem.assignee);
+  if (ownerEmail) {
+    recipients.add(ownerEmail);
+  } else {
+    (meeting.participants || [])
+      .filter((p) => p && looksLikeEmail(p.email))
+      .forEach((p) => recipients.add(p.email.trim()));
+  }
+  if (looksLikeEmail(meeting.organizer)) {
+    recipients.add(meeting.organizer.trim());
+  }
+  return { to: Array.from(recipients), ownerEmail };
+}
+
 /**
  * Start cron job that sends action-item reminders.
  * For each completed meeting:
@@ -109,7 +159,6 @@ async function startActionItemReminderCron() {
       return;
     }
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
 
     console.log('⏰ Running action-item reminder cron job...');
 
@@ -166,27 +215,20 @@ async function startActionItemReminderCron() {
           const dueDate = new Date(actionItem.dueDate);
           if (Number.isNaN(dueDate.getTime())) continue;
 
-          // Day-before reminder (works with AI-inferred due dates from key points/summary)
-          const reminderDate = new Date(dueDate.getTime() - 24 * 60 * 60 * 1000);
+          // "Due soon" reminder on the daily run when the item is due today or tomorrow. (A strict
+          // "exactly one day before" window skipped items whose meeting ended after today's run —
+          // e.g. a 10:30 meeting assigning something "by tomorrow" never got a reminder.)
+          const endOfTomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2);
           const shouldSendReviewReminder =
-            reminderDate >= startOfToday &&
-            reminderDate < endOfToday &&
+            dueDate >= startOfToday &&
+            dueDate < endOfTomorrow &&
             !actionItem.reviewReminderSent;
 
           if (shouldSendReviewReminder) {
             if (!isEmailConfigured()) {
               console.warn('⚠️  Skipping reminder email; email transport not configured.');
             } else {
-              const recipientEmails = new Set();
-              (meeting.participants || [])
-                .filter(p => p && p.email && /\S+@\S+\.\S+/.test(p.email))
-                .forEach(p => recipientEmails.add(p.email.trim()));
-
-              if (looksLikeEmail(meeting.organizer)) {
-                recipientEmails.add(meeting.organizer.trim());
-              }
-
-              const to = Array.from(recipientEmails);
+              const { to } = reminderRecipients(meeting, actionItem);
               if (to.length > 0) {
                 const humanDueDate = dueDate.toLocaleString();
                 const subject = `${reminderCopy.subjectPrefix} – ${meeting.title} – ${formatMeetingSubjectDate(meeting)}`;
@@ -265,16 +307,7 @@ async function startActionItemReminderCron() {
             }
 
             // Only send overdue reminders for items already past due (workplace only).
-            const recipientEmails2 = new Set();
-            (meeting.participants || [])
-              .filter(p => p && p.email && /\S+@\S+\.\S+/.test(p.email))
-              .forEach(p => recipientEmails2.add(p.email.trim()));
-
-            if (looksLikeEmail(meeting.organizer)) {
-              recipientEmails2.add(meeting.organizer.trim());
-            }
-
-            const to2 = Array.from(recipientEmails2);
+            const { to: to2 } = reminderRecipients(meeting, actionItem);
             if (to2.length > 0) {
               const subject2 = `${overdueReminderCopy.subjectPrefix} – ${meeting.title} – ${formatMeetingSubjectDate(meeting)}`;
               const overdueHtml = `
@@ -341,5 +374,7 @@ async function startActionItemReminderCron() {
 
 module.exports = {
   startActionItemReminderCron,
+  resolveAssigneeEmail,
+  reminderRecipients,
 };
 

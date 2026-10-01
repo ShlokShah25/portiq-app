@@ -7,6 +7,7 @@ import useInterviewRoutes, { meetingPaths } from '../interview/useInterviewRoute
 import useCuraRoutes from '../cura/useCuraRoutes';
 import { formatApiError } from '../utils/apiErrorMessage';
 import { isLikelyLiveWhisperHallucination } from '../utils/whisperLiveFilter';
+import { startLiveUtteranceCapture } from '../utils/liveUtteranceCapture';
 import {
   saveRecordingBlob,
   loadRecordingBlob,
@@ -86,125 +87,8 @@ async function releaseRecordingWakeLock() {
 /** Set when End Meeting must await POST /end with audio (avoid double /end). */
 let pendingEndUpload = null;
 
-/** Pause-based live segmentation (Web Audio RMS + accumulated MediaRecorder slices). */
+/** Pause-based live segmentation → WAV utterances (see utils/liveUtteranceCapture). */
 let globalLiveVad = null;
-
-/**
- * Small MediaRecorder timeslices + accumulate until silence or max length, then enqueue one blob.
- */
-function startLiveUtteranceSegmentation(stream, enqueueBlob) {
-  const MEDIA_SLICE_MS = 400;
-  const MIN_LIVE_CHUNK_BYTES = 1200;
-  const PAUSE_SILENCE_MS = 650;
-  const MAX_LIVE_SEGMENT_MS = 12000;
-  const MIN_UTTERANCE_MS = 520;
-  const SILENCE_RMS = 0.019;
-
-  const state = {
-    pendingChunks: [],
-    pendingStartedAt: null,
-    silenceMs: 0,
-    lastTick: performance.now(),
-    rafId: 0,
-    audioCtx: null,
-    stopped: false,
-    data: null,
-  };
-
-  function flushPending() {
-    if (state.pendingChunks.length === 0) return;
-    const blob = new Blob(state.pendingChunks, { type: 'audio/webm' });
-    state.pendingChunks = [];
-    state.pendingStartedAt = null;
-    state.silenceMs = 0;
-    if (blob.size >= MIN_LIVE_CHUNK_BYTES) {
-      enqueueBlob(blob);
-    }
-  }
-
-  let audioCtx;
-  try {
-    audioCtx = new AudioContext();
-  } catch (e) {
-    console.warn('Live VAD: AudioContext not available', e);
-    return null;
-  }
-  state.audioCtx = audioCtx;
-  audioCtx.resume().catch(() => {});
-
-  const source = audioCtx.createMediaStreamSource(stream);
-  const analyser = audioCtx.createAnalyser();
-  analyser.fftSize = 2048;
-  source.connect(analyser);
-  state.data = new Float32Array(analyser.fftSize);
-
-  function tick() {
-    if (state.stopped) return;
-    const rec = globalMediaRecorder;
-    if (!rec || rec.state !== 'recording') {
-      state.rafId = requestAnimationFrame(tick);
-      return;
-    }
-
-    analyser.getFloatTimeDomainData(state.data);
-    let sum = 0;
-    for (let i = 0; i < state.data.length; i += 1) {
-      sum += state.data[i] * state.data[i];
-    }
-    const rms = Math.sqrt(sum / state.data.length);
-    const now = performance.now();
-    const dt = Math.min(now - state.lastTick, 120);
-    state.lastTick = now;
-
-    if (rms < SILENCE_RMS) {
-      state.silenceMs += dt;
-    } else {
-      state.silenceMs = 0;
-    }
-
-    const pendingDur =
-      state.pendingStartedAt != null ? now - state.pendingStartedAt : 0;
-    const pauseAfterSpeech =
-      state.pendingChunks.length > 0 &&
-      state.silenceMs >= PAUSE_SILENCE_MS &&
-      pendingDur >= MIN_UTTERANCE_MS;
-    const maxLen = state.pendingChunks.length > 0 && pendingDur >= MAX_LIVE_SEGMENT_MS;
-
-    if (pauseAfterSpeech || maxLen) {
-      flushPending();
-    }
-
-    state.rafId = requestAnimationFrame(tick);
-  }
-
-  state.rafId = requestAnimationFrame(tick);
-  state.flushPending = flushPending;
-  state.dispose = () => {
-    state.stopped = true;
-    try {
-      cancelAnimationFrame(state.rafId);
-    } catch (_) {
-      /* ignore */
-    }
-    if (state.audioCtx && state.audioCtx.state !== 'closed') {
-      state.audioCtx.close().catch(() => {});
-    }
-  };
-  state.onRecorderData = (data) => {
-    if (state.stopped) return;
-    state.pendingChunks.push(data);
-    if (state.pendingStartedAt == null) {
-      state.pendingStartedAt = performance.now();
-    }
-  };
-  state.resetAfterResume = () => {
-    state.silenceMs = 0;
-    state.lastTick = performance.now();
-  };
-
-  state.sliceMs = MEDIA_SLICE_MS;
-  return state;
-}
 
 function disposeGlobalLiveVad() {
   if (!globalLiveVad) return;
@@ -521,9 +405,12 @@ const MeetingInProgress = () => {
       void requestRecordingWakeLock();
       const chunks = [];
       const recorderMime = mediaRecorder.mimeType || mimeType || 'audio/webm';
-      /** Aligned with server live chunk minimum; utterance segments can be shorter than old 5s blobs. */
+      /** Aligned with server live chunk minimum. */
       const MIN_LIVE_CHUNK_BYTES = 1200;
-      const FALLBACK_LIVE_SLICE_MS = 2500;
+      /** Full-recording timeslice; live preview no longer depends on MediaRecorder slices. */
+      const RECORDER_SLICE_MS = 1000;
+      /** Tail of the live transcript sent as Whisper context so sentences and names stay consistent. */
+      let liveContextTail = '';
 
       let liveFlushBusy = false;
       const liveQueue = [];
@@ -542,10 +429,14 @@ const MeetingInProgress = () => {
             if (!blob || blob.size < MIN_LIVE_CHUNK_BYTES) continue;
             try {
               const fd = new FormData();
+              const isWav = String(blob.type || '').includes('wav');
               fd.append(
                 'audio',
-                new File([blob], 'chunk.webm', { type: blob.type || 'audio/webm' })
+                new File([blob], isWav ? 'chunk.wav' : 'chunk.webm', {
+                  type: blob.type || 'audio/webm',
+                })
               );
+              if (liveContextTail) fd.append('context', liveContextTail);
               const res = await axios.post(`/meetings/${String(meetingId)}/live-transcribe-chunk`, fd, {
                 headers: { 'Content-Type': 'multipart/form-data' },
               });
@@ -568,6 +459,7 @@ const MeetingInProgress = () => {
                   return next.length > 40 ? next.slice(next.length - 40) : next;
                 });
                 setLiveTranscript((prev) => (prev ? `${prev} ${piece}` : piece));
+                liveContextTail = `${liveContextTail} ${piece}`.trim().slice(-400);
               }
               liveFailStreak = 0;
               liveRetryAfterMs = 0;
@@ -594,20 +486,20 @@ const MeetingInProgress = () => {
       }
 
       disposeGlobalLiveVad();
-      globalLiveVad = startLiveUtteranceSegmentation(stream, enqueueLiveTranscriptChunk);
-      const liveSliceMs = globalLiveVad ? globalLiveVad.sliceMs : FALLBACK_LIVE_SLICE_MS;
+      globalLiveVad = startLiveUtteranceCapture(
+        stream,
+        enqueueLiveTranscriptChunk,
+        () => !!(globalMediaRecorder && globalMediaRecorder.state === 'recording')
+      );
+      if (!globalLiveVad && isMountedRef.current) {
+        setLiveTranscriptError(
+          'Live preview is not supported in this browser. Recording continues and the final transcript is unaffected.'
+        );
+      }
 
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           chunks.push(event.data);
-          const rec = globalMediaRecorder;
-          if (rec && rec.state === 'recording') {
-            if (globalLiveVad) {
-              globalLiveVad.onRecorderData(event.data);
-            } else {
-              enqueueLiveTranscriptChunk(event.data);
-            }
-          }
         }
       };
 
@@ -628,9 +520,9 @@ const MeetingInProgress = () => {
       if (isMountedRef.current) {
         setLiveTranscript('');
         setLiveTranscriptEntries([]);
-        setLiveTranscriptError('');
+        if (globalLiveVad) setLiveTranscriptError('');
       }
-      mediaRecorder.start(liveSliceMs);
+      mediaRecorder.start(RECORDER_SLICE_MS);
       if (isMountedRef.current) {
         setRecording(true);
         setPaused(false);

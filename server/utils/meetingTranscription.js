@@ -31,6 +31,7 @@ const { getFfmpegPath } = require('./ffmpegPaths');
 const { ensureWhisperSizedAudio, WHISPER_MAX_BYTES } = require('./audioCompressForWhisper');
 const { isLikelyWhisperHallucination, sanitizeWhisperTranscript } = require('./whisperTextSanitizer');
 const { identifySpeaker } = require('./voiceRecognition');
+const { buildSpeakerTimeline, turnsToLabelledText } = require('./speakerTimeline');
 const {
   pickEducationThoughtOfTheDay,
   formatEducationProfessorRider,
@@ -146,8 +147,30 @@ function speakerAttributionPreamble() {
 }
 
 /** Optional voice-profile hint for speaker attribution (shared by standard + interview summary paths). */
-async function buildTranscriptWithSpeakerHints(meetingObj, transcriptTextTrim) {
-  const baseTranscript = String(transcriptTextTrim || '').trim();
+/**
+ * Voice-labelled transcript for the summary prompt: from the current pipeline run (options) or,
+ * on re-summarize / retry, from the speaker turns stored on the meeting.
+ */
+function resolveVoiceLabelledTranscript(meetingObj, options = {}) {
+  const fromRun = String(options.speakerLabelledTranscript || '').trim();
+  if (fromRun) return fromRun;
+  const stored = meetingObj && Array.isArray(meetingObj.transcriptSegments) ? meetingObj.transcriptSegments : [];
+  return stored.length ? turnsToLabelledText(stored) : '';
+}
+
+function voiceLabelledTranscriptHeader() {
+  return (
+    `[Speaker labels below come from voice recognition against enrolled voiceprints. Treat a named label as who ` +
+    `spoke that line — use it for owners/assignees ("Marcus, can you own it?" answered by Marcus = Marcus owns it). ` +
+    `"Speaker N" = a voice with no enrolled voiceprint; keep it as [Speaker N] unless the text itself names them.]\n`
+  );
+}
+
+async function buildTranscriptWithSpeakerHints(meetingObj, transcriptTextTrim, voiceLabelledTranscript = '') {
+  const voiceLabelled = String(voiceLabelledTranscript || '').trim();
+  const baseTranscript = voiceLabelled
+    ? voiceLabelledTranscriptHeader() + voiceLabelled
+    : String(transcriptTextTrim || '').trim();
   if (!meetingObj) {
     return speakerAttributionPreamble() + baseTranscript;
   }
@@ -308,7 +331,11 @@ async function generateInterviewMeetingSummaryFromTranscript(transcriptRaw, meet
   }
 
   const maxRetries = OPENAI_PIPELINE_MAX_RETRIES;
-  const transcriptWithSpeakers = await buildTranscriptWithSpeakerHints(meetingObj, transcriptTextTrim);
+  const transcriptWithSpeakers = await buildTranscriptWithSpeakerHints(
+    meetingObj,
+    transcriptTextTrim,
+    resolveVoiceLabelledTranscript(meetingObj, options)
+  );
 
   const interviewerEmails = [
     ...(Array.isArray(meetingObj.interviewInterviewerEmails)
@@ -470,7 +497,11 @@ async function generateClinicalMeetingSummaryFromTranscript(transcriptRaw, meeti
   }
 
   const maxRetries = OPENAI_PIPELINE_MAX_RETRIES;
-  const transcriptWithSpeakers = await buildTranscriptWithSpeakerHints(meetingObj, transcriptTextTrim);
+  const transcriptWithSpeakers = await buildTranscriptWithSpeakerHints(
+    meetingObj,
+    transcriptTextTrim,
+    resolveVoiceLabelledTranscript(meetingObj, options)
+  );
 
   const chiefComplaint = String(meetingObj.chiefComplaint || '').trim();
   const visitType = String(meetingObj.visitType || 'general').trim();
@@ -1182,7 +1213,11 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
 
   const maxRetries = OPENAI_PIPELINE_MAX_RETRIES;
 
-  const transcriptWithSpeakers = await buildTranscriptWithSpeakerHints(meetingObj, transcriptTextTrim);
+  const transcriptWithSpeakers = await buildTranscriptWithSpeakerHints(
+    meetingObj,
+    transcriptTextTrim,
+    resolveVoiceLabelledTranscript(meetingObj, options)
+  );
 
     let durationMinutes = null;
     if (meetingObj && meetingObj.startTime && meetingObj.endTime) {
@@ -2126,12 +2161,34 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
       await checkpointTranscriptionToDb(meetingObj._id, transcriptText);
     }
 
+    // Name every speaker turn from enrolled voiceprints (also for interviews and long-audio chunks).
+    let speakerTimeline = null;
+    if (!isEducation && Array.isArray(transcription.segments) && transcription.segments.length > 0) {
+      try {
+        const voiceEmails = await getVoiceLookupEmailsForMeeting(meetingObj);
+        const voiceProfiles = voiceEmails.length
+          ? await VoiceProfile.find({ email: { $in: voiceEmails } })
+          : [];
+        const lp = (options && options.longAudioPipeline) || {};
+        speakerTimeline = await buildSpeakerTimeline(finalAudioPath, transcription.segments, voiceProfiles, {
+          offsetSec: lp.offsetSec,
+          sessionContext: lp.voiceSessionContext,
+        });
+      } catch (timelineErr) {
+        console.warn('⚠️ Speaker timeline skipped:', timelineErr.message || timelineErr);
+      }
+    }
+
     let summaryResult;
     const maxSummaryAttempts = Math.min(
       6,
       Math.max(3, parseInt(process.env.SUMMARY_GENERATION_ATTEMPTS || '5', 10) || 5)
     );
-    const summaryCallOptions = { ...options, detectedLanguage };
+    const summaryCallOptions = {
+      ...options,
+      detectedLanguage,
+      speakerLabelledTranscript: speakerTimeline ? speakerTimeline.labelledText : '',
+    };
     delete summaryCallOptions.longAudioPipeline;
     for (let sumAttempt = 1; sumAttempt <= maxSummaryAttempts; sumAttempt++) {
       try {
@@ -2174,11 +2231,9 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
           ? new Date(meetingObj.endTime || meetingObj.scheduledTime || meetingObj.startTime)
           : new Date();
       try {
-        const ev = await buildVoiceAttributedEvidenceTranscript(
-          meetingObj,
-          finalAudioPath,
-          transcription.segments
-        );
+        const ev = speakerTimeline && speakerTimeline.evidenceTranscript
+          ? { transcript: speakerTimeline.evidenceTranscript, lines: speakerTimeline.turns.length }
+          : await buildVoiceAttributedEvidenceTranscript(meetingObj, finalAudioPath, transcription.segments);
         if (ev && ev.transcript) {
           voiceEvidenceForScrub = ev.transcript;
         }
@@ -2209,6 +2264,9 @@ async function transcribeAndSummarize(audioFilePath, meeting, options = {}) {
       }
     }
 
+    if (summaryResult && speakerTimeline && speakerTimeline.turns.length) {
+      summaryResult.speakerSegments = speakerTimeline.turns;
+    }
     return summaryResult;
   } catch (error) {
     console.error('❌ Transcription error:', error);
@@ -2296,6 +2354,21 @@ async function translateSummaryForEmail(summaryData, language) {
       'Decisions:\n' + summaryData.decisions.map((d, idx) => `${idx + 1}. ${d}`).join('\n')
     );
   }
+  // Action items carry the owner + due date — the part recipients act on, so translate it too.
+  const translatableActions = (summaryData.actionItems || []).filter((a) => a && String(a.task || '').trim());
+  if (translatableActions.length) {
+    baseTextParts.push(
+      'Action items:\n' +
+        translatableActions
+          .map((a, idx) => {
+            const due = a.dueDate ? new Date(a.dueDate) : null;
+            const dueText = due && !Number.isNaN(due.getTime()) ? ` (due ${due.toISOString().slice(0, 10)})` : '';
+            const owner = String(a.assignee || '').trim();
+            return `${idx + 1}. ${String(a.task).trim()}${owner ? ` — owner: ${owner}` : ''}${dueText}`;
+          })
+          .join('\n')
+    );
+  }
   if ((summaryData.nextSteps || []).length) {
     baseTextParts.push(
       'Next steps:\n' + summaryData.nextSteps.map((s, idx) => `${idx + 1}. ${s}`).join('\n')
@@ -2318,7 +2391,8 @@ async function translateSummaryForEmail(summaryData, language) {
           role: 'system',
           content:
             `You are a professional translator. Translate the following meeting summary content from English into ${targetLanguage}. ` +
-            'Keep the structure readable but concise. Do NOT include any English in the translated output.',
+            'Keep the structure readable but concise. Do NOT include any English in the translated output, ' +
+            'except people\'s names, product names and dates, which must be kept exactly as written.',
         },
         {
           role: 'user',
@@ -2864,6 +2938,23 @@ function getMailTransporter() {
   return getTransporter();
 }
 
+function buildLiveChunkPrompt(opts = {}) {
+  const names = Array.isArray(opts.participantNames)
+    ? opts.participantNames.map((n) => String(n || '').trim()).filter(Boolean).slice(0, 30)
+    : [];
+  // Whisper treats the prompt as preceding transcript; keep instructions short and put the real
+  // previous words last so the model continues from them.
+  const parts = ['Workplace meeting. Transcribe only words actually spoken.'];
+  if (names.length) parts.push(`Participants: ${names.join(', ')}.`);
+  const context = String(opts.context || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(-400);
+  if (context) parts.push(context);
+  // Whisper uses at most ~224 prompt tokens; keep the tail (most recent words) when trimming.
+  return parts.join(' ').slice(-800);
+}
+
 /**
  * Transcribe a short audio chunk with Whisper (live preview during recording).
  * Not used for the final stored transcript — full meeting audio is transcribed on /end.
@@ -2894,7 +2985,13 @@ function convertLiveChunkToWav(inputPath) {
   return null;
 }
 
-async function transcribeLiveChunkFile(audioPath) {
+/**
+ * @param {string} audioPath
+ * @param {{ context?: string, participantNames?: string[] }} [opts]
+ *   context: tail of the live transcript so far (keeps sentences, spelling and language consistent
+ *   across utterances — each chunk is otherwise transcribed with no memory of the last one).
+ */
+async function transcribeLiveChunkFile(audioPath, opts = {}) {
   if (!openai) {
     const err = new Error('OpenAI transcription is not configured');
     err.code = 'OPENAI_NOT_CONFIGURED';
@@ -2928,8 +3025,7 @@ async function transcribeLiveChunkFile(audioPath) {
     model: process.env.OPENAI_TRANSCRIPTION_MODEL || 'whisper-1',
     temperature: 0,
     response_format: 'json',
-    prompt:
-      'Workplace business meeting. Transcribe only words actually spoken. Do not invent filler or closing phrases.',
+    prompt: buildLiveChunkPrompt(opts),
   };
   if (liveLang && liveLang !== 'auto') {
     createParams.language = liveLang;

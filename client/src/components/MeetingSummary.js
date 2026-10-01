@@ -11,6 +11,7 @@ import {
 } from '../utils/meetingEditorOtp';
 import './MeetingSummary.css';
 import MeetingSummaryReadonlyBody from './MeetingSummaryReadonlyBody';
+import SpeakerTranscript from './SpeakerTranscript';
 import { formatApiError } from '../utils/apiErrorMessage';
 import { stripEducationSummaryForDisplay } from '../utils/educationSummaryDisplay';
 import { normalizeSummaryLineArrays } from '../utils/summaryEditNormalize';
@@ -952,6 +953,7 @@ const MeetingSummary = () => {
                   hiringRecommendationReason={hiringRecommendationReason}
                   evaluationSignals={evaluationSignals}
                 />
+                {!isEducationMode && <SpeakerTranscript segments={meeting.transcriptSegments} />}
               </div>
               {actionError && (
                 <div className="meeting-summary-action-error meeting-summary-action-error--near-actions" role="alert">

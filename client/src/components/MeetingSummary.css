@@ -1890,3 +1890,63 @@
   }
 }
 
+
+/* Speaker-by-speaker final transcript */
+.speaker-transcript {
+  margin-top: 20px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--surface-card);
+}
+.speaker-transcript__summary {
+  cursor: pointer;
+  padding: 12px 16px;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+}
+.speaker-transcript__meta {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.speaker-transcript__list {
+  list-style: none;
+  margin: 0;
+  padding: 0 16px 12px;
+  max-height: 480px;
+  overflow-y: auto;
+}
+.speaker-transcript__turn {
+  padding: 10px 0;
+  border-top: 1px solid var(--divider);
+}
+.speaker-transcript__head {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+.speaker-transcript__name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-blue);
+}
+.speaker-transcript__name--unknown {
+  color: var(--text-muted);
+}
+.speaker-transcript__time {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.speaker-transcript__text {
+  margin: 2px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}

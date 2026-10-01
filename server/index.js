@@ -259,6 +259,15 @@ mongoose.connect(mongoUri, mongoOptions)
   } catch (err) {
     console.warn('⚠️  Failed to start Cura pre-visit cron:', err.message);
   }
+
+  // Load the speaker-embedding model in the background so the first live utterance of the day
+  // is named promptly instead of waiting on a cold model load.
+  try {
+    const { warmVoiceWorker } = require('./utils/voiceRecognition');
+    warmVoiceWorker();
+  } catch (err) {
+    console.warn('⚠️  Voice worker warm-up skipped:', err.message);
+  }
 })
 .catch((error) => {
   console.error('❌ MongoDB connection error:', error);

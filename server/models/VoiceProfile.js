@@ -17,6 +17,16 @@ const voiceProfileSchema = new mongoose.Schema({
     type: [Number], // Array of numbers representing the voice embedding
     required: true
   },
+  /**
+   * Embedding family of voiceVector: 'pyannote' (speaker model) or 'fft' (basic fallback used when
+   * pyannote/HF was unavailable at enrollment). Vectors only compare within the same family.
+   * Older rows have no value — derived from vector length (128 → fft).
+   */
+  embeddingKind: {
+    type: String,
+    enum: ['pyannote', 'fft', null],
+    default: null,
+  },
   voiceSampleFile: {
     type: String, // Path to the recorded voice sample
     default: null

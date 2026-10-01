@@ -5,6 +5,7 @@ const { exec, execFileSync } = require('child_process');
 const util = require('util');
 const execPromise = util.promisify(exec);
 const { getFfmpegPath } = require('./ffmpegPaths');
+const { workerRequest } = require('./voiceEmbeddingWorker');
 
 /** Fallback speaker embedding size (mel static + mel delta); must match stored vectors from this path. */
 const FFT_VOICE_EMBEDDING_DIM = 128;
@@ -35,7 +36,8 @@ function resolvePythonBinaryForVoice() {
  * Speaker identification — pyannote.audio only (see server/utils/voice_embedding.py).
  * ------------------------------------------------------------
  * - Embeddings: HF_TOKEN + Python + pyannote/embedding. Optional dominant-speaker crop
- *   via pyannote/speaker-diarization-3.1 (VOICE_PYANNOTE_DIARIZATION, default on in Python).
+ *   via pyannote/speaker-diarization-3.1 (VOICE_PYANNOTE_DIARIZATION, default off). Embeddings come
+ *   from a persistent worker (voiceEmbeddingWorker.js) so the model loads once per server process.
  * - When pyannote/HF is unavailable, enrollment falls back to an FFT mel-spectral fingerprint
  *   (128-dim) unless VOICE_EMBEDDING_STRICT=true. Live identification uses the same fallback.
  * - Reject ambiguous matches: best score must be clearly above the runner-up (margin).
@@ -43,8 +45,9 @@ function resolvePythonBinaryForVoice() {
  * Enrollment: VOICE_ENROLLMENT_CLEAN_AUDIO (default true) runs ffmpeg band-limit + dynaudnorm
  * before embeddings. Set VOICE_ENROLLMENT_CLEAN_AUDIO=false to disable.
  *
- * Tune via env: VOICE_MATCH_STRICT, VOICE_PYANNOTE_MIN, VOICE_MATCH_MARGIN,
- * VOICE_SINGLE_PYANNOTE_MIN, VOICE_SINGLE_PYANNOTE_RELAXED, VOICE_ENROLL_MIN_SECONDS, VOICE_ENROLL_MIN_RMS.
+ * Tune via env: VOICE_PYANNOTE_MIN, VOICE_MATCH_MARGIN, VOICE_CONTINUITY_HIGH, VOICE_FFT_MATCH_MIN,
+ * VOICE_ENROLL_MIN_SECONDS, VOICE_ENROLL_MIN_RMS. VOICE_MATCH_DEBUG=true logs per-utterance scores
+ * (use it to calibrate VOICE_PYANNOTE_MIN on your own recordings).
  * Identification uses the same band-limit + dynaudnorm chain as enrollment when
  * VOICE_IDENTIFICATION_CLEAN_AUDIO is true (default).
  * VOICE_VAD_TRIM_SILENCE_DB (35–55, default 50): silenceremove threshold in dB.
@@ -227,6 +230,19 @@ async function tryPyannoteEmbedding(processedPath) {
       900000,
       Math.max(45000, parseInt(process.env.VOICE_EMBEDDING_TIMEOUT_MS || '240000', 10) || 240000)
     );
+
+    // Fast path: persistent worker with the model already loaded.
+    try {
+      const resp = await workerRequest(
+        { cmd: 'embed', path: processedPath },
+        { pythonBin, env, timeoutMs: parseInt(process.env.VOICE_WORKER_REQUEST_TIMEOUT_MS || '60000', 10) || 60000 }
+      );
+      if (Array.isArray(resp.embedding) && resp.embedding.length > 0) {
+        return resp.embedding;
+      }
+    } catch (workerErr) {
+      console.warn('⚠️  Voice worker unavailable, using one-shot embedding:', workerErr.message || workerErr);
+    }
 
     const command = `"${pythonBin}" "${pythonScript}" "${processedPath}"`;
 
@@ -640,34 +656,6 @@ async function generateFftMelVoiceEmbedding(audioFilePath) {
   return out;
 }
 
-/**
- * Resolve segment embedding for live identification: pyannote first, FFT fallback when allowed.
- * @returns {Promise<{ embedding: number[], kind: 'pyannote'|'fft' }|null>}
- */
-async function resolveSegmentEmbedding(embeddingPath) {
-  try {
-    const embedding = await tryPyannoteEmbedding(embeddingPath);
-    return { embedding, kind: 'pyannote' };
-  } catch (pyErr) {
-    if (!allowVoiceEmbeddingFallback()) {
-      console.warn('Segment embedding unavailable (strict mode):', pyErr.message || pyErr);
-      return null;
-    }
-    try {
-      const embedding = await generateFftMelVoiceEmbedding(embeddingPath);
-      console.warn('⚠️  Live segment: using FFT / mel-spectral fallback for speaker match');
-      return { embedding, kind: 'fft' };
-    } catch (fftErr) {
-      console.warn(
-        'Segment embedding failed (pyannote + FFT):',
-        pyErr.message || pyErr,
-        fftErr.message || fftErr
-      );
-      return null;
-    }
-  }
-}
-
 /** Pyannote embedding dimensions must match between live chunk and stored profile. */
 function embeddingsCompatible(len1, len2) {
   return len1 === len2;
@@ -742,24 +730,6 @@ function scoreVoiceProfiles(segmentEmbedding, profiles, sessionContext, kind) {
   return scored;
 }
 
-/**
- * Global winner under absolute + margin rules (same semantics as strict identifySpeaker).
- */
-function tryPickFromScored(scored, minConf, minSingle, margin, pairSimBoost) {
-  if (!scored || scored.length === 0) return null;
-  const best = scored[0];
-  const second = scored[1];
-  if (scored.length === 1) {
-    if (best.score >= minSingle) return { profile: best.profile, confidence: best.score, tieBreak: 'global' };
-    return null;
-  }
-  const effectiveMargin = margin + pairSimBoost;
-  if (best.score >= minConf && (!second || best.score - second.score >= effectiveMargin)) {
-    return { profile: best.profile, confidence: best.score, tieBreak: 'global' };
-  }
-  return null;
-}
-
 function cloneEmbedding(e) {
   return Array.isArray(e) ? e.slice() : [];
 }
@@ -785,12 +755,6 @@ function updateSessionCentroid(ctx, email, embedding) {
   }
   for (let i = 0; i < embedding.length; i++) c.sum[i] += embedding[i];
   c.n += 1;
-}
-
-/** Top-1 from pyannote-ranked scores. */
-function pickTopScoredCandidate(scoredPy) {
-  if (!scoredPy || !scoredPy[0]) return null;
-  return { profile: scoredPy[0].profile, score: scoredPy[0].score };
 }
 
 function maxStoredProfileSimilarity(scored) {
@@ -829,7 +793,7 @@ function resolveSimilarVoicesWithSession(
 
   const contHi = parseThresholdEnv('VOICE_CONTINUITY_HIGH', 0.82, 0.68, 0.96);
   const contLo = parseThresholdEnv('VOICE_CONTINUITY_SWITCH', 0.68, 0.45, 0.85);
-  const centroidMin = parseThresholdEnv('VOICE_CENTROID_MATCH_MIN', 0.76, 0.55, 0.94);
+  const centroidMin = parseThresholdEnv('VOICE_CENTROID_MATCH_MIN', 0.7, 0.55, 0.94);
 
   const continuityAllowed =
     !ctx.lastEmbeddingKind ||
@@ -885,20 +849,160 @@ function resolveSimilarVoicesWithSession(
     }
   }
 
-  if (ambiguous && best.score >= minConf - 0.05) {
+  return null;
+}
+
+/** Embedding family of a stored profile (pyannote vs FFT fallback) — vectors of different families never compare. */
+function profileEmbeddingKind(profile) {
+  const explicit = String((profile && profile.embeddingKind) || '').toLowerCase();
+  if (explicit === 'fft' || explicit === 'pyannote') return explicit;
+  const v = profile && profile.voiceVector;
+  return Array.isArray(v) && v.length === FFT_VOICE_EMBEDDING_DIM ? 'fft' : 'pyannote';
+}
+
+function embeddingKindForVector(vec) {
+  return Array.isArray(vec) && vec.length === FFT_VOICE_EMBEDDING_DIM ? 'fft' : 'pyannote';
+}
+
+/**
+ * Thresholds per embedding family. pyannote/embedding cosine for the same person across an enrollment
+ * clip and a room-mic meeting utterance typically lands ~0.55–0.85; different people ~0.1–0.45.
+ * (The previous 0.90 floor was almost never reached, so speakers stayed unnamed — while a 0.50
+ * "closest" fallback for 3+ people named guests as whoever was nearest.)
+ */
+function matchThresholds(kind) {
+  if (kind === 'fft') {
     return {
-      profile: best.profile,
-      confidence: best.score * 0.92,
-      tieBreak: 'weak_leader',
+      accept: parseThresholdEnv('VOICE_FFT_MATCH_MIN', 0.8, 0.5, 0.98),
+      margin: parseThresholdEnv('VOICE_FFT_MATCH_MARGIN', 0.03, 0.005, 0.2),
+      continuityHigh: parseThresholdEnv('VOICE_FFT_CONTINUITY_HIGH', 0.93, 0.7, 0.995),
     };
   }
+  return {
+    accept: parseThresholdEnv('VOICE_PYANNOTE_MIN', 0.55, 0.3, 0.95),
+    margin: parseThresholdEnv('VOICE_MATCH_MARGIN', 0.06, 0.01, 0.35),
+    continuityHigh: parseThresholdEnv('VOICE_CONTINUITY_HIGH', 0.75, 0.5, 0.96),
+  };
+}
 
+function newVoiceSessionContext() {
+  return { lastEmbedding: null, lastEmail: null, lastEmbeddingKind: null, centroids: new Map() };
+}
+
+/**
+ * Decide which enrolled profile (if any) produced `embedding`.
+ * Pure function over precomputed embeddings so it serves both live utterances and the
+ * per-segment attribution of a full recording.
+ *
+ * @param {{ pyannote?: number[]|null, fft?: number[]|null }} embByKind
+ * @param {object[]} profiles VoiceProfile docs (voiceVector, email, name, embeddingKind?)
+ * @param {object|null} sessionContext from newVoiceSessionContext(); learns per-meeting centroids
+ * @returns {{ profile: object, confidence: number, tieBreak?: string }|null}
+ */
+function matchEmbeddingToProfiles(embByKind, profiles, sessionContext = null) {
+  const usable = (profiles || []).filter(
+    (p) => p && Array.isArray(p.voiceVector) && p.voiceVector.length > 0
+  );
+  if (!usable.length) return null;
+
+  // Prefer the stronger family when both are available for some profiles.
+  for (const kind of ['pyannote', 'fft']) {
+    const emb = embByKind && embByKind[kind];
+    if (!Array.isArray(emb) || emb.length === 0) continue;
+    const group = usable.filter(
+      (p) => profileEmbeddingKind(p) === kind && embeddingsCompatible(emb.length, p.voiceVector.length)
+    );
+    if (!group.length) continue;
+
+    const t = matchThresholds(kind);
+    const ctx = sessionContext && (!sessionContext.lastEmbeddingKind || sessionContext.lastEmbeddingKind === kind)
+      ? sessionContext
+      : null;
+    const scored = scoreVoiceProfiles(emb, group, ctx, kind);
+    if (!scored.length) continue;
+
+    const pairSim = maxStoredProfileSimilarity(scored);
+    const confusable = pairSim >= parseThresholdEnv('VOICE_CONFUSABLE_PAIR_MIN', 0.82, 0.6, 0.99);
+    const margin = t.margin + (confusable ? parseThresholdEnv('VOICE_MARGIN_BOOST_FOR_SIMILAR', 0.04, 0, 0.2) : 0);
+
+    const best = scored[0];
+    const second = scored[1];
+    let chosen = null;
+
+    if (best.score >= t.accept && (!second || best.score - second.score >= margin)) {
+      chosen = { profile: best.profile, confidence: best.score, tieBreak: 'global' };
+    }
+
+    // Ambiguous between two enrolled voices → use what this meeting has already learned.
+    if (!chosen && ctx && kind === 'pyannote' && scored.length >= 2) {
+      const resolved = resolveSimilarVoicesWithSession(emb, scored, t.accept, margin, ctx, kind);
+      if (resolved && resolved.confidence >= t.accept - 0.08) chosen = resolved;
+    }
+
+    // Same voice as the previous utterance and still plausibly that person.
+    if (!chosen && ctx && ctx.lastEmbedding && ctx.lastEmail && ctx.lastEmbeddingKind === kind) {
+      const cont = compareEmbeddings(emb, ctx.lastEmbedding);
+      const last = scored.find((x) => emailKey(x.profile) === String(ctx.lastEmail).toLowerCase());
+      if (cont >= t.continuityHigh && last && last.score >= t.accept - 0.1) {
+        chosen = { profile: last.profile, confidence: Math.min(0.99, (last.score + cont) / 2), tieBreak: 'continuity_same' };
+      }
+    }
+
+    if (process.env.VOICE_MATCH_DEBUG === 'true') {
+      console.log(
+        `[voice-match] kind=${kind} ${scored
+          .slice(0, 4)
+          .map((x) => `${x.profile.email}=${x.score.toFixed(3)}`)
+          .join(' ')} → ${chosen ? `${chosen.profile.email} (${chosen.tieBreak})` : 'unknown'}`
+      );
+    }
+
+    if (chosen) {
+      if (sessionContext) {
+        sessionContext.lastEmbedding = cloneEmbedding(emb);
+        sessionContext.lastEmail = chosen.profile.email;
+        sessionContext.lastEmbeddingKind = kind;
+        // Only learn from confident picks so one mistake does not drag the centroid.
+        const learnMin = Math.max(t.accept + 0.05, kind === 'fft' ? 0.85 : 0.6);
+        if (chosen.confidence >= learnMin) updateSessionCentroid(sessionContext, chosen.profile.email, emb);
+      }
+      return chosen;
+    }
+  }
+
+  if (sessionContext) {
+    // An unknown voice breaks "same speaker as last time" continuity.
+    sessionContext.lastEmail = null;
+  }
   return null;
 }
 
 /**
- * Speaker match: pyannote embedding only (see voice_embedding.py; optional diarization crop in Python).
- * Default strict = true (workspace-safe). Set VOICE_MATCH_STRICT=false for looser thresholding.
+ * Embed one audio file in the families needed by `profiles`.
+ * @returns {Promise<{ pyannote: number[]|null, fft: number[]|null }>}
+ */
+async function embedForProfiles(embeddingPath, profiles) {
+  const kinds = new Set((profiles || []).map(profileEmbeddingKind));
+  const out = { pyannote: null, fft: null };
+  if (kinds.has('pyannote')) {
+    try {
+      out.pyannote = await tryPyannoteEmbedding(embeddingPath);
+    } catch (e) {
+      console.warn('Segment pyannote embedding unavailable:', e.message || e);
+    }
+  }
+  if (kinds.has('fft') && allowVoiceEmbeddingFallback()) {
+    try {
+      out.fft = await generateFftMelVoiceEmbedding(embeddingPath);
+    } catch (e) {
+      console.warn('Segment FFT embedding failed:', e.message || e);
+    }
+  }
+  return out;
+}
+
+/**
+ * Identify the speaker of a short (single-speaker) audio file — used for live utterances.
  */
 async function identifySpeaker(audioFilePath, voiceProfiles, sessionContext = null) {
   let processedPath = null;
@@ -907,173 +1011,18 @@ async function identifySpeaker(audioFilePath, voiceProfiles, sessionContext = nu
     if (!fs.existsSync(audioFilePath)) {
       throw new Error('Audio file not found');
     }
-
-    processedPath = await preprocessAudioForEmbedding(audioFilePath);
-    cleanPath = tryFfmpegNormalizeVoiceAudioSync(processedPath, 'identification');
-    const embeddingPath = cleanPath || processedPath;
-
-    const resolved = await resolveSegmentEmbedding(embeddingPath);
-    if (!resolved || !resolved.embedding) return null;
-
-    const pyEmb = resolved.embedding;
-    const embeddingKind = resolved.kind;
-    const isFft = embeddingKind === 'fft';
-
     const profiles = (voiceProfiles || []).filter(
       (p) => p && Array.isArray(p.voiceVector) && p.voiceVector.length > 0
     );
     if (profiles.length === 0) return null;
 
-    const strict = String(process.env.VOICE_MATCH_STRICT || 'true').toLowerCase() !== 'false';
+    processedPath = await preprocessAudioForEmbedding(audioFilePath);
+    cleanPath = tryFfmpegNormalizeVoiceAudioSync(processedPath, 'identification');
+    const embeddingPath = cleanPath || processedPath;
 
-    if (!strict) {
-      const thresholdPy = isFft
-        ? parseThresholdEnv('VOICE_FFT_MATCH_MIN', 0.68, 0.5, 0.95)
-        : parseThresholdEnv('VOICE_MATCH_THRESHOLD', 0.72, 0.5, 0.95);
-      let bestMatch = null;
-      let bestScore = 0;
-      for (const profile of profiles) {
-        const pv = profile.voiceVector;
-        if (!embeddingsCompatible(pyEmb.length, pv.length)) continue;
-        const similarity = compareEmbeddings(pyEmb, pv);
-        if (similarity > bestScore && similarity >= thresholdPy) {
-          bestScore = similarity;
-          bestMatch = profile;
-        }
-      }
-      if (bestMatch && sessionContext) {
-        sessionContext.lastEmbedding = cloneEmbedding(pyEmb);
-        sessionContext.lastEmail = bestMatch.email;
-        sessionContext.lastEmbeddingKind = embeddingKind;
-        updateSessionCentroid(sessionContext, bestMatch.email, pyEmb);
-      }
-      return bestMatch ? { profile: bestMatch, confidence: bestScore } : null;
-    }
-
-    const pyMin = isFft
-      ? parseThresholdEnv('VOICE_FFT_MATCH_MIN', 0.68, 0.5, 0.95)
-      : parseThresholdEnv('VOICE_PYANNOTE_MIN', 0.9, 0.75, 0.99);
-    const singlePy = isFft
-      ? parseThresholdEnv('VOICE_FFT_SINGLE_MIN', 0.72, 0.55, 0.95)
-      : parseThresholdEnv('VOICE_SINGLE_PYANNOTE_MIN', 0.92, 0.78, 0.995);
-    const margin = parseThresholdEnv('VOICE_MATCH_MARGIN', 0.1, 0.02, 0.35);
-
-    const scoredPy = scoreVoiceProfiles(pyEmb, profiles, sessionContext, embeddingKind);
-
-    const pairSimPy = maxStoredProfileSimilarity(scoredPy);
-    const similarPairBoost =
-      pairSimPy >= parseThresholdEnv('VOICE_CONFUSABLE_PAIR_MIN', 0.82, 0.6, 0.99)
-        ? parseThresholdEnv('VOICE_MARGIN_BOOST_FOR_SIMILAR', 0.06, 0, 0.2)
-        : 0;
-    const effectiveMargin = margin + similarPairBoost;
-
-    let chosen = null;
-    let embeddingForSession = null;
-
-    const applySession = (pick, emb, kind) => {
-      if (sessionContext && pick && pick.profile && emb) {
-        const learnMin = parseThresholdEnv('VOICE_LEARN_MIN', 0.86, 0.7, 0.99);
-        if (!Number.isFinite(pick.confidence) || pick.confidence < learnMin) {
-          sessionContext.lastEmbedding = cloneEmbedding(emb);
-          sessionContext.lastEmail = pick.profile.email;
-          sessionContext.lastEmbeddingKind = kind;
-          return;
-        }
-        sessionContext.lastEmbedding = cloneEmbedding(emb);
-        sessionContext.lastEmail = pick.profile.email;
-        sessionContext.lastEmbeddingKind = kind;
-        updateSessionCentroid(sessionContext, pick.profile.email, emb);
-      }
-    };
-
-    if (scoredPy.length > 0) {
-      chosen = tryPickFromScored(scoredPy, pyMin, singlePy, margin, similarPairBoost);
-      if (chosen) {
-        embeddingForSession = pyEmb;
-      }
-    }
-
-    if (!chosen && sessionContext && scoredPy.length >= 2) {
-      const resolved = resolveSimilarVoicesWithSession(
-        pyEmb,
-        scoredPy,
-        pyMin,
-        effectiveMargin,
-        sessionContext,
-        embeddingKind
-      );
-      if (resolved) {
-        chosen = resolved;
-        embeddingForSession = pyEmb;
-      }
-    }
-
-    if (!chosen && profiles.length === 1) {
-      const p = profiles[0];
-      const pv = p.voiceVector;
-      const relaxedPy = isFft
-        ? parseThresholdEnv('VOICE_FFT_SINGLE_RELAXED', 0.62, 0.45, 0.9)
-        : parseThresholdEnv('VOICE_SINGLE_PYANNOTE_RELAXED', 0.84, 0.65, 0.95);
-      if (embeddingsCompatible(pyEmb.length, pv.length)) {
-        const s = compareEmbeddings(pyEmb, pv);
-        if (s >= relaxedPy) {
-          chosen = { profile: p, confidence: s, tieBreak: 'single_enrolled_voice' };
-          embeddingForSession = pyEmb;
-        }
-      }
-    }
-
-    if (!chosen && profiles.length === 2) {
-      const smallPyMin = isFft
-        ? parseThresholdEnv('VOICE_FFT_SMALL_GROUP_MIN', 0.6, 0.45, 0.95)
-        : parseThresholdEnv('VOICE_SMALL_GROUP_PY_MIN', 0.75, 0.65, 0.98);
-      const bestPy = scoredPy[0];
-      if (bestPy && bestPy.score >= smallPyMin) {
-        chosen = { profile: bestPy.profile, confidence: bestPy.score, tieBreak: 'small_group_py' };
-        embeddingForSession = pyEmb;
-      }
-    }
-
-    if (!chosen && profiles.length === 2) {
-      const merged = pickTopScoredCandidate(scoredPy);
-      const confPick = parseThresholdEnv('VOICE_CONFIDENT_PICK_MIN', 0.75, 0.6, 0.92);
-      if (merged && merged.score >= confPick) {
-        chosen = {
-          profile: merged.profile,
-          confidence: merged.score,
-          tieBreak: 'dual_confident_pick',
-        };
-        embeddingForSession = pyEmb;
-      }
-    }
-
-    if (!chosen && profiles.length >= 3) {
-      const merged = pickTopScoredCandidate(scoredPy);
-      const confMin = parseThresholdEnv('VOICE_MULTI_CONFIDENT_MIN', 0.75, 0.55, 0.92);
-      const closestFloor = parseThresholdEnv('VOICE_MULTI_CLOSEST_FLOOR', 0.5, 0.35, 0.72);
-      if (merged && merged.score >= confMin) {
-        chosen = {
-          profile: merged.profile,
-          confidence: merged.score,
-          tieBreak: 'multi_three_plus_confident',
-        };
-        embeddingForSession = pyEmb;
-      } else if (merged && merged.score >= closestFloor) {
-        chosen = {
-          profile: merged.profile,
-          confidence: merged.score,
-          tieBreak: 'multi_three_plus_closest',
-        };
-        embeddingForSession = pyEmb;
-      }
-    }
-
-    if (!chosen) return null;
-
-    applySession(chosen, embeddingForSession, embeddingKind);
-
-    const { profile, confidence, tieBreak } = chosen;
-    return tieBreak ? { profile, confidence, tieBreak } : { profile, confidence };
+    const embByKind = await embedForProfiles(embeddingPath, profiles);
+    if (!embByKind.pyannote && !embByKind.fft) return null;
+    return matchEmbeddingToProfiles(embByKind, profiles, sessionContext);
   } catch (error) {
     console.error('Error identifying speaker:', error);
     return null;
@@ -1093,10 +1042,57 @@ async function identifySpeaker(audioFilePath, voiceProfiles, sessionContext = nu
   }
 }
 
+function voiceWorkerEnv() {
+  const hfToken = String(process.env.HF_TOKEN || process.env.HUGGINGFACE_TOKEN || '').trim();
+  const env = { ...process.env };
+  if (hfToken) {
+    env.HF_TOKEN = hfToken;
+    env.HUGGINGFACE_TOKEN = hfToken;
+  }
+  return env;
+}
+
+/** Fire-and-forget model load at boot (skipped without HF credentials or Python). */
+function warmVoiceWorker() {
+  const hfToken = String(process.env.HF_TOKEN || process.env.HUGGINGFACE_TOKEN || '').trim();
+  const pythonBin = resolvePythonBinaryForVoice();
+  if (!hfToken || !pythonBin) return;
+  workerRequest({ cmd: 'ping' }, { pythonBin, env: voiceWorkerEnv(), timeoutMs: 30000 }).catch((e) =>
+    console.warn('⚠️  Voice worker warm-up failed (will retry on first use):', e.message || e)
+  );
+}
+
+/**
+ * pyannote embeddings for many [start, end] windows of one 16 kHz mono WAV, in a single worker call.
+ * @returns {Promise<(number[]|null)[]|null>} null when the worker is unavailable
+ */
+async function embedAudioWindows(wavPath, windows) {
+  const pythonBin = resolvePythonBinaryForVoice();
+  if (!pythonBin || !Array.isArray(windows) || !windows.length) return null;
+  const env = voiceWorkerEnv();
+  try {
+    const resp = await workerRequest(
+      { cmd: 'embed_windows', path: wavPath, windows },
+      // ~0.3s per window on CPU; generous ceiling for long meetings.
+      { pythonBin, env, timeoutMs: Math.min(1800000, 60000 + windows.length * 2000) }
+    );
+    return Array.isArray(resp.embeddings) ? resp.embeddings : null;
+  } catch (e) {
+    console.warn('⚠️  Window embeddings unavailable:', e.message || e);
+    return null;
+  }
+}
+
 module.exports = {
   generateVoiceEmbedding,
   compareEmbeddings,
   identifySpeaker,
+  matchEmbeddingToProfiles,
+  newVoiceSessionContext,
+  embedAudioWindows,
+  warmVoiceWorker,
+  profileEmbeddingKind,
+  embeddingKindForVector,
   validateVoiceEnrollmentQuality,
   convertVoiceEnrollmentToWav,
   FFT_VOICE_EMBEDDING_DIM,

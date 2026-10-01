@@ -36,6 +36,8 @@ function buildPipelineUpdateFromSummaryData(summaryData) {
 
   const base = {
     transcription: summaryData.transcription,
+    // Only overwrite stored speaker turns when this run produced new ones (re-summarize keeps them).
+    ...(Array.isArray(summaryData.speakerSegments) ? { transcriptSegments: summaryData.speakerSegments } : {}),
     summary: summaryData.summary,
     keyPoints: summaryData.keyPoints,
     actionItems: safeActionItems,

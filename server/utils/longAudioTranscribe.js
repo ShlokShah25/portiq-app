@@ -371,6 +371,9 @@ async function runLongAudioPipeline(audioFilePath, meeting, options) {
   };
 
   const chunkRecords = [];
+  // One voice session across chunks so a person learned in chunk 1 is recognised in chunk 5.
+  const voiceSessionContext = { lastEmbedding: null, lastEmail: null, lastEmbeddingKind: null, centroids: new Map() };
+  const speakerSegments = [];
 
   try {
     for (let i = 0; i < nChunks; i++) {
@@ -384,7 +387,14 @@ async function runLongAudioPipeline(audioFilePath, meeting, options) {
       let summaryData = null;
       for (let attempt = 1; attempt <= 2; attempt++) {
         try {
-          summaryData = await transcribeAndSummarize(chunkPath, meeting, chunkOpts);
+          summaryData = await transcribeAndSummarize(chunkPath, meeting, {
+            ...chunkOpts,
+            longAudioPipeline: {
+              ...chunkOpts.longAudioPipeline,
+              offsetSec: startSec,
+              voiceSessionContext,
+            },
+          });
           if (attempt > 1) {
             console.log(`[long-audio] chunk ${i + 1}/${nChunks} OK after retry`);
           }
@@ -396,6 +406,10 @@ async function runLongAudioPipeline(audioFilePath, meeting, options) {
           );
           if (attempt >= 2) summaryData = null;
         }
+      }
+
+      if (summaryData && Array.isArray(summaryData.speakerSegments)) {
+        speakerSegments.push(...summaryData.speakerSegments);
       }
 
       const t0 = formatClock(startSec);
@@ -484,6 +498,7 @@ async function runLongAudioPipeline(audioFilePath, meeting, options) {
       console.warn('[long-audio] final JSON parse failed; using concatenated mid-summaries as summary body');
       return {
         transcription: fullTranscription,
+        speakerSegments,
         summary: fallbackSummary,
         revisionQuestions: '',
         keyPoints: [],
@@ -509,6 +524,7 @@ async function runLongAudioPipeline(audioFilePath, meeting, options) {
 
     return {
       transcription: fullTranscription,
+      speakerSegments,
       summary: finalParsed.summary || '',
       revisionQuestions: String(finalParsed.revisionQuestions || '').trim(),
       keyPoints: finalParsed.keyPoints || [],
