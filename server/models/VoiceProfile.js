@@ -46,6 +46,12 @@ const voiceProfileSchema = new mongoose.Schema({
     ],
     default: [],
   },
+  /** Workspace that created this voiceprint; only it (or the person themselves) may re-record it. */
+  ownerAdminId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Admin',
+    default: null,
+  },
   /** Self-consistency of the enrollment sample (cosine between its two halves); low = noisy sample. */
   enrollmentConsistency: {
     type: Number,

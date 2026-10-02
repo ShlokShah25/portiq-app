@@ -4,6 +4,7 @@ const Admin = require('../models/Admin');
 const Config = require('../models/Config');
 const Meeting = require('../models/Meeting');
 const jwt = require('jsonwebtoken');
+const { getJwtSecret } = require('../utils/jwtSecret');
 const { authenticateAdmin } = require('../middleware/auth');
 const { getMeetingContext } = require('../utils/meetingContext');
 const { getPlanConstraints } = require('../utils/planConstraints');
@@ -164,7 +165,7 @@ router.post('/login', async (req, res) => {
         productType: admin.productType,
         plan: admin.plan,
       },
-      process.env.JWT_SECRET || 'your_secret_key',
+      getJwtSecret(),
       { expiresIn: staySignedIn ? '30d' : '24h' }
     );
 

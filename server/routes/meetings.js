@@ -1,6 +1,10 @@
 const crypto = require('crypto');
 const express = require('express');
 const router = express.Router();
+const { getAdminFromRequest, canAccessMeeting, requireAdmin, isSuperAdmin } = require('../utils/meetingAccess');
+
+// Every meetings endpoint needs a signed-in account (see utils/meetingAccess.js).
+router.use(requireAdmin);
 const Meeting = require('../models/Meeting');
 const VoiceProfile = require('../models/VoiceProfile');
 const {
@@ -18,7 +22,6 @@ const {
   subscriptionPaymentPendingResponse,
   TRIAL_MEETING_LIMIT,
 } = require('../utils/subscriptionGate');
-const jwt = require('jsonwebtoken');
 const Admin = require('../models/Admin');
 const {
   generateVoiceEmbedding,
@@ -311,29 +314,6 @@ function buildInterviewMeetingTitle(candidateName, role) {
   const safeRole = String(role || '').trim().slice(0, 200);
   const suffix = safeRole ? ` | Role: ${safeRole}` : '';
   return `Interview- ${safeCandidate}${suffix}`.slice(0, 500);
-}
-
-// Helper to read admin (and thus plan) from bearer token, but keep routes usable
-// even if called from unauthenticated contexts.
-async function getAdminFromRequest(req) {
-  try {
-    const header = req.header('Authorization') || '';
-    const token = header.startsWith('Bearer ') ? header.replace('Bearer ', '') : null;
-    if (!token) return null;
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_secret_key');
-    if (!decoded.id) return null;
-    const admin = await Admin.findById(decoded.id).select('-password');
-    return admin;
-  } catch {
-    return null;
-  }
-}
-
-function canAccessMeeting(meeting, admin) {
-  if (!meeting) return false;
-  if (!admin || admin.username === 'admin') return true;
-  if (!meeting.adminId) return true;
-  return String(meeting.adminId) === String(admin._id);
 }
 
 /**
@@ -2375,6 +2355,37 @@ router.post('/:id/approve-and-send', async (req, res) => {
   }
 });
 
+/** Fresh, random interview-candidate voice IDs (client-generated, see MeetingCreateForm). */
+const CANDIDATE_VOICE_EMAIL_RE = /^ivc-[a-z0-9]{8,64}@candidates\.portiq\.internal$/;
+
+/**
+ * Emails this account may enroll or look up voiceprints for: itself, its participant book, and
+ * the participants / interview candidates of its own meetings. Super-admin: unrestricted (null).
+ */
+async function voiceEmailScope(admin) {
+  if (isSuperAdmin(admin)) return null;
+  const scope = new Set();
+  const add = (e) => {
+    const v = String(e || '').trim().toLowerCase();
+    if (v) scope.add(v);
+  };
+  add(admin.email);
+  (admin.savedParticipants || []).forEach((p) => add(p && p.email));
+  const [participantEmails, candidateEmails] = await Promise.all([
+    Meeting.distinct('participants.email', { adminId: admin._id }),
+    Meeting.distinct('interviewCandidates.voiceEmail', { adminId: admin._id }),
+  ]);
+  participantEmails.forEach(add);
+  candidateEmails.forEach(add);
+  return scope;
+}
+
+function emailInVoiceScope(scope, email) {
+  const e = String(email || '').trim().toLowerCase();
+  if (!e) return false;
+  return scope === null || scope.has(e) || CANDIDATE_VOICE_EMAIL_RE.test(e);
+}
+
 /**
  * Register voice profile for a participant
  */
@@ -2494,6 +2505,39 @@ router.post('/voice/register', withVoiceUpload, async (req, res) => {
       });
     }
 
+    // Only people this account has listed, and never a voiceprint another workspace created
+    // (otherwise anyone could re-point someone else's voice to a different name).
+    const removeUpload = () => {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (_) {
+        /* ignore */
+      }
+    };
+    const voiceScope = await voiceEmailScope(req.admin);
+    if (!emailInVoiceScope(voiceScope, email)) {
+      removeUpload();
+      return res.status(403).json({
+        error: 'Add this person to your participants before recording their voice.',
+        code: 'VOICE_EMAIL_NOT_IN_SCOPE',
+      });
+    }
+    const existingOwner = await VoiceProfile.findOne({ email: email.toLowerCase() }).select('ownerAdminId');
+    if (
+      existingOwner &&
+      existingOwner.ownerAdminId &&
+      !isSuperAdmin(req.admin) &&
+      String(existingOwner.ownerAdminId) !== String(req.admin._id) &&
+      String(req.admin.email || '').trim().toLowerCase() !== email.toLowerCase()
+    ) {
+      removeUpload();
+      return res.status(409).json({
+        error: 'This person already has a voice profile managed by another workspace.',
+        details: 'Their existing voice profile will still be used to recognise them in your meetings.',
+        code: 'VOICE_PROFILE_OWNED_ELSEWHERE',
+      });
+    }
+
     let enrollmentAudioPath = req.file.path;
     let enrollmentTempWav = convertVoiceEnrollmentToWav(req.file.path);
     if (enrollmentTempWav) {
@@ -2581,6 +2625,7 @@ router.post('/voice/register', withVoiceUpload, async (req, res) => {
       // Re-record: replace stored embedding entirely — old vector is discarded (not averaged with the new one).
       voiceProfile.voiceVector = voiceVector;
       voiceProfile.embeddingKind = embeddingKind;
+      if (!voiceProfile.ownerAdminId) voiceProfile.ownerAdminId = req.admin._id;
       voiceProfile.enrollmentConsistency = enrollmentConsistency;
       voiceProfile.voiceSampleFile = newSampleRel;
       voiceProfile.standardSentence = standardSentence || voiceProfile.standardSentence;
@@ -2606,6 +2651,7 @@ router.post('/voice/register', withVoiceUpload, async (req, res) => {
         voiceVector,
         embeddingKind,
         enrollmentConsistency,
+        ownerAdminId: req.admin._id,
         voiceSampleFile: newSampleRel,
         standardSentence: standardSentence || `Hello, my name is ${name} and I am ready for the meeting.`
       });
@@ -2662,8 +2708,13 @@ router.get('/voice/profiles', async (req, res) => {
     }
 
     const emailList = Array.isArray(emails) ? emails : emails.split(',');
+    const voiceScope = await voiceEmailScope(req.admin);
     const profiles = await VoiceProfile.find({
-      email: { $in: emailList.map((e) => String(e || '').trim().toLowerCase()).filter(Boolean) },
+      email: {
+        $in: emailList
+          .map((e) => String(e || '').trim().toLowerCase())
+          .filter((e) => emailInVoiceScope(voiceScope, e)),
+      },
     });
 
     res.json({
@@ -2689,7 +2740,8 @@ router.get('/voice/profiles', async (req, res) => {
 router.get('/voice/check/:email', async (req, res) => {
   try {
     const email = req.params.email.toLowerCase();
-    const profile = await VoiceProfile.findOne({ email });
+    const voiceScope = await voiceEmailScope(req.admin);
+    const profile = emailInVoiceScope(voiceScope, email) ? await VoiceProfile.findOne({ email }) : null;
 
     res.json({
       success: true,

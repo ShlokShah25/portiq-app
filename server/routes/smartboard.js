@@ -20,10 +20,8 @@ const fs = require('fs');
 const { execFile } = require('child_process');
 const express = require('express');
 const multer = require('multer');
-const jwt = require('jsonwebtoken');
 
 const Meeting = require('../models/Meeting');
-const Admin = require('../models/Admin');
 const { sendEmail, isEmailConfigured } = require('../utils/emailService');
 
 let openai = null;
@@ -32,33 +30,17 @@ if (process.env.OPENAI_API_KEY) {
   openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY, timeout: 120000 });
 }
 
+const { getAdminFromRequest, canAccessMeeting, requireAdmin } = require('../utils/meetingAccess');
+
 const teacherRouter = express.Router();
 const publicRouter = express.Router();
 
-// ---------------------------------------------------------------------------
-// Shared helpers (small local copies of routes/meetings.js's — not exported
-// there, and duplicating a 15-line auth check is cheaper than coupling files).
-// ---------------------------------------------------------------------------
+// Teacher endpoints require a signed-in account; the public recap uses its own recap token.
+teacherRouter.use(requireAdmin);
 
-async function getAdminFromRequest(req) {
-  try {
-    const header = req.header('Authorization') || '';
-    const token = header.startsWith('Bearer ') ? header.replace('Bearer ', '') : null;
-    if (!token) return null;
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_secret_key');
-    if (!decoded.id) return null;
-    return await Admin.findById(decoded.id).select('-password');
-  } catch {
-    return null;
-  }
-}
-
-function canAccessMeeting(meeting, admin) {
-  if (!meeting) return false;
-  if (!admin || admin.username === 'admin') return true;
-  if (!meeting.adminId) return true;
-  return String(meeting.adminId) === String(admin._id);
-}
+// ---------------------------------------------------------------------------
+// Shared helpers
+// ---------------------------------------------------------------------------
 
 function ensureRecapToken(meeting) {
   if (!meeting.recapToken) {

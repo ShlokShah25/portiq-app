@@ -2,6 +2,7 @@ const express = require('express');
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
+const { getJwtSecret } = require('../utils/jwtSecret');
 const Admin = require('../models/Admin');
 
 const router = express.Router();
@@ -11,7 +12,7 @@ function getAdminFromToken(req) {
     const header = req.header('Authorization') || '';
     const token = header.startsWith('Bearer ') ? header.replace('Bearer ', '') : null;
     if (!token) return null;
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_secret_key');
+    const decoded = jwt.verify(token, getJwtSecret());
     if (!decoded.id) return null;
     return decoded;
   } catch {

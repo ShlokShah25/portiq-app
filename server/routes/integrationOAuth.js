@@ -5,13 +5,14 @@
 
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const { getJwtSecret } = require('../utils/jwtSecret');
 const Admin = require('../models/Admin');
 const { authenticateAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
 function jwtSecret() {
-  return process.env.JWT_SECRET || 'your_secret_key';
+  return getJwtSecret();
 }
 
 function appPublicOrigin() {

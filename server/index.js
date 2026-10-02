@@ -7,6 +7,8 @@ const fs = require('fs');
 
 // Load environment variables
 dotenv.config();
+// Never run with a guessable token-signing secret in production.
+require('./utils/jwtSecret').assertJwtSecretConfigured();
 
 // Before routes: configure fluent-ffmpeg + log if system ffmpeg is missing (long audio, compression).
 require('./utils/ffmpegPaths').initFfmpegPaths();

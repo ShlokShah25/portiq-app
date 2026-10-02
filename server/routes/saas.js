@@ -1,12 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
+const { getJwtSecret } = require('../utils/jwtSecret');
 const { sendEmail, isEmailConfigured, getDefaultFrom } = require('../utils/emailService');
 const Admin = require('../models/Admin');
 const { trialMeetingsRemaining, hasDashboardAccess } = require('../utils/subscriptionGate');
 
 function jwtSecret() {
-  return process.env.JWT_SECRET || 'your_secret_key';
+  return getJwtSecret();
 }
 
 /** Same claims as /api/admin/login — works with app Bearer auth & website session. */
@@ -200,7 +201,7 @@ router.get('/session', async (req, res) => {
       return res.status(400).json({ error: 'Token is required.' });
     }
 
-    const secret = process.env.JWT_SECRET || 'your_secret_key';
+    const secret = getJwtSecret();
     let decoded;
     try {
       decoded = jwt.verify(token, secret);
@@ -262,7 +263,7 @@ router.post('/create-autologin-token', async (req, res) => {
       });
     }
 
-    const secret = process.env.JWT_SECRET || 'your_secret_key';
+    const secret = getJwtSecret();
     const token = jwt.sign(
       {
         id: admin._id.toString(),

@@ -2,15 +2,12 @@ const express = require('express');
 const crypto = require('crypto');
 const axios = require('axios');
 const jwt = require('jsonwebtoken');
+const { getJwtSecret } = require('../utils/jwtSecret');
 const Admin = require('../models/Admin');
 const { hasDashboardAccess } = require('../utils/subscriptionGate');
 const { sendEmail, isEmailConfigured, getDefaultFrom } = require('../utils/emailService');
 
 const router = express.Router();
-
-function getJwtSecret() {
-  return process.env.JWT_SECRET || 'your_secret_key';
-}
 
 /** @returns {{ mode: 'website' } | { mode: 'app', next: string, rememberMe: boolean }} */
 function parseGoogleOAuthState(state) {
