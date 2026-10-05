@@ -91,7 +91,7 @@ app.use((req, res, next) => {
     .toLowerCase()
     .replace(/:\d+$/, '');
   if (!LANDING_HOSTS.has(host)) return next();
-  if (/^\/(server\.js|package\.json)$/i.test(req.path)) return res.redirect('/');
+  if (/^\/(server\.js|package\.json|README\.md)$/i.test(req.path)) return res.redirect('/');
   return landingStatic(req, res, () => {
     if (req.method !== 'GET' && req.method !== 'HEAD') return res.status(404).end();
     return res.sendFile(path.join(LANDING_DIR, 'index.html'));
