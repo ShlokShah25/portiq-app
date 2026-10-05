@@ -5,6 +5,8 @@ admin/node_modules/
 uploads
 *.webm
 *.mp4
+# The landing page ships its two tour videos
+!landing/assets/*.mp4
 .cache
 logs
 *.log
