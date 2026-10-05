@@ -4,7 +4,7 @@
   --shadow-soft-lg: 0 12px 40px rgba(0, 0, 0, 0.38);
   --shadow-soft-sm: 0 4px 24px rgba(0, 0, 0, 0.22);
   --shadow-glow-blue: 0 1px 0 rgba(255, 255, 255, 0.06), 0 6px 28px rgba(0, 0, 0, 0.38);
-  --gradient-accent: linear-gradient(180deg, #4f46e5 0%, #4f46e5 100%);
+  --gradient-accent: linear-gradient(180deg, #1f6bff 0%, #1f6bff 100%);
   /* --page-ambient-gradient / --gradient-page-ambient: see styles/theme.css */
 }
 

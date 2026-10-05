@@ -8,7 +8,7 @@
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(15, 23, 42, 0.48);
+  background: rgba(11, 21, 48, 0.48);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   animation: portiq-trial-fade-in 0.22s ease-out;
@@ -29,9 +29,9 @@
   overflow: auto;
   border-radius: 16px;
   background: linear-gradient(165deg, #ffffff 0%, #f8fafc 100%);
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(11, 21, 48, 0.08);
   box-shadow:
-    0 24px 48px -12px rgba(15, 23, 42, 0.18),
+    0 24px 48px -12px rgba(11, 21, 48, 0.18),
     0 0 0 1px rgba(255, 255, 255, 0.6) inset;
   padding: 28px 28px 24px;
   position: relative;
@@ -62,7 +62,7 @@
   font-size: 1.35rem;
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: #0f172a;
+  color: #0b1530;
   margin: 0 0 12px;
   line-height: 1.25;
 }
@@ -117,13 +117,13 @@
 }
 
 .portiq-trial-modal__btn--primary {
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, #1f6bff 0%, #1a56db 100%);
   color: #fff;
-  box-shadow: 0 4px 14px -4px rgba(37, 99, 235, 0.55);
+  box-shadow: 0 4px 14px -4px rgba(31, 107, 255, 0.55);
 }
 
 .portiq-trial-modal__btn--primary:hover {
-  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+  background: linear-gradient(135deg, #1a56db 0%, #1e40af 100%);
 }
 
 .portiq-trial-modal__btn--ghost {
@@ -132,8 +132,8 @@
 }
 
 .portiq-trial-modal__btn--ghost:hover {
-  color: #0f172a;
-  background: rgba(15, 23, 42, 0.05);
+  color: #0b1530;
+  background: rgba(11, 21, 48, 0.05);
 }
 
 .portiq-trial-modal__steps {
@@ -151,7 +151,7 @@
 }
 
 .portiq-trial-modal__step-dot--on {
-  background: linear-gradient(90deg, #2563eb, #7c3aed);
+  background: linear-gradient(90deg, #1a3a9e, #1f6bff 55%, #19b5fe);
 }
 
 .portiq-trial-modal__close {
@@ -170,6 +170,6 @@
 }
 
 .portiq-trial-modal__close:hover {
-  background: rgba(15, 23, 42, 0.06);
+  background: rgba(11, 21, 48, 0.06);
   color: #475569;
 }

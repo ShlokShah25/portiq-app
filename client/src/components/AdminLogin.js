@@ -75,7 +75,7 @@ const AdminLogin = () => {
       const reason = params.get('reason');
       if (reason === 'no_access') {
         setError(
-          'Your plan or trial is not active for this workspace. Sign in again after renewing on the Portiq website.'
+          'Your plan or trial is not active for this workspace. Sign in again after renewing on the PortIQ website.'
         );
       } else if (reason === 'session_expired') {
         setError('Your session expired. Please sign in again.');
@@ -102,7 +102,7 @@ const AdminLogin = () => {
             }
             delete axios.defaults.headers.common.Authorization;
             setError(
-              'Your plan or trial is not active for this workspace. Sign in again after renewing on the Portiq website.'
+              'Your plan or trial is not active for this workspace. Sign in again after renewing on the PortIQ website.'
             );
             navigate('/admin-login?reason=no_access', { replace: true });
             return;
@@ -207,7 +207,7 @@ const AdminLogin = () => {
       if (err.response?.status === 403 && /subscription/i.test(err.response?.data?.error || '')) {
         setError(
           [err.response?.data?.error, details].filter(Boolean).join(' ') ||
-            'No active subscription. Please subscribe on the Portiq website, then sign in again.'
+            'No active subscription. Please subscribe on the PortIQ website, then sign in again.'
         );
         return;
       }
@@ -228,8 +228,8 @@ const AdminLogin = () => {
         <div className="admin-login-header">
           <div className="admin-login-logo-circle">
             <img
-              src="/assets/portiq-icon.png"
-              alt="Portiq"
+              src="/assets/portiq-mark.png"
+              alt="PortIQ"
               className="admin-login-logo"
               onError={(e) => {
                 e.target.style.display = 'none';

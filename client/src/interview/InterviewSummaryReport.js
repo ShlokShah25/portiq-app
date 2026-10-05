@@ -89,7 +89,7 @@ function topicSlices(breakdown) {
 }
 
 function donutStyleFromTopics(topics) {
-  const colors = ['#6366f1', '#f59e0b', '#22c55e', '#3b82f6', '#9ca3af'];
+  const colors = ['#4d8dff', '#f59e0b', '#22c55e', '#3b82f6', '#9ca3af'];
   let deg = 0;
   const stops = topics.map((t, i) => {
     const span = (t.pct / 100) * 360;

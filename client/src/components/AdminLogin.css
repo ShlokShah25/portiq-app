@@ -17,7 +17,7 @@
   border-radius: 20px;
   background: var(--surface-card, var(--bg-primary));
   border: 1px solid var(--border-color, rgba(31, 41, 55, 0.9));
-  box-shadow: var(--shadow-soft-lg, 0 16px 36px rgba(15, 23, 42, 0.9));
+  box-shadow: var(--shadow-soft-lg, 0 16px 36px rgba(11, 21, 48, 0.9));
   color: var(--text-primary);
   transition:
     box-shadow var(--dur-base, 0.22s) var(--ease-out, ease),
@@ -27,7 +27,7 @@
 
 .admin-login-card:hover {
   box-shadow:
-    var(--shadow-soft-lg, 0 20px 48px rgba(15, 23, 42, 0.95)),
+    var(--shadow-soft-lg, 0 20px 48px rgba(11, 21, 48, 0.95)),
     0 0 0 1px rgba(59, 130, 246, 0.12);
   transform: translateY(-2px);
 }
@@ -195,7 +195,7 @@
   font-weight: 600;
   color: #ffffff;
   background: var(--accent-blue);
-  box-shadow: var(--shadow-glow-blue, 0 12px 28px rgba(15, 23, 42, 0.9));
+  box-shadow: var(--shadow-glow-blue, 0 12px 28px rgba(11, 21, 48, 0.9));
   cursor: pointer;
   transition: all 0.18s ease;
 }
@@ -203,7 +203,7 @@
 .admin-login-button:hover:not(:disabled) {
   transform: translateY(-1px);
   background: var(--accent-primary-hover);
-  box-shadow: 0 14px 32px rgba(37, 99, 235, 0.45);
+  box-shadow: 0 14px 32px rgba(31, 107, 255, 0.45);
 }
 
 .admin-login-button:disabled {

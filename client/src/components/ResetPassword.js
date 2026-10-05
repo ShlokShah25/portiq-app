@@ -61,8 +61,8 @@ const ResetPassword = () => {
         <div className="admin-login-header">
           <div className="admin-login-logo-circle">
             <img
-              src="/assets/portiq-icon.png"
-              alt="Portiq"
+              src="/assets/portiq-mark.png"
+              alt="PortIQ"
               className="admin-login-logo"
               onError={(e) => {
                 e.target.style.display = 'none';

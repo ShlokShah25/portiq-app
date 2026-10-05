@@ -297,14 +297,14 @@ const Sidebar = () => {
         <div className="sidebar__brand">
           <button type="button" className="sidebar__brand-btn" onClick={() => navigate('/dashboard')}>
             <img
-              src="/assets/portiq-icon.png"
+              src="/assets/portiq-mark.png"
               alt=""
               className="sidebar__brand-mark"
               onError={(e) => {
                 e.target.style.display = 'none';
               }}
             />
-            <span className="sidebar__label sidebar__brand-name">PortIQ</span>
+            <span className="sidebar__label sidebar__brand-name portiq-wordmark">Port<b>IQ</b></span>
           </button>
           {sidebarExpanded ? (
             <button

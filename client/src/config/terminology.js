@@ -11,7 +11,7 @@ export const T = {
   startMeeting: () => (isEducation ? 'Start Lecture' : 'Start Meeting'),
   endMeeting: () => (isEducation ? 'End Lecture' : 'End Meeting'),
   newMeeting: () => (isEducation ? 'New Lecture' : 'New Meeting'),
-  welcomeTitle: () => (isEducation ? 'Welcome to Portiq Education' : 'Welcome'),
+  welcomeTitle: () => (isEducation ? 'Welcome to PortIQ Education' : 'Welcome'),
   companyName: () => (isEducation ? 'School Name' : 'Company Name'),
   companyLogo: () => (isEducation ? 'School Logo' : 'Company Logo'),
 };

@@ -3,7 +3,7 @@
   padding: 20px 20px 22px;
   border-radius: var(--radius-card, 18px);
   border: 1px solid rgba(59, 130, 246, 0.35);
-  background: rgba(37, 99, 235, 0.08);
+  background: rgba(31, 107, 255, 0.08);
 }
 
 .meeting-summary-editor-verify__email {
@@ -83,8 +83,8 @@
   border-radius: 50%;
   background: radial-gradient(
     circle,
-    rgba(79, 70, 229, 0.1) 0%,
-    rgba(79, 70, 229, 0.03) 45%,
+    rgba(31, 107, 255, 0.1) 0%,
+    rgba(31, 107, 255, 0.03) 45%,
     transparent 70%
   );
   animation: meeting-summary-loading-breathe 3.2s ease-in-out infinite;
@@ -110,7 +110,7 @@
   width: 40px;
   height: 40px;
   border: 3px solid var(--divider, #1f2937);
-  border-top-color: var(--accent-blue, #4f46e5);
+  border-top-color: var(--accent-blue, #1f6bff);
   border-radius: 50%;
   animation: meeting-summary-spin 0.8s linear infinite;
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.35);
@@ -269,7 +269,7 @@
   filter: none;
   background: var(--accent-primary-hover);
   transform: scale(1.01);
-  box-shadow: 0 8px 28px rgba(37, 99, 235, 0.35);
+  box-shadow: 0 8px 28px rgba(31, 107, 255, 0.35);
 }
 
 :root[data-theme='dark'] .meeting-summary-btn--primary:hover:not(:disabled) {
@@ -926,7 +926,7 @@
   padding: 12px 14px 14px;
   border-radius: 12px;
   border: 1px solid var(--badge-border);
-  background: var(--surface-secondary, rgba(15, 23, 42, 0.04));
+  background: var(--surface-secondary, rgba(11, 21, 48, 0.04));
 }
 
 .meeting-summary-revision-body {
@@ -1730,7 +1730,7 @@
 }
 
 :root[data-theme='light'] .meeting-summary-btn-spinner {
-  border-color: rgba(15, 23, 42, 0.2);
+  border-color: rgba(11, 21, 48, 0.2);
   border-top-color: var(--accent-blue);
 }
 

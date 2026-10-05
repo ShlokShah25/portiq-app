@@ -32,8 +32,8 @@ const SplashScreen = ({ onComplete }) => {
       <div className="boot-content">
         <div className="boot-logo-wrapper">
           <img
-            src="/assets/portiq-logo.png"
-            alt="Portiq"
+            src="/assets/portiq-mark.png"
+            alt="PortIQ"
             className="boot-logo"
             onError={(e) => {
               e.target.style.display = 'none';
@@ -41,11 +41,11 @@ const SplashScreen = ({ onComplete }) => {
             }}
           />
           <div className="boot-logo-fallback" style={{ display: 'none' }}>
-            Portiq
+            PortIQ
           </div>
         </div>
-        <h1 className="boot-title">Portiq</h1>
-        <p className="boot-subtitle">{isEducation ? 'Portiq Education' : 'AI Meeting Assistant'}</p>
+        <h1 className="boot-title portiq-wordmark" aria-label="PortIQ">Port<b>IQ</b></h1>
+        <p className="boot-subtitle">{isEducation ? 'PortIQ Education' : 'AI Meeting Assistant'}</p>
         <div className="boot-progress-wrap">
           <div className="boot-progress-bar" style={{ width: `${progress * 100}%` }} />
         </div>

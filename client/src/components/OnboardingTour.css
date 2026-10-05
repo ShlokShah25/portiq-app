@@ -36,7 +36,7 @@
   border-radius: 12px;
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.35) inset,
-    0 12px 30px rgba(37, 99, 235, 0.28);
+    0 12px 30px rgba(31, 107, 255, 0.28);
   pointer-events: none;
   transition: top 0.18s var(--ease-out, ease), left 0.18s var(--ease-out, ease),
     width 0.18s var(--ease-out, ease), height 0.18s var(--ease-out, ease);
@@ -71,7 +71,7 @@
   left: 0;
   right: 0;
   height: 4px;
-  background: linear-gradient(90deg, #2563eb 0%, #7c3aed 50%, #0ea5e9 100%);
+  background: linear-gradient(90deg, #1a3a9e 0%, #1f6bff 50%, #19b5fe 100%);
   opacity: 0.95;
 }
 
@@ -90,7 +90,7 @@
   width: 52px;
   height: 52px;
   border-radius: 14px;
-  background: linear-gradient(145deg, rgba(37, 99, 235, 0.2) 0%, rgba(124, 58, 237, 0.12) 100%);
+  background: linear-gradient(145deg, rgba(31, 107, 255, 0.2) 0%, rgba(25, 181, 254, 0.12) 100%);
   border: 2px solid rgba(59, 130, 246, 0.35);
   color: var(--accent-blue, #3b82f6);
 }
@@ -137,7 +137,7 @@
 .onboarding-tour__dot--active {
   width: 22px;
   opacity: 1;
-  background: linear-gradient(90deg, #2563eb, #7c3aed);
+  background: linear-gradient(90deg, #1a3a9e, #1f6bff 55%, #19b5fe);
 }
 
 .onboarding-tour__title {
@@ -188,12 +188,12 @@
 }
 
 .onboarding-tour__btn--primary {
-  background: var(--accent-blue, #2563eb);
+  background: var(--accent-blue, #1f6bff);
   color: #ffffff;
 }
 
 .onboarding-tour__btn--primary:hover {
-  background: var(--accent-primary-hover, #1d4ed8);
+  background: var(--accent-primary-hover, #1a56db);
   transform: translateY(-1px);
 }
 

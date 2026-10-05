@@ -1,5 +1,5 @@
 /* PortIQ — light default (matches marketing site). Optional dark: data-theme="dark" (Settings). */
-@import url('https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,500;0,600;0,700;0,800;0,900;1,500&family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
   --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
@@ -32,12 +32,12 @@
   --text-muted: rgba(234, 240, 255, 0.55);
   --text-label: rgba(234, 240, 255, 0.45);
 
-  --accent-blue: #4f46e5;
-  --accent-primary-hover: #4338ca;
-  --accent-hover: #a5b4fc;
-  --accent-blue-dim: rgba(79, 70, 229, 0.14);
+  --accent-blue: #1f6bff;
+  --accent-primary-hover: #1a56db;
+  --accent-hover: #9cc2ff;
+  --accent-blue-dim: rgba(31, 107, 255, 0.14);
   --accent-cyan: #22d3ee;
-  --accent-purple: #6366f1;
+  --accent-purple: #4d8dff;
 
   --success-green: #34d399;
   --success-pulse: #6ee7b7;
@@ -45,9 +45,9 @@
   --warning-amber-muted: rgba(212, 160, 23, 0.2);
   --error-red: #f87171;
 
-  --badge-bg: rgba(79, 70, 229, 0.14);
-  --badge-border: rgba(79, 70, 229, 0.28);
-  --badge-text: #a5b4fc;
+  --badge-bg: rgba(31, 107, 255, 0.14);
+  --badge-border: rgba(31, 107, 255, 0.28);
+  --badge-text: #9cc2ff;
   --pill-muted-bg: rgba(255, 255, 255, 0.05);
 
   --skeleton: #353538;
@@ -56,7 +56,7 @@
   /* Subtle neutral lift (charcoal, not tinted) */
   --page-ambient-gradient: radial-gradient(ellipse 90% 55% at 50% -18%, rgba(255, 255, 255, 0.04), transparent 55%);
   /* Solid primary for CTAs (no rainbow gradient) */
-  --gradient-accent: linear-gradient(180deg, #4f46e5 0%, #4f46e5 100%);
+  --gradient-accent: linear-gradient(135deg, #1f6bff 0%, #1a56db 100%);
   --shadow-glow-blue: 0 1px 0 rgba(255, 255, 255, 0.06), 0 6px 28px rgba(0, 0, 0, 0.38);
   --shadow-glow-violet: 0 4px 24px rgba(0, 0, 0, 0.28);
 
@@ -79,20 +79,20 @@
   --dash-metric-tile-hover: rgba(255, 255, 255, 0.06);
   --dash-subtle-hover: rgba(255, 255, 255, 0.04);
   --dash-link-row-hover: rgba(255, 255, 255, 0.06);
-  --dash-chip-icon-bg: rgba(37, 99, 235, 0.16);
+  --dash-chip-icon-bg: rgba(31, 107, 255, 0.16);
   --dash-row-border: transparent;
-  --dash-row-border-hover: rgba(37, 99, 235, 0.22);
+  --dash-row-border-hover: rgba(31, 107, 255, 0.22);
   --dash-divider-list: rgba(255, 255, 255, 0.06);
   --scrollbar-thumb: #3d3d40;
   --scrollbar-thumb-hover: #4a4a4e;
 
   --nav-surface: rgba(28, 28, 30, 0.92);
   --nav-hover-bg: rgba(255, 255, 255, 0.06);
-  --nav-active-bg: rgba(37, 99, 235, 0.14);
+  --nav-active-bg: rgba(31, 107, 255, 0.14);
   --nav-logout-bg: rgba(30, 30, 32, 0.96);
   --nav-shadow: 0 1px 0 rgba(255, 255, 255, 0.04), 0 8px 32px rgba(0, 0, 0, 0.35);
 
-  --sidebar-active-bg: rgba(37, 99, 235, 0.2);
+  --sidebar-active-bg: rgba(31, 107, 255, 0.2);
   --sidebar-active-fg: #f8fafc;
   --sidebar-hover-bg: rgba(255, 255, 255, 0.05);
   --sidebar-border: var(--border-color);
@@ -113,63 +113,64 @@
 
 :root[data-theme="light"] {
   /* Aligned with marketing-site (marketing-markup.css) */
-  --bg-primary: #ffffff;
+  --bg-primary: #f7f9fd;
   --bg-elevated: #ffffff;
   --surface-secondary: #ffffff;
   --surface-card: #ffffff;
   --surface-input: #f8fafc;
   --surface-nested: #f1f5f9;
-  --popover-shadow: 0 16px 40px rgba(15, 23, 42, 0.14);
+  --popover-shadow: 0 16px 40px rgba(11, 21, 48, 0.14);
   --surface-glass: rgba(255, 255, 255, 0.92);
   --surface-modal: #ffffff;
-  --modal-overlay-scrim: rgba(15, 23, 42, 0.45);
-  --modal-shadow: 0 24px 48px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(15, 23, 42, 0.06);
+  --modal-overlay-scrim: rgba(11, 21, 48, 0.45);
+  --modal-shadow: 0 24px 48px rgba(11, 21, 48, 0.12), 0 0 0 1px rgba(11, 21, 48, 0.06);
 
   /* Stronger edges on white so cards and inputs read clearly */
-  --border-color: rgba(15, 23, 42, 0.16);
-  --border-strong: rgba(15, 23, 42, 0.26);
-  --divider: rgba(15, 23, 42, 0.12);
+  --border-color: rgba(11, 21, 48, 0.16);
+  --border-strong: rgba(11, 21, 48, 0.26);
+  --divider: rgba(11, 21, 48, 0.12);
 
-  --text-primary: #0f172a;
-  --text-secondary: #334155;
-  --text-muted: #64748b;
-  --text-label: #475569;
+  --text-primary: #0b1530;
+  --text-secondary: #33405a;
+  --text-muted: #5a6788;
+  --text-label: #4a5578;
 
-  --accent-blue: #2563eb;
-  --accent-primary-hover: #1d4ed8;
-  --accent-hover: #1d4ed8;
-  --accent-blue-dim: rgba(37, 99, 235, 0.1);
-  --accent-purple: #1d4ed8;
+  --accent-blue: #1f6bff;
+  --accent-primary-hover: #1a56db;
+  --accent-hover: #1a56db;
+  --accent-blue-dim: rgba(31, 107, 255, 0.1);
+  --accent-purple: #1a56db;
 
   --success-green: #16a34a;
   --success-pulse: #22c55e;
   --warning-orange: #ea580c;
   --error-red: #dc2626;
 
-  --badge-bg: rgba(37, 99, 235, 0.08);
-  --badge-border: rgba(37, 99, 235, 0.2);
-  --badge-text: #1d4ed8;
-  --pill-muted-bg: rgba(15, 23, 42, 0.05);
+  --badge-bg: rgba(31, 107, 255, 0.08);
+  --badge-border: rgba(31, 107, 255, 0.2);
+  --badge-text: #1a56db;
+  --pill-muted-bg: rgba(11, 21, 48, 0.05);
 
   --skeleton: #e2e8f0;
   --skeleton-shine: #f1f5f9;
 
-  --page-ambient-gradient: none;
-  --gradient-accent: var(--accent-blue);
-  --shadow-glow-blue: 0 1px 2px rgba(15, 23, 42, 0.06);
+  /* Same soft blue light as the marketing site and ads */
+  --page-ambient-gradient: radial-gradient(900px 560px at 92% -10%, rgba(25, 181, 254, 0.16), transparent 62%), radial-gradient(820px 520px at -6% 0%, rgba(31, 107, 255, 0.1), transparent 62%);
+  --gradient-accent: linear-gradient(135deg, #1f6bff 0%, #1a56db 100%);
+  --shadow-glow-blue: 0 1px 2px rgba(11, 21, 48, 0.06);
 
-  --shadow-card-hover: 0 10px 40px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(37, 99, 235, 0.06);
-  --shadow-soft-sm: 0 1px 2px rgba(15, 23, 42, 0.05), 0 4px 16px rgba(15, 23, 42, 0.06);
-  --shadow-soft-lg: 0 8px 30px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(15, 23, 42, 0.04);
+  --shadow-card-hover: 0 10px 40px rgba(11, 21, 48, 0.08), 0 0 0 1px rgba(31, 107, 255, 0.06);
+  --shadow-soft-sm: 0 1px 2px rgba(11, 21, 48, 0.05), 0 4px 16px rgba(11, 21, 48, 0.06);
+  --shadow-soft-lg: 0 8px 30px rgba(11, 21, 48, 0.08), 0 0 0 1px rgba(11, 21, 48, 0.04);
   --dash-card-bg: #ffffff;
   --dash-chip-bg: #f8fafc;
   --dash-chip-hover-bg: #f1f5f9;
   --dash-row-bg: #ffffff;
   --dash-row-hover-bg: #f8fafc;
   --dash-metric-tile-hover: #f1f5f9;
-  --dash-subtle-hover: rgba(15, 23, 42, 0.04);
-  --dash-link-row-hover: rgba(15, 23, 42, 0.04);
-  --dash-chip-icon-bg: rgba(37, 99, 235, 0.08);
+  --dash-subtle-hover: rgba(11, 21, 48, 0.04);
+  --dash-link-row-hover: rgba(11, 21, 48, 0.04);
+  --dash-chip-icon-bg: rgba(31, 107, 255, 0.08);
   --dash-row-border: var(--border-color);
   --dash-row-border-hover: var(--border-strong);
   --dash-divider-list: var(--divider);
@@ -177,14 +178,14 @@
   --scrollbar-thumb-hover: #94a3b8;
 
   --nav-surface: rgba(255, 255, 255, 0.92);
-  --nav-hover-bg: rgba(15, 23, 42, 0.06);
-  --nav-active-bg: rgba(37, 99, 235, 0.1);
+  --nav-hover-bg: rgba(11, 21, 48, 0.06);
+  --nav-active-bg: rgba(31, 107, 255, 0.1);
   --nav-logout-bg: #ffffff;
-  --nav-shadow: 0 1px 0 rgba(15, 23, 42, 0.06), 0 4px 20px rgba(15, 23, 42, 0.04);
+  --nav-shadow: 0 1px 0 rgba(11, 21, 48, 0.06), 0 4px 20px rgba(11, 21, 48, 0.04);
 
-  --sidebar-active-bg: #2563eb;
+  --sidebar-active-bg: #1f6bff;
   --sidebar-active-fg: #ffffff;
-  --sidebar-hover-bg: rgba(15, 23, 42, 0.06);
+  --sidebar-hover-bg: rgba(11, 21, 48, 0.06);
   --sidebar-border: var(--divider);
 
   --message-error-bg: rgba(220, 38, 38, 0.08);
@@ -204,4 +205,42 @@ body {
   background-repeat: no-repeat;
   color: var(--text-primary);
   font-family: var(--font-sans);
+}
+
+/* ---------- Brand ----------
+   One blue, one display face, one wordmark: the same look as the landing page and the ads. */
+:root {
+  --brand: #1f6bff;
+  --brand-deep: #1a3a9e;
+  --brand-sky: #19b5fe;
+  --gradient-brand: linear-gradient(100deg, #1a3a9e, #1f6bff 45%, #19b5fe);
+  /* Deep-to-brand only, so white text keeps its contrast across the whole fill */
+  --gradient-brand-solid: linear-gradient(120deg, #1a3a9e 0%, #1f6bff 100%);
+}
+
+h1,
+h2 {
+  font-family: var(--font-display);
+  letter-spacing: -0.03em;
+}
+
+h1 {
+  font-weight: 800;
+}
+
+/* The PortIQ wordmark: "Port" in the text colour, "IQ" in the brand gradient */
+.portiq-wordmark {
+  font-family: var(--font-display);
+  font-weight: 900;
+  letter-spacing: -0.05em;
+}
+
+.portiq-wordmark b {
+  font-weight: inherit;
+  margin-left: 0.035em;
+  padding-right: 0.06em;
+  background: var(--gradient-brand);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }

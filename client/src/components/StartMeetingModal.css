@@ -173,7 +173,7 @@
 .meeting-create-segment button.active {
   background: var(--accent-blue-dim);
   color: var(--text-primary);
-  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(31, 107, 255, 0.35);
 }
 
 :root[data-theme='dark'] .meeting-create-segment button.active {
@@ -256,7 +256,7 @@
 }
 
 .start-meeting-option--active {
-  border-color: rgba(37, 99, 235, 0.45);
+  border-color: rgba(31, 107, 255, 0.45);
   background: var(--accent-blue-dim);
 }
 
@@ -339,7 +339,7 @@
   background: var(--accent-primary-hover);
   filter: none;
   transform: scale(1.01);
-  box-shadow: 0 8px 28px rgba(37, 99, 235, 0.35);
+  box-shadow: 0 8px 28px rgba(31, 107, 255, 0.35);
 }
 
 :root[data-theme='dark'] .start-meeting-btn--primary:hover:not(:disabled) {
@@ -352,7 +352,7 @@
 
 .start-meeting-btn--primary:disabled {
   opacity: 1;
-  background: rgba(37, 99, 235, 0.62);
+  background: rgba(31, 107, 255, 0.62);
   color: #fff;
   -webkit-text-fill-color: #fff;
   fill: #fff;
@@ -1101,7 +1101,7 @@ button.start-meeting-btn--primary:focus-visible:not(:disabled) {
 }
 
 :root[data-theme='light'] .start-meeting-btn-spinner {
-  border-color: rgba(15, 23, 42, 0.2);
+  border-color: rgba(11, 21, 48, 0.2);
   border-top-color: var(--accent-blue);
 }
 

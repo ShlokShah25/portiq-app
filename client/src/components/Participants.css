@@ -105,7 +105,7 @@
   background: radial-gradient(
     circle at 30% 40%,
     rgba(59, 130, 246, 0.22),
-    rgba(99, 102, 241, 0.08) 38%,
+    rgba(77, 141, 255, 0.08) 38%,
     transparent 65%
   );
   pointer-events: none;
@@ -299,7 +299,7 @@
   font-weight: 600 !important;
   border-radius: 10px !important;
   line-height: 1.2 !important;
-  box-shadow: 0 1px 8px rgba(37, 99, 235, 0.28) !important;
+  box-shadow: 0 1px 8px rgba(31, 107, 255, 0.28) !important;
 }
 
 .participant-book-hero__add--toolbar:hover {
@@ -576,7 +576,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(145deg, rgba(59, 130, 246, 0.28), rgba(99, 102, 241, 0.12));
+  background: linear-gradient(145deg, rgba(59, 130, 246, 0.28), rgba(77, 141, 255, 0.12));
   border: 2px solid var(--accent-blue-dim, rgba(59, 130, 246, 0.25));
   font-size: 20px;
   font-weight: 700;

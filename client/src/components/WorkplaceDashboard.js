@@ -188,7 +188,7 @@ export default function WorkplaceDashboard() {
     return {
       background: `conic-gradient(
         #22c55e 0deg ${c1}deg,
-        #6366f1 ${c1}deg ${c2}deg,
+        #4d8dff ${c1}deg ${c2}deg,
         #f59e0b ${c2}deg 360deg
       )`,
     };

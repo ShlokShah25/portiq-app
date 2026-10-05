@@ -67,14 +67,14 @@ const TopNav = () => {
       <div className="top-nav-container">
         <div className="top-nav-brand" onClick={() => navigate('/dashboard')}>
           <img 
-            src="/assets/portiq-icon.png" 
+            src="/assets/portiq-mark.png" 
             alt="PortIQ" 
             className="top-nav-logo"
             onError={(e) => {
               e.target.style.display = 'none';
             }}
           />
-          <span className="top-nav-brand-text">PortIQ</span>
+          <span className="top-nav-brand-text portiq-wordmark">Port<b>IQ</b></span>
         </div>
 
         <div className="top-nav-menu">

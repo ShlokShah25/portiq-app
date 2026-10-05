@@ -132,7 +132,7 @@
 }
 
 .mip-session-details__toggle:hover {
-  background: rgba(99, 102, 241, 0.1);
+  background: rgba(77, 141, 255, 0.1);
   box-shadow: 0 0 24px rgba(59, 130, 246, 0.08);
 }
 
@@ -292,14 +292,14 @@
   font-family: inherit;
   cursor: pointer;
   color: #fff;
-  background: var(--accent-blue, #4f46e5);
+  background: var(--accent-blue, #1f6bff);
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08), 0 6px 28px rgba(0, 0, 0, 0.38);
   animation: mip-primary-pulse 2.4s ease-in-out infinite;
   transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .mip-recording-hero__start:hover:not(:disabled) {
-  background: var(--accent-primary-hover, #4338ca);
+  background: var(--accent-primary-hover, #1a56db);
   filter: none;
   transform: translateY(-1px);
 }
@@ -956,7 +956,7 @@
 .btn-pause:hover {
   transform: translateY(-1px);
   box-shadow: none;
-  border-color: #2563eb;
+  border-color: #1f6bff;
 }
 
 .recording-controls {
@@ -1126,7 +1126,7 @@
 .meeting-ended-btn-primary {
   padding: 14px 28px;
   font-size: 16px;
-  background: #2563eb;
+  background: #1f6bff;
   color: #fff;
   border: none;
   border-radius: 10px;
@@ -1135,7 +1135,7 @@
 }
 
 .meeting-ended-btn-primary:hover {
-  background: #1d4ed8;
+  background: #1a56db;
 }
 
 .meeting-in-progress-back-text {
@@ -1161,13 +1161,13 @@
   padding: 1px;
   background: linear-gradient(
     135deg,
-    rgba(37, 99, 235, 0.35),
-    rgba(99, 102, 241, 0.22),
+    rgba(31, 107, 255, 0.35),
+    rgba(77, 141, 255, 0.22),
     rgba(14, 165, 233, 0.18)
   );
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.06) inset,
-    0 18px 48px rgba(15, 23, 42, 0.12);
+    0 18px 48px rgba(11, 21, 48, 0.12);
 }
 
 .mip-live-transcript__chrome {
@@ -1178,7 +1178,7 @@
   gap: 10px 16px;
   padding: 14px 18px 10px;
   border-radius: 17px 17px 0 0;
-  background: linear-gradient(180deg, rgba(37, 99, 235, 0.08) 0%, transparent 100%);
+  background: linear-gradient(180deg, rgba(31, 107, 255, 0.08) 0%, transparent 100%);
   border-bottom: 1px solid var(--border-color);
 }
 
@@ -1323,7 +1323,7 @@
 :root[data-theme='light'] .mip-live-transcript {
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.85) inset,
-    0 20px 50px rgba(15, 23, 42, 0.08);
+    0 20px 50px rgba(11, 21, 48, 0.08);
 }
 
 :root[data-theme='light'] .mip-live-transcript__body {

@@ -37,7 +37,7 @@ const Settings = () => {
 
   const [username, setUsername] = useState('Unknown user');
   const [email, setEmail] = useState('');
-  const [productLabel, setProductLabel] = useState('Portiq Workplace');
+  const [productLabel, setProductLabel] = useState('PortIQ Workplace');
   const [planLabel, setPlanLabel] = useState('Starter');
   const [paidSubscription, setPaidSubscription] = useState(false);
   const [complimentaryAccess, setComplimentaryAccess] = useState(false);
@@ -92,7 +92,7 @@ const Settings = () => {
 
         setUsername(uname);
         setEmail(mail);
-        setProductLabel(product === 'education' ? 'Portiq Education' : 'Portiq Workplace');
+        setProductLabel(product === 'education' ? 'PortIQ Education' : 'PortIQ Workplace');
 
         let planText = 'Starter';
         if (plan === 'professional') planText = 'Professional';
@@ -119,7 +119,7 @@ const Settings = () => {
         }
         const product =
           (typeof window !== 'undefined' && window.localStorage.getItem('portiq_product')) || 'workplace';
-        setProductLabel(product === 'education' ? 'Portiq Education' : 'Portiq Workplace');
+        setProductLabel(product === 'education' ? 'PortIQ Education' : 'PortIQ Workplace');
       }
     };
     loadProfile();

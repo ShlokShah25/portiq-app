@@ -57,7 +57,7 @@
 
 .meeting-ui-badge--platform-teams {
   color: #c4b5fd;
-  background: rgba(99, 102, 241, 0.14);
+  background: rgba(77, 141, 255, 0.14);
   border-color: rgba(129, 140, 248, 0.35);
 }
 
@@ -69,13 +69,13 @@
 
 .meeting-ui-badge--type-interview {
   color: #c4b5fd;
-  background: rgba(99, 102, 241, 0.16);
+  background: rgba(77, 141, 255, 0.16);
   border-color: rgba(129, 140, 248, 0.34);
 }
 
 .meeting-ui-badge--type-standard {
   color: #bfdbfe;
-  background: rgba(37, 99, 235, 0.14);
+  background: rgba(31, 107, 255, 0.14);
   border-color: rgba(59, 130, 246, 0.3);
 }
 
@@ -92,9 +92,9 @@
 }
 
 :root[data-theme='light'] .meeting-ui-badge--joining {
-  color: #1d4ed8;
-  background: rgba(37, 99, 235, 0.1);
-  border-color: rgba(37, 99, 235, 0.28);
+  color: #1a56db;
+  background: rgba(31, 107, 255, 0.1);
+  border-color: rgba(31, 107, 255, 0.28);
 }
 
 :root[data-theme='light'] .meeting-ui-badge--joined,
@@ -129,9 +129,9 @@
 }
 
 :root[data-theme='light'] .meeting-ui-badge--platform-teams {
-  color: #4338ca;
-  background: rgba(99, 102, 241, 0.12);
-  border-color: rgba(99, 102, 241, 0.32);
+  color: #1a56db;
+  background: rgba(77, 141, 255, 0.12);
+  border-color: rgba(77, 141, 255, 0.32);
 }
 
 :root[data-theme='light'] .meeting-ui-badge--mode {
@@ -147,7 +147,7 @@
 }
 
 :root[data-theme='light'] .meeting-ui-badge--type-standard {
-  color: #1d4ed8;
-  background: rgba(37, 99, 235, 0.1);
-  border-color: rgba(37, 99, 235, 0.28);
+  color: #1a56db;
+  background: rgba(31, 107, 255, 0.1);
+  border-color: rgba(31, 107, 255, 0.28);
 }

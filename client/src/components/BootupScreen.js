@@ -35,14 +35,14 @@ const BootupScreen = ({ onComplete }) => {
       <div className="bootup-content">
         <div className="bootup-logo-block">
           <img
-            src="/assets/portiq-icon.png"
-            alt="Portiq"
+            src="/assets/portiq-mark.png"
+            alt="PortIQ"
             className="bootup-logo-img"
             onError={(e) => {
               e.target.style.display = 'none';
             }}
           />
-          <h1 className="bootup-title">Portiq</h1>
+          <h1 className="bootup-title portiq-wordmark" aria-label="PortIQ">Port<b>IQ</b></h1>
           <p className="bootup-tagline">{PORTIQ_TAGLINE}</p>
         </div>
 

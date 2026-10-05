@@ -391,7 +391,7 @@
 
 .meeting-card-portiq-cta:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px rgba(37, 99, 235, 0.45);
+  box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px rgba(31, 107, 255, 0.45);
 }
 
 /* Pending summaries quick access (top of meetings page) */
@@ -805,7 +805,7 @@
 
 .premium-checkbox-container input[type="checkbox"]:focus {
   outline: none;
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 0 0 2px rgba(31, 107, 255, 0.1);
 }
 
 .premium-checkbox-container span {

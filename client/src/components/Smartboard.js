@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import './Smartboard.css';
 
-const PEN_COLORS = ['#111827', '#ef4444', '#f97316', '#f59e0b', '#16a34a', '#2563eb', '#7c3aed', '#ec4899'];
+const PEN_COLORS = ['#111827', '#ef4444', '#f97316', '#f59e0b', '#16a34a', '#1f6bff', '#7c3aed', '#ec4899'];
 const STAGE_W = 1000;
 const STAGE_H = 562; // 16:9 — the drawing canvas is always this size; slide images letterbox inside it via object-fit.
 const SAVE_DEBOUNCE_MS = 1200;

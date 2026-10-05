@@ -1660,8 +1660,8 @@ const MeetingsScreen = () => {
                                 onClick={() => setAdditionalParticipants([...additionalParticipants, { name: '', email: '' }])}
                                 style={{
                                   padding: '10px 16px',
-                                  background: 'rgba(37, 99, 235, 0.2)',
-                                  border: '1px solid rgba(37, 99, 235, 0.4)',
+                                  background: 'rgba(31, 107, 255, 0.2)',
+                                  border: '1px solid rgba(31, 107, 255, 0.4)',
                                   borderRadius: '8px',
                                   color: '#60a5fa',
                                   cursor: 'pointer',
@@ -1833,7 +1833,7 @@ const MeetingsScreen = () => {
                           padding: '8px 12px',
                           borderRadius: '10px',
                           opacity: rightTab === 'scheduled' ? 1 : 0.75,
-                          borderColor: rightTab === 'scheduled' ? '#2563eb' : undefined,
+                          borderColor: rightTab === 'scheduled' ? '#1f6bff' : undefined,
                         }}
                         onClick={() => setRightTab('scheduled')}
                       >
@@ -1846,7 +1846,7 @@ const MeetingsScreen = () => {
                           padding: '8px 12px',
                           borderRadius: '10px',
                           opacity: rightTab === 'recent' ? 1 : 0.75,
-                          borderColor: rightTab === 'recent' ? '#2563eb' : undefined,
+                          borderColor: rightTab === 'recent' ? '#1f6bff' : undefined,
                         }}
                         onClick={() => setRightTab('recent')}
                       >
@@ -1988,7 +1988,7 @@ const MeetingsScreen = () => {
                           display: 'inline-block',
                           marginLeft: '8px',
                           padding: '2px 8px',
-                          background: '#2563eb',
+                          background: '#1f6bff',
                           color: 'white',
                           borderRadius: '12px',
                           fontSize: '11px',

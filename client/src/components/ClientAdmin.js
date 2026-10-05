@@ -420,15 +420,15 @@ const ClientAdmin = () => {
                                 fontWeight: 600,
                                 background:
                                   meeting.summaryMode === 'interview'
-                                    ? 'rgba(79, 70, 229, 0.14)'
+                                    ? 'rgba(31, 107, 255, 0.14)'
                                     : 'rgba(255, 255, 255, 0.06)',
                                 color:
                                   meeting.summaryMode === 'interview'
-                                    ? '#c7d2fe'
+                                    ? '#c6dbff'
                                     : 'rgba(234, 240, 255, 0.82)',
                                 border:
                                   meeting.summaryMode === 'interview'
-                                    ? '1px solid rgba(79, 70, 229, 0.35)'
+                                    ? '1px solid rgba(31, 107, 255, 0.35)'
                                     : '1px solid rgba(255, 255, 255, 0.12)',
                               }}
                             >

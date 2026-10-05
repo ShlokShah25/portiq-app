@@ -200,19 +200,19 @@
   font-weight: 600;
   font-size: 14px;
   cursor: pointer;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 6px 16px -6px rgba(37, 99, 235, 0.45);
+  box-shadow: 0 1px 2px rgba(11, 21, 48, 0.06), 0 6px 16px -6px rgba(31, 107, 255, 0.45);
   transition: background 0.16s ease, box-shadow 0.16s ease, transform 0.12s ease;
 }
 
 .classes-btn-primary:hover:not(:disabled) {
   background: var(--accent-primary-hover, var(--accent-hover));
-  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.08), 0 10px 22px -6px rgba(37, 99, 235, 0.5);
+  box-shadow: 0 2px 4px rgba(11, 21, 48, 0.08), 0 10px 22px -6px rgba(31, 107, 255, 0.5);
   transform: translateY(-1px);
 }
 
 .classes-btn-primary:active:not(:disabled) {
   transform: translateY(0);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 1px 2px rgba(11, 21, 48, 0.08);
 }
 
 .classes-btn-primary:disabled {
@@ -242,7 +242,7 @@ a.classes-btn-primary {
 }
 
 .classes-btn-secondary:hover:not(:disabled) {
-  background: var(--dash-subtle-hover, rgba(37, 99, 235, 0.06));
+  background: var(--dash-subtle-hover, rgba(31, 107, 255, 0.06));
   border-color: var(--border-strong);
   color: var(--text-primary);
 }
@@ -370,7 +370,7 @@ a.classes-btn-primary {
 }
 
 .classes-table-row:hover td {
-  background: var(--dash-row-hover-bg, rgba(37, 99, 235, 0.06));
+  background: var(--dash-row-hover-bg, rgba(31, 107, 255, 0.06));
 }
 
 .classes-table-dash {
@@ -450,7 +450,7 @@ a.classes-btn-primary {
 }
 
 .classes-btn-sm:hover:not(:disabled) {
-  background: var(--accent-blue-dim, rgba(37, 99, 235, 0.1));
+  background: var(--accent-blue-dim, rgba(31, 107, 255, 0.1));
   border-color: var(--accent-blue);
   color: var(--accent-blue);
 }
@@ -608,7 +608,7 @@ a.classes-btn-primary {
 .classes-mapping-pill:hover {
   border-color: var(--accent-blue);
   color: var(--text-primary);
-  background: var(--accent-blue-dim, rgba(37, 99, 235, 0.08));
+  background: var(--accent-blue-dim, rgba(31, 107, 255, 0.08));
 }
 
 .classes-mapping-pill input[type='checkbox'] {
@@ -622,17 +622,17 @@ a.classes-btn-primary {
 
 :root[data-theme='light'] .classes-page {
   background:
-    radial-gradient(1200px 540px at 0% -10%, rgba(37, 99, 235, 0.06), transparent 55%),
+    radial-gradient(1200px 540px at 0% -10%, rgba(31, 107, 255, 0.06), transparent 55%),
     radial-gradient(1000px 420px at 95% 0%, rgba(20, 184, 166, 0.05), transparent 58%),
     #f8fafc;
-  color: #0f172a;
+  color: #0b1530;
 }
 
 :root[data-theme='light'] .classes-form,
 :root[data-theme='light'] .classes-list-panel {
   background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
   border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 16px 34px -22px rgba(15, 23, 42, 0.28);
+  box-shadow: 0 1px 2px rgba(11, 21, 48, 0.04), 0 16px 34px -22px rgba(11, 21, 48, 0.28);
 }
 
 :root[data-theme='light'] .classes-form input,
@@ -641,7 +641,7 @@ a.classes-btn-primary {
 :root[data-theme='light'] .classes-students-table td input {
   background: #ffffff;
   border-color: #cbd5e1;
-  color: #0f172a;
+  color: #0b1530;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
 }
 
@@ -649,8 +649,8 @@ a.classes-btn-primary {
 :root[data-theme='light'] .classes-form textarea:focus,
 :root[data-theme='light'] .classes-search:focus,
 :root[data-theme='light'] .classes-students-table td input:focus {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  border-color: #1f6bff;
+  box-shadow: 0 0 0 3px rgba(31, 107, 255, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.95);
 }
 
 :root[data-theme='light'] .classes-assignment-row {
@@ -659,13 +659,13 @@ a.classes-btn-primary {
 }
 
 :root[data-theme='light'] .classes-btn-primary {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
-  box-shadow: 0 10px 18px -12px rgba(37, 99, 235, 0.6);
+  background: linear-gradient(135deg, #1f6bff, #1a56db);
+  box-shadow: 0 10px 18px -12px rgba(31, 107, 255, 0.6);
 }
 
 :root[data-theme='light'] .classes-btn-primary:hover:not(:disabled) {
   filter: brightness(1.04);
-  box-shadow: 0 14px 24px -12px rgba(37, 99, 235, 0.62);
+  box-shadow: 0 14px 24px -12px rgba(31, 107, 255, 0.62);
 }
 
 :root[data-theme='light'] .classes-btn-secondary {
@@ -679,7 +679,7 @@ a.classes-btn-primary {
 }
 
 :root[data-theme='light'] .classes-class-link {
-  color: #1d4ed8;
+  color: #1a56db;
 }
 
 :root[data-theme='light'] .classes-class-link:hover {
@@ -693,7 +693,7 @@ a.classes-btn-primary {
 }
 
 :root[data-theme='light'] .classes-roster-link {
-  color: #1d4ed8;
+  color: #1a56db;
 }
 
 :root[data-theme='light'] .classes-table th,
@@ -706,14 +706,14 @@ a.classes-btn-primary {
 }
 
 :root[data-theme='light'] .classes-btn-sm {
-  color: #1d4ed8;
+  color: #1a56db;
   border-color: #bfdbfe;
   background: #eff6ff;
 }
 
 :root[data-theme='light'] .classes-btn-sm:hover:not(:disabled) {
   background: #dbeafe;
-  border-color: #2563eb;
+  border-color: #1f6bff;
 }
 
 :root[data-theme='light'] .classes-btn-danger {
@@ -735,7 +735,7 @@ a.classes-btn-primary {
 }
 
 :root[data-theme='light'] .classes-mapping-pill:hover {
-  border-color: #2563eb;
+  border-color: #1f6bff;
   background: #eff6ff;
 }
 
@@ -755,7 +755,7 @@ a.classes-btn-primary {
 :root[data-theme='light'] .classes-students-table-wrap {
   border-color: #e2e8f0;
   background: #ffffff;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 1px 2px rgba(11, 21, 48, 0.04);
 }
 
 :root[data-theme='light'] .classes-students-table th,

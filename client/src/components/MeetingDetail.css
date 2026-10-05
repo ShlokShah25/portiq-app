@@ -276,7 +276,7 @@
 .meeting-followup-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
+  background: rgba(11, 21, 48, 0.45);
   z-index: 2000;
   display: flex;
   align-items: center;
