@@ -68,6 +68,36 @@ for (const name of Object.keys(interfaces)) {
   }
 }
 
+// Marketing landing page, served by hostname from /landing. This lets the root domain point at
+// this same service (no second service to pay for). Override the hosts with LANDING_HOSTS
+// (comma-separated). Every other hostname falls through to the app as before.
+const LANDING_DIR = path.join(__dirname, '../landing');
+const LANDING_HOSTS = new Set(
+  (process.env.LANDING_HOSTS || 'portiqtechnologies.com,www.portiqtechnologies.com')
+    .split(',')
+    .map((h) => h.trim().toLowerCase())
+    .filter(Boolean)
+);
+const landingStatic = express.static(LANDING_DIR, {
+  maxAge: '1d',
+  setHeaders(res, file) {
+    if (file.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache');
+  },
+});
+app.use((req, res, next) => {
+  const host = String(req.headers['x-forwarded-host'] || req.headers.host || '')
+    .split(',')[0]
+    .trim()
+    .toLowerCase()
+    .replace(/:\d+$/, '');
+  if (!LANDING_HOSTS.has(host)) return next();
+  if (/^\/(server\.js|package\.json)$/i.test(req.path)) return res.redirect('/');
+  return landingStatic(req, res, () => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') return res.status(404).end();
+    return res.sendFile(path.join(LANDING_DIR, 'index.html'));
+  });
+});
+
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (mobile apps, Postman, etc.)

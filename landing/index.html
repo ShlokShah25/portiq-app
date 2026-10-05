@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PortIQ: your meetings, handled</title>
+<meta name="description" content="PortIQ sits in on the meeting, writes the summary, turns what was said into tasks with an owner and a due date, and sends the reminders itself. Also for interviews and lectures.">
+<meta name="theme-color" content="#f7f9fd">
+<meta property="og:title" content="PortIQ: your meetings, handled">
+<meta property="og:description" content="Summaries, action items with owners and due dates, reminders, Interview Mode and lecture recaps.">
+<meta property="og:image" content="/assets/poster-workspace.jpg">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" href="/assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@600;700;800;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<div class="backdrop" aria-hidden="true"><i class="blob blob--a"></i><i class="blob blob--b"></i><i class="blob blob--c"></i><i class="dots"></i></div>
+
+<header class="nav" id="top">
+  <div class="nav__in">
+    <a class="brand" href="#top" aria-label="PortIQ home">
+      <img src="/assets/mark.png" alt="" width="38" height="48">
+      <span class="brand__word">Port<b>IQ</b></span>
+    </a>
+    <button class="nav__toggle" type="button" aria-expanded="false" aria-controls="navlinks">Menu</button>
+    <nav class="nav__links" id="navlinks" aria-label="Main">
+      <a href="#meetings">Meetings</a>
+      <a href="#interview">Interview Mode</a>
+      <a href="#education">Education</a>
+      <a href="#pricing">Pricing</a>
+      <a class="nav__signin" href="https://meetingassistant.portiqtechnologies.com/admin-login">Sign in</a>
+      <a class="pillbtn" href="https://meetingassistant.portiqtechnologies.com/admin-login"><span class="pillbtn__dot"></span>Start free</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+<!-- ============ hero ============ -->
+<section class="hero">
+  <div class="chips" aria-hidden="true">
+    <div class="chip chip--1"><span class="av" style="background:#e85d75">AR</span><span><small>Ananya Rao</small>wait, who owns the pricing page?</span></div>
+    <div class="chip chip--2"><span class="av" style="background:#0ea5e9">ML</span><span><small>Marcus Lee</small>when is the crash fix due again?</span></div>
+    <div class="chip chip--3"><span class="av" style="background:#f59e0b">DP</span><span><small>Dev Patel</small>did we actually decide on Friday?</span></div>
+    <div class="chip chip--4"><span class="av" style="background:#10b981">PM</span><span><small>Priya Menon</small>can someone send the notes?</span></div>
+  </div>
+  <div class="wrap hero__in">
+    <h1 class="display">Your meetings, <span class="grad">handled.</span></h1>
+    <p class="lede">PortIQ sits in on the meeting, writes the summary, turns what was said into tasks with an owner and a due date, and sends the reminders itself.</p>
+    <div class="hero__cta">
+      <a class="pillbtn pillbtn--lg" href="https://meetingassistant.portiqtechnologies.com/admin-login"><span class="pillbtn__dot"></span>Start free with 3 meetings</a>
+      <a class="textbtn" href="#tour" data-play="tourVideo">Watch the 70-second tour</a>
+    </div>
+  </div>
+  <div class="wrap wrap--wide" id="tour">
+    <figure class="win win--video">
+      <div class="win__bar"><i></i><i></i><i></i><span class="win__url">app.portiqtechnologies.com</span></div>
+      <div class="video" data-video>
+        <video id="tourVideo" preload="none" playsinline controls poster="/assets/poster-workspace.jpg" aria-label="PortIQ Workspace tour, 70 seconds, with voiceover">
+          <source src="/assets/ad-workspace.mp4" type="video/mp4">
+        </video>
+        <button class="video__play" type="button" aria-label="Play the 70-second tour"><span><svg width="30" height="30" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.5-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z"/></svg></span></button>
+      </div>
+    </figure>
+  </div>
+</section>
+
+<!-- ============ one sentence, four things ============ -->
+<section class="band" id="meetings">
+  <div class="wrap">
+    <h2 class="h2">One sentence in a meeting.<br><span class="grad">Four things nobody wrote down.</span></h2>
+    <div class="said">
+      <div class="said__who"><span class="av" style="background:#6d28d9">SS</span>Shlok Shah, 10:42 AM</div>
+      <p class="said__line">“Let’s <mark class="hl hl--1">hotfix that<sup>1</sup></mark> first. <mark class="hl hl--2">Marcus<sup>2</sup></mark>, by <span class="nb"><mark class="hl hl--3">tomorrow<sup>3</sup></mark>?”</span></p>
+    </div>
+    <ol class="four">
+      <li class="four__card four__card--1">
+        <div class="four__k"><span>1</span>Task</div>
+        <div class="four__v">Patch the Android 13 crash</div>
+        <p>Pulled out of the transcript and written as something you can tick off.</p>
+      </li>
+      <li class="four__card four__card--2">
+        <div class="four__k"><span>2</span>Owner</div>
+        <div class="four__v">Marcus Lee</div>
+        <p>Every action item carries the name of the person doing it.</p>
+      </li>
+      <li class="four__card four__card--3">
+        <div class="four__k"><span>3</span>Due</div>
+        <div class="four__v">Fri, Oct 2</div>
+        <p>A date on the task, so “tomorrow” still means something next week.</p>
+      </li>
+      <li class="four__card four__card--4">
+        <div class="four__k"><span>4</span>Reminder</div>
+        <div class="four__v">Emailed to Marcus</div>
+        <p>Nobody said this part out loud. It goes out the day before, and again if it’s overdue.</p>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============ how it works ============ -->
+<section class="band">
+  <div class="wrap">
+    <h2 class="h2">Three steps, and the third one isn’t yours.</h2>
+    <ol class="steps">
+      <li class="step">
+        <div class="step__copy">
+          <span class="step__n">1</span>
+          <h3 class="h3">Add a title. Pick your team.</h3>
+          <p>Choose who’s in the room from your contact book. That’s the whole setup.</p>
+        </div>
+        <figure class="win step__shot">
+          <div class="win__bar"><i></i><i></i><i></i><span class="win__url">app.portiqtechnologies.com/dashboard</span></div>
+          <img src="/assets/shot-create.webp" alt="Create meeting dialog with a title and three participants ticked" width="1400" height="1240" loading="lazy">
+        </figure>
+      </li>
+      <li class="step step--flip">
+        <div class="step__copy">
+          <span class="step__n">2</span>
+          <h3 class="h3">Hit record. Just talk.</h3>
+          <p>A live transcript builds while people speak, with each speaker named. Use it in the room or alongside a call.</p>
+        </div>
+        <figure class="win step__shot">
+          <div class="win__bar"><i></i><i></i><i></i><span class="win__url">app.portiqtechnologies.com/meetings/live</span></div>
+          <img src="/assets/shot-live.webp" alt="A meeting being recorded with a live transcript showing three named speakers" width="1504" height="1200" loading="lazy">
+        </figure>
+      </li>
+      <li class="step">
+        <div class="step__copy">
+          <span class="step__n">3</span>
+          <h3 class="h3">Hang up. PortIQ does the rest.</h3>
+          <p>Key points, decisions and action items land in your summary. Each task has an owner, a due date and a status you can tick off right there.</p>
+        </div>
+        <figure class="win step__shot">
+          <div class="win__bar"><i></i><i></i><i></i><span class="win__url">app.portiqtechnologies.com/meetings/summary</span></div>
+          <img src="/assets/shot-summary.webp" alt="Meeting summary listing action items with owners, due dates and an overdue flag" width="1424" height="1240" loading="lazy">
+        </figure>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============ languages + follow-ups ============ -->
+<section class="band">
+  <div class="wrap">
+    <h2 class="h2">Your summary, <span class="grad">in their language.</span></h2>
+    <p class="sub">Send the English summary with a translated copy in the same email, so nobody has to ask what was decided.</p>
+    <div class="morph" data-morph>
+      <div class="morph__head">
+        <span class="morph__app">Weekly Product Sync, decision</span>
+        <span class="morph__lang" data-morph-lang>English</span>
+      </div>
+      <p class="morph__line" data-morph-line lang="en">Ship the pricing page by Friday.</p>
+      <ul class="morph__all" aria-label="The same decision in eight languages">
+        <li lang="en" data-lang="English">Ship the pricing page by Friday.</li>
+        <li lang="hi" data-lang="हिन्दी · Hindi">शुक्रवार तक प्राइसिंग पेज लॉन्च करें।</li>
+        <li lang="ja" data-lang="日本語 · Japanese">金曜日までに料金ページを公開する。</li>
+        <li lang="es" data-lang="Español · Spanish">Lanzar la página de precios el viernes.</li>
+        <li lang="fr" data-lang="Français · French">Lancer la page tarifs d’ici vendredi.</li>
+        <li lang="de" data-lang="Deutsch · German">Preisseite bis Freitag live schalten.</li>
+        <li lang="ru" data-lang="Русский · Russian">Запустить страницу цен к пятнице.</li>
+        <li lang="zh" data-lang="中文 · Chinese">周五前上线定价页面。</li>
+      </ul>
+    </div>
+    <div class="duo">
+      <figure class="win">
+        <div class="win__bar"><i></i><i></i><i></i><span class="win__url">Inbox</span></div>
+        <img src="/assets/shot-email.webp" alt="Summary email with the Hindi translation under the English summary" width="1800" height="828" loading="lazy">
+      </figure>
+      <div class="follow">
+        <h3 class="h3">Then it follows up. Automatically.</h3>
+        <div class="ncard">
+          <span class="ncard__ic" style="background:#fee2e2"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 8v5l3 2"/><circle cx="12" cy="12" r="9"/></svg></span>
+          <div><small>Reminder, due tomorrow</small><strong>Patch mobile crash on Android 13</strong><span>Sent to Marcus Lee</span></div>
+        </div>
+        <div class="ncard">
+          <span class="ncard__ic" style="background:#dbe7ff"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1a56db" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16v12H4z"/><path d="M4 7l8 6 8-6"/></svg></span>
+          <div><small>Reminder, due Fri, Oct 3</small><strong>Ship pricing page redesign</strong><span>Sent to Ananya Rao</span></div>
+        </div>
+        <div class="ncard">
+          <span class="ncard__ic" style="background:#d1fae5"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#047857" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+          <div><small>Summary delivered</small><strong>Weekly Product Sync, English + Hindi</strong><span>Emailed to 4 participants</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ interview mode ============ -->
+<section class="band" id="interview">
+  <div class="wrap">
+    <p class="eyebrow">Interview Mode</p>
+    <h2 class="h2">Hiring? It sits in on <span class="grad">the interview</span> too.</h2>
+    <p class="sub">Set the candidate, the role and the panel. PortIQ captures every answer, speaker by speaker, then writes the hiring report.</p>
+    <div class="iv">
+      <figure class="win iv__session">
+        <div class="win__bar"><i></i><i></i><i></i><span class="win__url">app.portiqtechnologies.com/interview/session</span></div>
+        <img src="/assets/shot-isession.webp" alt="Interview being recorded with a live transcript of the interviewer and candidate" width="1280" height="1240" loading="lazy">
+      </figure>
+      <figure class="win iv__report">
+        <div class="win__bar"><i></i><i></i><i></i><span class="win__url">app.portiqtechnologies.com/interview/report</span></div>
+        <img src="/assets/shot-report.webp" alt="Interview summary with a score breakdown, DISC profile, overall score of 9.1 and a Strong Hire recommendation" width="1800" height="1373" loading="lazy">
+        <span class="stamp" aria-hidden="true">STRONG HIRE</span>
+      </figure>
+    </div>
+    <ul class="facts">
+      <li><strong>Score breakdown</strong>Communication, problem solving, technical knowledge, leadership and cultural fit, each scored out of 10.</li>
+      <li><strong>DISC profile</strong>How the candidate tends to work, read from how they answered.</li>
+      <li><strong>A recommendation, with reasons</strong>Hire or no hire, plus the answers that led there, so the panel argues about evidence.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ education ============ -->
+<section class="band edu" id="education">
+  <div class="wrap">
+    <p class="eyebrow eyebrow--amber">PortIQ for Education</p>
+    <h2 class="h2">Every lecture, <span class="grad-amber">remembered.</span></h2>
+    <p class="sub">Teach on your slides or a whiteboard. When the lecture ends, the recap builds itself and goes to the class as one link.</p>
+
+    <div class="edu__grid">
+      <figure class="win edu__board">
+        <div class="win__bar"><i></i><i></i><i></i><span class="win__url">app.portiqtechnologies.com/lecture/live</span></div>
+        <img src="/assets/shot-smartboard.webp" alt="Smartboard with a slide on the bias-variance tradeoff, circled and highlighted by the teacher" width="1424" height="1320" loading="lazy">
+      </figure>
+      <div class="phone edu__phone">
+        <div class="phone__screen"><img src="/assets/phone-qa.webp" alt="Student recap on a phone: a question about k-fold answered from the lecture, with a link to ask the teacher" width="780" height="1600" loading="lazy"></div>
+      </div>
+      <ul class="checks">
+        <li><span class="checks__ic"></span><div><strong>Smartboard</strong>Pen, highlighter and a laser pointer on your slides, or a blank whiteboard. Every page saves itself.</div></li>
+        <li><span class="checks__ic"></span><div><strong>The recap builds itself</strong>The pages you covered, an AI summary and a short quiz, ready when you end the lecture.</div></li>
+        <li><span class="checks__ic"></span><div><strong>Ask the lecture</strong>Students ask a question and get an answer based on what was taught. Still unclear? One tap sends it to the teacher.</div></li>
+        <li><span class="checks__ic"></span><div><strong>Who took it, who needs a hand</strong>Quiz results per student, for mandatory and optional quizzes.</div></li>
+      </ul>
+    </div>
+
+    <div class="edu__row">
+      <figure class="win">
+        <div class="win__bar"><i></i><i></i><i></i><span class="win__url">app.portiqtechnologies.com/quiz-results</span></div>
+        <img src="/assets/shot-quizresults.webp" alt="Quiz results table with four students and their scores; one student scored 40%" width="1800" height="747" loading="lazy">
+      </figure>
+      <figure class="win win--video">
+        <div class="win__bar"><i></i><i></i><i></i><span class="win__url">PortIQ for Education, 66 seconds</span></div>
+        <div class="video" data-video>
+          <video preload="none" playsinline controls poster="/assets/poster-education.jpg" aria-label="PortIQ for Education tour, 66 seconds, with voiceover">
+            <source src="/assets/ad-education.mp4" type="video/mp4">
+          </video>
+          <button class="video__play video__play--amber" type="button" aria-label="Play the Education tour"><span><svg width="30" height="30" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.5-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z"/></svg></span></button>
+        </div>
+      </figure>
+    </div>
+    <p class="edu__cta"><a class="pillbtn pillbtn--amber" href="mailto:help@portiqtechnologies.com?subject=PortIQ%20for%20our%20campus"><span class="pillbtn__dot"></span>Talk to us about your campus</a></p>
+  </div>
+</section>
+
+<!-- ============ pricing ============ -->
+<section class="band" id="pricing">
+  <div class="wrap">
+    <h2 class="h2">Three meetings free. Then pick a plan.</h2>
+    <p class="sub">No card needed to try it. Prices are per month.</p>
+    <div class="plans">
+      <article class="plan">
+        <h3 class="plan__name">Starter</h3>
+        <p class="plan__price">₹1,499<span>/month</span></p>
+        <ul>
+          <li>Transcripts, summaries and action items</li>
+          <li>Up to 10 people in a meeting</li>
+          <li>Meetings up to 3 hours</li>
+        </ul>
+        <a class="plan__btn" href="https://meetingassistant.portiqtechnologies.com/admin-login">Start free</a>
+      </article>
+      <article class="plan plan--pick">
+        <h3 class="plan__name">Pro</h3>
+        <p class="plan__price">₹2,999<span>/month</span></p>
+        <ul>
+          <li>Everything in Starter</li>
+          <li>Up to 20 people in a meeting</li>
+          <li>Reminder emails for action items, the day before and when overdue</li>
+        </ul>
+        <a class="plan__btn" href="https://meetingassistant.portiqtechnologies.com/admin-login">Start free</a>
+      </article>
+      <article class="plan">
+        <h3 class="plan__name">Business</h3>
+        <p class="plan__price">₹9,999<span>/month</span></p>
+        <ul>
+          <li>Everything in Pro</li>
+          <li>Up to 30 people in a meeting</li>
+          <li>Meetings up to 8 hours, 3 running at once</li>
+          <li>Translated summaries in 7 languages</li>
+        </ul>
+        <a class="plan__btn" href="https://meetingassistant.portiqtechnologies.com/admin-login">Start free</a>
+      </article>
+    </div>
+    <p class="plans__campus">Running a college or a large team? <a href="mailto:help@portiqtechnologies.com?subject=PortIQ%20for%20our%20organisation">Talk to us</a> about a campus or company-wide plan.</p>
+  </div>
+</section>
+
+<!-- ============ closing ============ -->
+<section class="band closing">
+  <div class="wrap">
+    <div class="brand brand--big" aria-hidden="true">
+      <img src="/assets/mark.png" alt="" width="95" height="120">
+      <span class="brand__word">Port<b>IQ</b></span>
+    </div>
+    <h2 class="h2">Meetings that <span class="grad">actually follow through.</span></h2>
+    <p><a class="pillbtn pillbtn--lg" href="https://meetingassistant.portiqtechnologies.com/admin-login"><span class="pillbtn__dot"></span>Start free with 3 meetings</a></p>
+  </div>
+</section>
+
+</main>
+
+<footer class="foot">
+  <div class="wrap foot__in">
+    <span>© 2026 PortIQ Technologies</span>
+    <nav aria-label="Footer">
+      <a href="#meetings">Meetings</a>
+      <a href="#interview">Interview Mode</a>
+      <a href="#education">Education</a>
+      <a href="#pricing">Pricing</a>
+      <a href="https://meetingassistant.portiqtechnologies.com/admin-login">Sign in</a>
+      <a href="mailto:help@portiqtechnologies.com">help@portiqtechnologies.com</a>
+    </nav>
+  </div>
+</footer>
+
+<script src="/main.js" defer></script>
+</body>
+</html>

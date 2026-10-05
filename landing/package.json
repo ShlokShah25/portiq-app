@@ -1,0 +1,12 @@
+{
+  "name": "portiq-landing",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PortIQ marketing landing page (static, no build step)",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
