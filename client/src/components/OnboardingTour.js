@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 // OnboardingTour.css is loaded once globally from index.js, not imported here — this
 // component is itself imported from six separate lazy-loaded route chunks (Courses,
 // CourseDetail, EducationAdminDashboard, MeetingInProgress, TeacherDashboard,
@@ -123,15 +124,38 @@ export default function OnboardingTour({
     const left = rect.left - padding;
     const width = rect.width + padding * 2;
     const height = rect.height + padding * 2;
-    setSpotlight({ top, left, width, height });
-    setCardPos((prev) => {
-      const guessTop = top + height + CARD_GAP;
-      const guessLeft = Math.max(VIEWPORT_MARGIN, left);
-      if (prev && Math.abs(prev.top - guessTop) < 1 && Math.abs(prev.left - guessLeft) < 1) {
-        return prev;
-      }
-      return { top: guessTop, left: guessLeft };
-    });
+    setSpotlight((prev) =>
+      prev &&
+      Math.abs(prev.top - top) < 1 &&
+      Math.abs(prev.left - left) < 1 &&
+      Math.abs(prev.width - width) < 1 &&
+      Math.abs(prev.height - height) < 1
+        ? prev
+        : { top, left, width, height }
+    );
+
+    // Work out the card's final position here, in one place, using its real size. This used to
+    // be split in two: this function proposed "just below the target" and a layout effect then
+    // pulled the card back on screen. The 400ms re-measure kept re-proposing the first position,
+    // so a card that needed pulling back bounced between the two spots for as long as it was open.
+    const card = cardRef.current;
+    const cardW = card ? card.offsetWidth : 440;
+    const cardH = card ? card.offsetHeight : 300;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    let cardTop = top + height + CARD_GAP;
+    if (cardTop + cardH > vh - VIEWPORT_MARGIN) {
+      const above = top - cardH - CARD_GAP;
+      // Below does not fit: go above the target, or failing that, sit at the bottom edge.
+      cardTop = above >= VIEWPORT_MARGIN ? above : Math.max(VIEWPORT_MARGIN, vh - cardH - VIEWPORT_MARGIN);
+    }
+    let cardLeft = Math.max(VIEWPORT_MARGIN, left);
+    if (cardLeft + cardW > vw - VIEWPORT_MARGIN) {
+      cardLeft = Math.max(VIEWPORT_MARGIN, vw - cardW - VIEWPORT_MARGIN);
+    }
+    setCardPos((prev) =>
+      prev && Math.abs(prev.top - cardTop) < 1 && Math.abs(prev.left - cardLeft) < 1 ? prev : { top: cardTop, left: cardLeft }
+    );
   };
 
   // Recompute on open/step change, on resize/scroll (mirrors the previous
@@ -167,31 +191,27 @@ export default function OnboardingTour({
     // effect only on `open` (not on every render) is intentional.
   }, [open]);
 
-  // After the card renders at its guessed position, clamp it into the
-  // viewport using its real measured size (fixes long-body steps that would
-  // otherwise overflow the bottom/right edge).
+  // The first placement of a step is made before the card for that step has been laid out, so
+  // measure once more as soon as it has.
   useLayoutEffect(() => {
-    if (!open || !cardPos) return;
-    const el = cardRef.current;
-    if (!el) return;
+    if (!open) return;
+    recompute();
+    // Only when the tour opens or moves on; `recompute` is re-created every render.
+  }, [open, currentStep]);
+
+  // Bring a step's target into view if it is off screen (e.g. the board is below the fold).
+  useEffect(() => {
+    if (!open || !step) return;
+    const el = resolveTargetEl(step.target);
+    if (!el || typeof el.scrollIntoView !== 'function') return;
     const rect = el.getBoundingClientRect();
-    let { top, left } = cardPos;
-    if (top + rect.height > window.innerHeight - VIEWPORT_MARGIN) {
-      // Not enough room below the target — try above it instead.
-      const above = spotlight ? spotlight.top - rect.height - CARD_GAP : top;
-      top = above >= VIEWPORT_MARGIN ? above : Math.max(VIEWPORT_MARGIN, window.innerHeight - rect.height - VIEWPORT_MARGIN);
+    const fullyVisible = rect.top >= 72 && rect.bottom <= window.innerHeight - 72;
+    const tallerThanScreen = rect.height > window.innerHeight - 144;
+    if (!fullyVisible) {
+      el.scrollIntoView({ block: tallerThanScreen ? 'start' : 'center', behavior: 'smooth' });
     }
-    if (left + rect.width > window.innerWidth - VIEWPORT_MARGIN) {
-      left = Math.max(VIEWPORT_MARGIN, window.innerWidth - rect.width - VIEWPORT_MARGIN);
-    }
-    if (top < VIEWPORT_MARGIN) top = VIEWPORT_MARGIN;
-    if (left < VIEWPORT_MARGIN) left = VIEWPORT_MARGIN;
-    if (Math.abs(top - cardPos.top) < 1 && Math.abs(left - cardPos.left) < 1) return;
-    setCardPos({ top, left });
-    // Only re-runs when open/cardPos/spotlight change; it sets cardPos
-    // itself but bails out above once the position has converged, so this
-    // does not loop.
-  }, [open, cardPos, spotlight]);
+    // Keyed on the step, not on `step` object identity.
+  }, [open, currentStep, step?.target]);
 
   if (!open || !step) return null;
 
@@ -199,10 +219,13 @@ export default function OnboardingTour({
   const isLast = currentStep >= steps.length - 1;
 
   const cardStyle = cardPos
-    ? { position: 'fixed', top: `${cardPos.top}px`, left: `${cardPos.left}px` }
+    ? { top: `${cardPos.top}px`, left: `${cardPos.left}px` }
     : undefined;
 
-  return (
+  // Rendered into <body>, not where the page happens to mount it: a tour dims and points at the
+  // whole window, and any ancestor with a transform, filter or contain would otherwise become
+  // the reference box for its position: fixed layers and shift them.
+  return createPortal(
     <div className="onboarding-tour" role="dialog" aria-modal="true" aria-label="Guided tour">
       <div className="onboarding-tour__click-catcher" onClick={handleSkip} />
       <svg className="onboarding-tour__mask-svg" aria-hidden="true">
@@ -295,6 +318,7 @@ export default function OnboardingTour({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -1,5 +1,7 @@
 import React from 'react';
-import './Skeleton.css';
+// Skeleton.css is imported once in src/index.js. This component is used from several lazily
+// loaded pages; importing the stylesheet here put it in more than one CSS chunk, which is the
+// "Conflicting order" build failure this project has hit twice before.
 
 /**
  * A shimmering placeholder block, shaped like the content that's about to load.

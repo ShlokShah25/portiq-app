@@ -252,22 +252,27 @@ const Sidebar = () => {
   const itemRefs = useRef({});
   const [pillStyle, setPillStyle] = useState({ opacity: 0 });
 
+  // Depend on plain values only. `menuItems` and `isActive` are rebuilt on every render, so
+  // listing them as dependencies re-ran this effect after each of its own state updates and
+  // React stopped the app with "Maximum update depth exceeded".
+  const activeItemId = (menuItems.find((item) => isActive(item.path)) || {}).id || '';
+  const menuItemCount = menuItems.length;
+
   useLayoutEffect(() => {
-    const activeItem = menuItems.find((item) => isActive(item.path));
     const nav = navRef.current;
-    const el = activeItem ? itemRefs.current[activeItem.id] : null;
+    const el = activeItemId ? itemRefs.current[activeItemId] : null;
     if (!nav || !el) {
       setPillStyle((prev) => (prev.opacity === 0 ? prev : { opacity: 0 }));
       return;
     }
     const navRect = nav.getBoundingClientRect();
     const elRect = el.getBoundingClientRect();
-    setPillStyle({
-      top: elRect.top - navRect.top,
-      height: elRect.height,
-      opacity: 1,
-    });
-  }, [location.pathname, sidebarExpanded, pinned, railHovered, menuItems, isActive]);
+    const top = Math.round(elRect.top - navRect.top);
+    const height = Math.round(elRect.height);
+    setPillStyle((prev) =>
+      prev.opacity === 1 && prev.top === top && prev.height === height ? prev : { top, height, opacity: 1 }
+    );
+  }, [activeItemId, menuItemCount, sidebarExpanded]);
 
   const logout = () => {
     try {

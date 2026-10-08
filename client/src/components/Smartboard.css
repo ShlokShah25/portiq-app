@@ -74,6 +74,33 @@
   background: var(--dash-chip-bg);
 }
 
+.smartboard__save-status.is-error {
+  color: var(--error-red);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.smartboard__head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.smartboard__hint {
+  font-size: 12px !important;
+  color: var(--text-muted) !important;
+}
+
+.smartboard__error--center {
+  text-align: center;
+  margin: 10px 0 0;
+}
+
+.smartboard__upload-btn.is-busy {
+  opacity: 0.8;
+  cursor: progress;
+}
+
 .smartboard__save-status.is-saved {
   color: var(--success-green);
   animation: smartboard-save-pop 0.35s ease;
@@ -180,10 +207,13 @@
 .smartboard__toolbar {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 10px;
+  row-gap: 8px;
   flex-wrap: wrap;
-  padding: 10px 14px;
-  border-radius: 999px;
+  padding: 8px 12px;
+  /* A rounded bar rather than a full pill: on a narrow window the tools wrap onto a second
+     row, and a pill with two rows looks broken. */
+  border-radius: 20px;
   background: var(--dash-chip-bg);
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow-soft-sm);
@@ -193,8 +223,8 @@
 .smartboard__tool-group {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding-right: 14px;
+  gap: 4px;
+  padding-right: 10px;
   border-right: 1px solid var(--divider);
 }
 
@@ -218,6 +248,7 @@
   flex: 0 0 36px;
   width: 36px;
   height: 36px;
+  min-height: 36px !important;
   border-radius: 11px;
   border: 1px solid transparent;
   background: transparent;
@@ -230,6 +261,16 @@
 .smartboard__icon-btn:hover {
   background: var(--dash-chip-hover-bg);
   color: var(--text-primary);
+}
+
+.smartboard__icon-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.smartboard__icon-btn:disabled:hover {
+  background: transparent;
+  color: var(--text-secondary);
 }
 
 .smartboard__icon-btn.is-active {
@@ -250,8 +291,8 @@
 .smartboard__colors {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding-right: 14px;
+  gap: 6px;
+  padding-right: 10px;
   border-right: 1px solid var(--divider);
   transition: opacity var(--dur-fast, 0.15s) var(--ease-out);
 }
@@ -273,7 +314,10 @@
   height: 22px;
   aspect-ratio: 1 / 1;
   min-width: 0;
-  min-height: 0;
+  /* !important: tablet-fix.css sets `button { min-height: 44px !important }`, which is what
+     stretched these circles into ovals. */
+  min-height: 22px !important;
+  max-height: 22px;
   border-radius: 50%;
   border: 2px solid var(--surface-card);
   outline: 1px solid var(--border-color);
@@ -323,7 +367,7 @@
 }
 
 .smartboard__width-slider {
-  width: 90px;
+  width: 72px;
   accent-color: var(--accent-blue);
 }
 
@@ -380,34 +424,63 @@
  * Stage
  * ------------------------------------------------------------------------ */
 
+.smartboard__stage-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 0;
+}
+
 .smartboard__stage {
   position: relative;
   width: 100%;
-  max-width: 800px;
+  /* Never taller than the window, so the whole board is visible without scrolling the page.
+     !important because tablet-fix.css forces `max-width: 100% !important` on everything. */
+  max-width: min(1280px, calc((100vh - 96px) * 1000 / 562)) !important;
   margin: 0 auto;
   border-radius: var(--radius-card, 16px);
   overflow: hidden;
   background: #0b0b0c;
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow-soft-sm), 0 12px 32px -16px rgba(0, 0, 0, 0.35);
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.smartboard__stage[data-mode='whiteboard'] {
+  background: #fdfdfd;
 }
 
 .smartboard__slide-img {
   position: absolute;
   inset: 0;
   width: 100%;
-  height: 100%;
+  /* !important: tablet-fix.css sets `img { height: auto !important }`, which made a 4:3 deck
+     overflow the stage instead of letterboxing — so notes landed in a different place for
+     students than where the teacher drew them. */
+  height: 100% !important;
   object-fit: contain;
   pointer-events: none;
   user-select: none;
 }
 
-.smartboard__canvas {
+/* Fabric owns everything inside this host (it wraps its canvas in its own container).
+   React only renders the empty host, so the two never fight over the same DOM node. */
+.smartboard__canvas-host {
   position: absolute;
   inset: 0;
-  width: 100% !important;
-  height: 100% !important;
-  cursor: crosshair;
+  touch-action: none;
+}
+
+.smartboard__canvas-host .canvas-container {
+  position: absolute !important;
+  top: 0;
+  left: 0;
+}
+
+.smartboard__canvas-host canvas {
+  touch-action: none;
 }
 
 .smartboard__laser-layer {
@@ -608,4 +681,76 @@
   font-size: 12.5px;
   color: var(--accent-blue);
   text-decoration: underline;
+}
+
+/* ---------------------------------------------------------------------------
+ * Full screen — for the projector / smart board. The board fills the screen,
+ * the stage takes every pixel left after the toolbar and page controls.
+ * `.is-fullscreen` is set for both the browser's own full screen and the
+ * fill-the-window fallback used where element full screen is refused.
+ * ------------------------------------------------------------------------ */
+
+.smartboard.is-fullscreen {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 12px 18px 14px;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--bg-primary, #f7f9fd);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.smartboard.is-pseudo-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  width: auto;
+  height: auto;
+}
+
+.smartboard.is-fullscreen .smartboard__head {
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+}
+
+.smartboard.is-fullscreen .smartboard__toolbar {
+  margin-bottom: 10px;
+}
+
+.smartboard.is-fullscreen .smartboard__stage-wrap {
+  flex: 1 1 auto;
+}
+
+.smartboard.is-fullscreen .smartboard__stage {
+  max-width: none !important;
+  /* Whichever is smaller: full width, or the width whose 16:9 height still fits. */
+  width: min(100%, calc((100vh - 196px) * 1000 / 562));
+}
+
+.smartboard.is-fullscreen .smartboard__nav {
+  margin-top: 10px;
+}
+
+.smartboard.is-fullscreen .smartboard__empty {
+  margin: auto;
+}
+
+@media (max-width: 720px) {
+  .smartboard {
+    padding: 14px;
+  }
+
+  .smartboard__toolbar {
+    border-radius: 18px;
+    gap: 10px;
+  }
+
+  .smartboard__fullscreen-btn {
+    padding: 7px 10px;
+  }
 }

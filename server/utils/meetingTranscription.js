@@ -1320,16 +1320,36 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
     ? `- Coverage is mandatory: include every substantive teaching move, definition, comparison, example, and clarification—not only topic titles or opening/closing themes.\n`
     : `- Coverage is mandatory: include ALL relevant points that materially affect outcomes, responsibilities, risks, timelines, or scope.\n`;
 
+  // Education only: tell the model which subject and class this is. Speech-to-text regularly
+  // mishears technical vocabulary ("bias variants", "k fold" as "cave old"); knowing the subject
+  // lets the notes use the correct term. It is context for wording, never a source of content.
+  const educationSubjectLabelForPrompt = isEducation ? String(meetingObj.educationSubject || '').trim() : '';
+  const educationClassLabelForPrompt = isEducation ? String(meetingObj.educationClassroomName || '').trim() : '';
+  const educationSubjectContextLine =
+    isEducation && (educationSubjectLabelForPrompt || educationClassLabelForPrompt)
+      ? `Subject: ${educationSubjectLabelForPrompt || 'not given'}` +
+        (educationClassLabelForPrompt ? ` · Class: ${educationClassLabelForPrompt}` : '') +
+        `\n(Use this ONLY to write this subject's technical terms, names and notation correctly. The transcript is speech-to-text and ` +
+        `often mishears specialist words: when a transcribed word is clearly a mis-hearing of a standard term in this subject, write the ` +
+        `standard term. Do not add any topic, definition or example that was not actually said.)\n\n`
+      : '';
+
+  // Optional stronger model for lecture notes only (OPENAI_EDUCATION_SUMMARY_MODEL). If OpenAI
+  // refuses it (unknown name, no access, unsupported parameter) we drop back to the normal
+  // summary model on the next attempt, so a bad setting can never stop notes being produced.
+  const educationPreferredModel = isEducation ? String(process.env.OPENAI_EDUCATION_SUMMARY_MODEL || '').trim() : '';
+  let activeSummaryModel = educationPreferredModel || summaryChatModel;
+
     let summaryResponse = null;
     let summaryError = null;
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
       console.log(
-        `   Generating summary (attempt ${attempt}/${maxRetries})… model=${summaryChatModel} mode=${isEducation ? 'education' : 'workplace'}`
+        `   Generating summary (attempt ${attempt}/${maxRetries})… model=${activeSummaryModel} mode=${isEducation ? 'education' : 'workplace'}`
       );
         summaryResponse = await openai.chat.completions.create({
-        model: summaryChatModel,
+        model: activeSummaryModel,
           messages: [
         {
           role: 'system',
@@ -1369,6 +1389,7 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
           content:
             `Analyze the following SINGLE meeting transcript and generate a structured summary strictly about this meeting only.\n\n` +
               `Calendar / booking title (may be wrong or unrelated—do NOT treat as agenda or topic): ${meetingTitle}\n\n` +
+              educationSubjectContextLine +
               `Meeting time anchor (use for relative deadlines; local calendar dates are in the server timezone): ` +
               `ISO ${anchorRef.toISOString()} · "today/tonight/this evening/EOD" → dueDate ${anchorLocalYmd} · "tomorrow" → ${anchorTomorrowYmd}.\n\n` +
               `Detected primary transcription language: ${detectedLanguage}\n\n` +
@@ -1444,6 +1465,20 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
       } catch (apiError) {
         summaryError = apiError;
       const retryable = isRetryableOpenAiError(apiError);
+
+      const apiStatus = apiError && apiError.status;
+      if (
+        activeSummaryModel !== summaryChatModel &&
+        !retryable &&
+        (apiStatus === 400 || apiStatus === 403 || apiStatus === 404) &&
+        attempt < maxRetries
+      ) {
+        console.warn(
+          `⚠️  Lecture-notes model "${activeSummaryModel}" was refused (${apiStatus}); falling back to ${summaryChatModel}.`
+        );
+        activeSummaryModel = summaryChatModel;
+        continue;
+      }
         
       if (retryable && attempt < maxRetries) {
           const waitTime = Math.pow(2, attempt) * 1000;

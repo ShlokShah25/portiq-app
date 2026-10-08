@@ -161,6 +161,8 @@ function App() {
   const [showBootup, setShowBootup] = useState(() => {
     if (typeof window === 'undefined') return true;
     const path = window.location.pathname || '';
+    // Students opening a recap link want the lecture, not the app's start-up animation.
+    if (path.startsWith('/recap/')) return false;
     return !(path.includes('landing-cura') || path.includes('/cura/login') || path.startsWith('/cura'));
   });
 

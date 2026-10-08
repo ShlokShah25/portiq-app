@@ -16,19 +16,12 @@ import {
 import { isEducation } from '../config/product';
 import Smartboard from './Smartboard';
 import OnboardingTour, { hasSeenTour } from './OnboardingTour';
-import { Upload, Presentation, PenLine, ListOrdered, Mic, Sparkles } from 'lucide-react';
+import { Presentation, PenLine, ListOrdered, Mic, Sparkles } from 'lucide-react';
 import './MeetingSummary.css';
 import './MeetingInProgress.css';
 import './MeetingDetail.css';
 
-/** Same key pattern the teacher dashboard tour (TeacherDashboard.js) writes,
- * so this live-room leg only auto-opens after that first leg was seen (or
- * skipped) — one continuous first-time tour spanning two routes. */
-function teacherDashboardTourKey(uid) {
-  return `portiq_teacher_onboarding_v1_${uid}`;
-}
-
-/** This screen's own leg of the same tour — separate key so it only shows once. */
+/** "Seen" flag for this screen's first-time tour, per teacher. */
 function teacherLiveRoomTourKey(uid) {
   return `portiq_teacher_onboarding_v1_${uid}_live`;
 }
@@ -149,6 +142,7 @@ const MeetingInProgress = () => {
   const mediaRecorderRef = React.useRef(null);
   const streamRef = React.useRef(null);
   const isMountedRef = useRef(true);
+  const hasLoadedMeetingRef = useRef(false); // true once this lecture has loaded at least once
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -260,6 +254,7 @@ const MeetingInProgress = () => {
   // New route id: reset UI so we never reuse another meeting's state.
   useEffect(() => {
     if (!meetingId) return;
+    hasLoadedMeetingRef.current = false;
     setMeeting(null);
     setLoading(true);
     setError('');
@@ -362,11 +357,17 @@ const MeetingInProgress = () => {
   const fetchMeeting = async () => {
     try {
       const res = await axios.get(`/meetings/${meetingId}`);
+      hasLoadedMeetingRef.current = Boolean(res.data.meeting);
       setMeeting(res.data.meeting);
       setError('');
       setLoading(false);
     } catch (err) {
       console.error('Error fetching meeting:', err);
+      // This runs every few seconds for the whole lecture. One failed poll (classroom Wi-Fi
+      // dropping for a moment) must not blank the room: that unmounted the smartboard and the
+      // recording controls mid-lecture. Keep what we have and let the next poll catch up; only
+      // show the error screen when the lecture never loaded at all.
+      if (hasLoadedMeetingRef.current) return;
       setError(formatApiError(err, 'Failed to load meeting details'));
       setMeeting(null);
       setLoading(false);
@@ -771,15 +772,20 @@ const MeetingInProgress = () => {
     }
   };
 
-  // Continue the teacher onboarding tour into the live room — but only once
-  // the dashboard leg (TeacherDashboard.js) has itself been seen or skipped,
-  // and only once, and only for education-mode lectures.
+  // First-time tour of the live room, shown once per teacher.
+  // Two things this used to get wrong: it waited for the dashboard tour's "seen" flag under a
+  // key built from the teacher's email, while the dashboard stores that flag under the account
+  // id — so the two never matched and this tour never opened. And because `meeting` is replaced
+  // by every 5-second poll, the effect re-ran on each poll; the ref makes sure it can only open
+  // the tour once per visit instead of snapping it back to step one.
+  const liveTourOfferedRef = useRef(false);
   useEffect(() => {
+    if (liveTourOfferedRef.current) return;
     if (!meeting || meetingEnded) return;
     if (!(meetingHasEducationContext(meeting) || isEducation)) return;
     const uid = String(meeting.educationTeacherEmail || '').trim().toLowerCase();
     if (!uid) return;
-    if (!hasSeenTour(teacherDashboardTourKey(uid))) return;
+    liveTourOfferedRef.current = true;
     if (hasSeenTour(teacherLiveRoomTourKey(uid))) return;
     setLiveTourOpen(true);
     setLiveTourStep(0);
@@ -790,51 +796,44 @@ const MeetingInProgress = () => {
   const liveTourSteps = useMemo(
     () => [
       {
-        id: 'smartboard-intro',
-        title: 'Set up your board',
-        body: 'Upload slides or start a blank whiteboard page below — that unlocks the drawing tools for this step.',
-        target: null,
-        icon: Upload,
+        id: 'start-recording',
+        title: 'Start recording when you begin',
+        body: 'The audio is what your lecture notes are written from. You can pause and resume at any point.',
+        target: '[data-tour="mip-start-recording"]',
+        icon: Mic,
       },
       {
         id: 'smartboard-mode',
-        title: 'Slides or Whiteboard',
-        body: 'Switch between Slides and Whiteboard anytime, even mid-lecture — your students always see the current one.',
+        title: 'Slides or whiteboard',
+        body: 'Upload your slides as a PDF, or open a blank whiteboard page. Switch between the two whenever you like — nothing is lost.',
         target: '[data-tour="smartboard-mode"]',
         icon: Presentation,
       },
       {
         id: 'smartboard-tools',
-        title: 'Draw and annotate',
-        body: 'Pick a pen color and width, or switch to the eraser — click a stroke to remove just that one. Undo and Clear are here too.',
-        target: '[data-tour="smartboard-tools"]',
+        title: 'Write on anything',
+        body: 'Pen, highlighter, shapes, text and an eraser, on slides and on the whiteboard. Undo brings back anything, even a cleared page.',
+        target: '[data-tour="smartboard-tools"], .smartboard__empty',
         icon: PenLine,
       },
       {
         id: 'smartboard-stage',
-        title: 'Your stage',
-        body: 'This is where you draw. Slides letterbox here so you can annotate over them; whiteboard pages start blank.',
-        target: '[data-tour="smartboard-stage"]',
+        title: 'Full screen for the projector',
+        body: 'Press Full screen (or F) to fill the smart board or projector with just the board. Esc brings you back.',
+        target: '.smartboard__fullscreen-btn, [data-tour="smartboard-stage"], .smartboard__empty',
         icon: Presentation,
       },
       {
         id: 'smartboard-nav',
-        title: 'Pages',
-        body: 'Move between slides or whiteboard pages here. "New page" adds a blank one; "Replace deck" swaps in a different PDF.',
-        target: '[data-tour="smartboard-nav"]',
+        title: 'Turn pages',
+        body: 'Use these buttons, the arrow keys or a presentation clicker. Students receive only the pages you actually open, with what you wrote on them.',
+        target: '[data-tour="smartboard-nav"], .smartboard__empty',
         icon: ListOrdered,
       },
       {
-        id: 'start-recording',
-        title: 'Start recording',
-        body: 'Recording captures audio for the transcript and AI summary. Start it whenever the lecture begins.',
-        target: '[data-tour="mip-start-recording"]',
-        icon: Mic,
-      },
-      {
         id: 'end-meeting',
-        title: 'Ending the lecture',
-        body: "End Lecture once you're done. Students automatically get an AI summary, a quiz, and a full slide/whiteboard recap — no extra steps.",
+        title: 'End the lecture',
+        body: 'Your notes are written for you in a few minutes. From there you generate a 5-question quiz and send the class one link with the pages, notes, quiz and a place to ask questions.',
         target: '[data-tour="mip-end-meeting"]',
         icon: Sparkles,
       },
@@ -976,7 +975,9 @@ const MeetingInProgress = () => {
                   ? 'Session ended — next, review AI recommendations'
                   : isCura
                     ? 'Visit ended — here\'s your summary'
-                    : 'Session ended'}
+                    : meetingEducationMode
+                      ? 'Lecture ended — next, your notes and quiz'
+                      : 'Session ended'}
               </p>
               <p className="mip-ai-disclaimer">
                 {isInterview ? (
@@ -988,6 +989,11 @@ const MeetingInProgress = () => {
                 ) : isCura ? (
                   <>
                     I&apos;ll put together a plain-language briefing from the recording. Open it, tweak anything, then tap Done.
+                  </>
+                ) : meetingEducationMode ? (
+                  <>
+                    Your lecture is saved and the notes are being written from the recording — usually a couple of
+                    minutes. Open them to review, generate the quiz and send your class the recap link.
                   </>
                 ) : (
                   <>

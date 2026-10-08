@@ -283,6 +283,17 @@ const Dashboard = () => {
       .slice(0, 6);
   }, [meetings]);
 
+  if (isEducation && trial?.loading && !trial?.profile) {
+    // Role not known yet. Rendering the admin dashboard here (the old behaviour) flashed the
+    // wrong screen at every teacher on each load and fired the admin-only requests.
+    return (
+      <div className="dashboard-screen" aria-busy="true">
+        <div className="dashboard-wrapper">
+          <div className="dashboard-content" />
+        </div>
+      </div>
+    );
+  }
   if (isEducation && trial?.profile?.role === 'faculty') {
     return <TeacherDashboard />;
   }

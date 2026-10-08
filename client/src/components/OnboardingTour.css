@@ -62,6 +62,9 @@
 }
 
 .onboarding-tour__card--spotlight {
+  /* Set here, not inline: tablet-fix.css forces any element whose inline style contains
+     "position: fixed" to position: relative, which threw this card off-screen. */
+  position: fixed;
   transition: top 0.18s var(--ease-out, ease), left 0.18s var(--ease-out, ease);
 }
 

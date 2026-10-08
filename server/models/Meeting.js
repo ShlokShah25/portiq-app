@@ -610,6 +610,8 @@ const meetingSchema = new mongoose.Schema({
         // results page can group right/wrong answers by topic. Optional — older
         // quizzes generated before this field existed just won't have a breakdown.
         topic: { type: String, default: '', trim: true },
+        // easy | medium | hard, as labelled when the question was written. Optional.
+        difficulty: { type: String, default: '', trim: true },
       },
     ],
     // When true, the recap page asks every student for their name/email before
@@ -625,6 +627,12 @@ const meetingSchema = new mongoose.Schema({
         score: { type: Number, required: true },
         total: { type: Number, required: true },
         submittedAt: { type: Date, default: Date.now },
+        // The option each question was answered with (-1 = left blank), so the teacher can
+        // see which questions the class got wrong. `quizGeneratedAt` ties those answers to
+        // the question set they were given for: after "Regenerate quiz" the old answers no
+        // longer line up with the new questions and are left out of per-question stats.
+        answers: [{ type: Number }],
+        quizGeneratedAt: { type: Date, default: null },
       },
     ],
   },

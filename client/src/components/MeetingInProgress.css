@@ -505,8 +505,14 @@
 .mip-ready-badge--ended {
   background: linear-gradient(135deg, rgba(16, 185, 129, 0.24), rgba(34, 197, 94, 0.18));
   border-color: rgba(34, 197, 94, 0.45);
-  color: #dcfce7;
+  /* Dark green on the light theme (the pale mint this used was written for the old dark UI and
+     is unreadable on a light green pill); the pale tint is kept for dark mode below. */
+  color: #166534;
   box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.14) inset;
+}
+
+:root[data-theme='dark'] .mip-ready-badge--ended {
+  color: #dcfce7;
 }
 
 .mip-ready-badge__dot--neutral {

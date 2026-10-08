@@ -59,7 +59,9 @@ function getDefaultFrom() {
  * @returns {Promise<{ success: boolean, message?: string, error?: string }>}
  */
 async function sendEmail(options) {
-  const { from = getDefaultFrom(), to, subject, html, text, attachments = [] } = options;
+  const { from = getDefaultFrom(), to, subject, html, text, attachments = [], bcc } = options;
+  // Optional blind copies (e.g. a whole class, so students do not see each other's addresses).
+  const bccList = (Array.isArray(bcc) ? bcc : bcc ? [bcc] : []).filter(Boolean);
 
   if (!to || !subject) {
     return { success: false, error: 'Missing to or subject' };
@@ -79,6 +81,7 @@ async function sendEmail(options) {
         html: html || (text ? `<pre>${text.replace(/</g, '&lt;')}</pre>` : '<p></p>'),
       };
       if (text && !html) payload.text = text;
+      if (bccList.length > 0) payload.bcc = bccList;
       if (attachments && attachments.length > 0) {
         payload.attachments = attachments.map((a) => ({
           filename: a.filename,
@@ -110,6 +113,7 @@ async function sendEmail(options) {
         subject,
         html: html || (text ? `<pre>${text.replace(/</g, '&lt;')}</pre>` : ''),
         text: text || undefined,
+        ...(bccList.length > 0 ? { bcc: bccList.join(',') } : {}),
         attachments: (attachments || []).map((a) => ({
           filename: a.filename,
           content: a.content,
