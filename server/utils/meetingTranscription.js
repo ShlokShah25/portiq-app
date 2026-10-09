@@ -1271,7 +1271,8 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
       'You may add a light student-facing assist layer in the detailed layer only when clearly supported by the transcript; never invent facts. ' +
       'Transcript fidelity is strict: if the teacher dictated assignment questions/prompts, reproduce those prompts faithfully (wording and intent) instead of replacing them with generic alternatives. ' +
       'ANTI-FILLER: Do not substitute the transcript with generic “any class could say this” prose (e.g. only “importance of the unit”, “lay the groundwork”, “foundational for assessments”, “students should ask doubts”) without concrete nouns, numbers, problem statements, definitions, or examples that appear in the transcript. Every subsection must contain specific instructional substance from the audio, not meta-commentary about learning in general. '
-    : 'This output is for operational clarity and execution quality: preserve the real business substance of the session, including context, rationale, trade-offs, dependencies, risks, blockers, stakeholder concerns, and concrete commitments. Keep nuanced reasoning when it changes decisions or priorities. ';
+    : 'This output is for operational clarity and execution quality: preserve the real business substance of the session, including context, rationale, trade-offs, dependencies, risks, blockers, stakeholder concerns, and concrete commitments — but ONLY where the participants actually said them. ' +
+      'TRANSCRIPT ONLY: these minutes are a record of what was said in this meeting, nothing more. Do not add background, industry context, best practices, recommendations, motivations, owners, deadlines, risks or conclusions that nobody voiced. If the meeting was short or thin, the minutes are short and thin. ';
 
   const systemElaborationDepth = isEducation
     ? 'Depth is mandatory in the summary’s DETAILED EXPLANATION layer: when the instructor explains at length, keep the full how/why/what-next (rationale, contrast, sequence, edge cases, numbers, worked examples)—never one vague line like "discussed X". keyPoints are intentionally short one-line recall lines only; all elaboration belongs under STRUCTURED NOTES and DETAILED EXPLANATION inside summary. Prefer several short paragraphs (and optional ### mini-headings) per major topic in DETAILED EXPLANATION over one dense block; formatting must aid clarity, not clutter. '
@@ -1283,7 +1284,7 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
 
   const summarySchemaHint = isEducation
     ? '"summary": "ONE string in GitHub-flavored Markdown (no raw HTML). This field is ONLY layers 2+3: ## STRUCTURED NOTES then ## DETAILED EXPLANATION. Layer 1 QUICK REVISION is keyPoints only; layer 4 REVISION QUESTIONS is revisionQuestions only—never put those here. STRUCTURED NOTES: after the heading, blank line, then subsections chosen from Definitions:, Objectives:, Functions:, Key Concepts: (in that order), each heading on its own line, blank line, then bullets with \\"- \\". Include a subsection ONLY when the teacher actually said something that belongs in it; leave out any subsection the transcript gives nothing for (do not write placeholder text and do not invent content to fill it). One bullet = one idea; keep bullets short (avoid long sentences in bullets—depth goes in DETAILED EXPLANATION). Space sections clearly; never merge headings. **Bold** ONLY key terms on first strong mention (e.g. **Cost Center**) and heading labels if needed—never bold full sentences or entire bullets. GFM pipe tables ONLY for real comparisons (e.g. A vs B); use rows like | Aspect | Type A | Type B |; never force a table for ordinary definitions. DETAILED EXPLANATION: after heading, blank line, then short paragraphs (2–4 sentences) with full teaching depth; optional ### mini-headings sparingly; **bold** key terms sparingly; formulas as `inline code` or plain text; blank line between paragraphs. Aim for clean exam notes: easy to skim, conceptually deep, not over-formatted.",'
-    : '"summary": "Coherent English narrative (typically 8–16 sentences when the session is substantive). Cover the true business content: context, what changed, key decisions, trade-offs, risks, owners, and expected outcomes. Scale length with transcript depth—not with the calendar title.",';
+    : '"summary": "Coherent English narrative of what was actually said. Length follows the transcript: a few sentences for a short call, more only when the discussion really was long. Cover context, what changed, decisions, trade-offs, risks, owners and expected outcomes ONLY where they were spoken — never fill a category the meeting did not touch. Scale length with transcript depth—not with the calendar title.",';
 
   const keyPointsSchemaHint = isEducation
     ? '"keyPoints": ["5–8 strings for QUICK REVISION only (PortIQ layer 1); fewer if the lecture was short. Each string ONE line, VERY concise; prefer \\"Term = meaning\\" (e.g. Cost Unit = unit used to measure cost), where the meaning is what the teacher said, not a textbook definition. Inline **bold** allowed around the term only—not whole lines. Exam scan / recall only; no explanations or paragraphs (depth is in summary). Match teaching order when possible. No speaker labels."],'
@@ -1317,18 +1318,22 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
       `- FORMATTING (readability first): **Bold** only key terms and light heading emphasis—not full sentences or dense bold. GFM pipe tables ONLY for side-by-side comparisons; never force tables. Use \`backticks\` for symbols when clearer. Avoid cluttered Markdown and excessive bold.\n` +
       `- REQUIRED: fill revisionQuestions with 4–6 numbered questions (see schema)—never omit for education mode.\n` +
       `- Keep wording classroom-friendly and instructional, not corporate.\n`
-    : `- Workplace mode: structure bullets for execution clarity where transcript supports it (e.g. decision rationale, owner-accountability, timelines, dependency chains, go/no-go conditions).\n` +
+    : `- TRANSCRIPT ONLY — THIS RULE OVERRIDES EVERY OTHER. Every sentence, key point, decision, next step, note and action item must come from something a participant actually said in this transcript. Keep their wording, names, numbers and order wherever possible.\n` +
+      `- Never add your own analysis, advice, recommendations, implied risks, assumed owners, assumed deadlines, general business knowledge or a "why this matters" layer. If a topic was only mentioned in passing, report it as mentioned — do not expand it.\n` +
+      `- Before writing each line, check that you could point to the place in the transcript it comes from. If you cannot, leave it out. Empty sections are correct when the meeting did not cover them.\n` +
+      `- Length follows the transcript: a short or thin meeting gets a short summary. Never pad.\n` +
+      `- Workplace mode: structure bullets for execution clarity where transcript supports it (e.g. decision rationale, owner-accountability, timelines, dependency chains, go/no-go conditions).\n` +
       `- Keep exact business terms as spoken (project names, system names, ticket refs, metrics, and deadlines).\n` +
       `- If deliverables, approvals, follow-ups, handoffs, or review checkpoints are mentioned, ensure they appear as concrete action items with due dates when stated.\n` +
       `- Keep wording professional and operational, not generic or motivational.\n`;
 
   const meetingOrLectureFullPictureRule = isEducation
     ? `- The summary must give a full picture: STRUCTURED NOTES capture every bucketed idea; DETAILED EXPLANATION then walks the class in order with learning goals when stated, dependencies between ideas, reasoning, examples, formulas/steps, and caveats—not a thin topic list.\n`
-    : `- The executive summary must cover the full picture of the meeting: why it was held, what was discussed across all topics, key concerns, and overall outcome.\n`;
+    : `- The executive summary must cover everything that was discussed across all topics, the concerns raised and the outcome — and why the meeting was held only if someone said so. Do not invent a purpose or an outcome.\n`;
 
   const coverageMandatoryRule = isEducation
     ? `- Coverage is mandatory: include every substantive teaching move, definition, comparison, example, and clarification—not only topic titles or opening/closing themes.\n`
-    : `- Coverage is mandatory: include ALL relevant points that materially affect outcomes, responsibilities, risks, timelines, or scope.\n`;
+    : `- Coverage is mandatory: include ALL points actually raised that affect outcomes, responsibilities, risks, timelines, or scope — and nothing that was not raised.\n`;
 
   // Optional stronger model for lecture notes only (OPENAI_EDUCATION_SUMMARY_MODEL). If OpenAI
   // refuses it (unknown name, no access, unsupported parameter) we drop back to the normal
@@ -1427,8 +1432,8 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
               `- For absolute phrases ("24 March", "March 24th") use the meeting anchor year if the year is unstated. If no deadline is stated for that task ("soon", "ASAP" alone), use null.\n` +
               `- Never copy unrelated dates from examples, statistics, or other topics into an action item's dueDate.\n` +
               `- In decisions, include who made or proposed the decision only when identifiable. If there are no explicit decisions, set decisions to []. Do not infer.\n` +
-              `- In nextSteps, include concrete follow-ups that logically continue from explicit next actions in the transcript. If none exist, set nextSteps to []. Do not infer.\n` +
-              `- In importantNotes, include risks, blockers, dependencies, unresolved questions, and critical assumptions if discussed. If none exist, set importantNotes to []. Do not infer.\n` +
+              `- In nextSteps, include only follow-ups someone explicitly stated in the transcript. Do not derive or suggest next steps yourself. If none were stated, set nextSteps to [].\n` +
+              `- In importantNotes, include risks, blockers, dependencies, unresolved questions, and assumptions only if a participant raised them. Never add risks you think apply. If none were raised, set importantNotes to [].\n` +
             `- Do not hallucinate information that was not discussed.\n` +
             `- Only include decisions or actions that are clearly mentioned.\n` +
             (isEducation
