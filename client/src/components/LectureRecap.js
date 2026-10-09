@@ -287,9 +287,14 @@ function Markdown({ children }) {
  * "## DETAILED EXPLANATION"). Same content, calmer labels for the student page.
  */
 function tidyNotes(summary) {
-  return String(summary || '')
-    .replace(/^(#{1,3})\s*STRUCTURED NOTES\s*:?\s*$/gim, '$1 Structured notes')
-    .replace(/^(#{1,3})\s*DETAILED EXPLANATION\s*:?\s*$/gim, '$1 Detailed explanation');
+  return (
+    String(summary || '')
+      .replace(/^(#{1,3})\s*STRUCTURED NOTES\s*:?\s*$/gim, '$1 Structured notes')
+      .replace(/^(#{1,3})\s*DETAILED EXPLANATION\s*:?\s*$/gim, '$1 Detailed explanation')
+      // The notes prompt writes its four subsections as bare lines ("Definitions:"), sometimes
+      // bolded. Give them real subheadings so the page has a scannable structure.
+      .replace(/^\s*(?:\*\*)?(Definitions|Objectives|Functions|Key Concepts)\s*:?\s*(?:\*\*)?\s*:?\s*$/gim, '### $1')
+  );
 }
 
 /** "1. Define X\n2. Explain Y" → ["Define X", "Explain Y"]. Falls back to one item per line. */

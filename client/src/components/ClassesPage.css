@@ -779,3 +779,57 @@ a.classes-btn-primary {
     align-items: stretch;
   }
 }
+
+/* ---- Course editor fields ------------------------------------------------
+ * The semester name, subject and student inputs on the course page sit outside
+ * `.classes-form`, so they were rendering as bare browser inputs. Same look as
+ * the form fields above. */
+
+.classes-assignments-head > input,
+.classes-assignment-row input[type='text'],
+.classes-students-table input {
+  width: 100%;
+  min-height: 42px;
+  background: var(--surface-input, var(--dash-chip-bg));
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--edu-radius-sm, 8px);
+  padding: 9px 12px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  font-family: var(--font-sans, 'Inter', system-ui, sans-serif);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.classes-assignments-head > input {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.classes-assignments-head > input:focus,
+.classes-assignment-row input[type='text']:focus,
+.classes-students-table input:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  box-shadow: var(--edu-shadow-focus, 0 0 0 3px rgba(31, 107, 255, 0.18));
+}
+
+.classes-assignment-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+}
+
+.classes-assignment-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.classes-assignment-row .classes-btn-sm {
+  min-height: 42px !important;
+}
