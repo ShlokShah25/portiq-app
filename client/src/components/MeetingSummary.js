@@ -30,6 +30,13 @@ function meetingHasEducationContext(m) {
   return false;
 }
 
+function formatLectureDate(v) {
+  if (!v) return '';
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
 const MeetingSummary = () => {
   const { id } = useParams();
   const location = useLocation();
@@ -357,6 +364,15 @@ const MeetingSummary = () => {
     setEditingSummary(true);
   };
 
+  /** Publish panel step 1: open the notes editor and bring it into view. */
+  const openEducationReview = async () => {
+    await startEditing();
+    window.setTimeout(() => {
+      const el = document.getElementById('lecture-notes-editor');
+      if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+  };
+
   const handleSaveEducationReview = async () => {
     if (!id || !editableSummary) return;
     setSaving(true);
@@ -384,6 +400,10 @@ const MeetingSummary = () => {
       setMeeting(res.data.meeting);
       setEditingSummary(false);
       setEditableSummary(null);
+      window.setTimeout(() => {
+        const panel = document.querySelector('.publish-panel');
+        if (panel && panel.scrollIntoView) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 60);
     } catch (err) {
       setActionError(formatApiError(err, 'Failed to save review.'));
     } finally {
@@ -493,15 +513,31 @@ const MeetingSummary = () => {
           )}
 
           {!isInterviewReportSurface ? (
-            <p className="meeting-summary-subtitle">
-              {isEducationMode ? 'Lecture Notes' : isInterview ? 'Interview evaluation' : 'Meeting Summary'}
-            </p>
+            isEducationMode ? (
+              <p className="meeting-summary-subtitle meeting-summary-subtitle--lecture">
+                {[
+                  meeting.educationSubject,
+                  meeting.educationClassroomName,
+                  formatLectureDate(meeting.startTime || meeting.scheduledTime || meeting.createdAt),
+                ]
+                  .filter(Boolean)
+                  .join(' · ') || 'Lecture'}
+              </p>
+            ) : (
+              <p className="meeting-summary-subtitle">
+                {isInterview ? 'Interview evaluation' : 'Meeting Summary'}
+              </p>
+            )
           ) : null}
 
-          {isEducationMode && (
+          {isEducationMode && !meeting.editorVerificationRequired && (
             <LectureRecapPanel
               meeting={meeting}
               onQuizGenerated={(quiz) => setMeeting((m) => (m ? { ...m, quiz } : m))}
+              onMeetingUpdated={setMeeting}
+              onReviewNotes={openEducationReview}
+              editingNotes={editingSummary}
+              requestHeaders={editorOtpHeaders(id)}
             />
           )}
 
@@ -595,7 +631,7 @@ const MeetingSummary = () => {
           </p>
           )}
 
-          {canEditAndSend && allowsTranslatedSummary && !meeting.editorVerificationRequired && (
+          {canEditAndSend && allowsTranslatedSummary && !isEducationMode && !meeting.editorVerificationRequired && (
             <div className="meeting-summary-language-row">
               {!isEducationMode ? (
                 <label className="meeting-summary-language-label">
@@ -623,7 +659,7 @@ const MeetingSummary = () => {
             <div className="meeting-summary-empty">
               {meeting.transcriptionStatus === 'Processing' ? (
                 <p className="meeting-summary-thinking meeting-summary-thinking--muted" role="status">
-                  Understanding your conversation
+                  {isEducationMode ? 'Writing your lecture notes from the recording' : 'Understanding your conversation'}
                   <span className="meeting-summary-thinking-dots" aria-hidden>
                     <span className="meeting-summary-thinking-dot" />
                     <span className="meeting-summary-thinking-dot" />
@@ -683,10 +719,12 @@ const MeetingSummary = () => {
           {editingSummary && editableSummary && !meeting.editorVerificationRequired && (
             <>
               {isEducationMode ? (
+                <div id="lecture-notes-editor" className="meeting-summary-notes-editor-anchor">
                 <EducationNotesEditorFields
                   editableSummary={editableSummary}
                   setEditableSummary={setEditableSummary}
                 />
+                </div>
               ) : (
               <div className="meeting-summary-edit">
                 <div className="meeting-summary-edit-field">
@@ -987,40 +1025,15 @@ const MeetingSummary = () => {
                         Edit Summary
                       </button>
                     </>
-                  ) : isEducationMode && !educationReviewed ? (
+                  ) : isEducationMode ? (
                     <button
                       type="button"
-                      className="meeting-summary-btn meeting-summary-btn--primary meeting-summary-btn--send"
+                      className="meeting-summary-btn meeting-summary-btn--secondary"
                       disabled={saving}
-                      onClick={startEditing}
+                      onClick={openEducationReview}
                     >
-                      Review and Edit Notes
+                      {educationReviewed ? 'Edit notes' : 'Review and edit notes'}
                     </button>
-                  ) : isEducationMode && educationReviewed ? (
-                    <>
-                      <button
-                        type="button"
-                        className="meeting-summary-btn meeting-summary-btn--primary meeting-summary-btn--send"
-                        disabled={saving}
-                        onClick={handleApproveAndSend}
-                      >
-                        {saving ? (
-                          <>
-                            <span className="meeting-summary-btn-spinner" aria-hidden />
-                            Sending…
-                          </>
-                        ) : (
-                          'Send lecture notes to class'
-                        )}
-                      </button>
-                      <button
-                        type="button"
-                        className="meeting-summary-btn meeting-summary-btn--secondary"
-                        onClick={startEditing}
-                      >
-                        Edit notes
-                      </button>
-                    </>
                   ) : (
                     <>
                       <button

@@ -10,10 +10,8 @@ export default function EducationNotesEditorFields({ editableSummary, setEditabl
   return (
     <div className="meetings-edu-notes-editor">
       <p className="meetings-edu-notes-editor__lead">
-        Output is four layers: <strong>Quick revision</strong> (key points), <strong>Structured notes</strong> and{' '}
-        <strong>detailed explanation</strong> in the long text, then <strong>revision questions</strong>. Keep editing
-        simple: use toolbar buttons for bold/lists/tables; a live preview is shown only for the long summary block. Use{' '}
-        <strong>Save review</strong> to checkpoint work, then send when ready.
+        Fix anything the recording got wrong, then <strong>Save review</strong>. Nothing reaches students until you
+        press <strong>Send to class</strong> at the top.
       </p>
       <div className="meeting-summary-edit-field">
         <EducationMarkdownLiveField

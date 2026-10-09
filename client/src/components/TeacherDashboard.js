@@ -2,10 +2,24 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useTrialExperience } from './TrialExperienceProvider';
-import { BookOpen, GraduationCap, Layers, Lightbulb, Zap, CalendarDays, Target, AlertCircle } from 'lucide-react';
+import {
+  BookOpen,
+  Zap,
+  CalendarDays,
+  Target,
+  AlertCircle,
+  FileCheck2,
+  Radio,
+  ArrowRight,
+  Users,
+  Check,
+  PlayCircle,
+  Inbox,
+  HelpCircle,
+  Type,
+} from 'lucide-react';
 import { listCourses } from '../utils/coursesApi';
 import { T } from '../config/terminology';
-import { TEACHER_FACULTY_TIPS, pickTipIndex, TIP_ROTATION_MS } from '../config/dashboardTips';
 import OnboardingTour, { hasSeenTour } from './OnboardingTour';
 import './Dashboard.css';
 
@@ -18,34 +32,57 @@ export function teacherDashboardTourKey(uid) {
 function buildParticipantsFromSemester(semester) {
   if (!semester || !Array.isArray(semester.studentRoster)) return [];
   return semester.studentRoster
-    .map((s) => String(s?.email || '').trim())
-    .filter(Boolean)
-    .map((email) => ({
-      name: email.split('@')[0],
-      email,
+    .map((s) => ({ email: String(s?.email || '').trim(), name: String(s?.name || '').trim() }))
+    .filter((s) => s.email)
+    .map((s) => ({
+      name: s.name || s.email.split('@')[0],
+      email: s.email,
       role: 'participant',
     }));
 }
 
-/** Local calendar YYYY-MM-DD for comparison (browser timezone). */
-function getLocalDayKey(d = new Date()) {
-  const y = d.getFullYear();
-  const mo = String(d.getMonth() + 1).padStart(2, '0');
-  const da = String(d.getDate()).padStart(2, '0');
-  return `${y}-${mo}-${da}`;
-}
-
-function getMeetingSortDate(m) {
+function lectureDate(m) {
   const v = m?.startTime || m?.scheduledTime || m?.createdAt;
   if (!v) return null;
   const d = new Date(v);
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-function isMeetingOnLocalDay(m, dayKey) {
-  const d = getMeetingSortDate(m);
-  if (!d) return false;
-  return getLocalDayKey(d) === dayKey;
+function greetingFor(d = new Date()) {
+  const h = d.getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+function relativeDay(d) {
+  if (!d) return '';
+  const today = new Date();
+  const start = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diff = Math.round((start(today) - start(d)) / 86400000);
+  const time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  if (diff === 0) return `Today, ${time}`;
+  if (diff === 1) return `Yesterday, ${time}`;
+  return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+/**
+ * Where a lecture is in its life, and the one thing the teacher should do next.
+ *   live → rejoin the room · writing → wait · review → open publish page · sent → view
+ */
+function lectureStage(m) {
+  const status = String(m?.status || '');
+  if (status === 'In Progress') return { key: 'live', label: 'Live now', action: 'Rejoin', to: `/meetings/${m._id}/room` };
+  if (status === 'Scheduled' || status === 'Not Started' || !status) {
+    return { key: 'ready', label: 'Not started', action: 'Open room', to: `/meetings/${m._id}/room` };
+  }
+  if (m?.summaryStatus === 'Sent') return { key: 'sent', label: 'Sent to class', action: 'View', to: `/meetings/${m._id}/summary` };
+  const hasNotes = Boolean(String(m?.pendingSummary || m?.summary || '').trim());
+  if (!hasNotes && m?.transcriptionStatus === 'Failed') {
+    return { key: 'failed', label: 'Notes failed', action: 'Fix', to: `/meetings/${m._id}/summary` };
+  }
+  if (!hasNotes) return { key: 'writing', label: 'Writing notes', action: 'Open', to: `/meetings/${m._id}/summary` };
+  return { key: 'review', label: 'Needs review', action: 'Review & send', to: `/meetings/${m._id}/summary` };
 }
 
 export default function TeacherDashboard() {
@@ -56,28 +93,27 @@ export default function TeacherDashboard() {
   const [courses, setCourses] = useState([]);
   const [coursesLoading, setCoursesLoading] = useState(true);
   const [coursesError, setCoursesError] = useState('');
-  const [selectedCourseId, setSelectedCourseId] = useState('');
-  const [selectedSemesterId, setSelectedSemesterId] = useState('');
-  const [lectureTitle, setLectureTitle] = useState('');
-  const [selectedSubject, setSelectedSubject] = useState('');
+  const [selectedKey, setSelectedKey] = useState('');
+  const [topic, setTopic] = useState('');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
-  const [lectureRecords, setLectureRecords] = useState([]);
-  const [recordsLoading, setRecordsLoading] = useState(false);
-  const [recordsError, setRecordsError] = useState('');
-  const [weekLectureCount, setWeekLectureCount] = useState(null);
-  const [quizStats, setQuizStats] = useState({ loading: true, avgPct: null, pendingMandatory: 0 });
-  /** Bumps when the local calendar day changes so we refetch / refilter “today’s” list. */
-  const [localDayKey, setLocalDayKey] = useState(() => getLocalDayKey());
+  const [lectures, setLectures] = useState([]);
+  const [lecturesLoading, setLecturesLoading] = useState(true);
+  const [lecturesError, setLecturesError] = useState('');
+  const [quizStats, setQuizStats] = useState({ loading: true, avgPct: null, pendingMandatory: 0, attempts: 0 });
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
-  const [tipIndex, setTipIndex] = useState(() =>
-    pickTipIndex('portiq_teacher_tip_idx', TEACHER_FACULTY_TIPS.length)
-  );
-  const courseFieldRef = useRef(null);
-  const semesterFieldRef = useRef(null);
-  const subjectFieldRef = useRef(null);
+  const classesRef = useRef(null);
+  const topicRef = useRef(null);
   const startButtonRef = useRef(null);
+  const queueRef = useRef(null);
+
+  const teacherName =
+    (profile?.username && String(profile.username).trim()) ||
+    (profile?.email && String(profile.email).trim()) ||
+    'Teacher';
+  const teacherEmail = String(profile?.email || '').trim().toLowerCase();
+  const teacherUid = String(profile?.id || profile?._id || profile?.email || '').trim();
 
   useEffect(() => {
     let cancelled = false;
@@ -86,13 +122,9 @@ export default function TeacherDashboard() {
       setCoursesError('');
       try {
         const { courses: list } = await listCourses();
-        if (!cancelled) setCourses(list);
+        if (!cancelled) setCourses(Array.isArray(list) ? list : []);
       } catch (err) {
-        if (!cancelled) {
-          setCoursesError(
-            err.response?.data?.error || err.message || 'Could not load courses.'
-          );
-        }
+        if (!cancelled) setCoursesError(err.response?.data?.error || err.message || 'Could not load your classes.');
       } finally {
         if (!cancelled) setCoursesLoading(false);
       }
@@ -102,157 +134,35 @@ export default function TeacherDashboard() {
     };
   }, []);
 
-  const selectedCourse = useMemo(
-    () => courses.find((c) => c._id === selectedCourseId) || null,
-    [courses, selectedCourseId]
-  );
-  const semesters = useMemo(
-    () => (Array.isArray(selectedCourse?.semesters) ? selectedCourse.semesters : []),
-    [selectedCourse]
-  );
-  const selectedSemester = useMemo(
-    () => semesters.find((s) => s._id === selectedSemesterId) || null,
-    [semesters, selectedSemesterId]
-  );
-  const subjects = useMemo(
-    () => (Array.isArray(selectedSemester?.subjects) ? selectedSemester.subjects : []),
-    [selectedSemester]
-  );
-  const teacherName =
-    (profile?.username && String(profile.username).trim()) ||
-    (profile?.email && String(profile.email).trim()) ||
-    'Teacher';
-  const teacherEmail = String(profile?.email || '').trim().toLowerCase();
-
-  const onboardingSteps = useMemo(
-    () => [
-      {
-        id: 'course',
-        title: 'Choose your course',
-        body: 'Select the course you are teaching (e.g. MBA Tech AI). Your admin sets these up, along with semesters and rosters.',
-        target: courseFieldRef,
-        icon: GraduationCap,
-      },
-      {
-        id: 'semester',
-        title: 'Pick the semester',
-        body: 'The roster for this semester is linked automatically so your session stays aligned with that batch.',
-        target: semesterFieldRef,
-        icon: Layers,
-      },
-      {
-        id: 'subject',
-        title: 'Select the subject',
-        body: 'Match the subject you are covering today. Notes and summaries stay grouped by subject for easy review later.',
-        target: subjectFieldRef,
-        icon: BookOpen,
-      },
-      {
-        id: 'start',
-        title: 'Go live in one tap',
-        body: 'Hit Start lecture to open the room with recording and live notes ready—no extra setup.',
-        target: startButtonRef,
-        icon: Zap,
-      },
-    ],
-    []
-  );
-
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setTipIndex((i) => (i + 1) % TEACHER_FACULTY_TIPS.length);
-    }, TIP_ROTATION_MS);
-    return () => window.clearInterval(id);
-  }, []);
-
-  useEffect(() => {
-    const uid = String(profile?.id || profile?._id || profile?.email || '').trim();
-    if (!uid) return;
-    if (!hasSeenTour(teacherDashboardTourKey(uid))) {
-      setOnboardingOpen(true);
-      setOnboardingStep(0);
-    }
-  }, [profile?.id, profile?._id, profile?.email]);
-
-  const teacherUid = String(profile?.id || profile?._id || profile?.email || '').trim();
-
-  useEffect(() => {
-    const syncLocalDay = () => {
-      const next = getLocalDayKey();
-      setLocalDayKey((prev) => (prev !== next ? next : prev));
-    };
-
-    const msToNextMidnight = () => {
-      const n = new Date();
-      const next = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1, 0, 0, 0, 0);
-      return Math.max(5_000, next.getTime() - n.getTime());
-    };
-
-    const poll = setInterval(syncLocalDay, 60 * 1000);
-    const midnight = setTimeout(syncLocalDay, msToNextMidnight());
-    const onVis = () => {
-      if (document.visibilityState === 'visible') syncLocalDay();
-    };
-    document.addEventListener('visibilitychange', onVis);
-    return () => {
-      clearInterval(poll);
-      clearTimeout(midnight);
-      document.removeEventListener('visibilitychange', onVis);
-    };
-  }, [localDayKey]);
-
   useEffect(() => {
     let cancelled = false;
-    const loadRecords = async () => {
-      setRecordsLoading(true);
-      setRecordsError('');
+    (async () => {
+      setLecturesLoading(true);
+      setLecturesError('');
       try {
         const res = await axios.get('/meetings', { timeout: 30000 });
         if (cancelled) return;
         const rows = Array.isArray(res.data?.meetings) ? res.data.meetings : [];
-        const isOwnedByTeacher = (m) => {
-          const ownerEmail = String(m?.educationTeacherEmail || '').trim().toLowerCase();
+        const mine = rows.filter((m) => {
+          const owner = String(m?.educationTeacherEmail || '').trim().toLowerCase();
           const organizer = String(m?.organizer || '').trim().toLowerCase();
-          if (teacherEmail) {
-            return ownerEmail === teacherEmail || organizer === teacherEmail;
-          }
+          if (teacherEmail) return owner === teacherEmail || organizer === teacherEmail;
           return String(m?.educationTeacherName || '').trim().toLowerCase() === teacherName.toLowerCase();
-        };
-        const teacherRecords = rows
-          .filter((m) => isOwnedByTeacher(m) && isMeetingOnLocalDay(m, localDayKey))
-          .sort((a, b) => {
-            const aTime = new Date(a?.startTime || a?.scheduledTime || a?.createdAt || 0).getTime();
-            const bTime = new Date(b?.startTime || b?.scheduledTime || b?.createdAt || 0).getTime();
-            return bTime - aTime;
-          })
-          .slice(0, 20);
-        setLectureRecords(teacherRecords);
-
-        // At-a-glance stat: lectures run in the last 7 days (not just today).
-        const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-        const weekCount = rows.filter((m) => {
-          if (!isOwnedByTeacher(m)) return false;
-          const t = getMeetingSortDate(m);
-          return t && t.getTime() >= weekAgo;
-        }).length;
-        if (!cancelled) setWeekLectureCount(weekCount);
+        });
+        mine.sort((a, b) => (lectureDate(b)?.getTime() || 0) - (lectureDate(a)?.getTime() || 0));
+        setLectures(mine);
       } catch (err) {
         if (cancelled) return;
         const d = err.response?.data;
-        setRecordsError(
-          [d?.error, d?.details].filter(Boolean).join(' — ') ||
-            err.message ||
-            'Could not load lecture records.'
-        );
+        setLecturesError([d?.error, d?.details].filter(Boolean).join(' — ') || err.message || 'Could not load your lectures.');
       } finally {
-        if (!cancelled) setRecordsLoading(false);
+        if (!cancelled) setLecturesLoading(false);
       }
-    };
-    loadRecords();
+    })();
     return () => {
       cancelled = true;
     };
-  }, [teacherEmail, teacherName, localDayKey]);
+  }, [teacherEmail, teacherName]);
 
   useEffect(() => {
     let cancelled = false;
@@ -260,27 +170,25 @@ export default function TeacherDashboard() {
       try {
         const res = await axios.get('/meetings/quiz-results/summary');
         if (cancelled) return;
-        const lectures = Array.isArray(res.data?.lectures) ? res.data.lectures : [];
-        let correctSum = 0;
-        let totalSum = 0;
+        const list = Array.isArray(res.data?.lectures) ? res.data.lectures : [];
+        let correct = 0;
+        let total = 0;
+        let attempts = 0;
         let pendingMandatory = 0;
-        lectures.forEach((lec) => {
-          const attempts = Array.isArray(lec.attempts) ? lec.attempts : [];
-          if (lec.mandatory && attempts.length === 0) pendingMandatory += 1;
-          attempts.forEach((a) => {
-            if (a.total > 0) {
-              correctSum += a.score;
-              totalSum += a.total;
+        list.forEach((lec) => {
+          const a = Array.isArray(lec.attempts) ? lec.attempts : [];
+          if (lec.mandatory && a.length === 0) pendingMandatory += 1;
+          attempts += a.length;
+          a.forEach((x) => {
+            if (x.total > 0) {
+              correct += x.score;
+              total += x.total;
             }
           });
         });
-        setQuizStats({
-          loading: false,
-          avgPct: totalSum > 0 ? Math.round((correctSum / totalSum) * 100) : null,
-          pendingMandatory,
-        });
-      } catch (err) {
-        if (!cancelled) setQuizStats({ loading: false, avgPct: null, pendingMandatory: 0 });
+        setQuizStats({ loading: false, avgPct: total > 0 ? Math.round((correct / total) * 100) : null, pendingMandatory, attempts });
+      } catch {
+        if (!cancelled) setQuizStats({ loading: false, avgPct: null, pendingMandatory: 0, attempts: 0 });
       }
     })();
     return () => {
@@ -288,323 +196,451 @@ export default function TeacherDashboard() {
     };
   }, []);
 
-  const formatLectureTime = (meeting) => {
-    const value = meeting?.startTime || meeting?.scheduledTime || meeting?.createdAt;
-    if (!value) return 'Not set';
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return 'Not set';
-    return d.toLocaleString();
-  };
+  /** Every course → semester → subject this teacher can teach, as one flat list of classes. */
+  const classes = useMemo(() => {
+    const out = [];
+    courses.forEach((c) => {
+      (Array.isArray(c?.semesters) ? c.semesters : []).forEach((s) => {
+        (Array.isArray(s?.subjects) ? s.subjects : []).forEach((subject) => {
+          const subj = String(subject || '').trim();
+          if (!subj) return;
+          out.push({
+            key: `${c._id}|${s._id}|${subj}`,
+            course: c,
+            semester: s,
+            subject: subj,
+            classroomId: `${c._id}:${s._id || s.name}`,
+            label: `${String(c.name || 'Course').trim()} — ${String(s.name || 'Semester').trim()}`,
+            students: buildParticipantsFromSemester(s).length,
+          });
+        });
+      });
+    });
+    // Classes taught most recently first, so today's class is usually the first tile.
+    const lastTaught = new Map();
+    lectures.forEach((m) => {
+      const k = `${m.educationClassroomId}|${m.educationSubject}`;
+      const t = lectureDate(m)?.getTime() || 0;
+      if (!lastTaught.has(k) || lastTaught.get(k) < t) lastTaught.set(k, t);
+    });
+    out.forEach((x) => {
+      x.lastTaughtAt = lastTaught.get(`${x.classroomId}|${x.subject}`) || 0;
+    });
+    return out.sort((a, b) => b.lastTaughtAt - a.lastTaughtAt);
+  }, [courses, lectures]);
 
-  const handleCreateAndStart = async () => {
+  const selected = classes.find((x) => x.key === selectedKey) || null;
+
+  const weekAgo = Date.now() - 7 * 86400000;
+  const weekCount = lectures.filter((m) => (lectureDate(m)?.getTime() || 0) >= weekAgo).length;
+  const staged = lectures.map((m) => ({ m, stage: lectureStage(m) }));
+  const liveNow = staged.find((x) => x.stage.key === 'live') || null;
+  const queue = staged.filter((x) => ['review', 'writing', 'failed'].includes(x.stage.key)).slice(0, 6);
+  const reviewCount = staged.filter((x) => x.stage.key === 'review').length;
+  const recent = staged.slice(0, 8);
+
+  const onboardingSteps = useMemo(
+    () => [
+      {
+        id: 'class',
+        title: 'Pick the class you are teaching',
+        body: 'Every course, semester and subject your admin assigned to you is here. One tap selects it — the student list comes with it.',
+        target: classesRef,
+        icon: BookOpen,
+      },
+      {
+        id: 'topic',
+        title: "Name today's topic",
+        body: 'Optional. It becomes the lecture title students see in their recap.',
+        target: topicRef,
+        icon: Type,
+      },
+      {
+        id: 'start',
+        title: 'Go live',
+        body: 'Opens the room with recording, slides and the whiteboard ready. When you end the lecture you land straight on the notes.',
+        target: startButtonRef,
+        icon: Zap,
+      },
+      {
+        id: 'queue',
+        title: 'Finish what is waiting',
+        body: 'Lectures whose notes are ready for you show up here. Review, add a quiz and send — three steps.',
+        target: queueRef,
+        icon: Inbox,
+      },
+    ],
+    []
+  );
+
+  useEffect(() => {
+    if (!teacherUid) return;
+    if (!hasSeenTour(teacherDashboardTourKey(teacherUid))) {
+      setOnboardingOpen(true);
+      setOnboardingStep(0);
+    }
+  }, [teacherUid]);
+
+  const handleStart = async () => {
     setError('');
-    if (!lectureTitle.trim()) {
-      setError('Enter a lecture title.');
+    if (!selected) {
+      setError('Pick a class first.');
       return;
     }
-    if (!selectedCourseId) {
-      setError('Select a course to start a lecture.');
-      return;
-    }
-    if (!selectedSemesterId) {
-      setError('Select a semester to start a lecture.');
-      return;
-    }
-    if (!selectedSubject) {
-      setError('Select a subject for this lecture.');
-      return;
-    }
-
-    const course = selectedCourse;
-    const semester = selectedSemester;
-    const participants = buildParticipantsFromSemester(semester);
+    const participants = buildParticipantsFromSemester(selected.semester);
     if (!participants.length) {
-      setError('Add at least one student to this semester before starting a lecture. Ask your admin to add students under Courses.');
+      setError('This semester has no students yet. Ask your admin to add the class list under Courses.');
       return;
     }
-
     setCreating(true);
     try {
       const now = new Date();
-      const iso = now.toISOString();
-      const courseName = String(course?.name || 'Course').trim();
-      const semesterName = String(semester?.name || 'Semester').trim();
-      const groupLabel = `${courseName} — ${semesterName}`;
-      const subjectLabel = String(selectedSubject || 'Lecture').trim();
-      const titleLabel = String(lectureTitle || '').trim();
-
+      const title =
+        topic.trim() || `${selected.subject} — ${now.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}`;
       const body = {
-        title: titleLabel,
-        agenda: `Lecture for ${groupLabel} · Subject: ${subjectLabel}`,
-        organizer:
-          (profile?.email && String(profile.email).trim()) ||
-          (profile?.username && String(profile.username).trim()) ||
-          'Teacher',
-        scheduledTime: iso,
+        title,
+        agenda: `Lecture for ${selected.label} · Subject: ${selected.subject}`,
+        organizer: (profile?.email && String(profile.email).trim()) || teacherName,
+        scheduledTime: now.toISOString(),
         participants,
         sendNotification: false,
-        authorizedEditorEmail: undefined,
         transcriptionEnabled: true,
-        meetingRoom: groupLabel || 'Live classroom',
-        educationClassroomId: `${course._id}:${semester._id || semesterName}`,
-        educationClassroomName: groupLabel,
-        educationSubject: subjectLabel,
+        meetingRoom: selected.label,
+        educationClassroomId: selected.classroomId,
+        educationClassroomName: selected.label,
+        educationSubject: selected.subject,
         educationTeacherName: teacherName,
-        educationTeacherEmail:
-          String(profile?.email || '').trim().toLowerCase() || undefined,
+        educationTeacherEmail: teacherEmail || undefined,
         summaryMode: 'standard',
       };
-
       const res = await axios.post('/meetings', body, { timeout: 30000 });
-      const meeting = res.data?.meeting;
-      const id = meeting?._id || meeting?.id;
+      const id = res.data?.meeting?._id || res.data?.meeting?.id;
       if (!id) {
-        setError(
-          'Lecture was created but the app did not receive an id. Open it from Recent lectures.'
-        );
+        setError('The lecture was created but did not open. Find it under Recent lectures.');
         return;
       }
-
       navigate(`/meetings/${String(id)}/room`);
     } catch (err) {
       const d = err.response?.data;
-      setError(
-        [d?.error, d?.details].filter(Boolean).join(' — ') ||
-          err.message ||
-          'Could not start lecture.'
-      );
+      setError([d?.error, d?.details].filter(Boolean).join(' — ') || err.message || 'Could not start the lecture.');
     } finally {
       setCreating(false);
     }
   };
 
+  const today = new Date();
+  const firstName = teacherName.replace(/^(dr|prof|mr|mrs|ms)\.?\s+/i, '').split(/\s+/)[0] || teacherName;
+  const honorific = /^(dr|prof)\.?\s/i.test(teacherName) ? teacherName : firstName;
+
   return (
-    <div className="dashboard-screen">
+    <div className="dashboard-screen tdash">
       <div className="dashboard-wrapper">
-        <div className="dashboard-content">
-          <header
-            className="dashboard-hero-minimal ux-dashboard-stagger"
-            style={{ animationDelay: '0ms' }}
-            aria-label="Teacher dashboard"
-          >
-            <h1 className="dashboard-title">Welcome, {teacherName}</h1>
-            <p className="dashboard-subtitle">
-              Start faster. Pick your course, semester, and subject, then begin your lecture in one click.
-            </p>
+        <div className="dashboard-content tdash__content">
+          <header className="tdash__header ux-dashboard-stagger" style={{ animationDelay: '0ms' }}>
+            <div>
+              <p className="tdash__eyebrow">
+                {today.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}
+              </p>
+              <h1 className="tdash__title">
+                {greetingFor(today)}, {honorific}
+              </h1>
+              <p className="tdash__subtitle">
+                {reviewCount > 0
+                  ? `${reviewCount} lecture${reviewCount === 1 ? ' is' : 's are'} ready for your review. Start today's class below.`
+                  : 'Pick a class and go live. Notes, quiz and student recap are written for you.'}
+              </p>
+            </div>
+            <div className="tdash__header-actions">
+              <button type="button" className="tdash__btn tdash__btn--ghost" onClick={() => { setOnboardingStep(0); setOnboardingOpen(true); }}>
+                <HelpCircle size={16} strokeWidth={2} aria-hidden /> Quick tour
+              </button>
+              <button type="button" className="tdash__btn tdash__btn--ghost" onClick={() => navigate('/meetings')}>
+                All {T.meetings().toLowerCase()} <ArrowRight size={15} strokeWidth={2} aria-hidden />
+              </button>
+            </div>
           </header>
 
-          <div className="dashboard-teacher-stats ux-dashboard-stagger" style={{ animationDelay: '20ms' }}>
-            <div className="dashboard-teacher-stat">
-              <span className="dashboard-teacher-stat__ic" aria-hidden>
-                <CalendarDays size={18} strokeWidth={1.75} />
+          {liveNow && (
+            <button type="button" className="tdash__live ux-dashboard-stagger" onClick={() => navigate(liveNow.stage.to)}>
+              <span className="tdash__live-dot" aria-hidden />
+              <Radio size={17} strokeWidth={2} aria-hidden />
+              <span className="tdash__live-text">
+                <strong>{liveNow.m.title || 'Lecture'}</strong> is still live
+                {liveNow.m.educationClassroomName ? ` · ${liveNow.m.educationClassroomName}` : ''}
+              </span>
+              <span className="tdash__live-cta">
+                Rejoin <ArrowRight size={15} strokeWidth={2} aria-hidden />
+              </span>
+            </button>
+          )}
+
+          <div className="tdash__stats ux-dashboard-stagger" style={{ animationDelay: '30ms' }}>
+            <div className="tdash__stat">
+              <span className="tdash__stat-ic" aria-hidden>
+                <CalendarDays size={18} strokeWidth={1.9} />
               </span>
               <div>
-                <div className="dashboard-teacher-stat__value">
-                  {weekLectureCount === null ? '—' : weekLectureCount}
-                </div>
-                <div className="dashboard-teacher-stat__label">Lectures this week</div>
+                <div className="tdash__stat-value">{lecturesLoading ? '—' : weekCount}</div>
+                <div className="tdash__stat-label">Lectures this week</div>
               </div>
             </div>
-            <div className="dashboard-teacher-stat">
-              <span className="dashboard-teacher-stat__ic" aria-hidden>
-                <Target size={18} strokeWidth={1.75} />
+            <div className={`tdash__stat${reviewCount > 0 ? ' is-accent' : ''}`}>
+              <span className="tdash__stat-ic" aria-hidden>
+                <FileCheck2 size={18} strokeWidth={1.9} />
               </span>
               <div>
-                <div className="dashboard-teacher-stat__value">
-                  {quizStats.loading ? '—' : quizStats.avgPct === null ? 'No data' : `${quizStats.avgPct}%`}
-                </div>
-                <div className="dashboard-teacher-stat__label">Avg quiz score</div>
+                <div className="tdash__stat-value">{lecturesLoading ? '—' : reviewCount}</div>
+                <div className="tdash__stat-label">Awaiting your review</div>
               </div>
             </div>
-            <div
-              className={`dashboard-teacher-stat${quizStats.pendingMandatory > 0 ? ' is-alert' : ''}`}
+            <button type="button" className="tdash__stat tdash__stat--link" onClick={() => navigate('/quiz-results')}>
+              <span className="tdash__stat-ic" aria-hidden>
+                <Target size={18} strokeWidth={1.9} />
+              </span>
+              <div>
+                <div className="tdash__stat-value">
+                  {quizStats.loading ? '—' : quizStats.avgPct === null ? '—' : `${quizStats.avgPct}%`}
+                </div>
+                <div className="tdash__stat-label">
+                  Avg quiz score{quizStats.attempts ? ` · ${quizStats.attempts} attempt${quizStats.attempts === 1 ? '' : 's'}` : ''}
+                </div>
+              </div>
+            </button>
+            <button
+              type="button"
+              className={`tdash__stat tdash__stat--link${quizStats.pendingMandatory > 0 ? ' is-alert' : ''}`}
+              onClick={() => navigate('/quiz-results')}
             >
-              <span className="dashboard-teacher-stat__ic" aria-hidden>
-                <AlertCircle size={18} strokeWidth={1.75} />
+              <span className="tdash__stat-ic" aria-hidden>
+                <AlertCircle size={18} strokeWidth={1.9} />
               </span>
               <div>
-                <div className="dashboard-teacher-stat__value">
-                  {quizStats.loading ? '—' : quizStats.pendingMandatory}
+                <div className="tdash__stat-value">{quizStats.loading ? '—' : quizStats.pendingMandatory}</div>
+                <div className="tdash__stat-label">Required quizzes, no attempts</div>
+              </div>
+            </button>
+          </div>
+
+          <div className="tdash__grid">
+            <section className="tdash__card tdash__start ux-dashboard-stagger" style={{ animationDelay: '60ms' }} aria-label="Start a lecture">
+              <div className="tdash__card-head">
+                <div>
+                  <h2 className="tdash__card-title">Start a lecture</h2>
+                  <p className="tdash__card-sub">Choose the class, add today&apos;s topic, go live.</p>
                 </div>
-                <div className="dashboard-teacher-stat__label">Mandatory quizzes with 0 attempts</div>
               </div>
-            </div>
+
+              <p className="tdash__step-label">
+                <span>1</span> Class
+              </p>
+              <div className="tdash__classes" ref={classesRef} role="radiogroup" aria-label="Class">
+                {coursesLoading ? (
+                  [0, 1, 2].map((i) => <div key={i} className="tdash__subject tdash__subject--skeleton" aria-hidden />)
+                ) : classes.length ? (
+                  classes.map((x) => {
+                    const on = x.key === selectedKey;
+                    return (
+                      <button
+                        key={x.key}
+                        type="button"
+                        role="radio"
+                        aria-checked={on}
+                        className={`tdash__subject${on ? ' is-selected' : ''}`}
+                        onClick={() => {
+                          setSelectedKey(on ? '' : x.key);
+                          setError('');
+                        }}
+                      >
+                        <span className="tdash__subject-check" aria-hidden>
+                          {on ? <Check size={13} strokeWidth={3} /> : null}
+                        </span>
+                        <span className="tdash__subject-name">{x.subject}</span>
+                        <span className="tdash__subject-meta">{x.label}</span>
+                        <span className="tdash__subject-foot">
+                          <Users size={13} strokeWidth={2} aria-hidden /> {x.students} student{x.students === 1 ? '' : 's'}
+                          {x.lastTaughtAt ? <em>Taught {relativeDay(new Date(x.lastTaughtAt)).replace(/,.*$/, '').replace(/^(Today|Yesterday)$/, (w) => w.toLowerCase())}</em> : null}
+                        </span>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <div className="tdash__empty">
+                    <BookOpen size={20} strokeWidth={1.8} aria-hidden />
+                    <div>
+                      <strong>No classes assigned yet</strong>
+                      <p>Your admin assigns courses, semesters and subjects to you. Once they do, they appear here.</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <p className="tdash__step-label">
+                <span>2</span> Topic <em>optional</em>
+              </p>
+              <input
+                ref={topicRef}
+                type="text"
+                className="tdash__topic"
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && selected && !creating) handleStart();
+                }}
+                placeholder={selected ? `e.g. ${selected.subject}: introduction and key ideas` : 'e.g. Bias, variance and cross-validation'}
+                maxLength={140}
+              />
+
+              {(coursesError || error) && <div className="tdash__error">{coursesError || error}</div>}
+
+              <div className={`tdash__launch${selected ? ' is-ready' : ''}`}>
+                <div className="tdash__launch-summary">
+                  {selected ? (
+                    <>
+                      <strong>{selected.subject}</strong>
+                      <span>
+                        {selected.label} · {selected.students} student{selected.students === 1 ? '' : 's'} get the recap
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <strong>No class selected</strong>
+                      <span>Pick a class above to start.</span>
+                    </>
+                  )}
+                </div>
+                <button
+                  ref={startButtonRef}
+                  type="button"
+                  className="tdash__btn tdash__btn--primary tdash__btn--lg"
+                  onClick={handleStart}
+                  disabled={!selected || creating}
+                  data-action="start-lecture"
+                >
+                  <PlayCircle size={18} strokeWidth={2} aria-hidden />
+                  {creating ? 'Starting…' : 'Start lecture'}
+                </button>
+              </div>
+            </section>
+
+            <section
+              className="tdash__card tdash__queue ux-dashboard-stagger"
+              style={{ animationDelay: '90ms' }}
+              ref={queueRef}
+              aria-label="Needs your attention"
+            >
+              <div className="tdash__card-head">
+                <div>
+                  <h2 className="tdash__card-title">Needs your attention</h2>
+                  <p className="tdash__card-sub">Review, add a quiz, send to class.</p>
+                </div>
+                {queue.length > 0 && <span className="tdash__count">{queue.length}</span>}
+              </div>
+              {lecturesLoading ? (
+                <div className="tdash__queue-list">
+                  {[0, 1].map((i) => (
+                    <div key={i} className="tdash__queue-item tdash__queue-item--skeleton" aria-hidden />
+                  ))}
+                </div>
+              ) : queue.length ? (
+                <ul className="tdash__queue-list">
+                  {queue.map(({ m, stage }) => (
+                    <li key={m._id}>
+                      <button type="button" className="tdash__queue-item" onClick={() => navigate(stage.to)}>
+                        <span className={`tdash__badge tdash__badge--${stage.key}`}>{stage.label}</span>
+                        <span className="tdash__queue-title">{m.title || 'Untitled lecture'}</span>
+                        <span className="tdash__queue-meta">
+                          {[m.educationSubject, relativeDay(lectureDate(m))].filter(Boolean).join(' · ')}
+                        </span>
+                        <span className="tdash__queue-cta">
+                          {stage.action} <ArrowRight size={14} strokeWidth={2} aria-hidden />
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="tdash__all-clear">
+                  <span className="tdash__all-clear-ic" aria-hidden>
+                    <Check size={18} strokeWidth={2.5} />
+                  </span>
+                  <strong>All caught up</strong>
+                  <p>Every lecture has been sent to its class. New ones appear here as soon as you end them.</p>
+                </div>
+              )}
+            </section>
           </div>
 
-          <section
-            className="dashboard-education-strip dashboard-teacher-shell ux-dashboard-stagger"
-            style={{ animationDelay: '40ms' }}
-          >
-            <div className="dashboard-education-strip__title-row">
-              <span className="dashboard-stat-chip__icon dashboard-teacher-shell__ic" aria-hidden>
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                >
-                  <path d="M3 7.5L12 3l9 4.5-9 4.5-9-4.5z" />
-                  <path d="M7 10.5V15c0 1.8 2.2 3.2 5 3.2s5-1.4 5-3.2v-4.5" />
-                </svg>
-              </span>
-              <h2>Start a lecture</h2>
-            </div>
-            <div className="dashboard-teacher-grid">
-              <div className="dashboard-education-pill dashboard-education-pill--wide dashboard-teacher-card">
-                <span className="dashboard-education-pill__k">Lecture title</span>
-                <input
-                  type="text"
-                  value={lectureTitle}
-                  onChange={(e) => setLectureTitle(e.target.value)}
-                  placeholder="e.g. Algebra Revision - Grade 10"
-                />
+          <section className="tdash__card tdash__recent ux-dashboard-stagger" style={{ animationDelay: '120ms' }} aria-label="Recent lectures">
+            <div className="tdash__card-head">
+              <div>
+                <h2 className="tdash__card-title">Recent lectures</h2>
               </div>
-              <div
-                ref={courseFieldRef}
-                className="dashboard-education-pill dashboard-education-pill--wide dashboard-teacher-card"
-              >
-                <span className="dashboard-education-pill__k">Course</span>
-                <select
-                  value={selectedCourseId}
-                  onChange={(e) => {
-                    setSelectedCourseId(e.target.value);
-                    setSelectedSemesterId('');
-                    setSelectedSubject('');
-                  }}
-                  disabled={coursesLoading}
-                >
-                  <option value="">{coursesLoading ? 'Loading courses…' : 'Select course'}</option>
-                  {courses.map((c) => (
-                    <option key={c._id} value={c._id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div
-                ref={semesterFieldRef}
-                className="dashboard-education-pill dashboard-education-pill--wide dashboard-teacher-card"
-              >
-                <span className="dashboard-education-pill__k">Semester</span>
-                <select
-                  value={selectedSemesterId}
-                  onChange={(e) => {
-                    setSelectedSemesterId(e.target.value);
-                    setSelectedSubject('');
-                  }}
-                  disabled={!semesters.length}
-                >
-                  <option value="">{semesters.length ? 'Select semester' : 'Select course first'}</option>
-                  {semesters.map((s) => (
-                    <option key={s._id} value={s._id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div
-                ref={subjectFieldRef}
-                className="dashboard-education-pill dashboard-education-pill--wide dashboard-teacher-card"
-              >
-                <span className="dashboard-education-pill__k">Subject</span>
-                <select
-                  value={selectedSubject}
-                  onChange={(e) => setSelectedSubject(e.target.value)}
-                  disabled={!subjects.length}
-                >
-                  <option value="">
-                    {subjects.length ? 'Select subject' : 'Select semester first'}
-                  </option>
-                  {subjects.map((subject) => (
-                    <option key={subject} value={subject}>
-                      {subject}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            {coursesError && <div className="start-meeting-error">{coursesError}</div>}
-            {error && <div className="start-meeting-error">{error}</div>}
-
-            <div className="dashboard-start-meeting__actions">
-              <button
-                ref={startButtonRef}
-                type="button"
-                className="dashboard-btn-primary dashboard-btn-primary--hero dashboard-btn-micro"
-                onClick={handleCreateAndStart}
-                disabled={creating}
-              >
-                {creating ? 'Starting…' : 'Start lecture'}
-              </button>
-              <button
-                type="button"
-                className="dashboard-btn-secondary dashboard-btn-micro"
-                onClick={() => setOnboardingOpen(true)}
-              >
-                Quick help
+              <button type="button" className="tdash__link" onClick={() => navigate('/meetings')}>
+                View all <ArrowRight size={14} strokeWidth={2} aria-hidden />
               </button>
             </div>
+            {lecturesError && <div className="tdash__error">{lecturesError}</div>}
+            {lecturesLoading ? (
+              <div className="tdash__table-skeleton" aria-hidden />
+            ) : recent.length ? (
+              <div className="tdash__table-wrap">
+                <table className="tdash__table">
+                  <thead>
+                    <tr>
+                      <th>Lecture</th>
+                      <th>Class</th>
+                      <th>When</th>
+                      <th>Quiz</th>
+                      <th>Status</th>
+                      <th aria-label="Action" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recent.map(({ m, stage }) => {
+                      const qn = (m.quiz?.questions || []).length;
+                      const attempts = (m.quiz?.attempts || []).length;
+                      return (
+                        <tr key={m._id} onClick={() => navigate(stage.to)}>
+                          <td>
+                            <span className="tdash__cell-title">{m.title || 'Untitled lecture'}</span>
+                            <span className="tdash__cell-sub">{m.educationSubject || ''}</span>
+                          </td>
+                          <td className="tdash__cell-muted">{m.educationClassroomName || '—'}</td>
+                          <td className="tdash__cell-muted">{relativeDay(lectureDate(m))}</td>
+                          <td className="tdash__cell-muted">
+                            {qn ? `${attempts} attempt${attempts === 1 ? '' : 's'}${m.quiz?.mandatory ? ' · req.' : ''}` : '—'}
+                          </td>
+                          <td>
+                            <span className={`tdash__badge tdash__badge--${stage.key}`}>{stage.label}</span>
+                          </td>
+                          <td className="tdash__cell-action">
+                            <button
+                              type="button"
+                              className="tdash__link"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(stage.to);
+                              }}
+                            >
+                              {stage.action}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="tdash__empty tdash__empty--wide">
+                <PlayCircle size={20} strokeWidth={1.8} aria-hidden />
+                <div>
+                  <strong>No lectures yet</strong>
+                  <p>Your first lecture shows up here with its notes, quiz and results.</p>
+                </div>
+              </div>
+            )}
           </section>
-
-          <section
-            className="dashboard-education-strip dashboard-teacher-shell ux-dashboard-stagger"
-            style={{ animationDelay: '80ms' }}
-          >
-            <div className="dashboard-education-strip__title-row">
-              <h2>My lecture records</h2>
-            </div>
-            <p className="dashboard-education-strip__hint">
-              Only today&apos;s lectures are listed here.
-            </p>
-            <p className="dashboard-education-strip__hint dashboard-education-strip__hint--emph">
-              Start a new lecture with the form above.
-            </p>
-            <div className="dashboard-start-meeting__actions" style={{ marginBottom: 10 }}>
-              <button
-                type="button"
-                className="dashboard-btn-secondary dashboard-btn-micro"
-                onClick={() => navigate('/meetings')}
-                title={`Same as “${T.meetings()}” in the sidebar — your full archive`}
-              >
-                Go to {T.meetings()}
-              </button>
-            </div>
-            {recordsError && <div className="start-meeting-error">{recordsError}</div>}
-            {recordsLoading ? (
-              <p className="dashboard-education-strip__hint">Loading your lecture records…</p>
-            ) : lectureRecords.length ? (
-              <ul className="dashboard-education-admin-list">
-                {lectureRecords.map((m) => (
-                  <li key={String(m?._id || m?.id || `${m?.title}-${m?.createdAt || ''}`)}>
-                    <span>{m?.title || 'Untitled lecture'}</span>
-                    <small>
-                      {(m?.educationClassroomName || 'Classroom') +
-                        ' · ' +
-                        (m?.educationSubject || 'Subject') +
-                        ' · ' +
-                        formatLectureTime(m) +
-                        ' · ' +
-                        (m?.status || 'Scheduled')}
-                    </small>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </section>
-
-          <div
-            className="dashboard-tip-strip ux-dashboard-stagger"
-            style={{ animationDelay: '120ms' }}
-            role="status"
-            aria-live="polite"
-          >
-            <Lightbulb className="dashboard-tip-strip__ic" strokeWidth={1.5} aria-hidden />
-            <span key={tipIndex} className="dashboard-tip-strip__text ux-dashboard-tip-fade">
-              {TEACHER_FACULTY_TIPS[tipIndex]}
-            </span>
-          </div>
 
           <OnboardingTour
             steps={onboardingSteps}
@@ -621,4 +657,3 @@ export default function TeacherDashboard() {
     </div>
   );
 }
-

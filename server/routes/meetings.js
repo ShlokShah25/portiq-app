@@ -2312,8 +2312,11 @@ router.post('/:id/approve-and-send', async (req, res) => {
     };
 
     const isInterview = meeting.summaryMode === 'interview';
+    // Education: the publish page sends ONE email afterwards (POST /:id/recap/send) with the
+    // link to notes + pages + quiz, so students don't get two emails for one lecture.
+    const skipEmail = isEducationAccount && req.body?.skipEmail === true;
     let emailSent = false;
-    if (!isInterview) {
+    if (!isInterview && !skipEmail) {
       try {
         const result = await sendMeetingSummary(meeting, summaryData, {
           translationLanguage: translation,

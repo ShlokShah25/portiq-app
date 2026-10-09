@@ -873,6 +873,16 @@ const MeetingInProgress = () => {
     });
   };
 
+  // Lectures: once the recording is safely uploaded and the lecture is ended, go straight to the
+  // publish page (notes → quiz → send). The "Lecture ended" card in between was a dead step.
+  useEffect(() => {
+    if (!meetingEnded || !meeting?._id) return;
+    const mode = String(meeting.summaryMode || '');
+    if (mode === 'interview' || mode === 'clinical') return;
+    if (!(meetingHasEducationContext(meeting) || isEducation)) return;
+    navigate(`/meetings/${meeting._id}/summary`, { replace: true });
+  }, [meetingEnded, meeting, navigate]);
+
   if (loading) {
     return (
       <div className="meeting-summary-screen meeting-in-progress">

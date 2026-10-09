@@ -2103,3 +2103,14 @@
 .meeting-summary-practice li .education-markdown-block {
   color: var(--text-primary);
 }
+
+.meeting-summary-subtitle--lecture {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+  color: #5b6785;
+}
+
+.meeting-summary-notes-editor-anchor {
+  scroll-margin-top: 24px;
+}
