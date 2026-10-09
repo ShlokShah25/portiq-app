@@ -807,9 +807,10 @@ publicRouter.post('/:token/ask', async (req, res) => {
     if (!notes && !transcript) {
       return res.status(400).json({ error: 'This lecture has no notes or transcript yet to answer questions from.' });
     }
+    // Transcript first: it is what was actually said. The notes help with structure.
     const context =
-      (notes ? `Lecture notes:\n${notes.slice(0, 10000)}\n\n` : '') +
-      (transcript ? `Transcript excerpt (speech-to-text, may contain mis-heard words):\n${transcript.slice(0, 10000)}` : '');
+      (transcript ? `TRANSCRIPT (speech-to-text, may contain mis-heard words; this is what was taught):\n${transcript.slice(0, 14000)}\n\n` : '') +
+      (notes ? `Lecture notes (summary of the above; if they differ, the transcript wins):\n${notes.slice(0, 8000)}` : '');
 
     const completion = await createChatCompletion({
       model: preferredQuizModel(),
@@ -820,7 +821,7 @@ publicRouter.post('/:token/ask', async (req, res) => {
           role: 'system',
           content:
             'You are a patient teaching assistant answering a student\'s question about ONE specific lecture, using only the lecture ' +
-            'material you are given. Answer the question directly in the first sentence, then explain in two to five short sentences ' +
+            'material you are given — above all what the teacher actually said in the transcript. Answer the question directly in the first sentence, then explain in two to five short sentences ' +
             'the way a good tutor would, using the examples and numbers from this lecture where they help. Plain text only: no ' +
             'markdown, no headings, no bullet symbols. If the material does not cover what they ask, say so plainly in one sentence ' +
             'and suggest they send the question to their teacher; do not guess or bring in outside facts. If they ask for a quiz ' +

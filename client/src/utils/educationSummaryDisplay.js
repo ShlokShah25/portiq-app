@@ -8,7 +8,13 @@ function stripSpeakerPrefixesFromLine(s) {
     prev = t;
     t = t.replace(EDUCATION_SPEAKER_BRACKET_PREFIX, '');
   } while (t !== prev);
-  return t.replace(/\s{2,}/g, ' ').trim();
+  // Collapse runs of spaces only. This used to collapse any 2+ whitespace (/\s{2,}/), which also
+  // wiped out the blank lines Markdown needs — headings, paragraphs and numbered questions all
+  // ran together into one block.
+  return t
+    .replace(/[^\S\n]{2,}/g, ' ')
+    .replace(/[^\S\n]+\n/g, '\n')
+    .trim();
 }
 
 function stripStringArray(arr) {

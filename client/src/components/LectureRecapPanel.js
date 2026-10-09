@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Sparkles, Mail, Loader2, BarChart3, PenLine, Presentation, Check, Link2, ExternalLink, ChevronDown } from 'lucide-react';
+import PageCanvas from './LecturePageCanvas';
 import './LectureRecapPanel.css';
 
 /**
@@ -39,10 +40,10 @@ export default function LectureRecapPanel({ meeting, onQuizGenerated }) {
   const coveredPages = useMemo(() => {
     const slides = (meeting?.slideDeck?.slides || [])
       .filter((s) => !!s.shownAt)
-      .map((s) => ({ type: 'slide', index: s.index, imageUrl: s.imageUrl, at: s.shownAt }));
+      .map((s) => ({ type: 'slide', index: s.index, imageUrl: s.imageUrl, annotations: s.annotations, at: s.shownAt }));
     const wbPages = (meeting?.whiteboard?.pages || [])
       .filter((p) => !!p.touchedAt)
-      .map((p) => ({ type: 'whiteboard', index: p.index, at: p.touchedAt }));
+      .map((p) => ({ type: 'whiteboard', index: p.index, annotations: p.annotations, at: p.touchedAt }));
     return [...slides, ...wbPages].sort((a, b) => new Date(a.at) - new Date(b.at));
   }, [meeting?.slideDeck?.slides, meeting?.whiteboard?.pages]);
   const pageCount = coveredPages.length;
@@ -182,27 +183,17 @@ export default function LectureRecapPanel({ meeting, onQuizGenerated }) {
       {pageCount > 0 && (
         <div className="lecture-recap-panel__pages">
           {coveredPages.map((p, i) => (
-            <div
-              key={`${p.type}-${p.index}`}
-              className="lecture-recap-panel__page-thumb"
-              title={`${i + 1}. ${p.type === 'slide' ? `Slide ${p.index + 1}` : 'Whiteboard'}`}
-            >
-              {p.type === 'slide' ? (
-                <img src={p.imageUrl} alt={`Slide ${p.index + 1}`} loading="lazy" />
-              ) : (
-                <div className="lecture-recap-panel__page-thumb-wb">
-                  <PenLine size={16} strokeWidth={2} aria-hidden />
-                </div>
-              )}
-              <span className="lecture-recap-panel__page-thumb-badge">
+            <figure key={`${p.type}-${p.index}`} className="lecture-recap-panel__page-thumb">
+              <PageCanvas page={p} alt={p.type === 'slide' ? `Slide ${p.index + 1}` : 'Whiteboard page'} />
+              <figcaption>
                 {p.type === 'slide' ? (
-                  <Presentation size={10} strokeWidth={2.5} aria-hidden />
+                  <Presentation size={11} strokeWidth={2.5} aria-hidden />
                 ) : (
-                  <PenLine size={10} strokeWidth={2.5} aria-hidden />
+                  <PenLine size={11} strokeWidth={2.5} aria-hidden />
                 )}
-                {i + 1}
-              </span>
-            </div>
+                {i + 1}. {p.type === 'slide' ? `Slide ${p.index + 1}` : 'Whiteboard'}
+              </figcaption>
+            </figure>
           ))}
         </div>
       )}

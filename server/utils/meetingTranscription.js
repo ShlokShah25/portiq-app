@@ -1138,7 +1138,13 @@ function stripEducationSpeakerLabelsFromSummaryData(summaryData) {
       prev = t;
       t = t.replace(EDUCATION_SPEAKER_BRACKET_PREFIX, '');
     } while (t !== prev);
-    return t.replace(/\s{2,}/g, ' ').trim();
+    // Collapse runs of spaces only — never newlines. This used /\s{2,}/, which also turned every
+    // blank line into a space and destroyed the Markdown structure of the notes (headings glued
+    // to sentences, paragraphs merged, numbered questions on one line).
+    return t
+      .replace(/[^\S\n]{2,}/g, ' ')
+      .replace(/[^\S\n]+\n/g, '\n')
+      .trim();
   };
   const stripArr = (arr) =>
     (Array.isArray(arr) ? arr : [])
@@ -1276,11 +1282,11 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
     : '';
 
   const summarySchemaHint = isEducation
-    ? '"summary": "ONE string in GitHub-flavored Markdown (no raw HTML). This field is ONLY layers 2+3: ## STRUCTURED NOTES then ## DETAILED EXPLANATION. Layer 1 QUICK REVISION is keyPoints only; layer 4 REVISION QUESTIONS is revisionQuestions only—never put those here. STRUCTURED NOTES: after the heading, blank line, then four subsections in order—Definitions:, Objectives:, Functions:, Key Concepts:—each heading on its own line, blank line, then bullets with \\"- \\". One bullet = one idea; keep bullets short (avoid long sentences in bullets—depth goes in DETAILED EXPLANATION). Space sections clearly; never merge headings. **Bold** ONLY key terms on first strong mention (e.g. **Cost Center**) and heading labels if needed—never bold full sentences or entire bullets. GFM pipe tables ONLY for real comparisons (e.g. A vs B); use rows like | Aspect | Type A | Type B |; never force a table for ordinary definitions. If a subsection has nothing: heading then (nothing covered in this session). DETAILED EXPLANATION: after heading, blank line, then short paragraphs (2–4 sentences) with full teaching depth; optional ### mini-headings sparingly; **bold** key terms sparingly; formulas as `inline code` or plain text; blank line between paragraphs. Aim for clean exam notes: easy to skim, conceptually deep, not over-formatted.",'
+    ? '"summary": "ONE string in GitHub-flavored Markdown (no raw HTML). This field is ONLY layers 2+3: ## STRUCTURED NOTES then ## DETAILED EXPLANATION. Layer 1 QUICK REVISION is keyPoints only; layer 4 REVISION QUESTIONS is revisionQuestions only—never put those here. STRUCTURED NOTES: after the heading, blank line, then subsections chosen from Definitions:, Objectives:, Functions:, Key Concepts: (in that order), each heading on its own line, blank line, then bullets with \\"- \\". Include a subsection ONLY when the teacher actually said something that belongs in it; leave out any subsection the transcript gives nothing for (do not write placeholder text and do not invent content to fill it). One bullet = one idea; keep bullets short (avoid long sentences in bullets—depth goes in DETAILED EXPLANATION). Space sections clearly; never merge headings. **Bold** ONLY key terms on first strong mention (e.g. **Cost Center**) and heading labels if needed—never bold full sentences or entire bullets. GFM pipe tables ONLY for real comparisons (e.g. A vs B); use rows like | Aspect | Type A | Type B |; never force a table for ordinary definitions. DETAILED EXPLANATION: after heading, blank line, then short paragraphs (2–4 sentences) with full teaching depth; optional ### mini-headings sparingly; **bold** key terms sparingly; formulas as `inline code` or plain text; blank line between paragraphs. Aim for clean exam notes: easy to skim, conceptually deep, not over-formatted.",'
     : '"summary": "Coherent English narrative (typically 8–16 sentences when the session is substantive). Cover the true business content: context, what changed, key decisions, trade-offs, risks, owners, and expected outcomes. Scale length with transcript depth—not with the calendar title.",';
 
   const keyPointsSchemaHint = isEducation
-    ? '"keyPoints": ["EXACTLY 5–8 strings for QUICK REVISION only (PortIQ layer 1). Each string ONE line, VERY concise; prefer \\"Term = meaning\\" (e.g. Cost Unit = unit used to measure cost). Inline **bold** allowed around the term only—not whole lines. Exam scan / recall only; no explanations or paragraphs (depth is in summary). Match teaching order when possible. No speaker labels."],'
+    ? '"keyPoints": ["5–8 strings for QUICK REVISION only (PortIQ layer 1); fewer if the lecture was short. Each string ONE line, VERY concise; prefer \\"Term = meaning\\" (e.g. Cost Unit = unit used to measure cost), where the meaning is what the teacher said, not a textbook definition. Inline **bold** allowed around the term only—not whole lines. Exam scan / recall only; no explanations or paragraphs (depth is in summary). Match teaching order when possible. No speaker labels."],'
     : '"keyPoints": ["Concrete, execution-focused bullets tied to the transcript; split long analytical discussions into multiple specific bullets when needed"],';
 
   const userElaborationRules = isEducation
@@ -1294,7 +1300,11 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
       `- Put nuanced caveats, unresolved concerns, or dependency risks in importantNotes when they do not fit a crisp key point.\n`;
 
   const userEducationRules = isEducation
-    ? `- PORTIQ four-part mental model: (1) keyPoints = QUICK REVISION, (2)+(3) summary = ## STRUCTURED NOTES then ## DETAILED EXPLANATION, (4) revisionQuestions = REVISION QUESTIONS. Never duplicate questions inside summary.\n` +
+    ? `- TRANSCRIPT ONLY — THIS RULE OVERRIDES EVERY OTHER. The notes are a record of what THIS teacher said in THIS class, not a textbook chapter on the topic. Every definition, explanation, example, number, formula and claim must come from the transcript. Keep the teacher's own wording, examples and order wherever possible.\n` +
+      `- If the teacher only mentioned a term without explaining it, list it as mentioned and do NOT supply a definition or explanation yourself. Never use general-knowledge, textbook or encyclopedia definitions (e.g. do not write "Cross-validation = a technique used to assess how the results of a statistical analysis will generalize…" unless the teacher said that).\n` +
+      `- Length follows the transcript: a short or thin lecture gets short notes. Never pad, generalise or add background the class did not hear. If something said is unclear or cut off, say so briefly rather than guessing.\n` +
+      `- Before writing each bullet or sentence, check that you could point to the place in the transcript it comes from. If you cannot, leave it out.\n` +
+      `- PORTIQ four-part mental model: (1) keyPoints = QUICK REVISION, (2)+(3) summary = ## STRUCTURED NOTES then ## DETAILED EXPLANATION, (4) revisionQuestions = REVISION QUESTIONS. Never duplicate questions inside summary.\n` +
       `- STRUCTURED NOTES: Definitions / Objectives / Functions / Key Concepts—clear spacing between sections; one bullet = one idea; exam-note skim layer without sacrificing coverage.\n` +
       `- Do NOT repeat the same shallow lines in Quick revision and again in Structured notes; Structured notes must add transcript-specific definitions, lists, contrasts, and examples.\n` +
       `- If the instructor named terms, keep those terms; expand only with the instructor’s own elaboration in DETAILED EXPLANATION or structured bullets, not invented theory.\n` +
@@ -1319,20 +1329,6 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
   const coverageMandatoryRule = isEducation
     ? `- Coverage is mandatory: include every substantive teaching move, definition, comparison, example, and clarification—not only topic titles or opening/closing themes.\n`
     : `- Coverage is mandatory: include ALL relevant points that materially affect outcomes, responsibilities, risks, timelines, or scope.\n`;
-
-  // Education only: tell the model which subject and class this is. Speech-to-text regularly
-  // mishears technical vocabulary ("bias variants", "k fold" as "cave old"); knowing the subject
-  // lets the notes use the correct term. It is context for wording, never a source of content.
-  const educationSubjectLabelForPrompt = isEducation ? String(meetingObj.educationSubject || '').trim() : '';
-  const educationClassLabelForPrompt = isEducation ? String(meetingObj.educationClassroomName || '').trim() : '';
-  const educationSubjectContextLine =
-    isEducation && (educationSubjectLabelForPrompt || educationClassLabelForPrompt)
-      ? `Subject: ${educationSubjectLabelForPrompt || 'not given'}` +
-        (educationClassLabelForPrompt ? ` · Class: ${educationClassLabelForPrompt}` : '') +
-        `\n(Use this ONLY to write this subject's technical terms, names and notation correctly. The transcript is speech-to-text and ` +
-        `often mishears specialist words: when a transcribed word is clearly a mis-hearing of a standard term in this subject, write the ` +
-        `standard term. Do not add any topic, definition or example that was not actually said.)\n\n`
-      : '';
 
   // Optional stronger model for lecture notes only (OPENAI_EDUCATION_SUMMARY_MODEL). If OpenAI
   // refuses it (unknown name, no access, unsupported parameter) we drop back to the normal
@@ -1389,7 +1385,6 @@ async function generateMeetingSummaryFromTranscript(transcriptRaw, meeting, opti
           content:
             `Analyze the following SINGLE meeting transcript and generate a structured summary strictly about this meeting only.\n\n` +
               `Calendar / booking title (may be wrong or unrelated—do NOT treat as agenda or topic): ${meetingTitle}\n\n` +
-              educationSubjectContextLine +
               `Meeting time anchor (use for relative deadlines; local calendar dates are in the server timezone): ` +
               `ISO ${anchorRef.toISOString()} · "today/tonight/this evening/EOD" → dueDate ${anchorLocalYmd} · "tomorrow" → ${anchorTomorrowYmd}.\n\n` +
               `Detected primary transcription language: ${detectedLanguage}\n\n` +

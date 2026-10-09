@@ -1954,3 +1954,152 @@
   color: var(--text-primary);
   overflow-wrap: anywhere;
 }
+
+/* —— Education: lecture notes on the teacher's review page ——
+ * Same reading layout students get on the recap page: section labels, real subheadings,
+ * comfortable line length and spacing, bordered tables. */
+.education-markdown-block--notes {
+  font-size: 15.5px;
+  line-height: 1.68;
+  color: var(--text-primary);
+  max-width: 78ch !important;
+}
+
+.education-markdown-block--notes h1,
+.education-markdown-block--notes h2 {
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-blue);
+  margin: 28px 0 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.education-markdown-block--notes h3 {
+  font-size: 16.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 20px 0 8px;
+}
+
+.education-markdown-block--notes h1:first-child,
+.education-markdown-block--notes h2:first-child,
+.education-markdown-block--notes h3:first-child {
+  margin-top: 4px;
+}
+
+.education-markdown-block--notes p {
+  margin: 0 0 12px;
+}
+
+.education-markdown-block--notes ul,
+.education-markdown-block--notes ol {
+  margin: 0 0 14px;
+  padding-left: 22px;
+}
+
+.education-markdown-block--notes li {
+  margin: 0 0 6px;
+}
+
+.education-markdown-block--notes li::marker {
+  color: var(--accent-blue);
+}
+
+.education-markdown-block--notes strong {
+  font-weight: 700;
+}
+
+.education-markdown-block--notes table {
+  border-collapse: collapse;
+  font-size: 14.5px;
+}
+
+.education-markdown-block--notes th,
+.education-markdown-block--notes td {
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  text-align: left;
+  vertical-align: top;
+}
+
+.education-markdown-block--notes th {
+  background: var(--dash-chip-bg, rgba(31, 107, 255, 0.07));
+  font-weight: 700;
+}
+
+/* Quick revision: numbered rows instead of a bare checklist */
+.meeting-summary-section--keypoints .meeting-summary-list--checks.meeting-summary-list--md {
+  display: grid;
+  gap: 8px;
+  counter-reset: quick-rev;
+}
+
+.meeting-summary-section--keypoints .meeting-summary-list--checks.meeting-summary-list--md li {
+  counter-increment: quick-rev;
+  margin: 0;
+  padding: 10px 14px 10px 50px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: var(--dash-chip-bg, rgba(31, 107, 255, 0.05));
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+.meeting-summary-section--keypoints .meeting-summary-list--checks.meeting-summary-list--md li::before {
+  content: counter(quick-rev);
+  background-image: none;
+  position: absolute;
+  left: 14px;
+  top: 10px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-blue);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Revision questions: one card per question */
+.meeting-summary-section--revision {
+  padding: 16px 18px 18px;
+}
+
+.meeting-summary-practice {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.meeting-summary-practice li {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-card);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+.meeting-summary-practice__num {
+  flex: 0 0 auto;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--accent-blue);
+}
+
+.meeting-summary-practice li .education-markdown-block {
+  color: var(--text-primary);
+}

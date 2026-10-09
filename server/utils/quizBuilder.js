@@ -140,7 +140,9 @@ const QUIZ_SYSTEM_PROMPT =
   'Rules for the set:\n' +
   '- Write exactly the number of questions asked for. Each one tests a DIFFERENT idea, and together they cover the lecture from start to finish, not just the opening.\n' +
   '- Mix the levels: about two that check a key definition or fact was understood (easy), two that make the student APPLY an idea to a small new situation or a worked example from the lecture (medium), and one that asks WHY something is true or how two ideas differ (hard).\n' +
-  '- Everything must be answerable from the lecture material given. Do not test outside knowledge, and do not ask about logistics (dates, deadlines, attendance) or about the lecture itself ("what did the teacher discuss first").\n\n' +
+  '- The TRANSCRIPT is the source of truth: test only what the teacher actually said and explained in this class. The notes are a guide to structure and may contain additions or mistakes; when they disagree with the transcript, follow the transcript, and never test something that appears only in the notes.\n' +
+  '- Use the teacher\'s own definitions, examples and numbers. Do not test textbook facts or outside knowledge the class did not hear, and do not ask about logistics (dates, deadlines, attendance) or about the lecture itself ("what did the teacher discuss first").\n' +
+  '- If the lecture covered fewer distinct ideas than questions asked for, test the same idea from different angles rather than bringing in anything that was not taught.\n\n' +
   'Rules for each question:\n' +
   '- The question must stand on its own. Never write "according to the lecture", "as discussed in class" or "in the slide".\n' +
   '- Exactly 4 options, exactly one correct. correctIndex is the 0-based position of the correct option.\n' +
@@ -154,8 +156,8 @@ const QUIZ_SYSTEM_PROMPT =
   '- Write in clear, plain English.';
 
 /**
- * Build the user message. The summary is the cleaned-up structure of the lecture; the transcript
- * excerpt carries the worked examples and exact numbers that make application questions possible.
+ * Build the user message. The transcript goes first and gets the most room: it is what the class
+ * actually heard. The notes come second, as a map of the lecture's structure.
  */
 function buildQuizUserPrompt({ title, subject, summary, keyPoints, transcript, revisionQuestions, count = QUIZ_SIZE, avoid = [] }) {
   const parts = [];
@@ -163,14 +165,14 @@ function buildQuizUserPrompt({ title, subject, summary, keyPoints, transcript, r
   if (subject || title) {
     parts.push(`Subject: ${cleanText(subject) || 'not given'}\nLecture title (may be generic): ${cleanText(title) || 'not given'}`);
   }
-  const kp = Array.isArray(keyPoints) ? keyPoints.map(cleanText).filter(Boolean) : [];
-  if (kp.length) parts.push(`Key points:\n${kp.map((k) => `- ${k}`).join('\n')}`);
-  if (cleanText(summary)) parts.push(`Lecture notes:\n${String(summary).trim().slice(0, 14000)}`);
   if (cleanText(transcript)) {
     parts.push(
-      `Transcript excerpt (speech-to-text, may contain mis-heard words; use it for examples and exact figures):\n${String(transcript).trim().slice(0, 12000)}`
+      `TRANSCRIPT of the lecture (speech-to-text, so some words may be mis-heard; this is what was actually taught):\n${String(transcript).trim().slice(0, 18000)}`
     );
   }
+  const kp = Array.isArray(keyPoints) ? keyPoints.map(cleanText).filter(Boolean) : [];
+  if (kp.length) parts.push(`Key points from the notes (check them against the transcript):\n${kp.map((k) => `- ${k}`).join('\n')}`);
+  if (cleanText(summary)) parts.push(`Lecture notes (structure guide only; the transcript wins if they differ):\n${String(summary).trim().slice(0, 9000)}`);
   if (cleanText(revisionQuestions)) {
     parts.push(`Open-ended revision questions already given to students (cover the same ideas, but do not copy them):\n${String(revisionQuestions).trim().slice(0, 2000)}`);
   }

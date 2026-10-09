@@ -4,15 +4,11 @@ import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeSanitize from 'rehype-sanitize';
-import * as fabric from 'fabric';
 import Skeleton from './Skeleton';
+import PageCanvas, { hasDrawing } from './LecturePageCanvas';
+import { formatLectureNotesMarkdown, splitNumberedItems } from '../utils/lectureNotesFormat';
 import './LectureRecap.css';
 
-// Same fixed drawing space the teacher's Smartboard uses (see Smartboard.js). Each page is
-// zoomed to whatever width it is shown at, so notes sit exactly where the teacher drew them
-// on a phone, a laptop or a projector.
-const STAGE_W = 1000;
-const STAGE_H = 562;
 const IDENTITY_KEY = 'portiq_student_identity_v1';
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
@@ -52,98 +48,6 @@ function launchConfetti() {
   }
   document.body.appendChild(layer);
   setTimeout(() => layer.remove(), 3000);
-}
-
-function hasDrawing(page) {
-  return Boolean(page?.annotations && Array.isArray(page.annotations.objects) && page.annotations.objects.length > 0);
-}
-
-/**
- * One page from the lecture — a slide image or a blank whiteboard page — with the teacher's
- * drawing rendered on top, read-only, at whatever size the box is.
- *
- * The <canvas> is created by hand inside a host <div>. Fabric restyles and (for interactive
- * canvases) re-parents its canvas element; keeping it out of React's tree means React never
- * tries to move a node Fabric has taken over.
- */
-function PageCanvas({ page, alt }) {
-  const stageRef = useRef(null);
-  const hostRef = useRef(null);
-  const [imageFailed, setImageFailed] = useState(false);
-  const isWhiteboard = page.type === 'whiteboard';
-  const annotations = hasDrawing(page) ? page.annotations : null;
-
-  useEffect(() => {
-    setImageFailed(false);
-  }, [page.imageUrl]);
-
-  useEffect(() => {
-    const host = hostRef.current;
-    const stage = stageRef.current;
-    if (!host || !stage || !annotations) return undefined;
-
-    const el = document.createElement('canvas');
-    host.appendChild(el);
-    const canvas = new fabric.StaticCanvas(el, { width: STAGE_W, height: STAGE_H });
-    let gone = false;
-    const abort = typeof AbortController !== 'undefined' ? new AbortController() : null;
-
-    const fit = () => {
-      if (gone) return;
-      const width = Math.round(stage.clientWidth);
-      if (!width) return;
-      const height = Math.round((width * STAGE_H) / STAGE_W);
-      if (canvas.width !== width || canvas.height !== height) canvas.setDimensions({ width, height });
-      canvas.setZoom(width / STAGE_W);
-      canvas.requestRenderAll();
-    };
-
-    canvas
-      .loadFromJSON(annotations, undefined, abort ? { signal: abort.signal } : undefined)
-      .then(fit)
-      .catch(() => {});
-
-    let observer = null;
-    if (typeof ResizeObserver !== 'undefined') {
-      observer = new ResizeObserver(fit);
-      observer.observe(stage);
-    } else {
-      window.addEventListener('resize', fit);
-    }
-
-    return () => {
-      gone = true;
-      if (abort) abort.abort();
-      if (observer) observer.disconnect();
-      else window.removeEventListener('resize', fit);
-      canvas.dispose().catch(() => {});
-      if (el.parentNode) el.parentNode.removeChild(el);
-    };
-  }, [annotations]);
-
-  return (
-    <div
-      ref={stageRef}
-      className={`lecture-recap-page${isWhiteboard ? ' lecture-recap-page--whiteboard' : ''}`}
-      style={{ aspectRatio: `${STAGE_W} / ${STAGE_H}` }}
-    >
-      {isWhiteboard ? (
-        <div className="lecture-recap-page__paper" aria-hidden />
-      ) : imageFailed ? (
-        <div className="lecture-recap-page__missing">This slide's image is no longer available.</div>
-      ) : (
-        <img
-          className="lecture-recap-page__img"
-          src={page.imageUrl}
-          alt={alt}
-          loading="lazy"
-          draggable={false}
-          onError={() => setImageFailed(true)}
-        />
-      )}
-      <div ref={hostRef} className="lecture-recap-page__ink" aria-hidden />
-    </div>
-  );
 }
 
 const pageLabel = (page) => (page.type === 'whiteboard' ? 'Whiteboard' : `Slide ${page.index + 1}`);
@@ -280,37 +184,6 @@ function Markdown({ children }) {
       {children}
     </ReactMarkdown>
   );
-}
-
-/**
- * The summary pipeline writes two shouting section headings ("## STRUCTURED NOTES",
- * "## DETAILED EXPLANATION"). Same content, calmer labels for the student page.
- */
-function tidyNotes(summary) {
-  return (
-    String(summary || '')
-      .replace(/^(#{1,3})\s*STRUCTURED NOTES\s*:?\s*$/gim, '$1 Structured notes')
-      .replace(/^(#{1,3})\s*DETAILED EXPLANATION\s*:?\s*$/gim, '$1 Detailed explanation')
-      // The notes prompt writes its four subsections as bare lines ("Definitions:"), sometimes
-      // bolded. Give them real subheadings so the page has a scannable structure.
-      .replace(/^\s*(?:\*\*)?(Definitions|Objectives|Functions|Key Concepts)\s*:?\s*(?:\*\*)?\s*:?\s*$/gim, '### $1')
-  );
-}
-
-/** "1. Define X\n2. Explain Y" → ["Define X", "Explain Y"]. Falls back to one item per line. */
-function splitRevisionQuestions(text) {
-  const lines = String(text || '')
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter(Boolean);
-  const items = [];
-  lines.forEach((line) => {
-    const m = /^(\d+)[.)]\s+(.*)$/.exec(line) || /^[-*•]\s+(.*)$/.exec(line);
-    if (m) items.push(m[m.length - 1]);
-    else if (items.length && !/^#+\s/.test(line)) items[items.length - 1] += ` ${line}`;
-    else if (!/^#+\s/.test(line) && !/^revision questions:?$/i.test(line)) items.push(line);
-  });
-  return items;
 }
 
 function ScoreRing({ score, total }) {
@@ -863,8 +736,8 @@ export default function LectureRecap() {
     };
   }, [data]);
 
-  const notes = useMemo(() => tidyNotes(data?.summary), [data?.summary]);
-  const revisionItems = useMemo(() => splitRevisionQuestions(data?.revisionQuestions), [data?.revisionQuestions]);
+  const notes = useMemo(() => formatLectureNotesMarkdown(data?.summary), [data?.summary]);
+  const revisionItems = useMemo(() => splitNumberedItems(data?.revisionQuestions), [data?.revisionQuestions]);
   const readMinutes = useMemo(() => {
     const words = String(data?.summary || '')
       .trim()

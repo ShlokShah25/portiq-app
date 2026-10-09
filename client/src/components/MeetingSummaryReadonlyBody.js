@@ -21,6 +21,7 @@ import { FEATURE_INTERVIEW_UI } from '../config/featureFlags';
 import { GoogleCalendarLogo, OutlookLogo } from './CalendarBrandIcons';
 import SpeakerPoolResolveBanner from './SpeakerPoolResolveBanner';
 import EducationMarkdownBlock from './EducationMarkdownBlock';
+import { formatLectureNotesMarkdown, splitNumberedItems } from '../utils/lectureNotesFormat';
 
 /**
  * Read-only summary layout. Use includeSections to render only action items or everything except.
@@ -519,10 +520,10 @@ export default function MeetingSummaryReadonlyBody({
               >
                 <h2 className="meeting-summary-heading meeting-summary-heading--with-icon">
                   <FileText className="meeting-summary-heading-icon" strokeWidth={1.5} aria-hidden />
-                  Structured notes & detailed explanation
+                  Lecture notes
                 </h2>
-                <EducationMarkdownBlock className="education-markdown-block--tight">
-                  {summaryText}
+                <EducationMarkdownBlock className="education-markdown-block--notes">
+                  {formatLectureNotesMarkdown(summaryText)}
                 </EducationMarkdownBlock>
               </section>
             )}
@@ -627,9 +628,22 @@ export default function MeetingSummaryReadonlyBody({
               <ListOrdered className="meeting-summary-heading-icon" strokeWidth={1.5} aria-hidden />
               Revision questions
             </h2>
-            <div className="meeting-summary-revision-body">
-              <EducationMarkdownBlock className="education-markdown-block--tight">{revisionBlock}</EducationMarkdownBlock>
-            </div>
+            {splitNumberedItems(revisionBlock).length > 0 ? (
+              <ol className="meeting-summary-practice">
+                {splitNumberedItems(revisionBlock).map((q, idx) => (
+                  <li key={idx}>
+                    <span className="meeting-summary-practice__num" aria-hidden>
+                      Q{idx + 1}
+                    </span>
+                    <EducationMarkdownBlock className="education-markdown-block--tight">{q}</EducationMarkdownBlock>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <div className="meeting-summary-revision-body">
+                <EducationMarkdownBlock className="education-markdown-block--tight">{revisionBlock}</EducationMarkdownBlock>
+              </div>
+            )}
           </section>
         )}
 
