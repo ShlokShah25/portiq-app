@@ -653,6 +653,28 @@ const meetingSchema = new mongoose.Schema({
     },
   ],
   /**
+   * Anonymous reach of the student recap page. Each browser gets a random id the first
+   * time it opens any recap (kept in its localStorage, no name or email); only a hash of
+   * that id is stored here, so the teacher can see how many students opened this lecture's
+   * notes, and how many opened two or more lectures, without knowing who.
+   * `visitors` is excluded from normal queries (it can be long) — see GET /recap-views/summary.
+   */
+  recapViews: {
+    opens: { type: Number, default: 0 },
+    firstOpenedAt: { type: Date, default: null },
+    lastOpenedAt: { type: Date, default: null },
+    visitors: {
+      type: [
+        {
+          _id: false,
+          v: { type: String, required: true },
+          at: { type: Date, default: Date.now },
+        },
+      ],
+      select: false,
+    },
+  },
+  /**
    * Opaque token granting no-login access to this lecture's student recap page
    * (GET /api/public/lectures/:token). Generated lazily the first time a smartboard
    * feature is used on this meeting — see server/routes/smartboard.js.

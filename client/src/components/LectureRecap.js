@@ -700,6 +700,32 @@ export default function LectureRecap() {
     };
   }, [token]);
 
+  // Anonymous reach count: one open per browser tab session, keyed by a random id this
+  // browser keeps for itself (no name or email). Fire-and-forget; never blocks the page.
+  useEffect(() => {
+    if (!data || !token) return;
+    let visitorId = '';
+    try {
+      visitorId = window.localStorage.getItem('portiq_recap_visitor') || '';
+      if (!visitorId) {
+        visitorId =
+          (window.crypto && typeof window.crypto.randomUUID === 'function' && window.crypto.randomUUID()) ||
+          `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+        window.localStorage.setItem('portiq_recap_visitor', visitorId);
+      }
+    } catch {
+      visitorId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+    }
+    try {
+      const seenKey = `portiq_recap_seen_${token}`;
+      if (window.sessionStorage.getItem(seenKey)) return;
+      window.sessionStorage.setItem(seenKey, '1');
+    } catch {
+      /* storage unavailable: count it anyway */
+    }
+    axios.post(`/public/lectures/${token}/view`, { visitorId }).catch(() => {});
+  }, [data, token]);
+
   useEffect(() => {
     if (data?.title) document.title = `${data.title} · Lecture recap`;
   }, [data?.title]);

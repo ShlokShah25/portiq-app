@@ -101,6 +101,8 @@ export default function TeacherDashboard() {
   const [lecturesLoading, setLecturesLoading] = useState(true);
   const [lecturesError, setLecturesError] = useState('');
   const [quizStats, setQuizStats] = useState({ loading: true, avgPct: null, pendingMandatory: 0, attempts: 0 });
+  // Anonymous recap reach: students per lecture, and students who came back for 2+ lectures.
+  const [reach, setReach] = useState({ byId: {}, students: 0, returning: 0, loaded: false });
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
   const classesRef = useRef(null);
@@ -189,6 +191,31 @@ export default function TeacherDashboard() {
         setQuizStats({ loading: false, avgPct: total > 0 ? Math.round((correct / total) * 100) : null, pendingMandatory, attempts });
       } catch {
         if (!cancelled) setQuizStats({ loading: false, avgPct: null, pendingMandatory: 0, attempts: 0 });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await axios.get('/meetings/recap-views/summary');
+        if (cancelled) return;
+        const byId = {};
+        (Array.isArray(res.data?.lectures) ? res.data.lectures : []).forEach((l) => {
+          byId[String(l.id)] = l.students || 0;
+        });
+        setReach({
+          byId,
+          students: res.data?.totals?.students || 0,
+          returning: res.data?.totals?.studentsWithTwoOrMore || 0,
+          loaded: true,
+        });
+      } catch {
+        if (!cancelled) setReach((r) => ({ ...r, loaded: true }));
       }
     })();
     return () => {
@@ -574,6 +601,12 @@ export default function TeacherDashboard() {
             <div className="tdash__card-head">
               <div>
                 <h2 className="tdash__card-title">Recent lectures</h2>
+                {reach.loaded && reach.students > 0 && (
+                  <p className="tdash__card-sub">
+                    {reach.students} student{reach.students === 1 ? '' : 's'} opened your notes · {reach.returning} came back for 2 or more
+                    lectures
+                  </p>
+                )}
               </div>
               <button type="button" className="tdash__link" onClick={() => navigate('/meetings')}>
                 View all <ArrowRight size={14} strokeWidth={2} aria-hidden />
@@ -590,6 +623,7 @@ export default function TeacherDashboard() {
                       <th>Lecture</th>
                       <th>Class</th>
                       <th>When</th>
+                      <th>Opened by</th>
                       <th>Quiz</th>
                       <th>Status</th>
                       <th aria-label="Action" />
@@ -607,6 +641,9 @@ export default function TeacherDashboard() {
                           </td>
                           <td className="tdash__cell-muted">{m.educationClassroomName || '—'}</td>
                           <td className="tdash__cell-muted">{relativeDay(lectureDate(m))}</td>
+                          <td className="tdash__cell-muted">
+                            {reach.byId[String(m._id)] ? `${reach.byId[String(m._id)]} student${reach.byId[String(m._id)] === 1 ? '' : 's'}` : '—'}
+                          </td>
                           <td className="tdash__cell-muted">
                             {qn ? `${attempts} attempt${attempts === 1 ? '' : 's'}${m.quiz?.mandatory ? ' · req.' : ''}` : '—'}
                           </td>

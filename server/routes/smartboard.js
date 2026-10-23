@@ -552,6 +552,62 @@ teacherRouter.get('/quiz-results/summary', async (req, res) => {
   }
 });
 
+/**
+ * How many students opened each lecture's recap page, counted anonymously (see
+ * Meeting.recapViews). Also returns how many distinct students opened two or more
+ * of this teacher's recaps — the "are they coming back?" number a pilot needs.
+ */
+teacherRouter.get('/recap-views/summary', async (req, res) => {
+  try {
+    const admin = await getAdminFromRequest(req);
+    const filter = { recapToken: { $exists: true }, 'recapViews.opens': { $gt: 0 } };
+    if (admin && admin.username !== 'admin') {
+      filter.adminId = admin._id;
+    }
+    const meetings = await Meeting.find(filter)
+      .select('title educationSubject educationClassroomName startTime createdAt summary recapViews.opens recapViews.firstOpenedAt recapViews.lastOpenedAt recapViews.visitors')
+      .sort({ createdAt: -1 })
+      .limit(300)
+      .lean();
+
+    const lecturesPerVisitor = new Map();
+    const lectures = meetings.map((m) => {
+      const visitors = Array.isArray(m.recapViews?.visitors) ? m.recapViews.visitors : [];
+      const unique = new Set(visitors.map((x) => x.v));
+      unique.forEach((v) => lecturesPerVisitor.set(v, (lecturesPerVisitor.get(v) || 0) + 1));
+      return {
+        id: m._id,
+        title: m.title,
+        subject: m.educationSubject || '',
+        courseName: m.educationClassroomName || '',
+        lectureDate: m.startTime || m.createdAt,
+        notesPublished: Boolean(String(m.summary || '').trim()),
+        opens: m.recapViews?.opens || 0,
+        students: unique.size,
+        firstOpenedAt: m.recapViews?.firstOpenedAt || null,
+        lastOpenedAt: m.recapViews?.lastOpenedAt || null,
+      };
+    });
+
+    let returning = 0;
+    lecturesPerVisitor.forEach((n) => {
+      if (n >= 2) returning += 1;
+    });
+
+    res.json({
+      lectures,
+      totals: {
+        students: lecturesPerVisitor.size,
+        studentsWithTwoOrMore: returning,
+        opens: lectures.reduce((sum, l) => sum + l.opens, 0),
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching recap view summary:', error);
+    res.status(500).json({ error: 'Failed to fetch recap views' });
+  }
+});
+
 /** Explicitly fetch/create this lecture's recap link (e.g. to show a "copy link" button before slides/quiz exist). */
 teacherRouter.get('/:id/recap-link', async (req, res) => {
   try {
@@ -718,6 +774,40 @@ publicRouter.get('/:token', async (req, res) => {
   } catch (error) {
     console.error('Error loading public recap:', error);
     res.status(500).json({ error: 'Failed to load lecture recap' });
+  }
+});
+
+/**
+ * Count one open of the recap page. `visitorId` is a random id the student's browser
+ * made for itself; we keep only a hash of it, never a name or email. Best effort: the
+ * page never waits on or shows an error from this call.
+ */
+const MAX_RECAP_VISITORS = 5000;
+publicRouter.post('/:token/view', async (req, res) => {
+  try {
+    const raw = String(req.body?.visitorId || '');
+    if (!/^[A-Za-z0-9-]{8,64}$/.test(raw)) return res.status(400).json({ error: 'Invalid visitor id' });
+    const v = crypto.createHash('sha256').update(raw).digest('hex').slice(0, 24);
+    const now = new Date();
+
+    const counted = await Meeting.updateOne(
+      { recapToken: req.params.token },
+      { $inc: { 'recapViews.opens': 1 }, $set: { 'recapViews.lastOpenedAt': now } }
+    );
+    if (!counted.matchedCount) return res.status(404).json({ error: 'Not found' });
+
+    await Meeting.updateOne(
+      { recapToken: req.params.token, 'recapViews.firstOpenedAt': null },
+      { $set: { 'recapViews.firstOpenedAt': now } }
+    );
+    await Meeting.updateOne(
+      { recapToken: req.params.token, 'recapViews.visitors.v': { $ne: v } },
+      { $push: { 'recapViews.visitors': { $each: [{ v, at: now }], $slice: -MAX_RECAP_VISITORS } } }
+    );
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Error recording recap view:', error);
+    res.status(500).json({ error: 'Failed to record view' });
   }
 });
 
