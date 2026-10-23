@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PortIQ for Education: every lecture, in the teacher's own words</title>
+<meta name="description" content="Faculty record the lecture. PortIQ writes notes and a short quiz that only contain what was taught, the teacher approves them, and students get one link. Start with a free one-week trial in one division.">
+<meta name="theme-color" content="#f7f9fd">
+<meta property="og:title" content="PortIQ for Education">
+<meta property="og:description" content="Notes and a quiz from every lecture, approved by the teacher, sent to the class as one link. Free one-week trial for departments.">
+<meta property="og:image" content="/site/assets/poster-education.jpg">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" href="/site/assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@600;700;800;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="/site/styles.css">
+<style>
+  /* Education page: the main site's look with the Education amber as its accent. */
+  .edu-hero { padding: clamp(48px, 8vw, 110px) 0 clamp(36px, 5vw, 64px); }
+  .edu-hero .hero__in { gap: clamp(18px, 2.4vw, 28px); }
+  .edu-hero .lede { max-width: 52ch; }
+  .edu-hero #tour { margin-top: clamp(36px, 5vw, 64px); width: 100%; }
+  .pillbtn--amberfill { background: #b45309; box-shadow: 0 18px 40px -16px rgba(180, 83, 9, 0.55); }
+  .pillbtn--amberfill .pillbtn__dot { background: #ffe08a; box-shadow: 0 0 14px #ffe08a; }
+  .textbtn--amber { text-decoration-color: #d97706; }
+
+  .pains { margin-top: clamp(28px, 4vw, 52px); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(18px, 3vw, 40px); }
+  .pains li { padding-top: 18px; border-top: 3px solid var(--ink); color: var(--dim); font-size: 16.5px; }
+  .pains strong { display: block; margin-bottom: 6px; font: 800 21px/1.2 var(--font-display); letter-spacing: -0.015em; color: var(--ink); }
+
+  .how { margin-top: clamp(32px, 5vw, 64px); display: grid; gap: clamp(40px, 7vw, 96px); }
+  .how__row { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: clamp(24px, 5vw, 72px); align-items: center; }
+  .how__row--flip .how__copy { order: 2; }
+  .how__copy { display: grid; gap: 14px; justify-items: start; }
+  .how__copy p { color: var(--dim); font-size: clamp(17px, 1.6vw, 20px); font-weight: 500; max-width: 42ch; }
+  .how__n { width: 52px; height: 52px; border-radius: 16px; display: grid; place-items: center; background: linear-gradient(135deg, #f59e0b, #c2410c); color: #fff; font: 900 26px/1 var(--font-display); box-shadow: 0 16px 30px -12px rgba(194, 65, 12, 0.55); }
+  .how__phone { justify-self: center; }
+
+  .diff { margin-top: clamp(28px, 4vw, 52px); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+  .diff li { display: flex; gap: 14px; align-items: flex-start; padding: clamp(20px, 2.4vw, 28px); border-radius: 22px; background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow-card); color: var(--dim); font-size: 16.5px; line-height: 1.5; }
+  .diff strong { display: block; font: 800 21px/1.2 var(--font-display); letter-spacing: -0.015em; color: var(--ink); margin-bottom: 4px; }
+
+  .trial { margin-top: clamp(28px, 4vw, 52px); display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: clamp(20px, 3vw, 40px); align-items: start; }
+  .trial__steps { display: grid; gap: 14px; counter-reset: t; }
+  .trial__steps li { counter-increment: t; display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 14px; align-items: start; padding: 18px 20px; border-radius: 20px; background: var(--card); border: 1px solid var(--line); color: var(--dim); font-size: 16.5px; }
+  .trial__steps li::before { content: counter(t); width: 44px; height: 44px; border-radius: 13px; display: grid; place-items: center; background: #fff4dc; color: #b45309; font: 900 21px/1 var(--font-display); }
+  .trial__steps strong { display: block; font: 700 19px/1.25 var(--font-display); color: var(--ink); margin-bottom: 2px; }
+  .trial__card { padding: clamp(22px, 3vw, 34px); border-radius: 26px; background: #0b1530; color: #eef2fb; display: grid; gap: 16px; box-shadow: var(--shadow-win); }
+  .trial__card h3 { font: 800 clamp(24px, 2.6vw, 30px)/1.1 var(--font-display); letter-spacing: -0.02em; }
+  .trial__card p, .trial__card li { color: #c9d6f2; font-size: 16.5px; line-height: 1.5; }
+  .trial__card ul { display: grid; gap: 10px; }
+  .trial__card li { position: relative; padding-left: 26px; }
+  .trial__card li::before { content: ""; position: absolute; left: 4px; top: 5px; width: 7px; height: 12px; border: solid #ffc24b; border-width: 0 2.5px 2.5px 0; transform: rotate(42deg); }
+  .trial__card .pillbtn { justify-self: start; background: #f59e0b; color: #0b1530; }
+  .trial__card .pillbtn .pillbtn__dot { background: #0b1530; box-shadow: none; }
+
+  .faq { margin-top: clamp(24px, 3.6vw, 44px); display: grid; gap: 12px; max-width: 860px; }
+  .faq details { border-radius: 18px; background: var(--card); border: 1px solid var(--line); }
+  .faq summary { cursor: pointer; list-style: none; padding: 18px 22px; min-height: 44px; font: 700 19px/1.3 var(--font-display); letter-spacing: -0.01em; display: flex; justify-content: space-between; gap: 16px; }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::after { content: "+"; color: #b45309; font-weight: 800; }
+  .faq details[open] summary::after { content: "–"; }
+  .faq details p { padding: 0 22px 20px; color: var(--dim); font-size: 16.5px; }
+
+  @media (max-width: 900px) {
+    .pains, .diff, .trial, .how__row { grid-template-columns: minmax(0, 1fr); }
+    .how__row--flip .how__copy { order: 0; }
+  }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<div class="backdrop" aria-hidden="true"><i class="blob blob--a"></i><i class="blob blob--b"></i><i class="blob blob--c"></i><i class="dots"></i></div>
+
+<header class="nav" id="top">
+  <div class="nav__in">
+    <a class="brand" href="/" aria-label="PortIQ home">
+      <img src="/site/assets/mark.png" alt="" width="38" height="48">
+      <span class="brand__word">Port<b>IQ</b></span>
+    </a>
+    <button class="nav__toggle" type="button" aria-expanded="false" aria-controls="navlinks">Menu</button>
+    <nav class="nav__links" id="navlinks" aria-label="Main">
+      <a href="#how">How it works</a>
+      <a href="#different">Why PortIQ</a>
+      <a href="#trial">Free trial</a>
+      <a href="#faq">Questions</a>
+      <a class="nav__signin" href="https://meetingassistant.portiqtechnologies.com/admin-login">Faculty sign in</a>
+      <a class="pillbtn pillbtn--amberfill" href="mailto:help@portiqtechnologies.com?subject=Free%20trial%20week%20for%20our%20department"><span class="pillbtn__dot"></span>Book a trial week</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+<section class="edu-hero">
+  <div class="wrap hero__in" style="text-align:center;display:grid;justify-items:center">
+    <p class="eyebrow eyebrow--amber">PortIQ for Education</p>
+    <h1 class="display">Every lecture, <span class="grad-amber">in the teacher’s own words.</span></h1>
+    <p class="lede">Faculty record the lecture on their phone or laptop. PortIQ writes the notes and a short quiz from what was actually taught, the teacher approves them, and the class gets one link.</p>
+    <div class="hero__cta">
+      <a class="pillbtn pillbtn--lg pillbtn--amberfill" href="#trial"><span class="pillbtn__dot"></span>Start with a free trial week</a>
+      <a class="textbtn textbtn--amber" href="#tour" data-play="tourVideo">Watch the 66-second tour</a>
+    </div>
+    <div class="wrap wrap--wide" id="tour" style="width:100%">
+      <figure class="win win--video">
+        <div class="win__bar"><i></i><i></i><i></i><span class="win__url">PortIQ for Education, 66 seconds</span></div>
+        <div class="video" data-video>
+          <video id="tourVideo" preload="none" playsinline controls poster="/site/assets/poster-education.jpg" aria-label="PortIQ for Education tour, 66 seconds, with voiceover">
+            <source src="/site/assets/ad-education.mp4" type="video/mp4">
+          </video>
+          <button class="video__play video__play--amber" type="button" aria-label="Play the Education tour"><span><svg width="30" height="30" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.5-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z"/></svg></span></button>
+        </div>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section class="band" aria-labelledby="pain-h">
+  <div class="wrap">
+    <h2 class="h2" id="pain-h">Half the lecture goes into copying.</h2>
+    <ul class="pains">
+      <li><strong>Students write instead of listen</strong>They copy the board and miss the explanation that made it make sense.</li>
+      <li><strong>An absent day is a lost lecture</strong>Borrowed notes are incomplete, and nobody asks the teacher to repeat a class.</li>
+      <li><strong>Faculty don’t have time for notes</strong>Writing clean notes and a quiz for every lecture is hours nobody has.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="band edu" id="how" aria-labelledby="how-h">
+  <div class="wrap">
+    <p class="eyebrow eyebrow--amber">How it works</p>
+    <h2 class="h2" id="how-h">Teach as usual. <span class="grad-amber">The recap builds itself.</span></h2>
+    <ol class="how">
+      <li class="how__row">
+        <div class="how__copy">
+          <span class="how__n">1</span>
+          <h3 class="h3">Record the lecture</h3>
+          <p>Press record on a phone or laptop. Teach on your slides or the built-in whiteboard, with pen, highlighter and laser pointer. Every page you use is saved.</p>
+        </div>
+        <figure class="win">
+          <div class="win__bar"><i></i><i></i><i></i><span class="win__url">Lecture, live</span></div>
+          <img src="/site/assets/shot-smartboard.webp" alt="Smartboard with a slide on the bias-variance tradeoff, circled and highlighted by the teacher" width="1424" height="1320" loading="lazy">
+        </figure>
+      </li>
+      <li class="how__row how__row--flip">
+        <div class="how__copy">
+          <span class="how__n">2</span>
+          <h3 class="h3">Check it, then send it</h3>
+          <p>When the lecture ends you get the notes, key points and a five-question quiz to review. Edit anything, then send it to the class as one link. Students don’t need an account.</p>
+        </div>
+        <div class="phone how__phone">
+          <div class="phone__screen"><img src="/site/assets/phone-qa.webp" alt="Student recap on a phone: a question about k-fold answered from the lecture, with a link to ask the teacher" width="780" height="1600" loading="lazy"></div>
+        </div>
+      </li>
+      <li class="how__row">
+        <div class="how__copy">
+          <span class="how__n">3</span>
+          <h3 class="h3">See who’s keeping up</h3>
+          <p>Quiz results per student and per question, how many students opened the notes, and the questions they asked about the lecture.</p>
+        </div>
+        <figure class="win">
+          <div class="win__bar"><i></i><i></i><i></i><span class="win__url">Quiz results</span></div>
+          <img src="/site/assets/shot-quizresults.webp" alt="Quiz results table with four students and their scores; one student scored 40%" width="1800" height="747" loading="lazy">
+        </figure>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<section class="band" id="different" aria-labelledby="diff-h">
+  <div class="wrap">
+    <p class="eyebrow eyebrow--amber">Why PortIQ</p>
+    <h2 class="h2" id="diff-h">Notes you can put your name to.</h2>
+    <ul class="diff">
+      <li><span class="checks__ic" aria-hidden="true"></span><div><strong>Only what was taught</strong>Notes are written from the lecture transcript and checked against it. If it wasn’t said in class, it doesn’t go in.</div></li>
+      <li><span class="checks__ic" aria-hidden="true"></span><div><strong>The teacher approves first</strong>Nothing reaches students until the teacher has read it and pressed send.</div></li>
+      <li><span class="checks__ic" aria-hidden="true"></span><div><strong>Made for Indian classrooms</strong>Lectures in English, Hindi or a mix of both are transcribed, and the notes come out in clear English.</div></li>
+      <li><span class="checks__ic" aria-hidden="true"></span><div><strong>Ask the lecture</strong>Students ask a question and get an answer from what was taught. Still stuck? One tap sends it to the teacher.</div></li>
+    </ul>
+  </div>
+</section>
+
+<section class="band edu" id="trial" aria-labelledby="trial-h">
+  <div class="wrap">
+    <p class="eyebrow eyebrow--amber">Free trial week</p>
+    <h2 class="h2" id="trial-h">Try it for one week. <span class="grad-amber">Judge it on the results.</span></h2>
+    <div class="trial">
+      <ol class="trial__steps">
+        <li><div><strong>Pick one division</strong>Two or three faculty, two or three subjects, a normal teaching week. We set up their accounts and show each of them how it works in 10 minutes.</div></li>
+        <li><div><strong>Teach as usual for four days</strong>Faculty record their lectures, check the notes and quiz, and send them to the class. About five minutes per lecture.</div></li>
+        <li><div><strong>Day five: a short quiz and a paper survey</strong>Faculty run an ungraded quiz on the week’s topics and a two-minute anonymous survey. We are never in the classroom.</div></li>
+        <li><div><strong>Get the results on one page</strong>Within two days: quiz scores, how many students opened the notes, what they said, including anything that didn’t work.</div></li>
+      </ol>
+      <aside class="trial__card" aria-label="Trial terms">
+        <h3>What the trial costs: nothing.</h3>
+        <ul>
+          <li>Free for one division for one week</li>
+          <li>Faculty can skip recording any lecture</li>
+          <li>Recordings stay in your department’s account and are deleted when you ask</li>
+          <li>No contract, and nothing is charged afterwards unless you agree in writing</li>
+        </ul>
+        <p>After the trial, pricing is per department, per semester, agreed with you based on what the trial showed.</p>
+        <a class="pillbtn" href="mailto:help@portiqtechnologies.com?subject=Free%20trial%20week%20for%20our%20department"><span class="pillbtn__dot"></span>Book a trial week</a>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="faq" aria-labelledby="faq-h">
+  <div class="wrap">
+    <h2 class="h2" id="faq-h">Questions HoDs ask us</h2>
+    <div class="faq">
+      <details><summary>What do faculty need?</summary><p>A phone or laptop with a browser and a microphone. Nothing to install. A phone on the front desk is enough for most classrooms.</p></details>
+      <details><summary>How accurate are the notes?</summary><p>Notes are built only from the lecture transcript and checked against it, and the teacher reviews every set before it is sent. If something is wrong, the teacher edits it in a few seconds.</p></details>
+      <details><summary>Do students need to sign up?</summary><p>No. Each lecture’s recap is a private link the teacher sends to the class. Students open it on any phone.</p></details>
+      <details><summary>What happens to the recordings?</summary><p>They stay in your department’s PortIQ account. We agree with you how long they are kept, and delete them whenever you ask.</p></details>
+      <details><summary>What does it cost after the trial?</summary><p>Pricing is per department, per semester, and is agreed with you after the trial, before anything is charged.</p></details>
+    </div>
+  </div>
+</section>
+
+<section class="band closing">
+  <div class="wrap">
+    <div class="brand brand--big" aria-hidden="true">
+      <img src="/site/assets/mark.png" alt="" width="95" height="120">
+      <span class="brand__word">Port<b>IQ</b></span>
+    </div>
+    <h2 class="h2">Let students listen. <span class="grad-amber">PortIQ takes the notes.</span></h2>
+    <p><a class="pillbtn pillbtn--lg pillbtn--amberfill" href="mailto:help@portiqtechnologies.com?subject=Free%20trial%20week%20for%20our%20department"><span class="pillbtn__dot"></span>Book a free trial week</a></p>
+  </div>
+</section>
+
+</main>
+
+<footer class="foot">
+  <div class="wrap foot__in">
+    <span>© 2026 PortIQ Technologies</span>
+    <nav aria-label="Footer">
+      <a href="/">PortIQ Workspace</a>
+      <a href="#trial">Free trial</a>
+      <a href="https://meetingassistant.portiqtechnologies.com/admin-login">Faculty sign in</a>
+      <a href="mailto:help@portiqtechnologies.com">help@portiqtechnologies.com</a>
+    </nav>
+  </div>
+</footer>
+
+<script src="/site/main.js" defer></script>
+</body>
+</html>

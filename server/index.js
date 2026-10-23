@@ -84,6 +84,17 @@ const landingStatic = express.static(LANDING_DIR, {
     if (file.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache');
   },
 });
+// Landing assets under /site on every hostname, so marketing pages (e.g. /education) also work on
+// the app's own domain before the root domain's DNS points here.
+app.use('/site', (req, res, next) => {
+  if (/(^|\/)(server\.js|package\.json|README\.md)$/i.test(req.path)) return res.status(404).end();
+  return next();
+}, express.static(LANDING_DIR, { maxAge: '1d', index: false }));
+// PortIQ for Education page: one URL on both the landing domain and the app domain.
+app.get(['/education', '/education/'], (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache');
+  res.sendFile(path.join(LANDING_DIR, 'education.html'));
+});
 app.use((req, res, next) => {
   const host = String(req.headers['x-forwarded-host'] || req.headers.host || '')
     .split(',')[0]
