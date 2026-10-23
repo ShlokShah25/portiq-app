@@ -247,6 +247,8 @@ router.get('/profile', authenticateAdmin, async (req, res) => {
       allowsConferenceBots: !!pc.allowsConferenceBots,
       maxParticipants: pc.maxParticipants,
       maxParticipantsInBook: pc.maxParticipantsInBook,
+      maxDurationMinutes: pc.maxDurationMinutes || null,
+      livePreviewDefault: pc.livePreviewDefault !== false,
       meetingPlatforms: {
         zoom: !!(
           (admin.meetingPlatforms && admin.meetingPlatforms.zoom) ||

@@ -1227,6 +1227,31 @@
   font-weight: 500;
 }
 
+.mip-live-transcript__toggle {
+  min-height: 32px;
+  min-width: 56px;
+  padding: 4px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border, rgba(15, 23, 42, 0.16));
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mip-live-transcript__toggle.is-on {
+  background: rgba(31, 107, 255, 0.12);
+  border-color: rgba(31, 107, 255, 0.4);
+  color: #1f4fd1;
+}
+
+.mip-live-transcript__toggle:focus-visible {
+  outline: 2px solid #1f6bff;
+  outline-offset: 2px;
+}
+
 .mip-live-transcript__body {
   padding: 16px 18px 18px;
   border-radius: 0 0 17px 17px;

@@ -11,8 +11,10 @@ const PLAN_LIMITS = {
     starter: {
       maxParticipants: 10,
       maxParticipantsInBook: 20,
-      maxDurationMinutes: 180, // 3 hours — supports long demos / 2hr sessions
+      maxDurationMinutes: 90, // Workspace Starter: 90 min per meeting keeps the plan's AI cost bounded
       maxConcurrentMeetings: 1,
+      /** On-screen live transcript while recording (an extra transcription pass). Off by default on Starter; users can turn it on per meeting. */
+      livePreviewDefault: false,
       /** Email “also send translated summary” (multi-language outbound) */
       allowsTranslatedSummary: false,
       /** Day-before + overdue action-item reminder emails */
@@ -21,6 +23,7 @@ const PLAN_LIMITS = {
       allowsConferenceBots: true,
     },
     professional: {
+      livePreviewDefault: true,
       maxParticipants: 20,
       maxParticipantsInBook: 40,
       maxDurationMinutes: 180, // 3 hours
@@ -30,6 +33,7 @@ const PLAN_LIMITS = {
       allowsConferenceBots: true,
     },
     business: {
+      livePreviewDefault: true,
       maxParticipants: 30,
       maxParticipantsInBook: 60,
       maxDurationMinutes: 480, // 8 hours
@@ -40,6 +44,7 @@ const PLAN_LIMITS = {
     },
     /** Campuses & enterprises — set manually / contract (no default Razorpay plan) */
     institutional: {
+      livePreviewDefault: true,
       maxParticipants: 200,
       maxParticipantsInBook: 500,
       maxDurationMinutes: 1440, // 24 hours
@@ -79,8 +84,15 @@ function getPlanConstraints(admin) {
     };
   }
 
-  const limits =
-    byProduct[plan] || byProduct[DEFAULT_PLAN] || PLAN_LIMITS.workplace.starter;
+  const limits = {
+    ...(byProduct[plan] || byProduct[DEFAULT_PLAN] || PLAN_LIMITS.workplace.starter),
+  };
+  // Education lectures and labs run long and the live transcript is part of the classroom
+  // experience, so education keeps the 3-hour cap and live preview on at every tier.
+  if (product === 'education') {
+    limits.maxDurationMinutes = Math.max(180, Number(limits.maxDurationMinutes) || 0);
+    limits.livePreviewDefault = true;
+  }
 
   return {
     product,

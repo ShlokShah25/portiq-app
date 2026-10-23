@@ -137,6 +137,13 @@ const MeetingInProgress = () => {
   const [liveTranscript, setLiveTranscript] = useState('');
   const [liveTranscriptEntries, setLiveTranscriptEntries] = useState([]);
   const [liveTranscriptError, setLiveTranscriptError] = useState('');
+  // Live preview is an extra transcription pass shown on screen only; the final notes come from the
+  // full recording. Plans can default it off (Workspace Starter) and the user can switch it per meeting.
+  const [livePreviewOn, setLivePreviewOn] = useState(true);
+  const livePreviewOnRef = useRef(true);
+  useEffect(() => {
+    livePreviewOnRef.current = livePreviewOn;
+  }, [livePreviewOn]);
   const [liveTourOpen, setLiveTourOpen] = useState(false);
   const [liveTourStep, setLiveTourStep] = useState(0);
   const mediaRecorderRef = React.useRef(null);
@@ -322,6 +329,14 @@ const MeetingInProgress = () => {
         const res = await axios.get('/admin/profile');
         const productType = res.data?.admin?.productType || 'workplace';
         const plan = (res.data?.admin?.plan || 'starter').toLowerCase();
+        if (typeof res.data?.admin?.livePreviewDefault === 'boolean') {
+          setLivePreviewOn(res.data.admin.livePreviewDefault);
+        }
+        const serverCap = Number(res.data?.admin?.maxDurationMinutes);
+        if (Number.isFinite(serverCap) && serverCap > 0) {
+          setMaxDurationMinutes(serverCap);
+          return;
+        }
 
         // Mirror planConstraints.js (workplace + education use the same tier caps for now).
         if (productType === 'workplace' || productType === 'education') {
@@ -482,6 +497,7 @@ const MeetingInProgress = () => {
       }
 
       function enqueueLiveTranscriptChunk(blob) {
+        if (!livePreviewOnRef.current) return;
         liveQueue.push(blob);
         void flushLiveTranscriptQueue();
       }
@@ -1146,8 +1162,21 @@ const MeetingInProgress = () => {
                         Live transcript
                       </span>
                       <span className="mip-live-transcript__hint">Preview · may differ from final</span>
+                      <button
+                        type="button"
+                        className={`mip-live-transcript__toggle${livePreviewOn ? ' is-on' : ''}`}
+                        aria-pressed={livePreviewOn}
+                        onClick={() => setLivePreviewOn((v) => !v)}
+                      >
+                        {livePreviewOn ? 'On' : 'Off'}
+                      </button>
                     </div>
-                    {paused ? (
+                    {!livePreviewOn ? (
+                      <p className="mip-live-transcript__placeholder">
+                        Live transcript is off. Recording continues and your notes are unaffected; switch it on to watch the
+                        words appear as you speak.
+                      </p>
+                    ) : paused ? (
                       <p className="mip-live-transcript__paused-msg">
                         Paused — preview resumes when you resume recording.
                       </p>
