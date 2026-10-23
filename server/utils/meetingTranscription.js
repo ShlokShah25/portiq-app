@@ -3075,18 +3075,39 @@ async function transcribeLiveChunkFile(audioPath, opts = {}) {
       ? 'auto'
       : String(liveLangRaw).trim().toLowerCase();
 
-  const createParams = {
-    file: fs.createReadStream(whisperPath),
-    model: process.env.OPENAI_TRANSCRIPTION_MODEL || 'whisper-1',
-    temperature: 0,
-    response_format: 'json',
-    prompt: buildLiveChunkPrompt(opts),
+  // Cost: the live preview is only shown on screen while recording; the stored transcript and
+  // notes come from the full-audio pass on /end. So the preview runs on the cheaper
+  // gpt-4o-mini-transcribe (about half of whisper-1 per minute) and falls back to the
+  // full-pass model if that model is unavailable on the account.
+  const fallbackLiveModel = process.env.OPENAI_TRANSCRIPTION_MODEL || 'whisper-1';
+  const liveModel = String(process.env.OPENAI_LIVE_TRANSCRIPTION_MODEL || 'gpt-4o-mini-transcribe').trim() || fallbackLiveModel;
+  const buildParams = (model) => {
+    const params = {
+      file: fs.createReadStream(whisperPath),
+      model,
+      temperature: 0,
+      response_format: 'json',
+      prompt: buildLiveChunkPrompt(opts),
+    };
+    if (liveLang && liveLang !== 'auto') {
+      params.language = liveLang;
+    }
+    return params;
   };
-  if (liveLang && liveLang !== 'auto') {
-    createParams.language = liveLang;
-  }
   try {
-    const transcription = await openai.audio.transcriptions.create(createParams);
+    let transcription;
+    try {
+      transcription = await openai.audio.transcriptions.create(buildParams(liveModel));
+    } catch (modelErr) {
+      const m = String(modelErr?.message || '').toLowerCase();
+      const status = Number(modelErr?.status || 0);
+      const modelProblem =
+        liveModel !== fallbackLiveModel &&
+        (status === 404 || status === 403 || m.includes('model') || m.includes('does not exist') || m.includes('not supported'));
+      if (!modelProblem) throw modelErr;
+      console.warn(`live-chunk: ${liveModel} unavailable (${modelErr?.message || status}); using ${fallbackLiveModel}`);
+      transcription = await openai.audio.transcriptions.create(buildParams(fallbackLiveModel));
+    }
     let text = transcription && transcription.text ? String(transcription.text) : '';
     text = text.trim();
     if (isLikelyWhisperHallucination(text, { liveChunk: true })) {
