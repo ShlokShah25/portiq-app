@@ -47,6 +47,7 @@ function userPayload(admin) {
     plan: (admin.plan || 'starter').toLowerCase(),
     productType: (admin.productType || 'workplace').toLowerCase(),
     hasActiveSubscription: !!admin.hasActiveSubscription,
+    complimentaryAccess: !!admin.complimentaryAccess,
     trialMeetingsUsed: Number(admin.trialMeetingsUsed) || 0,
     trialMeetingsRemaining: trialRemaining,
     isTrialing: trialing,
@@ -85,6 +86,12 @@ router.post('/signup', async (req, res) => {
     if (pt === 'cura') {
       admin.complimentaryAccess = true;
       admin.plan = admin.plan || 'professional';
+    }
+    // Education is free while we onboard the first colleges: full access on the
+    // institutional plan, no payment. Set EDUCATION_FREE_SIGNUP=false to turn it off.
+    if (pt === 'education' && process.env.EDUCATION_FREE_SIGNUP !== 'false') {
+      admin.complimentaryAccess = true;
+      admin.plan = 'institutional';
     }
     if (!admin.plan) {
       admin.plan = 'starter';
