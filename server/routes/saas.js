@@ -68,15 +68,22 @@ router.post('/signup', async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // Upsert admin with given username
-    let admin = await Admin.findOne({ username });
-    const isNew = !admin;
-    if (!admin) {
-      admin = new Admin({ username, password });
-      admin.hasActiveSubscription = false; // no dashboard access until they subscribe
-    } else {
-      admin.password = password;
+    // Signup only creates new accounts. It must never touch an existing one:
+    // updating here would let anyone reset another user's password by "signing up"
+    // with their username or email.
+    const emailNorm = String(email).trim().toLowerCase();
+    const existing = await Admin.findOne({
+      $or: [{ username }, { email: emailNorm }, { username: emailNorm }],
+    });
+    if (existing) {
+      return res.status(409).json({
+        error: 'An account with this username or email already exists. Please sign in instead.',
+        code: 'ACCOUNT_EXISTS',
+      });
     }
+    let admin = new Admin({ username, password });
+    const isNew = true;
+    admin.hasActiveSubscription = false; // no dashboard access until they subscribe
 
     // Persist chosen product type and default plan for SaaS signup
     admin.email = email.toLowerCase();
