@@ -49,6 +49,7 @@ const CoursesPage = lazyWithRetry(() => import('./components/CoursesPage'), 'cou
 const CourseDetailPage = lazyWithRetry(() => import('./components/CourseDetailPage'), 'course-detail');
 const TeachersPage = lazyWithRetry(() => import('./components/TeachersPage'), 'teachers');
 const QuizResultsPage = lazyWithRetry(() => import('./components/QuizResultsPage'), 'quiz-results');
+const SemesterReportPage = lazyWithRetry(() => import('./components/SemesterReportPage'), 'semester-report');
 const Settings = lazyWithRetry(() => import('./components/Settings'), 'settings');
 const MeetingInProgress = lazyWithRetry(() => import('./components/MeetingInProgress'), 'meeting-room');
 const MeetingDetail = lazyWithRetry(() => import('./components/MeetingDetail'), 'meeting-detail');
@@ -255,6 +256,7 @@ function App() {
               <Route path="transcripts" element={<Transcripts />} />
               <Route path="participants" element={<Participants />} />
               <Route path="insights" element={<Insights />} />
+              <Route path="courses/:courseId/semesters/:semId/report" element={<SemesterReportPage />} />
               <Route path="courses/:courseId" element={<CourseDetailPage />} />
               <Route path="courses" element={<CoursesPage />} />
               <Route path="teachers" element={<TeachersPage />} />

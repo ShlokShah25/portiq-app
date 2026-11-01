@@ -33,3 +33,11 @@ export async function deleteCourse(id) {
   await axios.delete(`/courses/${encodeURIComponent(id)}`);
   return true;
 }
+
+export async function getSemesterReport(courseId, semId, { from, to } = {}) {
+  const res = await axios.get(
+    `/courses/${encodeURIComponent(courseId)}/semesters/${encodeURIComponent(semId)}/report`,
+    { params: { from: from || undefined, to: to || undefined } }
+  );
+  return res.data;
+}

@@ -475,6 +475,11 @@ const meetingSchema = new mongoose.Schema({
     type: Date,
     default: null,
   },
+  /** Education: last time the recap email went to the class (semester report). */
+  recapSentAt: {
+    type: Date,
+    default: null,
+  },
   /** Set when clinician approves clinical summary before patient send */
   clinicalSummaryReviewedAt: {
     type: Date,

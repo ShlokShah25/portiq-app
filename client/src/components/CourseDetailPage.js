@@ -385,6 +385,11 @@ const CourseDetailPage = () => {
                     style={{ maxWidth: 260 }}
                   />
                   <div className="classes-actions-cell">
+                    {/^[a-f0-9]{24}$/i.test(String(s.rowKey)) ? (
+                      <Link className="classes-btn-sm" to={`/courses/${courseId}/semesters/${s.rowKey}/report`}>
+                        Semester report
+                      </Link>
+                    ) : null}
                     <button
                       type="button"
                       className="classes-btn-sm"

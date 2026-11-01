@@ -697,6 +697,8 @@ teacherRouter.post('/:id/recap/send', async (req, res) => {
     if (sent === 0) {
       return res.status(502).json({ error: 'The recap email could not be sent. Check the email settings and try again.', recapUrl: url });
     }
+    // Recorded for the semester report (learning material delivered to students).
+    await Meeting.updateOne({ _id: meeting._id }, { $set: { recapSentAt: new Date() } }).catch(() => {});
     res.json({ success: true, recapUrl: url, sent, total: Math.max(students.length, 1), failed });
   } catch (error) {
     console.error('Error sending recap email:', error);

@@ -234,6 +234,146 @@ router.delete('/:id', authenticateAdmin, async (req, res) => {
   }
 });
 
+
+/**
+ * Semester report for accreditation (NAAC / NBA): everything PortIQ recorded for one
+ * course semester in a date range — lectures and teaching hours, learning material
+ * shared, student reach, quiz participation and scores, and student questions —
+ * per subject, per faculty member and per lecture. Admin/super_admin only.
+ * GET /api/courses/:id/semesters/:semId/report?from=YYYY-MM-DD&to=YYYY-MM-DD
+ */
+router.get('/:id/semesters/:semId/report', authenticateAdmin, async (req, res) => {
+  try {
+    if (!canManageCourses(req.admin)) {
+      return res.status(403).json({ error: 'Only college admins can download semester reports.' });
+    }
+    const course = await Course.findOne({ _id: req.params.id, isActive: true }).lean();
+    if (!course) return res.status(404).json({ error: 'Course not found.' });
+    const ownerId = ownerAdminIdFor(req.admin);
+    if (String(req.admin.role || '').toLowerCase() !== 'super_admin' && String(course.createdByAdminId) !== String(ownerId)) {
+      return res.status(403).json({ error: 'You do not have access to this course.' });
+    }
+    const semester = (course.semesters || []).find((s) => String(s._id) === String(req.params.semId));
+    if (!semester) return res.status(404).json({ error: 'Semester not found.' });
+
+    const parseDate = (v, end) => {
+      if (!v) return null;
+      const d = new Date(`${v}T${end ? '23:59:59' : '00:00:00'}+05:30`);
+      return Number.isNaN(d.getTime()) ? null : d;
+    };
+    const to = parseDate(req.query.to, true) || new Date();
+    const from = parseDate(req.query.from, false) || new Date(to.getTime() - 183 * 24 * 3600 * 1000);
+
+    const Meeting = require('../models/Meeting');
+    const Admin = require('../models/Admin');
+    const owner = course.createdByAdminId;
+    const faculty = await Admin.find({ managedByAdminId: owner }).select('_id username email').lean();
+    const facultyIds = [owner, ...faculty.map((f) => f._id)];
+
+    const meetings = await Meeting.find({
+      adminId: { $in: facultyIds },
+      educationClassroomId: `${course._id}:${semester._id}`,
+      $or: [{ startTime: { $gte: from, $lte: to } }, { startTime: null, createdAt: { $gte: from, $lte: to } }],
+    })
+      .select('title educationSubject educationTeacherName educationTeacherEmail startTime endTime createdAt status summary educationSummaryTeacherReviewedAt recapSentAt whiteboard.pages quiz studentQuestions recapViews.opens recapViews.visitors participants')
+      .sort({ startTime: 1, createdAt: 1 })
+      .lean();
+
+    const roster = new Set((semester.studentRoster || []).map((s) => s.email));
+    const rosterSize = roster.size;
+    const lecturesPerVisitor = new Map();
+    const quizTakersAll = new Set();
+    const round1 = (n) => Math.round(n * 10) / 10;
+
+    const lectures = meetings.map((m) => {
+      const start = m.startTime || m.createdAt;
+      const mins = m.startTime && m.endTime ? Math.max(0, (new Date(m.endTime) - new Date(m.startTime)) / 60000) : 0;
+      const visitors = new Set((m.recapViews?.visitors || []).map((x) => x.v));
+      visitors.forEach((v) => lecturesPerVisitor.set(v, (lecturesPerVisitor.get(v) || 0) + 1));
+      const attempts = m.quiz?.attempts || [];
+      const takers = new Set(attempts.map((a) => a.studentEmail || a.studentName).filter(Boolean));
+      takers.forEach((t) => quizTakersAll.add(t));
+      const pct = attempts.length
+        ? attempts.reduce((s, a) => s + (a.total ? a.score / a.total : 0), 0) / attempts.length * 100
+        : null;
+      const qs = m.studentQuestions || [];
+      return {
+        id: m._id,
+        date: start,
+        title: m.title || '',
+        subject: m.educationSubject || 'Unassigned',
+        faculty: m.educationTeacherName || m.educationTeacherEmail || '',
+        minutes: Math.round(mins),
+        notesPublished: Boolean(String(m.summary || '').trim()) && Boolean(m.educationSummaryTeacherReviewedAt || m.recapSentAt),
+        sentToStudents: Boolean(m.recapSentAt),
+        boardPages: (m.whiteboard?.pages || []).length,
+        quizQuestions: (m.quiz?.questions || []).length,
+        quizAttempts: attempts.length,
+        quizStudents: takers.size,
+        quizAvgPct: pct == null ? null : round1(pct),
+        studentsReached: visitors.size,
+        questionsAsked: qs.length,
+        questionsToTeacher: qs.filter((q) => q.escalated).length,
+      };
+    });
+
+    const group = (key) => {
+      const map = new Map();
+      lectures.forEach((l) => {
+        const k = l[key] || '—';
+        const g = map.get(k) || { name: k, lectures: 0, minutes: 0, published: 0, sent: 0, quizzes: 0, attempts: 0, pctSum: 0, pctN: 0, reached: 0, questions: 0 };
+        g.lectures += 1; g.minutes += l.minutes; g.published += l.notesPublished ? 1 : 0; g.sent += l.sentToStudents ? 1 : 0;
+        g.quizzes += l.quizQuestions ? 1 : 0; g.attempts += l.quizAttempts; g.questions += l.questionsAsked;
+        g.reached += l.studentsReached;
+        if (l.quizAvgPct != null) { g.pctSum += l.quizAvgPct * l.quizAttempts; g.pctN += l.quizAttempts; }
+        map.set(k, g);
+      });
+      return [...map.values()].map((g) => ({
+        name: g.name, lectures: g.lectures, hours: round1(g.minutes / 60), notesPublished: g.published, sentToStudents: g.sent,
+        quizzes: g.quizzes, quizAttempts: g.attempts, quizAvgPct: g.pctN ? round1(g.pctSum / g.pctN) : null,
+        avgStudentsReached: g.lectures ? round1(g.reached / g.lectures) : 0, questionsAsked: g.questions,
+      }));
+    };
+
+    let returning = 0;
+    lecturesPerVisitor.forEach((n) => { if (n >= 2) returning += 1; });
+    const totalMinutes = lectures.reduce((s, l) => s + l.minutes, 0);
+    const allAttempts = lectures.reduce((s, l) => s + l.quizAttempts, 0);
+    const weighted = lectures.reduce((s, l) => s + (l.quizAvgPct != null ? l.quizAvgPct * l.quizAttempts : 0), 0);
+
+    res.json({
+      college: req.admin.organizationName || '',
+      course: { id: course._id, name: course.name },
+      semester: { id: semester._id, name: semester.name, subjects: semester.subjects || [], rosterSize },
+      period: { from, to },
+      generatedAt: new Date(),
+      totals: {
+        lectures: lectures.length,
+        teachingHours: round1(totalMinutes / 60),
+        subjectsCovered: new Set(lectures.map((l) => l.subject)).size,
+        facultyActive: new Set(lectures.map((l) => l.faculty).filter(Boolean)).size,
+        notesPublished: lectures.filter((l) => l.notesPublished).length,
+        sentToStudents: lectures.filter((l) => l.sentToStudents).length,
+        boardPages: lectures.reduce((s, l) => s + l.boardPages, 0),
+        quizzes: lectures.filter((l) => l.quizQuestions).length,
+        quizAttempts: allAttempts,
+        quizStudents: quizTakersAll.size,
+        quizAvgPct: allAttempts ? round1(weighted / allAttempts) : null,
+        studentsReached: lecturesPerVisitor.size,
+        returningStudents: returning,
+        questionsAsked: lectures.reduce((s, l) => s + l.questionsAsked, 0),
+        questionsToTeacher: lectures.reduce((s, l) => s + l.questionsToTeacher, 0),
+      },
+      bySubject: group('subject'),
+      byFaculty: group('faculty'),
+      lectures,
+    });
+  } catch (error) {
+    console.error('Error building semester report:', error);
+    res.status(500).json({ error: 'Failed to build the semester report.' });
+  }
+});
+
 module.exports = router;
 module.exports.MAX_COURSES = MAX_COURSES;
 module.exports.MAX_SEMESTERS_PER_COURSE = MAX_SEMESTERS_PER_COURSE;
