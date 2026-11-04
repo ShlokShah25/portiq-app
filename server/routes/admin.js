@@ -583,6 +583,53 @@ router.put('/password', authenticateAdmin, async (req, res) => {
 });
 
 /**
+ * Change username (in-app profile). Requires the current password.
+ * Auth tokens carry the account id, so existing sessions keep working.
+ */
+router.put('/username', authenticateAdmin, async (req, res) => {
+  try {
+    const newUsername = String(req.body?.newUsername || '').trim();
+    const currentPassword = String(req.body?.currentPassword || '');
+    if (!newUsername || !currentPassword) {
+      return res.status(400).json({ error: 'New username and current password are required.' });
+    }
+    if (!/^[A-Za-z0-9._-]{3,40}$/.test(newUsername)) {
+      return res.status(400).json({
+        error: 'Username must be 3–40 characters: letters, numbers, dots, dashes or underscores.',
+      });
+    }
+    const admin = await Admin.findById(req.admin._id);
+    if (!admin) return res.status(404).json({ error: 'Account not found.' });
+    // "admin" is the legacy super-account name and grants wider access: never rename to or from it.
+    if (String(admin.username).toLowerCase() === 'admin' || newUsername.toLowerCase() === 'admin') {
+      return res.status(400).json({ error: 'This username cannot be used.' });
+    }
+    if (newUsername === admin.username) {
+      return res.status(400).json({ error: 'That is already your username.' });
+    }
+    if (!(await admin.comparePassword(currentPassword))) {
+      return res.status(401).json({ error: 'Current password is incorrect.' });
+    }
+    const lower = newUsername.toLowerCase();
+    const taken = await Admin.findOne({
+      _id: { $ne: admin._id },
+      $or: [{ username: newUsername }, { username: lower }, { email: lower }],
+    }).lean();
+    if (taken) {
+      return res.status(409).json({ error: 'That username is already taken.' });
+    }
+    await Admin.updateOne({ _id: admin._id }, { $set: { username: newUsername } });
+    return res.json({ success: true, username: newUsername });
+  } catch (error) {
+    if (error && error.code === 11000) {
+      return res.status(409).json({ error: 'That username is already taken.' });
+    }
+    console.error('Change username error:', error);
+    return res.status(500).json({ error: 'Failed to change username.' });
+  }
+});
+
+/**
  * Get dashboard stats
  */
 router.get('/stats', authenticateAdmin, async (req, res) => {

@@ -49,6 +49,11 @@ const Settings = () => {
   const [passwordMessage, setPasswordMessage] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
+  const [newUsername, setNewUsername] = useState('');
+  const [usernamePassword, setUsernamePassword] = useState('');
+  const [usernameMessage, setUsernameMessage] = useState('');
+  const [usernameError, setUsernameError] = useState('');
+  const [changingUsername, setChangingUsername] = useState(false);
   const [cancellingSubscription, setCancellingSubscription] = useState(false);
   const [cancelMessage, setCancelMessage] = useState('');
   const [cancelError, setCancelError] = useState('');
@@ -162,6 +167,33 @@ const Settings = () => {
     }
   };
 
+  const handleChangeUsername = async (e) => {
+    e.preventDefault();
+    setUsernameMessage('');
+    setUsernameError('');
+    const next = newUsername.trim();
+    if (!next || !usernamePassword) {
+      setUsernameError('Enter a new username and your current password.');
+      return;
+    }
+    if (!/^[A-Za-z0-9._-]{3,40}$/.test(next)) {
+      setUsernameError('Use 3–40 characters: letters, numbers, dots, dashes or underscores.');
+      return;
+    }
+    try {
+      setChangingUsername(true);
+      const res = await axios.put('/admin/username', { newUsername: next, currentPassword: usernamePassword });
+      setUsername(res.data?.username || next);
+      setUsernameMessage('Username updated. Use it the next time you sign in.');
+      setNewUsername('');
+      setUsernamePassword('');
+    } catch (err) {
+      setUsernameError(err.response?.data?.error || 'Unable to change username. Please try again.');
+    } finally {
+      setChangingUsername(false);
+    }
+  };
+
   const handleCancelSubscription = async () => {
     if (!window.confirm('Cancel your subscription? You will lose dashboard access and no further payments will be taken.'))
       return;
@@ -262,6 +294,47 @@ const Settings = () => {
                         </div>
                       ) : null}
                     </div>
+                  </div>
+                </div>
+
+                <div className="settings-divider" />
+
+                <div className="settings-panel-row settings-panel-row--stack">
+                  <div className="settings-panel-row__meta">
+                    <h3 className="settings-panel-row__title">Username</h3>
+                    <p className="settings-panel-row__desc">Change the name you sign in with. Your email, courses and lectures stay the same.</p>
+                  </div>
+                  <div className="settings-panel-row__control">
+                    <form className="profile-password-form profile-password-card" onSubmit={handleChangeUsername}>
+                      <div className="profile-field-group">
+                        <label htmlFor="settings-new-username">New username</label>
+                        <input
+                          id="settings-new-username"
+                          type="text"
+                          value={newUsername}
+                          onChange={(e) => setNewUsername(e.target.value)}
+                          placeholder={username}
+                          autoComplete="username"
+                          spellCheck={false}
+                        />
+                      </div>
+                      <div className="profile-field-group">
+                        <label htmlFor="settings-username-password">{L('settings.currentPassword')}</label>
+                        <input
+                          id="settings-username-password"
+                          type="password"
+                          value={usernamePassword}
+                          onChange={(e) => setUsernamePassword(e.target.value)}
+                          placeholder={L('settings.currentPasswordPh')}
+                          autoComplete="current-password"
+                        />
+                      </div>
+                      {usernameError && <div className="profile-password-error">{usernameError}</div>}
+                      {usernameMessage && <div className="profile-password-success">{usernameMessage}</div>}
+                      <button type="submit" className="profile-save-password-btn" disabled={changingUsername}>
+                        {changingUsername ? L('settings.updating') : 'Change username'}
+                      </button>
+                    </form>
                   </div>
                 </div>
 
